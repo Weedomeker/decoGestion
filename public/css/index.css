@@ -1,0 +1,38 @@
+body {
+  padding: 5% 25%;
+  background-color: rgb(49, 49, 49);
+  color: #fefefe;
+}
+
+
+label {
+  text-transform: capitalize;
+}
+
+.ui.form .field>label {
+  color: #fefefe;
+  font-weight: normal;
+}
+
+.result {
+  align-content: center;
+  min-height: 100px;
+  font-size: 14px;
+  font-family: Arial, Helvetica, sans-serif;
+  text-transform: initial;
+  font-weight: bold;
+}
+
+.valeurs {
+  color: lightslategrey;
+  text-transform: lowercase;
+  font-size: 12px;
+}
+
+.comment {
+  font-family: Arial, Helvetica, sans-serif;
+  color: rgb(77, 76, 76);
+  font-size: 10px;
+  font-style: italic;
+  text-transform: lowercase;
+}
