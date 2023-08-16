@@ -1,7 +1,7 @@
 const express = require('express')
 const modifyPdf = require('./app')
+const {pdfToimg, fileExist} = require('./pdfToimg')
 const path = require('path')
-const { pdftobuffer } = require('pdftopic')
 const fs = require('fs')
 const app = express()
 const PORT = process.env.PORT || 8000
@@ -29,22 +29,16 @@ app.post('/', async (req, res) => {
   }
 })
 
-app.get('/download',  (req, res) => {
-res.download(`${fileName}.pdf`, (err) => {
-  if(err) {
-    console.log('Download error: ',err)
-    res.redirect('/')
-  }
-})
- //Generer un png
+app.get('/download',  async (req, res) => {
+
+ //Genererate img
  try {
-  const pdfToImg =  fs.readFileSync(`${fileName}.pdf`, null)
- pdftobuffer(pdfToImg, 0).then((buffer) => {
-  fs.writeFileSync(`${fileName}.png`, buffer, null)
-})
+  await pdfToimg(`${fileName}.pdf`, `${fileName}.jpg`)
 } catch (error) {
-  console.log(error)
+  console.log('FAILED GENERATE IMAGE: ', error)
 }
+!fileExist ? res.sendFile(`${fileName}.jpg`) : res.send('<center><h3>Failed generate image</h3></center>')
+
 })
 
 app.listen(PORT,() => {

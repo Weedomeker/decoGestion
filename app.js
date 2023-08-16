@@ -2,11 +2,9 @@ const { degrees, PDFDocument, rgb, StandardFonts } = require ('pdf-lib');
 const fs = require('fs/promises')
 const path = require ('path');
 
-const filePath = path.join(__dirname,'./test/')
-const decoPath = path.join(__dirname,'C:/\Users/\ESKO/\Desktop/\JOE/\Deco k in/')
-console.log(decoPath)
+const filePath = path.join(__dirname,'./public/deco/')
 async function modifyPdf (numCmd, ville, format, visuel, qte) {
-  const readPdf =  await fs.readFile(filePath + 'test.pdf')
+  const readPdf =  await fs.readFile(filePath + '2_100X200CM/100x205/DIBOND 100X205-5Galets 100x200_S_.pdf')
   const pdfDoc = await PDFDocument.load(readPdf)
   const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica)
 
