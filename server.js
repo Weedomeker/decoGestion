@@ -1,6 +1,6 @@
 const express = require('express')
-const modifyPdf = require('./app')
-const {pdfToimg, fileExist} = require('./pdfToimg')
+const modifyPdf = require('./src/app')
+const {pdfToimg, fileExist} = require('./src/pdfToimg')
 const path = require('path')
 const fs = require('fs')
 const app = express()
