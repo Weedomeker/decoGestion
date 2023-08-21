@@ -1,5 +1,6 @@
 const express = require('express')
 const modifyPdf = require('./src/app')
+const explorer = require('./explorer')
 const {pdfToimg, fileExist} = require('./src/pdfToimg')
 const path = require('path')
 const fs = require('fs')
@@ -8,6 +9,7 @@ const PORT = process.env.PORT || 8000
 
 app.use(express.urlencoded({extended: false}))
 app.use(express.static('./public'))
+app.use(express.json())
 
 let fileName
 
@@ -38,7 +40,23 @@ app.get('/download',  async (req, res) => {
   console.log('FAILED GENERATE IMAGE: ', error)
 }
 !fileExist ? res.sendFile(`${fileName}.jpg`) : res.send('<center><h3>Failed generate image</h3></center>')
+})
 
+app.get('/path',  async (req, res) => {
+  const dirDeco = explorer.nameObj
+  res.json(dirDeco)
+})
+
+app.get('/:format',  async (req, res) => {
+  const format = (explorer.search(req.params.format))
+  if(format === undefined) {
+    res.send(`<a>Format not found.<br><br>
+    ${explorer.nameObj.map(el => `${el.name}<br>`).join('')}
+    </a>`)
+  } else {
+ //console.log(format)
+ res.json(format)
+  }
 })
 
 app.listen(PORT,() => {
