@@ -1,12 +1,13 @@
 const express = require('express')
 const modifyPdf = require('./src/app')
-const explorer = require('./explorer')
+const explorer = require('./src/explorer')
 const {pdfToimg, fileExist} = require('./src/pdfToimg')
 const path = require('path')
 const fs = require('fs')
 const app = express()
 const PORT = process.env.PORT || 8000
 
+app.set('view engine', 'ejs')
 app.use(express.urlencoded({extended: false}))
 app.use(express.static('./public'))
 app.use(express.json())
@@ -14,7 +15,11 @@ app.use(express.json())
 let fileName
 
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, './public/index.html'))
+  if(explorer.nameObj.length)
+  res.render('index', {
+    data: explorer.nameObj
+  })
+  //res.sendFile(path.join(__dirname, './public/index.html'))
 })
 
 app.post('/', async (req, res) => {

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" type="text/css" href="semantic/dist/semantic.min.css">
+  <link rel="stylesheet" type="text/css" href="css/index.css">
+  <title>Gestion Deco</title>
+  <script src="https://code.jquery.com/jquery-3.1.1.min.js"
+    integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8=" crossorigin="anonymous"></script>
+</head>
+
+<body>
+  <div class="ui container center">
+    <div class="ui form">
+      <div class="field">
+
+
+        <label for="format">Formats: </label>
+        <select class="ui search dropdown" id="format" name="format">
+          <option value="">Format</option>
+          <% for(var i=0; i < data.length; i++) { %>
+            <option value="<% data[i].name %>">
+              <%= data[i].name %>
+            </option>
+            <% } %>
+        </select>
+
+
+
+        <label for="format">Visuel: </label>
+        <select class="ui search dropdown" id="visuel" name="visuel">
+          <option value="">Visuel</option>
+          <% for(var i=0; i < data.length; i++) { %>
+            <option value="<% data[i].files %>">
+              <%= data[i].files %>
+            </option>
+            <% } %>
+        </select>
+
+
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>
