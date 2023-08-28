@@ -1,6 +1,7 @@
 const express = require('express')
 const modifyPdf = require('./src/app')
 const explorer = require('./src/explorer')
+const search = require('./src/explorer').search
 const {pdfToimg, fileExist} = require('./src/pdfToimg')
 const path = require('path')
 const fs = require('fs')
@@ -12,7 +13,7 @@ app.use(express.urlencoded({extended: false}))
 app.use(express.static('./public'))
 app.use(express.json())
 
-let fileName
+let fileName, decoPath, decoFormat, decoFiles
 
 app.get('/', (req, res) => {
   if(explorer.nameObj.length)
@@ -21,6 +22,8 @@ app.get('/', (req, res) => {
   })
   //res.sendFile(path.join(__dirname, './public/index.html'))
 })
+
+
 
 app.post('/', async (req, res) => {
 
@@ -53,7 +56,7 @@ app.get('/path',  async (req, res) => {
 })
 
 app.get('/:format',  async (req, res) => {
-  const format = (explorer.search(req.params.format))
+  const format = (search(req.params.format))
   if(format === undefined) {
     res.send(`<a>Format not found.<br><br>
     ${explorer.nameObj.map(el => `${el.name}<br>`).join('')}

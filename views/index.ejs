@@ -12,32 +12,74 @@
 </head>
 
 <body>
+  <script>
+
+    window.onload = function () {
+      const selectFormat = document.getElementById("format")
+      const selectFile = document.getElementById("visuel")
+      selectFile.disabled = true
+
+      function getData(format) {
+        if (format !== "")
+          return fetch('http://localhost:8000/' + format)
+            .then(res => {
+              return res.json()
+            })
+            .then(json => {
+              return json
+            })
+            .catch(err => console.log(err))
+      }
+
+
+
+      selectFormat.addEventListener('change', function (e) {
+        selectFile.disabled = false
+        console.log(getData().then(res => res))
+        getData(e.target.value).then(res => {
+          if (res.name == e.target.value) {
+            res.files.forEach((files) => {
+              selectFile.innerHTML = ""
+              selectFile.append(createOptions("Visuels", ""))
+              //selectFile.append(createOptions(res.files[index], res.files[index]))
+              res.files.forEach((file) => {
+                selectFile.append(createOptions(file, file))
+              })
+            })
+          }
+        })
+
+      })
+
+      function createOptions(display, value) {
+        const newOption = document.createElement('option')
+        newOption.value = value
+        newOption.text = display
+        return newOption
+      }
+    }
+  </script>
+
+
   <div class="ui container center">
     <div class="ui form">
       <div class="field">
-
 
         <label for="format">Formats: </label>
         <select class="ui search dropdown" id="format" name="format">
           <option value="">Format</option>
           <% for(var i=0; i < data.length; i++) { %>
-            <option value="<% data[i].name %>">
+            <option value="<%= data[i].name %>">
               <%= data[i].name %>
             </option>
             <% } %>
         </select>
 
-
-
-        <label for="format">Visuel: </label>
+        <label for="visuel">Visuel: </label>
         <select class="ui search dropdown" id="visuel" name="visuel">
           <option value="">Visuel</option>
-          <% for(var i=0; i < data.length; i++) { %>
-            <option value="<% data[i].files %>">
-              <%= data[i].files %>
-            </option>
-            <% } %>
         </select>
+
 
 
       </div>

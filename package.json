@@ -4,8 +4,7 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "start": "node explorer.js",
-    "server": "nodemon server.js"
+    "dev": "nodemon server.js -e ejs,js,css,html,jpg,png,scss"
   },
   "keywords": [],
   "author": "",
