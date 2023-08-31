@@ -36,3 +36,12 @@ label {
   font-style: italic;
   text-transform: lowercase;
 }
+
+.ui.container .pdf {
+  display: flex;
+  flex-direction: row;
+  max-width: 600px;
+  width: fit-content;
+  margin: auto;
+  margin-top: 40px;
+}

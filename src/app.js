@@ -1,10 +1,11 @@
 const { degrees, PDFDocument, rgb, StandardFonts } = require ('pdf-lib');
 const fs = require('fs/promises')
 const path = require ('path');
-const filePath = path.join(__dirname,'../public/deco/')
+// const filePath = path.join(__dirname,'../public/deco/')
+// const filePath = String.raw `\\NASSYNORS1221\agence\1-décokin\DECO-K-IN\01 SALLE DE BAIN\01 REF LEROY MERLIN\\`
 
-async function modifyPdf (numCmd, ville, format, visuel, qte) {
-  const readPdf =  await fs.readFile(filePath + '2_100X200CM/100x205/DIBOND 100X205-5Galets 100x200_S_.pdf')
+async function modifyPdf (filePath, numCmd, ville, format, visuel, qte) {
+  const readPdf =  await fs.readFile(filePath)
   const pdfDoc = await PDFDocument.load(readPdf)
   const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica)
 
@@ -26,7 +27,7 @@ async function modifyPdf (numCmd, ville, format, visuel, qte) {
   const pdfBytes = await pdfDoc.save()
 
   try {
-    await fs.writeFile(path.join(__dirname,`../public/tmp/${numCmd} - LM ${ville} - ${format}_${visuel}_${qte} EX(S).pdf`), pdfBytes)
+    await fs.writeFile(path.join(__dirname,`../public/deco/temp/${numCmd} - LM ${ville} - ${format}_${visuel}_${qte} EX(S).pdf`), pdfBytes)
     console.log('PDF Saved !')
   } catch (error) {
     console.log(error)

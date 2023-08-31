@@ -4,7 +4,7 @@ const fs = require ('fs');
   const fileList = fs.readdirSync(dir)
   for (const file of fileList) {
     const name = (`${dir}\\${file}`);
-    if (fs.statSync(name).isDirectory()) {
+    if (fs.statSync(name).isDirectory() && !fs.readdirSync(name).length == 0) {
       directories.push(path.resolve(name))
       getFiles(path.join(name), files);
     } else {
@@ -12,17 +12,21 @@ const fs = require ('fs');
       files.push(name);
   }
 }
-   return {directories, files}
+return {directories, files}
 }
-let newpath = (String.raw `./public/deco`)
-const test = getFiles(newpath)
+
+
+let newpath = (String.raw `\\NASSYNORS1221\agence\1-décokin\DECO-K-IN\01 SALLE DE BAIN\01 REF LEROY MERLIN`)
+const data = getFiles(newpath)
 const nameObj = []
-test.directories.slice(1,-3).map(path => {
+data.directories.slice(1,-3).map((path) => {
 const nameFolder = path.split('\\').pop().slice(2,-2)
 const listFiles = getFiles(path).files.map(file => file.replace(/\\/g, '/'))
  nameObj.push({name: nameFolder.toLowerCase(), path: path.replace(/\\/g, '/') + '/', files: listFiles.map(el => el.split('/').pop())
 })
 })
+
+
 
 
 function search(format){
@@ -33,7 +37,6 @@ function search(format){
   }
 }
 
-
-module.exports = {nameObj, search}
+module.exports = {nameObj, search, getFiles}
 
 
