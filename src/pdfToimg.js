@@ -14,7 +14,6 @@ const pdfToimg =  async (readFile, writeFile) => {
         let timeExec = ((performance.now() - start)/1000).toFixed(2)
         console.log(writeFile + '\n Execute time: ' + timeExec + ' secs')
     })
-console.log('File Exist: ',fileExist)
 }
 
 module.exports = {pdfToimg, fileExist};

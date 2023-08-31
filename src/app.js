@@ -4,7 +4,7 @@ const path = require ('path');
 // const filePath = path.join(__dirname,'../public/deco/')
 // const filePath = String.raw `\\NASSYNORS1221\agence\1-décokin\DECO-K-IN\01 SALLE DE BAIN\01 REF LEROY MERLIN\\`
 
-async function modifyPdf (filePath, numCmd, ville, format, visuel, qte) {
+async function modifyPdf (filePath, writePath, numCmd, ville, format, visuel, qte) {
   const readPdf =  await fs.readFile(filePath)
   const pdfDoc = await PDFDocument.load(readPdf)
   const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica)
@@ -12,7 +12,7 @@ async function modifyPdf (filePath, numCmd, ville, format, visuel, qte) {
   const pages = pdfDoc.getPages()
   const firstPage = pages[0]
   const { width, height } = firstPage.getSize()
-  const text = `${numCmd} - LM ${ville} - ${format}_${visuel}_${qte} EX(S)`;
+  const text = (`${numCmd} - LM ${ville} - ${format}_${visuel}_${qte} EX(S)`);
   const textSize = 35;
   const textWitdth = helveticaFont.widthOfTextAtSize(text, textSize)
   firstPage.drawText(text, {
@@ -27,7 +27,7 @@ async function modifyPdf (filePath, numCmd, ville, format, visuel, qte) {
   const pdfBytes = await pdfDoc.save()
 
   try {
-    await fs.writeFile(path.join(__dirname,`../public/deco/temp/${numCmd} - LM ${ville} - ${format}_${visuel}_${qte} EX(S).pdf`), pdfBytes)
+    await fs.writeFile((`${writePath}/${numCmd} - LM ${ville} - ${format}_${visuel}_${qte} EX(S).pdf`).toUpperCase(), pdfBytes)
     console.log('PDF Saved !')
   } catch (error) {
     console.log(error)

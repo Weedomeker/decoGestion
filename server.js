@@ -1,8 +1,7 @@
 const express = require('express')
 const cors = require('cors')
 const modifyPdf = require('./src/app')
-const explorer = require('./src/explorer')
-const search = require('./src/explorer').search
+const getFiles = require('./src/getFiles').getData
 const {pdfToimg, fileExist} = require('./src/pdfToimg')
 const path = require('path')
 const fs = require('fs')
@@ -14,14 +13,28 @@ app.use(express.urlencoded({extended: false}))
 app.use(express.static('./public'))
 app.use(express.json())
 
+// const decoPath = (String.raw `\\NASSYNORS1221\agence\1-décokin\DECO-K-IN\01 SALLE DE BAIN\01 REF LEROY MERLIN`)
+const decoPath = './public/deco'
+const writePath = decoPath + '/temp'
 let fileName, filePath
 
+
+function search(format){
+  const data = getFiles(decoPath)
+  for (let i=0; i < data.length; i++) {
+      if (data[i].name === format) {
+          return data[i];
+      }
+  }
+}
+
+
 app.get('/', (req, res) => {
-  if(explorer.nameObj.length)
+  if(getFiles(decoPath).length)
   res.render('index', {
-    data: explorer.nameObj
+    data: getFiles(decoPath),
+    pdf: fileName
   })
-  //res.sendFile(path.join(__dirname, './public/index.html'))
 })
 
 
@@ -29,16 +42,19 @@ app.get('/', (req, res) => {
 app.post('/', async (req, res) => {
 
   // fileName = path.join(__dirname,`./public/tmp/${req.body.numCmd} - LM ${req.body.ville} - ${req.body.format}_${req.body.visuel}_${req.body.qte} EX(S)`)
-  fileName = path.join(__dirname, `./public/deco/temp/${req.body.numCmd} - LM ${req.body.ville} - ${req.body.format}_${req.body.visuel}_${req.body.qte} EX(S)`)
-
-filePath = (search(req.body.format).path + req.body.visuel)
+  fileName = writePath + (`/${req.body.numCmd} - LM ${req.body.ville} - ${req.body.format}_${req.body.visuel}_${req.body.qte} EX(S)`.toUpperCase())
+  filePath = (search(req.body.format).path + req.body.visuel)
   try {
     //Edition pdf
-    await modifyPdf( filePath, req.body.numCmd, (req.body.ville).toUpperCase(), req.body.format, (req.body.visuel).toUpperCase(), req.body.qte)
+    await modifyPdf( filePath, writePath, req.body.numCmd, req.body.ville, req.body.format, req.body.visuel, req.body.qte)
     //Genererate img
  try {
   await pdfToimg(`${fileName}.pdf`, `${fileName}.jpg`)
-  res.redirect('/')
+  if(getFiles(decoPath).length)
+  await res.render('index', {
+    data: getFiles(decoPath),
+    pdf: fileName + '.jpg'
+  })
 } catch (error) {
   console.log('FAILED GENERATE IMAGE: ', error)
 }
@@ -51,7 +67,7 @@ filePath = (search(req.body.format).path + req.body.visuel)
 
 
 app.get('/path',  async (req, res) => {
-  const dirDeco = explorer.nameObj
+  const dirDeco = getFiles(decoPath)
   res.json(dirDeco)
 })
 
@@ -61,7 +77,7 @@ app.get('/:format',  async (req, res) => {
   const format = (search(req.params.format))
   if(format === undefined) {
     res.json({Info:
-    explorer.nameObj.map(el => el.name)
+    getFiles(decoPath).map(el => el.name)
     })
   } else {
  //console.log(format)

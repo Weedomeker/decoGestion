@@ -18,11 +18,13 @@
       const selectFormat = document.getElementById("format")
       const selectFile = document.getElementById("visuel")
       const selectPdf = document.getElementById('pdf')
+      const selectResult = document.getElementById('result')
+      const selectValid = document.getElementById('valider')
       selectFile.disabled = true
 
       function getData(format) {
         if (format !== "")
-          return fetch('http://esko-pc:8000/' + format)
+          return fetch('http://localhost:8000/' + format)
             .then(res => {
               return res.json()
             })
@@ -34,16 +36,15 @@
 
 
       selectFile.addEventListener('change', function (e) {
-
         getData(selectFormat.value).then(res => {
-          const path = res.path.split('/').slice(8).join('/') + e.target.value
+          const path = res.path.split('/').slice(5).join('/') + e.target.value
+          // const path = res.path + e.target.value
           if (selectPdf.childElementCount >= 1) {
             while (selectPdf.firstChild) {
               selectPdf.removeChild(selectPdf.firstChild)
             }
           }
           selectPdf.append(createPdf('deco/' + path))
-          console.log(selectPdf.childElementCount)
         })
 
       })
@@ -122,10 +123,12 @@
       <br>
   </div>
   <br><br>
-  <input class="ui inverted blue button" type="submit" name="valider" value="Envoyer">
+  <input class="ui inverted blue button" id="valider" type="submit" name="valider" value="Envoyer">
   <br><br>
   <h4 class="ui horizontal inverted divider">Résultat</h4>
-  <div name="result" id="result"></div>
+  <div name="result" id="result">
+    <img src="<%= pdf %>" alt="">
+  </div>
   </form>
   </div>
 </body>
