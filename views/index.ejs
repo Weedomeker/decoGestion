@@ -13,18 +13,16 @@
 
 <body>
   <script>
-
     window.onload = function () {
       const selectFormat = document.getElementById("format")
       const selectFile = document.getElementById("visuel")
       const selectPdf = document.getElementById('pdf')
       const selectResult = document.getElementById('result')
-      const selectValid = document.getElementById('valider')
       selectFile.disabled = true
 
       function getData(format) {
         if (format !== "")
-          return fetch('http://localhost:8000/' + format)
+          return fetch('http://esko-pc:8000/' + format)
             .then(res => {
               return res.json()
             })
@@ -34,21 +32,18 @@
             .catch(err => console.log('fetch: ', err))
       }
 
-
       selectFile.addEventListener('change', function (e) {
         getData(selectFormat.value).then(res => {
-          const path = res.path.split('/').slice(5).join('/') + e.target.value
+          const path = res.path.split('/').slice(6).join('/') + e.target.value
           // const path = res.path + e.target.value
           if (selectPdf.childElementCount >= 1) {
             while (selectPdf.firstChild) {
               selectPdf.removeChild(selectPdf.firstChild)
             }
           }
-          selectPdf.append(createPdf('deco/' + path))
+          selectPdf.append(createPdf(path))
         })
-
       })
-
 
       selectFormat.addEventListener('change', function (e) {
         selectFile.disabled = false
@@ -65,7 +60,6 @@
           }
         })
       })
-
 
       function createPdf(value) {
         const newEmbed = document.createElement('embed')
@@ -126,8 +120,11 @@
   <input class="ui inverted blue button" id="valider" type="submit" name="valider" value="Envoyer">
   <br><br>
   <h4 class="ui horizontal inverted divider">Résultat</h4>
-  <div name="result" id="result">
-    <img src="<%= pdf %>" alt="">
+  <div class="ui container" name="result" id="result">
+    <% if(!pdf==undefined || !pdf=='' ) {%>
+      <iframe src="<%= pdf %>" frameborder="0">
+      </iframe>
+      <% } %>
   </div>
   </form>
   </div>

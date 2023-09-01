@@ -12,7 +12,7 @@ async function modifyPdf (filePath, writePath, numCmd, ville, format, visuel, qt
   const pages = pdfDoc.getPages()
   const firstPage = pages[0]
   const { width, height } = firstPage.getSize()
-  const text = (`${numCmd} - LM ${ville} - ${format}_${visuel}_${qte} EX(S)`);
+  const text = (`${numCmd} - LM ${ville.toUpperCase()} - ${format}_${visuel.toUpperCase()}_${qte} EX(S)`);
   const textSize = 35;
   const textWitdth = helveticaFont.widthOfTextAtSize(text, textSize)
   firstPage.drawText(text, {
@@ -27,7 +27,7 @@ async function modifyPdf (filePath, writePath, numCmd, ville, format, visuel, qt
   const pdfBytes = await pdfDoc.save()
 
   try {
-    await fs.writeFile((`${writePath}/${numCmd} - LM ${ville} - ${format}_${visuel}_${qte} EX(S).pdf`).toUpperCase(), pdfBytes)
+    await fs.writeFile((`${writePath}/${numCmd} - LM ${ville} - ${format}_${visuel}_${qte} EX(S).pdf`), pdfBytes)
     console.log('PDF Saved !')
   } catch (error) {
     console.log(error)

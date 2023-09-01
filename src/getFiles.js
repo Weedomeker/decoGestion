@@ -20,7 +20,7 @@ return {directories, files}
 
 const getData = (dir) => {
   const arr = []
-  getFiles(dir).directories.slice(0).map((path) => {
+  getFiles(dir).directories.slice(1, -4).map((path) => {
 const nameFolder = path.split('\\').pop().slice(2,-2)
 const listFiles = getFiles(path).files.map(file => file.replace(/\\/g, '/'))
  arr.push({name: nameFolder.toLowerCase(), path: path.replace(/\\/g, '/') + '/', files: listFiles.map(el => el.split('/').pop())
