@@ -24,10 +24,34 @@ label {
   margin-top: 40px;
 }
 
-iframe {
+ img {
   display: flex;
   flex-direction: row;
-  height: 400px;
-  width: 100%;
+  align-content: center;
+  width: 600px;
+  max-width: fit-content;
+  margin: auto;
   border-radius: 2px;
+} 
+
+p {
+  font-size: 10px;
+  font-family: Arial, Helvetica, sans-serif;
+  text-align: center;
+  text-transform: uppercase;
+  text-shadow: #141414;
+  letter-spacing: 2px;
 }
+
+/* #myProgress {
+  width: 100%;
+  background-color: grey;
+  border-radius: 8px;
+}
+
+#myBar {
+  width: 1%;
+  height: 30px;
+  border-radius: 4px;
+  background-color: lightblue;
+} */

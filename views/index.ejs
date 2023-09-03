@@ -6,9 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" type="text/css" href="semantic/dist/semantic.min.css">
   <link rel="stylesheet" type="text/css" href="css/index.css">
+  <link href="css/lightbox.css" rel="stylesheet" />
   <title>Gestion Deco</title>
   <script src="https://code.jquery.com/jquery-3.1.1.min.js"
     integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8=" crossorigin="anonymous"></script>
+  <script src="js/lightbox.js"></script>
 </head>
 
 <body>
@@ -22,7 +24,7 @@
 
       function getData(format) {
         if (format !== "")
-          return fetch('http://esko-pc:8000/' + format)
+          return fetch('http://localhost:8000/' + format)
             .then(res => {
               return res.json()
             })
@@ -34,13 +36,14 @@
 
       selectFile.addEventListener('change', function (e) {
         getData(selectFormat.value).then(res => {
-          const path = res.path.split('/').slice(6).join('/') + e.target.value
-          // const path = res.path + e.target.value
+          const path = e.target.value.split('/').slice(1).join('/')
+
           if (selectPdf.childElementCount >= 1) {
             while (selectPdf.firstChild) {
               selectPdf.removeChild(selectPdf.firstChild)
             }
           }
+          console.log(path)
           selectPdf.append(createPdf(path))
         })
       })
@@ -54,7 +57,7 @@
               selectFile.append(createOptions("Visuel", ""))
               //selectFile.append(createOptions(res.files[index], res.files[index]))
               res.files.forEach((file) => {
-                selectFile.append(createOptions(file, file))
+                selectFile.append(createOptions(file.split('/').pop(), file))
               })
             })
           }
@@ -94,8 +97,9 @@
             <% } %>
         </select>
 
+        <br>
         <label for="visuel">Visuel: </label>
-        <select class="ui search dropdown" id="visuel" name="visuel" style="text-transform: uppercase;">
+        <select class="ui search dropdown" id="visuel" name="visuel">
           <option value="">Visuel</option>
         </select>
         <div class="ui container pdf" id="pdf" name="pdf"></div>
@@ -107,24 +111,34 @@
           <input type="number" name="numCmd" id="numCmd" placeholder="Num commande" autocomplete="on">
         </div>
         <div class="field">
-          <input type="text" name="ville" id="ville" style="text-transform: uppercase;" placeholder="Ville"
-            autocomplete="on">
+          <input type="text" name="ville" id="ville" placeholder="Ville" autocomplete="on">
         </div>
         <div class="field three wide">
           <input type="number" name="qte" id="qte" placeholder="ex">
         </div>
       </div>
-      <br>
   </div>
-  <br><br>
+  <br>
   <input class="ui inverted blue button" id="valider" type="submit" name="valider" value="Envoyer">
   <br><br>
   <h4 class="ui horizontal inverted divider">Résultat</h4>
   <div class="ui container" name="result" id="result">
+    <br>
+    <div id="myProgress">
+      <div id="myBar"></div>
+    </div>
+    <br>
     <% if(!pdf==undefined || !pdf=='' ) {%>
-      <iframe src="<%= pdf %>" frameborder="0">
-      </iframe>
+      <a href="<%= pdf %>" data-lightbox="<%= pdf %>" data-title="<%= pdf.split('/').pop() %>">
+        <img src="<%= pdf %>" alt="<%= pdf.split('/').pop() %>">
+      </a>
       <% } %>
+        <br>
+        <% if(!pdfTimer=='' || !pdfTimer==undefined) {%>
+          <p>
+            <%= pdfTimer %> - <%= jpgTimer %>
+          </p>
+          <% } %>
   </div>
   </form>
   </div>

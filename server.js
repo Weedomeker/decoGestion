@@ -2,11 +2,14 @@ const express = require('express')
 const cors = require('cors')
 const modifyPdf = require('./src/app')
 const getFiles = require('./src/getFiles').getData
-const {pdfToimg, fileExist} = require('./src/pdfToimg')
+const {pdfToimg} = require('./src/pdfToimg')
 const path = require('path')
 const fs = require('fs')
+const { performance } = require('perf_hooks');
 const app = express()
 const PORT = process.env.PORT || 8000
+
+
 app.set('view engine', 'ejs')
 app.use(cors())
 app.use(express.urlencoded({extended: false}))
@@ -16,7 +19,7 @@ app.use(express.json())
  //const decoPath = (String.raw `\\NASSYNORS1221\agence\1-décokin\DECO-K-IN\01 SALLE DE BAIN\01 REF LEROY MERLIN`)
 const decoPath = './public/deco'
 const writePath = decoPath + '/temp'
-let fileName, filePath
+let fileName, filePath, start, timeExec, pdfTime, jpgTime
 
 
 function search(format){
@@ -33,38 +36,44 @@ app.get('/', (req, res) => {
   if(getFiles(decoPath).length)
   res.render('index', {
     data: getFiles(decoPath),
-    pdf: fileName 
+    pdf: fileName,
+    pdfTimer: pdfTime,
+    jpgTimer: jpgTime,
   })
 })
 
 
 
 app.post('/', async (req, res) => {
+  
+  progress = "10%"
+  let visuel = req.body.visuel.split('/').pop()
+  fileName = writePath + (`/${req.body.numCmd} - LM ${req.body.ville.toUpperCase()} - ${req.body.format}_${visuel}_${req.body.qte} EX`)
+  filePath = req.body.visuel
 
-  // fileName = path.join(__dirname,`./public/tmp/${req.body.numCmd} - LM ${req.body.ville} - ${req.body.format}_${req.body.visuel}_${req.body.qte} EX(S)`)
-  fileName = writePath + (`/${req.body.numCmd} - LM ${req.body.ville} - ${req.body.format}_${req.body.visuel}_${req.body.qte} EX(S)`.toUpperCase())
-  filePath = (search(req.body.format).path + req.body.visuel)
-  console.log(fileName.split('/').slice(2).join('/'))
-
-  try {
     //Edition pdf
-    await modifyPdf( filePath, writePath, req.body.numCmd, req.body.ville, req.body.format, req.body.visuel, req.body.qte)
+     start = performance.now()
+    await modifyPdf( filePath, writePath, req.body.numCmd, req.body.ville, req.body.format, visuel, req.body.qte)
+     timeExec = ((performance.now() - start)/1000).toFixed(2)
+    pdfTime = ('PDF Completed in ' + timeExec + ' secs !')
+    
     //Genererate img
  try {
+  start = performance.now()
   await pdfToimg(`${fileName}.pdf`, `${fileName}.jpg`)
+  timeExec = ((performance.now() - start)/1000).toFixed(2)
+  jpgTime = ('JPEG Completed in ' + timeExec + ' secs !')
   if(getFiles(decoPath).length)
   await res.render('index', {
     data: getFiles(decoPath),
-    pdf: fileName.split('/').slice(2).join('/') + '.jpg'
+    pdf: fileName.split('/').slice(2).join('/') + '.jpg',
+    pdfTimer: pdfTime,
+    jpgTimer: jpgTime,
   })
 } catch (error) {
   console.log('FAILED GENERATE IMAGE: ', error)
+  res.send(error)
 }
-    //Redirection
-  } catch (error) {
-    console.log(error)
-  }
-
 })
 
 
