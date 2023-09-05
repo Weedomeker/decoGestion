@@ -1,4 +1,7 @@
 const express = require('express')
+const app = express()
+const server = require('http').createServer(app)
+const io = require("socket.io")(server)
 const cors = require('cors')
 const modifyPdf = require('./src/app')
 const getFiles = require('./src/getFiles').getData
@@ -6,9 +9,7 @@ const {pdfToimg} = require('./src/pdfToimg')
 const path = require('path')
 const fs = require('fs')
 const { performance } = require('perf_hooks');
-const app = express()
 const PORT = process.env.PORT || 8000
-
 
 app.set('view engine', 'ejs')
 app.use(cors())
@@ -16,11 +17,15 @@ app.use(express.urlencoded({extended: false}))
 app.use(express.static('./public'))
 app.use(express.json())
 
- //const decoPath = (String.raw `\\NASSYNORS1221\agence\1-décokin\DECO-K-IN\01 SALLE DE BAIN\01 REF LEROY MERLIN`)
 const decoPath = './public/deco'
 const writePath = decoPath + '/temp'
 let fileName, filePath, start, timeExec, pdfTime, jpgTime
 
+const progressBar =  async (progress) => {
+  await io.sockets.on('connection', (socket) => {
+    socket.emit('progress', progress)
+  })
+}
 
 function search(format){
   const data = getFiles(decoPath)
@@ -33,36 +38,39 @@ function search(format){
 
 
 app.get('/', (req, res) => {
+progressBar(1)
   if(getFiles(decoPath).length)
   res.render('index', {
     data: getFiles(decoPath),
     pdf: fileName,
     pdfTimer: pdfTime,
-    jpgTimer: jpgTime,
+    jpgTimer: jpgTime
   })
 })
 
 
-
 app.post('/', async (req, res) => {
-  
-  progress = "10%"
+   progressBar(15)
   let visuel = req.body.visuel.split('/').pop()
   fileName = writePath + (`/${req.body.numCmd} - LM ${req.body.ville.toUpperCase()} - ${req.body.format}_${visuel}_${req.body.qte} EX`)
   filePath = req.body.visuel
 
-    //Edition pdf
-     start = performance.now()
+  //Edition pdf
+  start = performance.now()
+  progressBar(25)
     await modifyPdf( filePath, writePath, req.body.numCmd, req.body.ville, req.body.format, visuel, req.body.qte)
+    progressBar(50)
      timeExec = ((performance.now() - start)/1000).toFixed(2)
     pdfTime = ('PDF Completed in ' + timeExec + ' secs !')
-    
     //Genererate img
  try {
+
+   progressBar(75)
   start = performance.now()
   await pdfToimg(`${fileName}.pdf`, `${fileName}.jpg`)
   timeExec = ((performance.now() - start)/1000).toFixed(2)
   jpgTime = ('JPEG Completed in ' + timeExec + ' secs !')
+   progressBar(100)
   if(getFiles(decoPath).length)
   await res.render('index', {
     data: getFiles(decoPath),
@@ -74,6 +82,7 @@ app.post('/', async (req, res) => {
   console.log('FAILED GENERATE IMAGE: ', error)
   res.send(error)
 }
+
 })
 
 
@@ -97,6 +106,6 @@ app.get('/:format',  async (req, res) => {
   }
 })
 
-app.listen(PORT,() => {
+server.listen(PORT,() => {
 console.log(`Server start on port ${PORT}`)
 })

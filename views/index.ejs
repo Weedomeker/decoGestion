@@ -8,6 +8,7 @@
   <link rel="stylesheet" type="text/css" href="css/index.css">
   <link href="css/lightbox.css" rel="stylesheet" />
   <title>Gestion Deco</title>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <script src="https://code.jquery.com/jquery-3.1.1.min.js"
     integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8=" crossorigin="anonymous"></script>
   <script src="js/lightbox.js"></script>
@@ -15,11 +16,14 @@
 
 <body>
   <script>
+    const socket = io()
+
     window.onload = function () {
       const selectFormat = document.getElementById("format")
       const selectFile = document.getElementById("visuel")
       const selectPdf = document.getElementById('pdf')
       const selectResult = document.getElementById('result')
+      const selectValider = document.getElementById('valider')
       selectFile.disabled = true
 
       function getData(format) {
@@ -81,6 +85,12 @@
         return newOption
       }
     }
+
+    socket.on('progress', progress => {
+      console.log(progress)
+      const selectProgress = document.getElementById('myBar')
+      selectProgress.style.width = progress + '%'
+    })
   </script>
 
 
@@ -127,7 +137,7 @@
     <div id="myProgress">
       <div id="myBar"></div>
     </div>
-    <br>
+    <br><br>
     <% if(!pdf==undefined || !pdf=='' ) {%>
       <a href="<%= pdf %>" data-lightbox="<%= pdf %>" data-title="<%= pdf.split('/').pop() %>">
         <img src="<%= pdf %>" alt="<%= pdf.split('/').pop() %>">
