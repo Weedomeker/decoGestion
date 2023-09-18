@@ -1,0 +1,77 @@
+.main-container {
+  display: flex;
+  flex-direction: column;
+  align-content: center;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+}
+
+.ui.container.logo {
+  display: flex;
+  flex-direction: column;
+  box-shadow: 10px 4px 4px rgba(0, 0, 0, 0.025);
+  width: 100%;
+  align-content: center;
+  padding: 20px;
+  margin-bottom: 60px;
+}
+
+img.ui.image {
+  vertical-align: middle;
+  max-width: 350px;
+  margin: auto;
+}
+
+.ui.form {
+  float: left;
+  display: flex;
+  flex-direction: column;
+  width: 50%;
+  align-items: start;
+  margin-right: auto;
+  margin-left: auto;
+  min-width: 400px;
+}
+
+.ui.container {
+  display: flex;
+  flex-direction: column;
+  align-content: center;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.preview-deco {
+  display: flex;
+  flex-direction: column;
+  min-width: 300px;
+}
+
+
+.dropdown {
+  max-width: 300px;
+  width: 300px;
+  margin-bottom: 12px;
+}
+
+.ui.input {
+  width: 300px;
+  max-width: 300px;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+
+input {
+  text-transform: uppercase;
+
+}
+
+.ui.input.ex {
+  width: 100px;
+}
+
+.ui.primary.button {
+  margin-top: 20px;
+}
+

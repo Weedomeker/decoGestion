@@ -2,28 +2,29 @@
   "name": "decogestion",
   "version": "1.0.0",
   "description": "",
-  "main": "app.js",
+  "main": "server.js",
   "scripts": {
-    "dev": "nodemon server.js -e ejs,js,css,html,scss"
+    "start": "nodemon server.js -e ejs,js,css,html,scss",
+    "client": "cd client && npm run dev",
+    "client-build": "cd client && npm run build"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@types/fs-extra": "^11.0.1",
+    "cookie-session": "^2.0.0",
     "cors": "^2.8.5",
-    "ejs": "^3.1.9",
     "express": "^4.18.2",
     "lightbox2": "^2.11.4",
+    "nodemon": "^3.0.1",
     "path": "^0.12.7",
     "pdf-lib": "^1.17.1",
-    "pdftopic": "^0.2.0",
-    "socket.io": "^4.7.2"
+    "pdftopic": "^0.2.0"
   },
   "devDependencies": {
     "@types/node": "^20.4.4",
     "eslint": "^8.47.0",
-    "nodemon": "^3.0.1",
     "prettier": "^3.0.2"
   }
 }

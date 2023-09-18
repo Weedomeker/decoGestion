@@ -5,10 +5,6 @@ body {
 }
 
 
-label {
-  text-transform: capitalize;
-}
-
 .ui.form .field>label {
   color: #fefefe;
   font-weight: normal;
@@ -43,17 +39,14 @@ p {
   letter-spacing: 2px;
 }
 
-#myProgress {
-  vertical-align: middle;
-  width: 75%;
-  background-color: grey;
-  border-radius: 8px;
-  margin: auto;
+#session {
+  max-width: max-content;
+  min-width: 200px;
+  margin-bottom: 24px;
 }
 
-#myBar {
-  width: 1%;
-  height: 2px;
-  border-radius: 4px;
-  background-color: rgb(0, 166, 255);
+.ui.search.dropdown {
+  margin-bottom: 14px;
+  max-width: max-content;
+  min-width: 250px;
 }
