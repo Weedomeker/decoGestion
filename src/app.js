@@ -1,10 +1,8 @@
 const { degrees, PDFDocument, rgb, StandardFonts } = require ('pdf-lib');
 const fs = require('fs/promises')
 const path = require ('path');
-const { performance } = require('perf_hooks');
 
 async function modifyPdf (filePath, writePath, numCmd, ville, format, visuel, qte) {
-  let start = performance.now()
   const readPdf =  await fs.readFile(filePath)
   const pdfDoc = await PDFDocument.load(readPdf)
   const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica)
@@ -26,13 +24,6 @@ async function modifyPdf (filePath, writePath, numCmd, ville, format, visuel, qt
 
   const pdfBytes = await pdfDoc.save()
 
-  try {
-    await fs.writeFile((`${writePath}/${text}.pdf`), pdfBytes)
-    let timeExec = ((performance.now() - start)/1000).toFixed(2)
-    console.log(`PDF Completed in ${timeExec} secs !`)
-  } catch (error) {
-    console.log(error)
-  }
 }
 
 module.exports = modifyPdf;

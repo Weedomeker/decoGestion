@@ -1,6 +1,6 @@
 const express = require('express')
 const app = express()
-const cookieSession = require('cookie-session')
+const serveIndex = require('serve-index')
 const cors = require('cors')
 const modifyPdf = require('./src/app')
 const getFiles = require('./src/getFiles').getData
@@ -10,27 +10,31 @@ const fs = require('fs')
 const { performance } = require('perf_hooks');
 const PORT = process.env.PORT || 8000
 
-app.use(cors())
-app.use(express.urlencoded({extended: false}))
-app.use('/public' , express.static(path.join(__dirname, './public')))
-app.use(express.static(path.join(__dirname, './client/dist')))
-app.use(express.json())
-app.set('trust proxy', 1) // trust first proxy
-
-app.use(cookieSession({
-  name: 'session',
-  keys: [''],
-  maxAge: 24 * 60 * 60 * 1000 // 24 hours
-}))
-
-let pdfName = '', jpgName = '',start, timeExec, pdfTime, jpgTime, format, session, writePath
-
 //Path déco
 const decoFolder = './public/deco'
 //Path export pdf
 let saveFolder = './public/deco/temp/'
 //Path export jpg
 let saveJpg = saveFolder + '/jpg'
+
+app.use(cors())
+app.use(express.urlencoded({extended: false}))
+app.use('/public' , express.static(path.join(__dirname, './public')))
+app.use(express.static(path.join(__dirname, './client/dist')))
+app.use('/louis', express.static(saveFolder), serveIndex(saveFolder, {'icons': true}))
+app.use(express.json())
+
+let pdfName = '',
+jpgName = '',
+start,
+timeExec, 
+pdfTime, 
+jpgTime, 
+format, 
+session, 
+writePath, 
+success = false
+
 
 //Sous dossiers par formats
 function formatPath() {
@@ -64,13 +68,17 @@ function search(format){
 
 
 app.get('/', (req, res) => {
-
+  success = false
+  console.log('Reset tache Get: ', success)
   res.sendFile(path.join(__dirname, './client/dist/index.html'))
-  res.end(req.session.sessionDeco = session)
 })
 
 
 app.post('/', async (req, res) => {
+
+  //Verfi success process
+  success ? success = false : success
+
   const data = {
     session: req.body.session.toUpperCase(),
     format: req.body.format,
@@ -83,50 +91,57 @@ app.post('/', async (req, res) => {
   visuPath = data.visuel
   format = data.format
   session = data.session
-console.log(req.session)
   
 
-  //formatPath()
+  formatPath()
 
   //Verifier si dossiers exist si pas le créer
-  // if(fs.existsSync(writePath) && fs.existsSync(saveJpg)) {
-  //   pdfName = writePath + (`/${data.numCmd} - LM ${data.ville.toUpperCase()} - ${data.format}_${visuel}_${data.ex} EX`)
-  //   jpgName = saveJpg + (`/${data.numCmd} - LM ${data.ville.toUpperCase()} - ${data.format}_${visuel}_${data.ex} EX`)
-  // } else {
-  //   await fs.mkdirSync(writePath, {recursive: true})
-  //   await fs.mkdirSync(saveJpg, {recursive: true})
-  //   pdfName = writePath + (`/${data.numCmd} - LM ${data.ville.toUpperCase()} - ${data.format}_${visuel}_${data.ex} EX`)
-  //   jpgName = saveJpg + (`/${data.numCmd} - LM ${data.ville.toUpperCase()} - ${data.format}_${visuel}_${data.ex} EX`)
-  // }
+  if(fs.existsSync(writePath) && fs.existsSync(saveJpg)) {
+    pdfName = writePath + (`/${data.numCmd} - LM ${data.ville.toUpperCase()} - ${data.format}_${visuel}_${data.ex} EX`)
+    jpgName = saveJpg + (`/${data.numCmd} - LM ${data.ville.toUpperCase()} - ${data.format}_${visuel}_${data.ex} EX`)
+  } else {
+    await fs.mkdirSync(writePath, {recursive: true})
+    await fs.mkdirSync(saveJpg, {recursive: true})
+    pdfName = writePath + (`/${data.numCmd} - LM ${data.ville.toUpperCase()} - ${data.format}_${visuel}_${data.ex} EX`)
+    jpgName = saveJpg + (`/${data.numCmd} - LM ${data.ville.toUpperCase()} - ${data.format}_${visuel}_${data.ex} EX`)
+  }
   
   
 //   //Edition pdf
-//   start = performance.now()
-//     await modifyPdf( visuPath, writePath, data.numCmd, data.ville, data.format, visuel, data.ex)
-//      timeExec = ((performance.now() - start)/1000).toFixed(2)
-//      pdfTime = ('PDF Completed in ' + timeExec + ' secs !')
+  start = performance.now()
+    await modifyPdf( visuPath, writePath, data.numCmd, data.ville, data.format, visuel, data.ex)
+     timeExec = ((performance.now() - start)/1000).toFixed(2)
+     pdfTime = (timeExec)
 
 
-//     //Genererate img
-//  try {
-//   start = performance.now()
-//   await pdfToimg(`${pdfName}.pdf`, `${jpgName}.jpg`)
-//   timeExec = ((performance.now() - start)/1000).toFixed(2)
-//   jpgTime = ('JPEG Completed in ' + timeExec + ' secs !')
-//   //if(getFiles(decoFolder).length)
-//   res.status(200).send({msg:'Success !'})
-// } catch (error) {
-//   console.log('FAILED GENERATE IMAGE: ', error)
-//   res.send(error)
-// }
+    //Genererate img
+ try {
+  start = performance.now()
+  await pdfToimg(`${pdfName}.pdf`, `${jpgName}.jpg`)
+  timeExec = ((performance.now() - start)/1000).toFixed(2)
+  jpgTime = (timeExec)
+  //if(getFiles(decoFolder).length)
+  success = true
+console.log('Fin de tache:', success)
+ res.status(200).send({msg:'Success'})
+} catch (error) {
+  console.log('FAILED GENERATE IMAGE: ', error)
+  res.send(error)
+}
+
   })
 
+  app.get('/process',  async (req, res) => {
+    res.json({jpgTime: parseFloat(jpgTime), pdfTime: parseFloat(pdfTime), success: success})
+  })
 
   app.get('/public',  async (req, res) => {
     res.status(200).send()
   })
 
   app.get('/path',  async (req, res) => {
+    success = false
+    console.log('Reset tache Get Path: ', success)
     const dirDeco = getFiles(decoFolder)
     res.json(dirDeco)
   })
