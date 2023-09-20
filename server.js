@@ -107,7 +107,7 @@ app.post('/', async (req, res) => {
   }
   
   
-//   //Edition pdf
+  //Edition pdf
   start = performance.now()
     await modifyPdf( visuPath, writePath, data.numCmd, data.ville, data.format, visuel, data.ex)
      timeExec = ((performance.now() - start)/1000).toFixed(2)
@@ -120,7 +120,7 @@ app.post('/', async (req, res) => {
   await pdfToimg(`${pdfName}.pdf`, `${jpgName}.jpg`)
   timeExec = ((performance.now() - start)/1000).toFixed(2)
   jpgTime = (timeExec)
-  //if(getFiles(decoFolder).length)
+  if(getFiles(decoFolder).length)
   success = true
 console.log('Fin de tache:', success)
  res.status(200).send({msg:'Success'})

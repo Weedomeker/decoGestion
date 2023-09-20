@@ -24,6 +24,12 @@ async function modifyPdf (filePath, writePath, numCmd, ville, format, visuel, qt
 
   const pdfBytes = await pdfDoc.save()
 
+  try {
+    await fs.writeFile((`${writePath}/${text}.pdf`), pdfBytes)
+  } catch (error) {
+    console.log(error)
+  }
+
 }
 
 module.exports = modifyPdf;

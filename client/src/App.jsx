@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import Cookies from 'js-cookie'
-import { Button, Container, Dimmer, Dropdown, Embed, Form, Image, Input, Loader } from 'semantic-ui-react'
+import { Button, Dimmer, Dropdown, Embed, Form, Image, Input, Loader } from 'semantic-ui-react'
 
 function App() {
   const [isLoading, setIsLoading] = useState(true)
@@ -58,12 +58,11 @@ function App() {
 
   const PreviewDeco = () => {
    if(selectedFile) {
-    return <Embed
+     return <Embed
     active
-    url={'http://localhost:8000/public/' + selectedFile.split('/').slice(1).join('/') + '#toolbar=0&navpanes=0&scrollbar=0"'}
+    url={'http://localhost:8000/public/' + selectedFile.split('/').slice(1).join('/') }
     />
    }
-   return ''
   }
 
   const formatOptions =  data.map((format, index) => ({
@@ -115,17 +114,18 @@ function App() {
 
 
   return (
-      <div className='main-container'>
+      <div>
+           {/* LOADING */}
         <Dimmer active={isProcess}>
         <Loader indeterminate size='massive' inline='centered'>En cours de créa ❤️</Loader>
       </Dimmer>
+
         {/* Header Logo */}
-        <Container className='logo'>
+        <div className='header'>
           <Image src="https://www.deco-k-in.com/img/591408-logo-1495012906.jpg"/>
-        </Container>
+        </div>
 
         {/* Session Input */}
-        <Container>
           <Form onSubmit={handleSubmit}>
             <label htmlFor="session">Session du jour</label>
           <Input focus id="session" name="session" type='text' placeholder='PRINTSA#0000_08 AOUT'
@@ -136,7 +136,7 @@ function App() {
 
            {/* Format */}
            <label htmlFor="format">Format</label>
-           <Dropdown className="format" floating selection placeholder='Format' options={formatOptions}
+           <Dropdown id='format' className="format" floating selection placeholder='Format' options={formatOptions}
           onChange={(e, v) => {
               const value = isLoading ? 'Loading..' : data.find(x => x.path === v.value)
               setSelectedFormat(value.name)
@@ -147,7 +147,7 @@ function App() {
         {/* Visu */}
         <label htmlFor="visuel">Visuel</label>
         <Dropdown 
-        className="visuel" placeholder='Visuel'fluid search selection options={filesOptions}
+        id='visuel' className="visuel" placeholder='Visuel'fluid search selection options={filesOptions}
         onChange={(e, data) => {
           const value = isFile ? data.value : ''
           setSelectedFile(value)
@@ -163,14 +163,20 @@ function App() {
         <Button primary inverted type='submit'>Valider</Button>
         </Form>
 
-          {/* Preview visu */}
-        <div  className='preview-deco'>
-          <Container>
-          <PreviewDeco />
-          </Container>
+         {/* Preview visu */}
+         <div className='preview-deco'>
+         <PreviewDeco />
+         </div>
+
+        <div className="footer">
+          <h4>deco-k-in.com</h4>
+          <p>
+            Panneau mural décoratif - Tel : +33 (0)3 20 68 99 70
+            <br />
+            14, rue du Haut de la Cruppe 59650 VILLENEUVE D&apos;ASCQ France
+            </p>
         </div>
-        </Container>
-        <div className="footer"></div>
+         
     </div>
   )
 }
