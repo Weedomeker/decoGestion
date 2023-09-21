@@ -69,7 +69,7 @@ function search(format){
 
 app.get('/', (req, res) => {
   success = false
-  console.log('Reset tache Get: ', success)
+  console.log('Etat du process: ', success)
   res.sendFile(path.join(__dirname, './client/dist/index.html'))
 })
 
@@ -110,15 +110,16 @@ app.post('/', async (req, res) => {
   //Edition pdf
   start = performance.now()
     await modifyPdf( visuPath, writePath, data.numCmd, data.ville, data.format, visuel, data.ex)
-     timeExec = ((performance.now() - start)/1000).toFixed(2)
-     pdfTime = (timeExec)
+    console.log('PDF CREATE')
+    timeExec = ((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2)
+    pdfTime = (timeExec)
 
 
     //Genererate img
  try {
   start = performance.now()
   await pdfToimg(`${pdfName}.pdf`, `${jpgName}.jpg`)
-  timeExec = ((performance.now() - start)/1000).toFixed(2)
+  timeExec = ((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2)
   jpgTime = (timeExec)
   if(getFiles(decoFolder).length)
   success = true
@@ -141,7 +142,7 @@ console.log('Fin de tache:', success)
 
   app.get('/path',  async (req, res) => {
     success = false
-    console.log('Reset tache Get Path: ', success)
+    console.log('Etat du process: ', success)
     const dirDeco = getFiles(decoFolder)
     res.json(dirDeco)
   })

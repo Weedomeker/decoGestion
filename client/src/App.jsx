@@ -11,7 +11,10 @@ function App() {
   const [selectedFile, setSelectedFile] = useState('')
   const [loadCookie, setLoadCookie] = useState('')
   const [isProcess, setIsProcess] = useState(false)
-  const [timeProcess, setTimeProcess] = useState(null)
+  const [timeProcess, setTimeProcess] = useState({})
+  const [isFooter, setIsFooter] = useState(false)
+
+
 
   useEffect(() => {
     const getCookie = Cookies.get('session')
@@ -29,29 +32,41 @@ function App() {
       .then(res => {
         setData(res.map(res => res).slice(1, -4))
         setIsLoading(false)
+        setIsFooter(false)
       })
       .catch(err => console.log(err))  
   },[])
 
-  const getProcess = () => {
 
-     fetch("http://localhost:8000/process", {
-    method: "GET",
-    headers: {
-      'Accept': 'Application/json'
-    }
-  })
-      .then(res => res.json())
+  const handleFooter = () => {
+    if (!isFooter) {
+     return (<div className="footer">
+          <h4>deco-k-in.com</h4>
+          <p>Panneau mural décoratif - Tel : +33 (0)3 20 68 99 70<br />
+          14, rue du Haut de la Cruppe 59650 VILLENEUVE D&apos;ASCQ France</p>
+          </div>
+          )} else {
+          return (<div className="footer">
+            <p>Pdf completed: {timeProcess.pdf} secs - Jpg completed: {timeProcess.jpg} secs.</p>
+          </div>
+          )}
+  }
+
+  const getProcess = () => {
+    let update = {}
+
+     fetch("http://localhost:8000/process",{ method: "GET", headers: {'Accept': 'Application/json'}})
+     .then(res => res.json())
       .then(res => {
        if (res.success) {
-         setIsProcess(false)
-         setTimeProcess({
-           pdf: res.pdfTime,
-           jpg: res.jpgTime
-         })
+         update = { pdf: res.pdfTime, jpg: res.jpgTime }
+           setIsProcess(false)
+           setIsFooter(true)
         } else {
           getProcess()
        }
+       setTimeProcess(timeProcess => ({ ...timeProcess, ...update }))
+       
       })
       .catch(err => console.log(err))  
   }
@@ -59,9 +74,11 @@ function App() {
   const PreviewDeco = () => {
    if(selectedFile) {
      return <Embed
-    active
+    active={!isProcess}
     url={'http://localhost:8000/public/' + selectedFile.split('/').slice(1).join('/') }
     />
+   } else {
+    return ''
    }
   }
 
@@ -81,10 +98,8 @@ function App() {
     // Submit form
     const handleSubmit = (e) => {
       e.preventDefault()
-
       const form = e.target
       const formData = new FormData(form)
-
       const data = {
          session: formData.get("session"),
          format: selectedFormat,
@@ -93,23 +108,25 @@ function App() {
          ville: formData.get("ville"),
          ex: formData.get("ex")
       }
-            //POST data
-            fetch('http://localhost:8000/', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(data)
-            }).then(res => res.json())
-            .then(res => res)
+      //POST data
+      fetch('http://localhost:8000/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)})
+      .then(res => res.json())
+      .then(res => res)
+
+      // Reset form
+      form.reset()
+      setFiles([])
+      setIsFile(false)
+      setSelectedFile('')
 
       //Set Cookies
       Cookies.set('session', data.session, { expires: 1 })
+
       //Set spinner
       setIsProcess(true)
+
       //Check response
       getProcess()
-      form.reset()
-      setSelectedFile('')
-
     }
 
 
@@ -142,14 +159,15 @@ function App() {
               setSelectedFormat(value.name)
               setFiles(value.files)
               setIsFile(true)
+              setIsFooter(false)
           }}/>
 
         {/* Visu */}
         <label htmlFor="visuel">Visuel</label>
         <Dropdown 
-        id='visuel' className="visuel" placeholder='Visuel'fluid search selection options={filesOptions}
+        id='visuel' className="visuel"  header={selectedFormat} placeholder="Visuel" fluid search selection options={filesOptions}
         onChange={(e, data) => {
-          const value = isFile ? data.value : ''
+          const value = isFile ? data.value : data.placeholder
           setSelectedFile(value)
         }}/>
         
@@ -167,16 +185,7 @@ function App() {
          <div className='preview-deco'>
          <PreviewDeco />
          </div>
-
-        <div className="footer">
-          <h4>deco-k-in.com</h4>
-          <p>
-            Panneau mural décoratif - Tel : +33 (0)3 20 68 99 70
-            <br />
-            14, rue du Haut de la Cruppe 59650 VILLENEUVE D&apos;ASCQ France
-            </p>
-        </div>
-         
+         {handleFooter()}
     </div>
   )
 }
