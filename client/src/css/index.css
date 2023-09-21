@@ -1,9 +1,10 @@
-*{
+* {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
-html, body {
+html,
+body {
   height: 100%;
 }
 body {
@@ -54,8 +55,6 @@ img.ui.image {
   height: 400px;
 }
 
-
-
 .footer {
   position: absolute;
   bottom: 0;
@@ -64,7 +63,7 @@ img.ui.image {
   display: flex;
   flex-direction: column;
   background-color: rgba(0, 0, 0, 0.888);
-  color: rgba(255, 255, 255, 0.800);
+  color: rgba(255, 255, 255, 0.8);
   text-align: center;
   justify-content: center;
   vertical-align: middle;
@@ -90,7 +89,6 @@ img.ui.image {
 
 input {
   text-transform: uppercase;
-
 }
 
 .ui.input.ex {

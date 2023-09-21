@@ -23,8 +23,7 @@
     "serve-index": "^1.9.1"
   },
   "devDependencies": {
-    "@types/node": "^20.4.4",
-    "eslint": "^8.47.0",
-    "prettier": "^3.0.2"
+    "eslint": "^8.7.0",
+    "prettier": "^2.5.1"
   }
 }
