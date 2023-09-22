@@ -1,5 +1,6 @@
 node_modules
-.vscode/
+.vscode/*
+!.vscode/extensions.json
 public/deco
 client/dist
 .env
