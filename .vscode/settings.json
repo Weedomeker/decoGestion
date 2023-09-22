@@ -7,11 +7,5 @@
   "files.autoSave": "onFocusChange", // optional but recommended
   "vs-code-prettier-eslint.prettierLast": false, // set as "true" to run 'prettier' last not first
   "editor.bracketPairColorization.enabled": true,
-  "editor.guides.bracketPairs":"active",
-  "emmet.includeLanguages": {
-    "javascript": "javascriptreact"
-},
-"emmet.syntaxProfiles": {
-    "javascript": "jsx"
-}
+  "editor.guides.bracketPairs":"active"
 }
