@@ -5,7 +5,6 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import Loading from './components/Loading';
 import PreviewDeco from './components/PreviewDeco';
-import GetProcess from './components/GetProcess';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -51,6 +50,26 @@ function App() {
     key: index,
   }));
 
+  const handleLouisFiles = () => {
+    window.open('http://localhost:8000/louis', '_blank');
+  };
+  const handleGetProcess = () => {
+    let update = {};
+    fetch('http://localhost:8000/process', { method: 'GET', headers: { Accept: 'Application/json' } })
+      .then((res) => res.json())
+      .then((res) => {
+        if (res.success) {
+          update = { pdf: res.pdfTime, jpg: res.jpgTime };
+          setIsProcessLoading(false);
+          setIsFooter(true);
+        } else {
+          console.log('de la merde');
+          handleGetProcess();
+        }
+        setTimeProcess((timeProcess) => ({ ...timeProcess, ...update }));
+      })
+      .catch((err) => console.log(err));
+  };
   // Submit form
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -86,11 +105,11 @@ function App() {
     setIsProcessLoading(true);
 
     //Check response
-    <GetProcess setIsProcessLoading={setIsProcessLoading} setIsFooter={setIsFooter} setTimeProcess={setTimeProcess} />;
+    handleGetProcess();
   };
 
   return (
-    <div>
+    <>
       {/* LOADING */}
       <Loading active={isProcessLoading} />
 
@@ -152,9 +171,14 @@ function App() {
         <Input id="ville" name="ville" type="text" placeholder="Ville / Mag" />
         <label htmlFor="ex">Ex</label>
         <Input id="ex" name="ex" type="number" placeholder="Ex" />
-        <Button primary inverted type="submit">
-          Valider
-        </Button>
+        <div className="button-form">
+          <Button primary compact inverted type="submit">
+            Valider
+          </Button>
+          <Button compact inverted color="green" type="button" onClick={handleLouisFiles}>
+            Louis
+          </Button>
+        </div>
       </Form>
 
       {/* Preview visu */}
@@ -164,7 +188,7 @@ function App() {
 
       {/* FOOTER */}
       <Footer active={!isFooter} timePdf={timeProcess.pdf} timeJpg={timeProcess.jpg} />
-    </div>
+    </>
   );
 }
 

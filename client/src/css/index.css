@@ -1,27 +1,7 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-html,
-body {
-  height: 100%;
-}
-body {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
-
-.main-container {
-  display: flex;
-  flex-direction: column;
-  align-content: center;
-  margin-left: auto;
-  margin-right: auto;
-  width: 100%;
-  height: 100%;
-}
+/* body {
+  background-color: rgba(0, 0, 0, 0.8) !important;
+  color: white !important;
+} */
 
 .header {
   box-shadow: 10px 4px 4px rgba(0, 0, 0, 0.025);
@@ -38,11 +18,15 @@ img.ui.image {
 }
 
 .ui.form {
+  float: left;
   display: flex;
   flex-direction: column;
-  width: 100%;
-  margin-left: 15%;
-  margin-right: auto;
+  overflow-y: auto;
+  padding-left: 15%;
+  padding-right: 8px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  width: 50%;
 }
 
 .preview-deco {
@@ -53,38 +37,39 @@ img.ui.image {
   flex-direction: column;
   width: 600px;
   height: 400px;
+  padding-left: 8px;
 }
 
 .footer {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  left: 0;
   display: flex;
   flex-direction: column;
+  align-items: center;
   background-color: rgba(0, 0, 0, 0.888);
   color: rgba(255, 255, 255, 0.8);
   text-align: center;
   justify-content: center;
   vertical-align: middle;
-  padding: auto;
   font-size: 10px;
-  height: 80px;
   text-transform: uppercase;
   letter-spacing: 1px;
+  min-height: 80px;
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  left: 0;
 }
-
+.footer,
+h4 {
+  text-align: center;
+}
 .dropdown {
   max-width: 300px;
-  width: 300px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .ui.input {
-  width: 300px;
   max-width: 300px;
-  margin-bottom: 12px;
-  text-transform: uppercase;
+  margin-bottom: 14px;
 }
 
 input {
@@ -96,6 +81,17 @@ input {
 }
 
 .ui.primary.button {
-  margin-top: 20px;
-  width: 100px;
+  min-width: 100px;
+}
+
+.ui.button.compact {
+  min-width: 100px;
+}
+
+.button-form {
+  display: flex;
+  flex-direction: row;
+  margin: auto;
+  margin-top: 14px;
+  margin-left: 0px;
 }

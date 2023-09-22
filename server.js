@@ -93,12 +93,20 @@ app.post('/', async (req, res) => {
   //Verifier si dossiers exist si pas le créer
   if (fs.existsSync(writePath) && fs.existsSync(saveJpg)) {
     pdfName = writePath + `/${data.numCmd} - LM ${data.ville.toUpperCase()} - ${data.format}_${visuel}_${data.ex} EX`;
-    jpgName = saveJpg + `/${data.numCmd} - LM ${data.ville.toUpperCase()} - ${data.format}_${visuel}_${data.ex} EX`;
+    jpgName =
+      saveJpg +
+      +'/' +
+      session +
+      `/${data.numCmd} - LM ${data.ville.toUpperCase()} - ${data.format}_${visuel}_${data.ex} EX`;
   } else {
     fs.mkdirSync(writePath, { recursive: true });
-    fs.mkdirSync(saveJpg, { recursive: true });
+    fs.mkdirSync(saveJpg + '/' + session, { recursive: true });
     pdfName = writePath + `/${data.numCmd} - LM ${data.ville.toUpperCase()} - ${data.format}_${visuel}_${data.ex} EX`;
-    jpgName = saveJpg + `/${data.numCmd} - LM ${data.ville.toUpperCase()} - ${data.format}_${visuel}_${data.ex} EX`;
+    jpgName =
+      saveJpg +
+      '/' +
+      session +
+      `/${data.numCmd} - LM ${data.ville.toUpperCase()} - ${data.format}_${visuel}_${data.ex} EX`;
   }
 
   //Edition pdf

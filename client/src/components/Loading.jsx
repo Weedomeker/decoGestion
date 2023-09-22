@@ -4,7 +4,7 @@ import { Dimmer, Loader } from 'semantic-ui-react';
 function Loading({ active }) {
   return (
     <Dimmer active={active}>
-      <Loader indeterminate size="massive" inline="centered">
+      <Loader indeterminate size="medium" inline="centered">
         En cours de créa ❤️
       </Loader>
     </Dimmer>
