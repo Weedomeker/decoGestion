@@ -91,7 +91,7 @@ app.post('/', async (req, res) => {
   formatPath();
 
   //Verifier si dossiers exist si pas le créer
-  if (fs.existsSync(writePath) && fs.existsSync(saveJpg)) {
+  if (fs.existsSync(writePath) && fs.existsSync(saveJpg + +'/' + session)) {
     pdfName = writePath + `/${data.numCmd} - LM ${data.ville.toUpperCase()} - ${data.format}_${visuel}_${data.ex} EX`;
     jpgName =
       saveJpg +
