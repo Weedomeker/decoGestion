@@ -1,27 +1,28 @@
 import { useEffect, useState } from 'react';
 import Cookies from 'js-cookie';
-import { Button, Dropdown, Form, Input } from 'semantic-ui-react';
+import { Button, Form, Input } from 'semantic-ui-react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Loading from './components/Loading';
 import PreviewDeco from './components/PreviewDeco';
+import LouisPreview from './components/LouisPreview';
+import FormatDropdown from './components/FormatDropdown';
+import VisuelDropdown from './components/VisuelDropdown';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
-  const [data, setData] = useState([]);
+  const [data, setData] = useState(['']);
   const [selectedFormat, setSelectedFormat] = useState('');
-  const [files, setFiles] = useState([]);
+  const [files, setFiles] = useState(['']);
   const [isFile, setIsFile] = useState(false);
   const [selectedFile, setSelectedFile] = useState('');
   const [loadCookie, setLoadCookie] = useState('');
   const [isProcessLoading, setIsProcessLoading] = useState(false);
   const [timeProcess, setTimeProcess] = useState({});
   const [isFooter, setIsFooter] = useState(false);
+  const [isShowPdf, setIsShowPdf] = useState(false);
+  const [isShowLouis, setIsShowLouis] = useState(false);
 
-  useEffect(() => {
-    const getCookie = Cookies.get('session');
-    setLoadCookie(getCookie);
-  }, []);
   useEffect(() => {
     fetch('http://localhost:8000/path', {
       method: 'GET',
@@ -38,21 +39,14 @@ function App() {
       .catch((err) => console.log(err));
   }, []);
 
-  const formatOptions = data.map((format, index) => ({
-    text: format.name,
-    value: format.path,
-    key: index,
-  }));
-
-  const filesOptions = files.map((file, index) => ({
-    text: file.split('-').pop(),
-    value: file,
-    key: index,
-  }));
-
-  const handleLouisFiles = () => {
-    window.open('http://localhost:8000/louis', '_blank');
+  const handleCookie = () => {
+    const getCookie = Cookies.get('session');
+    getCookie != undefined ? setLoadCookie(getCookie) : null;
   };
+  useEffect(() => {
+    handleCookie();
+  }, []);
+
   const handleGetProcess = () => {
     let update = {};
     fetch('http://localhost:8000/process', { method: 'GET', headers: { Accept: 'Application/json' } })
@@ -63,7 +57,6 @@ function App() {
           setIsProcessLoading(false);
           setIsFooter(true);
         } else {
-          console.log('de la merde');
           handleGetProcess();
         }
         setTimeProcess((timeProcess) => ({ ...timeProcess, ...update }));
@@ -73,6 +66,7 @@ function App() {
   // Submit form
   const handleSubmit = (e) => {
     e.preventDefault();
+
     const form = e.target;
     const formData = new FormData(form);
     const data = {
@@ -83,6 +77,7 @@ function App() {
       ville: formData.get('ville'),
       ex: formData.get('ex'),
     };
+
     //POST data
     fetch('http://localhost:8000/', {
       method: 'POST',
@@ -94,12 +89,15 @@ function App() {
 
     // Reset form
     form.reset();
-    setFiles([]);
-    setIsFile(false);
+    setSelectedFormat('');
     setSelectedFile('');
 
     //Set Cookies
     Cookies.set('session', data.session, { expires: 1 });
+
+    // Hide pdf view
+    setIsShowPdf(false);
+    setIsShowLouis(false);
 
     //Set Loading Process
     setIsProcessLoading(true);
@@ -117,74 +115,99 @@ function App() {
       <Header />
 
       {/* Session Input */}
-      <Form onSubmit={handleSubmit}>
-        <label htmlFor="session">Session du jour</label>
-        <Input
-          focus
-          id="session"
-          name="session"
-          type="text"
-          placeholder="PRINTSA#0000_08 AOUT"
-          value={loadCookie}
-          onChange={(e) => setLoadCookie(e.target.value)}
-        />
+      <Form onSubmit={handleSubmit} className="form">
+        <Form.Field>
+          <label htmlFor="session">Session du jour</label>
+          <Input
+            focus
+            id="session"
+            name="session"
+            type="text"
+            placeholder="PRINTSA#0000_08 AOUT"
+            value={loadCookie}
+            onChange={(e) => setLoadCookie(e.target.value)}
+          />
+        </Form.Field>
 
         {/* Format */}
-        <label htmlFor="format">Format</label>
-        <Dropdown
-          id="format"
-          className="format"
-          floating
-          selection
-          placeholder="Format"
-          options={formatOptions}
-          onChange={(e, v) => {
-            const value = isLoading ? 'Loading..' : data.find((x) => x.path === v.value);
-            setSelectedFormat(value.name);
-            setFiles(value.files);
-            setIsFile(true);
-            setIsFooter(false);
-          }}
-        />
-
+        <Form.Field>
+          <label htmlFor="format">Format</label>
+          <FormatDropdown
+            id="format"
+            className="format"
+            isLoading={isLoading}
+            data={data}
+            value={selectedFormat}
+            selectedFormat={selectedFormat}
+            onSelectFormat={(value) => {
+              setSelectedFormat(value.name);
+              setFiles(value.files);
+              setIsFile(true);
+              setIsFooter(false);
+            }}
+          />
+        </Form.Field>
         {/* Visu */}
-        <label htmlFor="visuel">Visuel</label>
-        <Dropdown
-          id="visuel"
-          className="visuel"
-          header={selectedFormat}
-          placeholder="Visuel"
-          fluid
-          search
-          selection
-          options={filesOptions}
-          onChange={(e, data) => {
-            const value = isFile ? data.value : data.placeholder;
-            setSelectedFile(value);
-          }}
-        />
+        <Form.Field>
+          <label htmlFor="visuel">Visuel</label>
+          <VisuelDropdown
+            id="visuel"
+            className="visuel"
+            value={selectedFile}
+            isFile={isFile}
+            files={files}
+            selectedFile={selectedFile}
+            onSelectedFile={(value) => {
+              setSelectedFile(value);
+              setIsShowPdf(true);
+              setIsShowLouis(false);
+            }}
+          />
+        </Form.Field>
 
         {/* Infos commande */}
-        <label htmlFor="numCmd">N° commande</label>
-        <Input id="numCmd" name="numCmd" type="number" placeholder="N° commande" />
-        <label htmlFor="ville">Ville / Mag</label>
-        <Input id="ville" name="ville" type="text" placeholder="Ville / Mag" />
-        <label htmlFor="ex">Ex</label>
-        <Input id="ex" name="ex" type="number" placeholder="Ex" />
+        <Form.Field>
+          <label htmlFor="numCmd">N° commande</label>
+          <Input id="numCmd" name="numCmd" type="number" placeholder="N° commande" />
+        </Form.Field>
+        <Form.Field>
+          <label htmlFor="ville">Ville / Mag</label>
+          <Input id="ville" name="ville" type="text" placeholder="Ville / Mag" />
+        </Form.Field>
+        <Form.Field>
+          <label htmlFor="ex">Ex</label>
+          <Input id="ex" name="ex" type="number" placeholder="Ex" />
+        </Form.Field>
+
         <div className="button-form">
           <Button primary compact inverted type="submit">
             Valider
           </Button>
-          <Button compact inverted color="green" type="button" onClick={handleLouisFiles}>
+          <Button
+            compact
+            inverted
+            color="green"
+            type="button"
+            onClick={() => {
+              if (!isShowLouis) {
+                setIsShowLouis(true);
+                setIsShowPdf(false);
+              } else {
+                setIsShowLouis(false);
+                setIsShowPdf(true);
+              }
+            }}
+          >
             Louis
           </Button>
         </div>
       </Form>
 
       {/* Preview visu */}
-      <div className="preview-deco">
-        <PreviewDeco active={isProcessLoading} fileSelected={selectedFile} />
-      </div>
+      <PreviewDeco fileSelected={selectedFile} show={isShowPdf} />
+
+      {/* Preview Louis Files */}
+      <LouisPreview show={isShowLouis} />
 
       {/* FOOTER */}
       <Footer active={!isFooter} timePdf={timeProcess.pdf} timeJpg={timeProcess.jpg} />

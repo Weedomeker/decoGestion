@@ -1,6 +1,6 @@
 const { degrees, PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fs = require('fs/promises');
-const path = require('path');
+const { performance } = require('perf_hooks');
 
 async function modifyPdf(filePath, writePath, numCmd, ville, format, visuel, qte) {
   const readPdf = await fs.readFile(filePath);

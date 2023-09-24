@@ -21,7 +21,11 @@ app.use(cors());
 app.use(express.urlencoded({ extended: false }));
 app.use('/public', express.static(path.join(__dirname, './public')));
 app.use(express.static(path.join(__dirname, './client/dist')));
-app.use('/louis', express.static(saveFolder), serveIndex(saveFolder, { icons: true }));
+app.use(
+  '/louis',
+  express.static(saveFolder),
+  serveIndex(saveFolder, { icons: true, stylesheet: './public/style.css' }),
+);
 app.use(express.json());
 
 let pdfName = '',
@@ -112,9 +116,9 @@ app.post('/', async (req, res) => {
   //Edition pdf
   start = performance.now();
   await modifyPdf(visuPath, writePath, data.numCmd, data.ville, data.format, visuel, data.ex);
-  console.log('PDF CREATE');
   timeExec = ((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2);
   pdfTime = timeExec;
+  console.log('Pdf: ✔️');
 
   //Genererate img
   try {
@@ -122,6 +126,8 @@ app.post('/', async (req, res) => {
     await pdfToimg(`${pdfName}.pdf`, `${jpgName}.jpg`);
     timeExec = ((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2);
     jpgTime = timeExec;
+    console.log('Jpg: ✔️');
+
     if (getFiles(decoFolder).length) success = true;
     console.log('Fin de tache:', success);
     res.status(200).send({ msg: 'Success' });
