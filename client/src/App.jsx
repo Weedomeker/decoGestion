@@ -8,6 +8,7 @@ import PreviewDeco from './components/PreviewDeco';
 import LouisPreview from './components/LouisPreview';
 import FormatDropdown from './components/FormatDropdown';
 import VisuelDropdown from './components/VisuelDropdown';
+import ImageRender from './components/ImageRender';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -21,15 +22,8 @@ function App() {
   const [timeProcess, setTimeProcess] = useState({});
   const [isFooter, setIsFooter] = useState(false);
   const [isShowPdf, setIsShowPdf] = useState(false);
+  const [isShowJpg, setIsShowJpg] = useState(false);
   const [isShowLouis, setIsShowLouis] = useState(false);
-  const [errorForm, setErrorForm] = useState({
-    session: false,
-    format: false,
-    visuel: false,
-    numCmd: false,
-    ville: false,
-    ex: false,
-  });
 
   useEffect(() => {
     fetch('http://localhost:8000/path', {
@@ -61,9 +55,10 @@ function App() {
       .then((res) => res.json())
       .then((res) => {
         if (res.success) {
-          update = { pdf: res.pdfTime, jpg: res.jpgTime };
+          update = { pdf: res.pdfTime, jpg: res.jpgTime, jpgPath: res.jpgPath };
           setIsProcessLoading(false);
           setIsFooter(true);
+          setIsShowJpg(true);
         } else {
           handleGetProcess();
         }
@@ -104,9 +99,10 @@ function App() {
     //Set Cookies
     Cookies.set('session', data.session, { expires: 1 });
 
-    // Hide pdf view
+    // Hide view
     setIsShowPdf(false);
     setIsShowLouis(false);
+    setIsShowJpg(false);
 
     //Set Loading Process
     setIsProcessLoading(true);
@@ -128,7 +124,6 @@ function App() {
         <Form.Field>
           <label htmlFor="session">Session du jour</label>
           <Input
-            error={errorForm.session}
             focus
             id="session"
             name="session"
@@ -143,7 +138,6 @@ function App() {
         <Form.Field>
           <label htmlFor="format">Format</label>
           <FormatDropdown
-            error={errorForm.format}
             id="format"
             className="format"
             isLoading={isLoading}
@@ -157,6 +151,7 @@ function App() {
               setFiles(value.files);
               setIsFile(true);
               setIsFooter(false);
+              setIsShowJpg(false);
             }}
           />
         </Form.Field>
@@ -164,7 +159,6 @@ function App() {
         <Form.Field>
           <label htmlFor="visuel">Visuel</label>
           <VisuelDropdown
-            error={errorForm.visuel}
             id="visuel"
             className="visuel"
             isFile={isFile}
@@ -175,6 +169,7 @@ function App() {
               setSelectedFile(value);
               setIsShowPdf(true);
               setIsShowLouis(false);
+              setIsShowJpg(false);
             }}
           />
         </Form.Field>
@@ -182,15 +177,15 @@ function App() {
         {/* Infos commande */}
         <Form.Field>
           <label htmlFor="numCmd">N° commande</label>
-          <Input error={errorForm.numCmd} id="numCmd" name="numCmd" type="number" placeholder="N° commande" />
+          <Input id="numCmd" name="numCmd" type="number" placeholder="N° commande" />
         </Form.Field>
         <Form.Field>
           <label htmlFor="ville">Ville / Mag</label>
-          <Input error={errorForm.ville} id="ville" name="ville" type="text" placeholder="Ville / Mag" />
+          <Input id="ville" name="ville" type="text" placeholder="Ville / Mag" />
         </Form.Field>
         <Form.Field>
           <label htmlFor="ex">Ex</label>
-          <Input error={errorForm.ex} id="ex" name="ex" type="number" placeholder="Ex" />
+          <Input id="ex" name="ex" type="number" placeholder="Ex" />
         </Form.Field>
 
         <div className="button-form">
@@ -222,6 +217,9 @@ function App() {
 
       {/* Preview Louis Files */}
       <LouisPreview show={isShowLouis} />
+
+      {/* Preview Jpg */}
+      <ImageRender active={isShowJpg} src={timeProcess.jpgPath} />
 
       {/* FOOTER */}
       <Footer active={!isFooter} timePdf={timeProcess.pdf} timeJpg={timeProcess.jpg} />

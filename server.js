@@ -141,7 +141,7 @@ app.post('/', async (req, res) => {
 });
 
 app.get('/process', async (req, res) => {
-  res.json({ jpgTime: parseFloat(jpgTime), pdfTime: parseFloat(pdfTime), jpgPath: jpgName + '.jpg', success: success });
+  res.json({ jpgTime: parseFloat(jpgTime), pdfTime: parseFloat(pdfTime), jpgPath: jpgName.split('/').slice(2).join('/') + '.jpg', success: success });
 });
 
 app.get('/public', async (req, res) => {

@@ -35,9 +35,8 @@ img.ui.image {
   top: 18%;
   display: flex;
   flex-direction: column;
-  width: 600px;
-  height: 400px;
-  padding-left: 8px;
+  width: 800px;
+  /* height: 400px; */
 }
 
 .footer {
