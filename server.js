@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 8000;
 //Path déco
 const decoFolder = './public/deco';
 //Path export pdf
-let saveFolder = './public/deco/temp/';
+let saveFolder = './public/deco/temp';
 //Path export jpg
 let saveJpg = saveFolder + '/jpg';
 
@@ -46,11 +46,14 @@ function formatPath() {
       writePath = saveFolder + session + '/1_DIBOND 100x200';
       break;
 
-    case '100x210' || '120x240' || '100x255':
+    case '100x210':
+    case '120x240':
+    case '100x255':
       writePath = saveFolder + session + '/2_DIBOND 125x260';
       break;
 
-    case '150x255' || '150x300':
+    case '150x255':
+    case '150x300':
       writePath = saveFolder + session + '/3_DIBOND 150x305';
       break;
 
@@ -71,14 +74,14 @@ function search(format) {
 
 app.get('/', (req, res) => {
   success = false;
-  console.log('Etat du process: ', success);
+  console.log('Process status: ', success);
   res.sendFile(path.join(__dirname, './client/dist/index.html'));
 });
 
 app.post('/', async (req, res) => {
   //Verfi success process
   success ? (success = false) : success;
-
+  console.log('Process status reset: ', success, '🔄');
   const data = {
     session: req.body.session.toUpperCase(),
     format: req.body.format,
@@ -138,7 +141,7 @@ app.post('/', async (req, res) => {
 });
 
 app.get('/process', async (req, res) => {
-  res.json({ jpgTime: parseFloat(jpgTime), pdfTime: parseFloat(pdfTime), success: success });
+  res.json({ jpgTime: parseFloat(jpgTime), pdfTime: parseFloat(pdfTime), jpgPath: jpgName + '.jpg', success: success });
 });
 
 app.get('/public', async (req, res) => {

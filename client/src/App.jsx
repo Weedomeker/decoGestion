@@ -22,6 +22,14 @@ function App() {
   const [isFooter, setIsFooter] = useState(false);
   const [isShowPdf, setIsShowPdf] = useState(false);
   const [isShowLouis, setIsShowLouis] = useState(false);
+  const [errorForm, setErrorForm] = useState({
+    session: false,
+    format: false,
+    visuel: false,
+    numCmd: false,
+    ville: false,
+    ex: false,
+  });
 
   useEffect(() => {
     fetch('http://localhost:8000/path', {
@@ -63,6 +71,7 @@ function App() {
       })
       .catch((err) => console.log(err));
   };
+
   // Submit form
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -89,8 +98,8 @@ function App() {
 
     // Reset form
     form.reset();
-    setSelectedFormat('');
     setSelectedFile('');
+    setSelectedFormat('');
 
     //Set Cookies
     Cookies.set('session', data.session, { expires: 1 });
@@ -115,10 +124,11 @@ function App() {
       <Header />
 
       {/* Session Input */}
-      <Form onSubmit={handleSubmit} className="form">
+      <Form onSubmit={handleSubmit} className="form" widths="equal" error success>
         <Form.Field>
           <label htmlFor="session">Session du jour</label>
           <Input
+            error={errorForm.session}
             focus
             id="session"
             name="session"
@@ -133,13 +143,16 @@ function App() {
         <Form.Field>
           <label htmlFor="format">Format</label>
           <FormatDropdown
+            error={errorForm.format}
             id="format"
             className="format"
             isLoading={isLoading}
             data={data}
             value={selectedFormat}
+            text={selectedFormat}
             selectedFormat={selectedFormat}
-            onSelectFormat={(value) => {
+            onSelectFormat={(v) => {
+              const value = isLoading ? 'Loading..' : data.find((x) => x.path === v.value);
               setSelectedFormat(value.name);
               setFiles(value.files);
               setIsFile(true);
@@ -151,11 +164,12 @@ function App() {
         <Form.Field>
           <label htmlFor="visuel">Visuel</label>
           <VisuelDropdown
+            error={errorForm.visuel}
             id="visuel"
             className="visuel"
-            value={selectedFile}
             isFile={isFile}
             files={files}
+            value={selectedFile}
             selectedFile={selectedFile}
             onSelectedFile={(value) => {
               setSelectedFile(value);
@@ -168,15 +182,15 @@ function App() {
         {/* Infos commande */}
         <Form.Field>
           <label htmlFor="numCmd">N° commande</label>
-          <Input id="numCmd" name="numCmd" type="number" placeholder="N° commande" />
+          <Input error={errorForm.numCmd} id="numCmd" name="numCmd" type="number" placeholder="N° commande" />
         </Form.Field>
         <Form.Field>
           <label htmlFor="ville">Ville / Mag</label>
-          <Input id="ville" name="ville" type="text" placeholder="Ville / Mag" />
+          <Input error={errorForm.ville} id="ville" name="ville" type="text" placeholder="Ville / Mag" />
         </Form.Field>
         <Form.Field>
           <label htmlFor="ex">Ex</label>
-          <Input id="ex" name="ex" type="number" placeholder="Ex" />
+          <Input error={errorForm.ex} id="ex" name="ex" type="number" placeholder="Ex" />
         </Form.Field>
 
         <div className="button-form">

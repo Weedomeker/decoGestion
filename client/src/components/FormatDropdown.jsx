@@ -17,9 +17,9 @@ function FormatDropdown({ data, isLoading, onSelectFormat, selectedFormat }) {
       selection
       placeholder="Format"
       value={selectedFormat}
+      text={selectedFormat}
       options={formatOptions}
-      onChange={(e, v) => {
-        const value = isLoading ? 'Loading..' : data.find((x) => x.path === v.value);
+      onChange={(e, value) => {
         onSelectFormat(value);
       }}
     />

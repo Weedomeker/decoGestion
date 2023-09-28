@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { Dropdown } from 'semantic-ui-react';
 
-function VisuelDropdown({ files, isFile, selectedFile, onSelectedFile }) {
+function VisuelDropdown({ files, isFile, onSelectedFile, selectedFile }) {
   const filesOptions = files.map((file, index) => ({
     text: file.split('-').pop(),
     value: file,
@@ -12,10 +12,10 @@ function VisuelDropdown({ files, isFile, selectedFile, onSelectedFile }) {
       id="visuel"
       className="visuel"
       placeholder="Visuel"
-      value={selectedFile}
       fluid
       search
       selection
+      value={selectedFile}
       options={filesOptions}
       onChange={(e, data) => {
         const value = isFile && data.value;
@@ -28,7 +28,7 @@ function VisuelDropdown({ files, isFile, selectedFile, onSelectedFile }) {
 VisuelDropdown.propTypes = {
   files: PropTypes.array.isRequired,
   isFile: PropTypes.bool.isRequired,
-  selectedFile: PropTypes.string.isRequired,
+  selectedFile: PropTypes.string,
   onSelectedFile: PropTypes.func.isRequired,
 };
 

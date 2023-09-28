@@ -18,6 +18,7 @@ function Footer({ active, timePdf, timeJpg }) {
         <p>
           Pdf completed: {timePdf} secs - Jpg completed: {timeJpg} secs.
         </p>
+        <p>Total completed: {Math.round(timePdf + timeJpg).toFixed(2)} secs.</p>
       </div>
     );
   }
