@@ -43,22 +43,22 @@ let pdfName = '',
 function formatPath() {
   switch (format) {
     case '100x200':
-      writePath = saveFolder + session + '/1_DIBOND 100x200';
+      writePath = saveFolder + '/' + session + '/1_DIBOND 100x200';
       break;
 
     case '100x210':
     case '120x240':
     case '100x255':
-      writePath = saveFolder + session + '/2_DIBOND 125x260';
+      writePath = saveFolder + '/' + session + '/2_DIBOND 125x260';
       break;
 
     case '150x255':
     case '150x300':
-      writePath = saveFolder + session + '/3_DIBOND 150x305';
+      writePath = saveFolder + '/' + session + '/3_DIBOND 150x305';
       break;
 
     default:
-      writePath = saveFolder + session + '/autres';
+      writePath = saveFolder + '/' + session + '/autres';
       break;
   }
 }
@@ -141,7 +141,12 @@ app.post('/', async (req, res) => {
 });
 
 app.get('/process', async (req, res) => {
-  res.json({ jpgTime: parseFloat(jpgTime), pdfTime: parseFloat(pdfTime), jpgPath: jpgName.split('/').slice(2).join('/') + '.jpg', success: success });
+  res.json({
+    jpgTime: parseFloat(jpgTime),
+    pdfTime: parseFloat(pdfTime),
+    jpgPath: jpgName.split('/').slice(2).join('/') + '.jpg',
+    success: success,
+  });
 });
 
 app.get('/public', async (req, res) => {

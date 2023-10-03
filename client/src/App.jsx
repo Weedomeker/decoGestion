@@ -1,3 +1,6 @@
+const HOST = import.meta.env.VITE_HOST;
+const PORT = import.meta.env.VITE_PORT;
+
 import { useEffect, useState } from 'react';
 import Cookies from 'js-cookie';
 import { Button, Form, Icon, Input } from 'semantic-ui-react';
@@ -27,7 +30,7 @@ function App() {
   const [isShowLouis, setIsShowLouis] = useState(false);
 
   useEffect(() => {
-    fetch('http://localhost:8000/path', {
+    fetch(`http://${HOST}:${PORT}/path`, {
       method: 'GET',
       headers: {
         Accept: 'Application/json',
@@ -35,7 +38,7 @@ function App() {
     })
       .then((res) => res.json())
       .then((res) => {
-        setData(res.map((res) => res).slice(1, -4));
+        setData(res.map((res) => res).slice(1, -5));
         setIsLoading(false);
         setIsFooter(false);
       })
@@ -52,7 +55,7 @@ function App() {
 
   const handleGetProcess = () => {
     let update = {};
-    fetch('http://localhost:8000/process', { method: 'GET', headers: { Accept: 'Application/json' } })
+    fetch(`http://${HOST}:${PORT}/process`, { method: 'GET', headers: { Accept: 'Application/json' } })
       .then((res) => res.json())
       .then((res) => {
         if (res.success) {
@@ -84,7 +87,7 @@ function App() {
     };
 
     //POST data
-    fetch('http://localhost:8000/', {
+    fetch(`http://${HOST}:${PORT}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
