@@ -18,9 +18,10 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState(['']);
   const [selectedFormat, setSelectedFormat] = useState('');
-  const [files, setFiles] = useState(['']);
+  const [files, setFiles] = useState([{ name: '', fileSize: '' }]);
   const [isFile, setIsFile] = useState(false);
   const [selectedFile, setSelectedFile] = useState('');
+  const [fileSize, setFileSize] = useState('');
   const [loadCookie, setLoadCookie] = useState('');
   const [isProcessLoading, setIsProcessLoading] = useState(false);
   const [timeProcess, setTimeProcess] = useState({});
@@ -168,14 +169,17 @@ function App() {
               isFile={isFile}
               files={files}
               value={selectedFile}
+              text={selectedFile}
               selectedFile={selectedFile}
               onSelectedFile={(value) => {
-                setSelectedFile(value);
+                setSelectedFile(value.name);
+                setFileSize(value.size);
                 setIsShowPdf(true);
                 setIsShowLouis(false);
                 setIsShowJpg(false);
               }}
             />
+            <p style={{ fontSize: '10px', textAlign: 'right', width: '300px', marginTop: '2px' }}>{fileSize}</p>
           </Form.Field>
 
           {/* Infos commande */}

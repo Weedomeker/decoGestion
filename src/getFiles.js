@@ -27,16 +27,18 @@ const getData = (dir) => {
   const arr = [];
   getFiles(dir).directories.map((path) => {
     const nameFolder = path.split('\\').pop().slice(2, -2);
-    const listFiles = getFiles(path).files.map((file) => file.replace(/\\/g, '/'));
-    const sizeFile = listFiles.map((el) => {
-      const size = fs.statSync(el).size;
-      return bytesToSize(size);
+    const listFiles = getFiles(path).files.map((file) => {
+      const fileSize = fs.statSync(file).size;
+      return {
+        name: file.replace(/\\/g, '/'),
+        size: bytesToSize(fileSize),
+      };
     });
+
     arr.push({
       name: nameFolder.toLowerCase(),
       path: path.replace(/\\/g, '/') + '/',
-      files: listFiles.map((el) => el.replace(/\\/g, '/')),
-      sizeFiles: sizeFile,
+      files: listFiles,
     });
   });
   return arr;

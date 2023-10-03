@@ -3,7 +3,7 @@ import { Dropdown } from 'semantic-ui-react';
 
 function VisuelDropdown({ files, isFile, onSelectedFile, selectedFile }) {
   const filesOptions = files.map((file, index) => ({
-    text: file.split('-').pop(),
+    text: file.name.split('-').pop(),
     value: file,
     key: index,
   }));
@@ -16,6 +16,7 @@ function VisuelDropdown({ files, isFile, onSelectedFile, selectedFile }) {
       search
       selection
       value={selectedFile}
+      text={selectedFile.split('-').pop()}
       options={filesOptions}
       onChange={(e, data) => {
         const value = isFile && data.value;
