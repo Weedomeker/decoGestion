@@ -12,8 +12,17 @@ const { performance } = require('perf_hooks');
 const PORT = process.env.PORT || 8000;
 
 //Date
-const d = new Date();
-const time = d.getHours() + ':' + d.getMinutes() + ':' + d.getSeconds();
+let d = new Date();
+let hours = d.getHours();
+if (hours < 10) {
+  hours = '0' + hours;
+}
+let mins = d.getMinutes();
+if (mins < 10) {
+  mins = '0' + mins;
+}
+let secs = d.getSeconds();
+let time = hours + ':' + mins + ':' + secs;
 //Path déco
 const decoFolder = './public/deco';
 //Path export pdf
@@ -116,6 +125,7 @@ app.post('/', async (req, res) => {
     if (getFiles(decoFolder).length) success = true;
     console.log(`${time}:`, fileName);
     console.log('Fin de tache:', success);
+    fs.appendFileSync('./public/session.log', `${time}: ${fileName}\r`);
     res.status(200).send({ msg: 'Success' });
   } catch (error) {
     console.log('FAILED GENERATE IMAGE: ', error);
