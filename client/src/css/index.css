@@ -68,6 +68,9 @@ img.ui.image {
 h4 {
   text-align: center;
 }
+input {
+  text-transform: capitalize;
+}
 .ui.dropdown {
   max-width: 300px;
 }
@@ -78,10 +81,6 @@ h4 {
 
 .pac-target-input {
   max-width: 300px;
-}
-
-input {
-  text-transform: uppercase;
 }
 
 .ui.input.ex {

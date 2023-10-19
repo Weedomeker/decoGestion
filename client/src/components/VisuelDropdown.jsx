@@ -15,8 +15,8 @@ function VisuelDropdown({ files, isFile, onSelectedFile, selectedFile }) {
       fluid
       search
       selection
-      value={selectedFile}
-      text={selectedFile.split('-').pop()}
+      value={selectedFile !== undefined ? selectedFile : ''}
+      text={selectedFile !== undefined ? selectedFile.split('-').pop() : ''}
       options={filesOptions}
       onChange={(e, data) => {
         const value = isFile && data.value;
@@ -27,10 +27,10 @@ function VisuelDropdown({ files, isFile, onSelectedFile, selectedFile }) {
 }
 
 VisuelDropdown.propTypes = {
-  files: PropTypes.array.isRequired,
-  isFile: PropTypes.bool.isRequired,
+  files: PropTypes.array,
+  isFile: PropTypes.bool,
   selectedFile: PropTypes.string,
-  onSelectedFile: PropTypes.func.isRequired,
+  onSelectedFile: PropTypes.func,
 };
 
 export default VisuelDropdown;

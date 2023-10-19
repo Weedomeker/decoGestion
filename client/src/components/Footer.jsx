@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 
-function Footer({ active, timePdf, timeJpg }) {
+function Footer({ active, timePdf, timeJpg, appVersion }) {
   if (active) {
     return (
       <div className="footer">
@@ -15,10 +15,11 @@ function Footer({ active, timePdf, timeJpg }) {
   } else {
     return (
       <div className="footer">
+        <p>App Version: {appVersion}</p>
         <p>
           Pdf completed: {timePdf} secs - Jpg completed: {timeJpg} secs.
         </p>
-        <p>Total completed: {Math.round(timePdf + timeJpg).toFixed(2)} secs.</p>
+        <p>Total completed: {(timePdf + timeJpg).toFixed(2)} secs.</p>
       </div>
     );
   }
@@ -27,5 +28,6 @@ Footer.propTypes = {
   active: PropTypes.bool.isRequired,
   timePdf: PropTypes.number,
   timeJpg: PropTypes.number,
+  appVersion: PropTypes.string,
 };
 export default Footer;

@@ -16,7 +16,7 @@ const getFiles = (dir, files = [], directories = []) => {
 };
 
 function bytesToSize(bytes) {
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const sizes = ['Octets', 'Ko', 'Mo', 'Go', 'To'];
   if (bytes === 0) return 'n/a';
   const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)), 10);
   if (i === 0) return `${bytes} ${sizes[i]})`;

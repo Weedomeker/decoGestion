@@ -1,8 +1,9 @@
 /* eslint-disable no-unused-vars */
 import { useRef, useState } from 'react';
 import { StandaloneSearchBox, useJsApiLoader } from '@react-google-maps/api';
+import PropTypes from 'prop-types';
 
-const Place = () => {
+const Place = ({ onValue }) => {
   const [libraries] = useState(['places']);
   const inputRef = useRef();
 
@@ -19,10 +20,22 @@ const Place = () => {
   return (
     isLoaded && (
       <StandaloneSearchBox onLoad={(ref) => (inputRef.current = ref)} onPlacesChanged={handlePlaceChanged}>
-        <input type="text" name="ville" id="ville" placeholder="VILLE / MAG" />
+        <input
+          type="text"
+          name="ville"
+          id="ville"
+          placeholder="VILLE / MAG"
+          onBlur={(e) => {
+            onValue(e.target.value);
+          }}
+        />
       </StandaloneSearchBox>
     )
   );
+};
+
+Place.propTypes = {
+  onValue: PropTypes.func,
 };
 
 export default Place;

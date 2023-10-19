@@ -1,3 +1,4 @@
+const appVersion = require('./package.json');
 const express = require('express');
 const app = express();
 const serveIndex = require('serve-index');
@@ -10,10 +11,14 @@ const fs = require('fs');
 const { performance } = require('perf_hooks');
 const PORT = process.env.PORT || 8000;
 
+//Date
+const d = new Date();
+const time = d.getHours() + ':' + d.getMinutes() + ':' + d.getSeconds();
 //Path déco
 const decoFolder = './public/deco';
 //Path export pdf
-let saveFolder = './public/deco/temp';
+//let saveFolder = './public/tauro';
+let saveFolder = './public/tmp';
 //Path export jpg
 let saveJpg = saveFolder + '/jpg';
 
@@ -28,40 +33,19 @@ app.use(
 );
 app.use(express.json());
 
-let pdfName = '',
+let fileName = '',
+  pdfName = '',
   jpgName = '',
   start,
   timeExec,
   pdfTime,
   jpgTime,
   format,
-  session,
+  formatTauro,
   writePath,
   success = false;
 
 //Sous dossiers par formats
-function formatPath() {
-  switch (format) {
-    case '100x200':
-      writePath = saveFolder + '/' + session + '/1_DIBOND 100x200';
-      break;
-
-    case '100x210':
-    case '120x240':
-    case '100x255':
-      writePath = saveFolder + '/' + session + '/2_DIBOND 125x260';
-      break;
-
-    case '150x255':
-    case '150x300':
-      writePath = saveFolder + '/' + session + '/3_DIBOND 150x305';
-      break;
-
-    default:
-      writePath = saveFolder + '/' + session + '/autres';
-      break;
-  }
-}
 
 function search(format) {
   const data = getFiles(decoFolder);
@@ -74,7 +58,7 @@ function search(format) {
 
 app.get('/', (req, res) => {
   success = false;
-  console.log('Process status: ', success);
+  console.log(`Version: ${appVersion.version}`);
   res.sendFile(path.join(__dirname, './client/dist/index.html'));
 });
 
@@ -83,45 +67,43 @@ app.post('/', async (req, res) => {
   success ? (success = false) : success;
   console.log('Process status reset: ', success, '🔄');
   const data = {
-    session: req.body.session.toUpperCase(),
-    format: req.body.format,
+    formatTauro: req.body.formatTauro,
     visuel: req.body.visuel,
     numCmd: req.body.numCmd,
     ville: req.body.ville.toUpperCase(),
     ex: req.body.ex,
   };
   let visuel = data.visuel.split('/').pop();
+  visuel = data.visuel.split('-').pop();
   visuPath = data.visuel;
-  format = data.format;
-  session = data.session;
+  formatTauro = data.formatTauro;
 
-  formatPath();
+  //Chemin sortie fichiers
+  writePath = saveFolder + '/' + formatTauro;
+
+  //Nom fichier
+  fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro.split('_').pop()} - ${visuel.replace(
+    /\.[^/.]+$/,
+    '',
+  )} ${data.ex}_EX`;
 
   //Verifier si dossiers exist si pas le créer
-  if (fs.existsSync(writePath) && fs.existsSync(saveJpg + +'/' + session)) {
-    pdfName = writePath + `/${data.numCmd} - LM ${data.ville.toUpperCase()} - ${data.format}_${visuel}_${data.ex} EX`;
-    jpgName =
-      saveJpg +
-      +'/' +
-      session +
-      `/${data.numCmd} - LM ${data.ville.toUpperCase()} - ${data.format}_${visuel}_${data.ex} EX`;
+  if (fs.existsSync(writePath) && fs.existsSync(saveJpg + +'/' + formatTauro)) {
+    pdfName = writePath + '/' + fileName;
+    jpgName = saveJpg + +'/' + formatTauro + '/' + fileName;
   } else {
     fs.mkdirSync(writePath, { recursive: true });
-    fs.mkdirSync(saveJpg + '/' + session, { recursive: true });
-    pdfName = writePath + `/${data.numCmd} - LM ${data.ville.toUpperCase()} - ${data.format}_${visuel}_${data.ex} EX`;
-    jpgName =
-      saveJpg +
-      '/' +
-      session +
-      `/${data.numCmd} - LM ${data.ville.toUpperCase()} - ${data.format}_${visuel}_${data.ex} EX`;
+    fs.mkdirSync(saveJpg + '/' + formatTauro, { recursive: true });
+    pdfName = writePath + '/' + fileName;
+    jpgName = saveJpg + '/' + formatTauro + '/' + fileName;
   }
 
   //Edition pdf
   start = performance.now();
-  await modifyPdf(visuPath, writePath, data.numCmd, data.ville, data.format, visuel, data.ex);
+  await modifyPdf(visuPath, writePath, fileName);
   timeExec = ((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2);
   pdfTime = timeExec;
-  console.log('Pdf: ✔️');
+  console.log(`Pdf: ✔️`);
 
   //Genererate img
   try {
@@ -129,9 +111,10 @@ app.post('/', async (req, res) => {
     await pdfToimg(`${pdfName}.pdf`, `${jpgName}.jpg`);
     timeExec = ((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2);
     jpgTime = timeExec;
-    console.log('Jpg: ✔️');
+    console.log(`Jpg: ✔️`);
 
     if (getFiles(decoFolder).length) success = true;
+    console.log(`${time}:`, fileName);
     console.log('Fin de tache:', success);
     res.status(200).send({ msg: 'Success' });
   } catch (error) {
@@ -145,6 +128,7 @@ app.get('/process', async (req, res) => {
     jpgTime: parseFloat(jpgTime),
     pdfTime: parseFloat(pdfTime),
     jpgPath: jpgName.split('/').slice(2).join('/') + '.jpg',
+    version: appVersion.version,
     success: success,
   });
 });

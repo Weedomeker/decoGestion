@@ -2,7 +2,6 @@ const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
 
 import { useEffect, useState } from 'react';
-import Cookies from 'js-cookie';
 import { Button, Form, Icon, Input } from 'semantic-ui-react';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -13,22 +12,31 @@ import FormatDropdown from './components/FormatDropdown';
 import VisuelDropdown from './components/VisuelDropdown';
 import ImageRender from './components/ImageRender';
 import Place from './components/Place';
+import FormatTauro from './components/FormatTauro';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState(['']);
   const [selectedFormat, setSelectedFormat] = useState('');
+  const [selectedFormatTauro, setSelectedFormatTauro] = useState('');
   const [files, setFiles] = useState([{ name: '', fileSize: '' }]);
   const [isFile, setIsFile] = useState(false);
   const [selectedFile, setSelectedFile] = useState('');
   const [fileSize, setFileSize] = useState('');
-  const [loadCookie, setLoadCookie] = useState('');
   const [isProcessLoading, setIsProcessLoading] = useState(false);
   const [timeProcess, setTimeProcess] = useState({});
   const [isFooter, setIsFooter] = useState(false);
   const [isShowPdf, setIsShowPdf] = useState(false);
   const [isShowJpg, setIsShowJpg] = useState(false);
   const [isShowLouis, setIsShowLouis] = useState(false);
+  const [validateForm, setValidateForm] = useState({
+    session: false,
+    format: false,
+    visuel: false,
+    numCmd: false,
+    ville: false,
+    ex: false,
+  });
 
   useEffect(() => {
     fetch(`http://${HOST}:${PORT}/path`, {
@@ -46,21 +54,13 @@ function App() {
       .catch((err) => console.log(err));
   }, []);
 
-  const handleCookie = () => {
-    const getCookie = Cookies.get('session');
-    getCookie != undefined ? setLoadCookie(getCookie) : null;
-  };
-  useEffect(() => {
-    handleCookie();
-  }, []);
-
   const handleGetProcess = () => {
     let update = {};
     fetch(`http://${HOST}:${PORT}/process`, { method: 'GET', headers: { Accept: 'Application/json' } })
       .then((res) => res.json())
       .then((res) => {
         if (res.success) {
-          update = { pdf: res.pdfTime, jpg: res.jpgTime, jpgPath: res.jpgPath };
+          update = { pdf: res.pdfTime, jpg: res.jpgTime, jpgPath: res.jpgPath, version: res.version };
           setIsProcessLoading(false);
           setIsFooter(true);
           setIsShowJpg(true);
@@ -79,7 +79,7 @@ function App() {
     const form = e.target;
     const formData = new FormData(form);
     const data = {
-      session: formData.get('session'),
+      formatTauro: selectedFormatTauro,
       format: selectedFormat,
       visuel: selectedFile,
       numCmd: formData.get('numCmd'),
@@ -101,9 +101,6 @@ function App() {
     setSelectedFile('');
     setSelectedFormat('');
 
-    //Set Cookies
-    Cookies.set('session', data.session, { expires: 1 });
-
     // Hide view
     setIsShowPdf(false);
     setIsShowLouis(false);
@@ -122,26 +119,22 @@ function App() {
       <Loading active={isProcessLoading} />
 
       {/* Header Logo */}
-      <Header />
+      <Header appVersion={timeProcess.version} />
 
       {/* Session Input */}
       <div className="main">
         <Form onSubmit={handleSubmit} className="form" warning success error>
-          <Form.Field required>
-            <label htmlFor="session">Session du jour</label>
-            <Input
-              focus
-              id="session"
-              name="session"
-              type="text"
-              placeholder="PRINTSA#0000_08 AOUT"
-              value={loadCookie}
-              onChange={(e) => setLoadCookie(e.target.value)}
+          <Form.Field required error={validateForm.session}>
+            <label htmlFor="session">Répertoires Tauro</label>
+            <FormatTauro
+              onValue={(data) => {
+                setSelectedFormatTauro(data.value);
+              }}
             />
           </Form.Field>
 
           {/* Format */}
-          <Form.Field required>
+          <Form.Field required error={validateForm.format}>
             <label htmlFor="format">Format</label>
             <FormatDropdown
               id="format"
@@ -161,7 +154,7 @@ function App() {
             />
           </Form.Field>
           {/* Visu */}
-          <Form.Field required>
+          <Form.Field required error={validateForm.visuel}>
             <label htmlFor="visuel">Visuel</label>
             <VisuelDropdown
               id="visuel"
@@ -183,17 +176,42 @@ function App() {
           </Form.Field>
 
           {/* Infos commande */}
-          <Form.Field required>
+          <Form.Field required error={validateForm.numCmd}>
             <label htmlFor="numCmd">N° commande</label>
-            <Input id="numCmd" name="numCmd" type="number" placeholder="N° commande" />
+            <Input
+              id="numCmd"
+              name="numCmd"
+              type="number"
+              placeholder="N° commande"
+              onChange={(e, data) => {
+                const value = data.value;
+                value !== '' ? setValidateForm({ numCmd: false }) : setValidateForm({ numCmd: true });
+                console.log(e);
+              }}
+            />
           </Form.Field>
-          <Form.Field required>
+          <Form.Field required error={validateForm.ville}>
             <label htmlFor="ville">Ville / Mag</label>
-            <Place />
+            <Place
+              onValue={(value) => {
+                value !== '' ? setValidateForm({ ville: false }) : setValidateForm({ ville: true });
+                console.log(value);
+              }}
+            />
           </Form.Field>
-          <Form.Field required>
+          <Form.Field required error={validateForm.ex}>
             <label htmlFor="ex">Ex</label>
-            <Input id="ex" name="ex" type="number" placeholder="Ex" />
+            <Input
+              id="ex"
+              name="ex"
+              type="number"
+              placeholder="Ex"
+              onChange={(e, data) => {
+                console.log(data);
+                const value = data.value;
+                value !== '' ? setValidateForm({ ex: false }) : setValidateForm({ ex: true });
+              }}
+            />
           </Form.Field>
 
           <div className="button-form">
@@ -247,7 +265,7 @@ function App() {
       <ImageRender active={isShowJpg} src={timeProcess.jpgPath} />
 
       {/* FOOTER */}
-      <Footer active={!isFooter} timePdf={timeProcess.pdf} timeJpg={timeProcess.jpg} />
+      <Footer active={!isFooter} appVersion={timeProcess.version} timePdf={timeProcess.pdf} timeJpg={timeProcess.jpg} />
     </div>
   );
 }

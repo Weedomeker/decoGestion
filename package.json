@@ -1,10 +1,11 @@
 {
   "name": "decogestion",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "",
   "main": "server.js",
   "scripts": {
-    "start": "nodemon server.js -e ejs,js,css,html,scss",
+    "start": "node server",
+    "dev": "nodemon server.js -e ejs,js,css,html,scss",
     "client": "cd client && npm run dev",
     "client-build": "cd client && npm run build"
   },

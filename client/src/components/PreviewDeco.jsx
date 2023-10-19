@@ -16,7 +16,7 @@ function PreviewDeco({ fileSelected, show }) {
 }
 
 PreviewDeco.propTypes = {
-  fileSelected: PropTypes.string.isRequired,
+  fileSelected: PropTypes.string,
   show: PropTypes.bool,
 };
 

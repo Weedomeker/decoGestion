@@ -2,7 +2,7 @@ const { degrees, PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fs = require('fs/promises');
 const { performance } = require('perf_hooks');
 
-async function modifyPdf(filePath, writePath, numCmd, ville, format, visuel, qte) {
+async function modifyPdf(filePath, writePath, fileName) {
   const readPdf = await fs.readFile(filePath);
   const pdfDoc = await PDFDocument.load(readPdf);
   const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -10,7 +10,7 @@ async function modifyPdf(filePath, writePath, numCmd, ville, format, visuel, qte
   const pages = pdfDoc.getPages();
   const firstPage = pages[0];
   const { width, height } = firstPage.getSize();
-  const text = `${numCmd} - LM ${ville.toUpperCase()} - ${format}_${visuel.toUpperCase()}_${qte} EX`;
+  const text = fileName;
   const textSize = 35;
   const textWitdth = helveticaFont.widthOfTextAtSize(text, textSize);
   firstPage.drawText(text, {
