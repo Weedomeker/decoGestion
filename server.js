@@ -1,5 +1,6 @@
 const appVersion = require('./package.json');
 const express = require('express');
+const { stringify } = require('csv-stringify');
 const app = express();
 const serveIndex = require('serve-index');
 const cors = require('cors');
@@ -11,25 +12,12 @@ const fs = require('fs');
 const { performance } = require('perf_hooks');
 const PORT = process.env.PORT || 8000;
 
-//Date
-let d = new Date();
-let hours = d.getHours();
-if (hours < 10) {
-  hours = '0' + hours;
-}
-let mins = d.getMinutes();
-if (mins < 10) {
-  mins = '0' + mins;
-}
-let secs = d.getSeconds();
-let time = hours + ':' + mins + ':' + secs;
 //Path déco
 const decoFolder = './public/deco';
 //Path export pdf
 //let saveFolder = './public/tauro';
 let saveFolder = './public/tmp';
-//Path export jpg
-let saveJpg = saveFolder + '/jpg';
+let jpgPath = saveFolder;
 
 app.use(cors());
 app.use(express.urlencoded({ extended: false }));
@@ -51,7 +39,6 @@ let fileName = '',
   jpgTime,
   format,
   formatTauro,
-  writePath,
   success = false;
 
 //Sous dossiers par formats
@@ -72,6 +59,17 @@ app.get('/', (req, res) => {
 });
 
 app.post('/', async (req, res) => {
+  //Date
+  let time = new Date().toLocaleTimeString('fr-FR');
+  let date = new Date()
+    .toLocaleDateString('fr-FR', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+    .replace('.', '')
+    .toLocaleUpperCase();
+
   //Verfi success process
   success ? (success = false) : success;
   console.log('Process status reset: ', success, '🔄');
@@ -88,7 +86,7 @@ app.post('/', async (req, res) => {
   formatTauro = data.formatTauro;
 
   //Chemin sortie fichiers
-  writePath = saveFolder + '/' + formatTauro;
+  let writePath = saveFolder + '/' + formatTauro;
 
   //Nom fichier
   fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro.split('_').pop()} - ${visuel.replace(
@@ -97,14 +95,14 @@ app.post('/', async (req, res) => {
   )} ${data.ex}_EX`;
 
   //Verifier si dossiers exist si pas le créer
-  if (fs.existsSync(writePath) && fs.existsSync(saveJpg + +'/' + formatTauro)) {
+  if (fs.existsSync(writePath) && fs.existsSync(`${jpgPath}/PRINTSA#${date}`)) {
     pdfName = writePath + '/' + fileName;
-    jpgName = saveJpg + +'/' + formatTauro + '/' + fileName;
+    jpgName = `${jpgPath}/PRINTSA#${date}` + '/' + fileName;
   } else {
     fs.mkdirSync(writePath, { recursive: true });
-    fs.mkdirSync(saveJpg + '/' + formatTauro, { recursive: true });
+    fs.mkdirSync(`${jpgPath}/PRINTSA#${date}`, { recursive: true });
     pdfName = writePath + '/' + fileName;
-    jpgName = saveJpg + '/' + formatTauro + '/' + fileName;
+    jpgName = `${jpgPath}/PRINTSA#${date}` + '/' + fileName;
   }
 
   //Edition pdf
@@ -123,9 +121,30 @@ app.post('/', async (req, res) => {
     console.log(`Jpg: ✔️`);
 
     if (getFiles(decoFolder).length) success = true;
-    console.log(`${time}:`, fileName);
+    console.log(`${date} ${time}:`, fileName);
     console.log('Fin de tache:', success);
-    fs.appendFileSync('./public/session.log', `${time}: ${fileName}\r`);
+
+    //Fichier log csv etc.
+    fs.appendFileSync('./public/session.log', `${date} ${time}: ${fileName}\r`);
+    const csvFile = [
+      {
+        date: date,
+        heure: time,
+        numCmd: fileName.split(' - ').shift(),
+        mag: fileName.split(' - ').slice(1).shift(),
+        dibond: fileName.split(' - ').slice(2).shift(),
+        deco: fileName.split(' - ').slice(2).pop(),
+      },
+    ];
+    if (fs.existsSync('./public/session.csv')) {
+      stringify(csvFile, { header: false, delimiter: ';' }, (err, output) => {
+        fs.appendFileSync('./public/session.csv', output);
+      });
+    } else {
+      stringify(csvFile, { header: true, delimiter: ';' }, (err, output) => {
+        fs.appendFileSync('./public/session.csv', output);
+      });
+    }
     res.status(200).send({ msg: 'Success' });
   } catch (error) {
     console.log('FAILED GENERATE IMAGE: ', error);

@@ -4,5 +4,7 @@ node_modules
 public/deco
 public/tmp
 public/tauro
+*.csv
+*.log
 client/dist
 .env
