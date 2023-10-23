@@ -8,3 +8,6 @@ public/tauro
 *.log
 client/dist
 .env
+*.log
+*.csv
+*.xlsx

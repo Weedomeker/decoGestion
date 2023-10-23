@@ -1,5 +1,6 @@
 const appVersion = require('./package.json');
 const express = require('express');
+const XLSX = require('xlsx');
 const { stringify } = require('csv-stringify');
 const app = express();
 const serveIndex = require('serve-index');
@@ -125,7 +126,6 @@ app.post('/', async (req, res) => {
     console.log('Fin de tache:', success);
 
     //Fichier log csv etc.
-    fs.appendFileSync('./public/session.log', `${date} ${time}: ${fileName}\r`);
     const csvFile = [
       {
         date: date,
@@ -136,15 +136,19 @@ app.post('/', async (req, res) => {
         deco: fileName.split(' - ').slice(2).pop(),
       },
     ];
-    if (fs.existsSync('./public/session.csv')) {
-      stringify(csvFile, { header: false, delimiter: ';' }, (err, output) => {
-        fs.appendFileSync('./public/session.csv', output);
-      });
+    //XLSX create file
+    if (fs.existsSync('./public/session.xlsx')) {
+      const wb = XLSX.readFile('./public/session.xlsx');
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      XLSX.utils.sheet_add_json(ws, csvFile, { origin: -1, skipHeader: true });
+      XLSX.writeFile(wb, './public/session.xlsx');
     } else {
-      stringify(csvFile, { header: true, delimiter: ';' }, (err, output) => {
-        fs.appendFileSync('./public/session.csv', output);
-      });
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(csvFile);
+      XLSX.utils.book_append_sheet(wb, ws, 'session');
+      XLSX.writeFile(wb, './public/session.xlsx');
     }
+
     res.status(200).send({ msg: 'Success' });
   } catch (error) {
     console.log('FAILED GENERATE IMAGE: ', error);
