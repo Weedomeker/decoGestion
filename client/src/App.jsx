@@ -18,7 +18,11 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState(['']);
   const [selectedFormat, setSelectedFormat] = useState('');
+  const [formatTauro, setFormatTauro] = useState(['']);
+  const [showAddFormat, setShowAddFormat] = useState(false);
   const [selectedFormatTauro, setSelectedFormatTauro] = useState('');
+  const [version, setVersion] = useState('');
+  const [isloadingFormatTauro, setLoadingFormatTauro] = useState(true);
   const [files, setFiles] = useState([{ name: '', fileSize: '' }]);
   const [isFile, setIsFile] = useState(false);
   const [selectedFile, setSelectedFile] = useState('');
@@ -38,6 +42,29 @@ function App() {
     ex: false,
   });
 
+  //Get Format Tauro
+  useEffect(() => {
+    fetch(`http://${HOST}:${PORT}/formatsTauro`, { method: 'GET', headers: { Accept: 'Application/json' } })
+      .then((res) => res.json())
+      .then((res) => {
+        let arr = [];
+        res.map((v) => {
+          arr.push(v.value);
+        }),
+          setFormatTauro(arr);
+        setLoadingFormatTauro(false);
+      })
+      .catch((err) => console.log(err));
+  }, []);
+
+  //Get App version
+  useEffect(() => {
+    fetch(`http://${HOST}:${PORT}/process`, { method: 'GET', headers: { Accept: 'Application/json' } })
+      .then((res) => res.json())
+      .then((res) => setVersion(res.version))
+      .catch((err) => console.log(err));
+  });
+
   useEffect(() => {
     fetch(`http://${HOST}:${PORT}/path`, {
       method: 'GET',
@@ -47,7 +74,7 @@ function App() {
     })
       .then((res) => res.json())
       .then((res) => {
-        setData(res.map((res) => res).slice(1, -5));
+        setData(res.map((res) => res).slice(3, -5));
         setIsLoading(false);
         setIsFooter(false);
       })
@@ -113,24 +140,51 @@ function App() {
     handleGetProcess();
   };
 
+  const handleToggleAddFormat = () => {
+    showAddFormat ? setShowAddFormat(false) : setShowAddFormat(true);
+  };
   return (
     <div className="container">
       {/* LOADING */}
       <Loading active={isProcessLoading} />
 
       {/* Header Logo */}
-      <Header appVersion={timeProcess.version} />
+      <Header appVersion={version} />
 
       {/* Session Input */}
       <div className="main">
         <Form onSubmit={handleSubmit} className="form" warning success error>
-          <Form.Field required error={validateForm.session}>
+          <Form.Field className="format-tauro" required error={validateForm.session}>
             <label htmlFor="session">Répertoires Tauro</label>
             <FormatTauro
+              isLoading={isloadingFormatTauro}
               onValue={(data) => {
                 setSelectedFormatTauro(data.value);
               }}
+              formatTauro={formatTauro}
             />
+            <Button
+              className="add-button"
+              attached="bottom"
+              type="button"
+              icon="add"
+              color="grey"
+              size="mini"
+              onClick={handleToggleAddFormat}
+            />
+
+            {showAddFormat && (
+              <Input
+                size="small"
+                label="Add format"
+                onChange={(e, data) => {
+                  let update = [];
+                  const value = data.value;
+                  update.push(value);
+                  setFormatTauro((curr) => [...curr, ...update]);
+                }}
+              />
+            )}
           </Form.Field>
 
           {/* Format */}

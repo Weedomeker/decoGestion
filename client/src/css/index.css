@@ -15,7 +15,7 @@
   width: 100%;
   align-content: center;
   padding: 20px;
-  margin-bottom: 60px;
+  margin-bottom: 20px;
 }
 
 .main {
@@ -25,7 +25,7 @@
 
 img.ui.image {
   vertical-align: middle;
-  max-width: 350px;
+  max-width: 250px;
   margin: auto;
 }
 
@@ -101,4 +101,14 @@ input {
   margin: auto;
   margin-top: 14px;
   margin-left: 0px;
+}
+
+.format-tauro {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+.add-button {
+  min-width: 25px;
+  max-width: 300px;
 }

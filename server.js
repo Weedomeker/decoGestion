@@ -12,14 +12,12 @@ const path = require('path');
 const fs = require('fs');
 const { performance } = require('perf_hooks');
 const PORT = process.env.PORT || 8000;
-
 //Path déco
 const decoFolder = './public/deco';
 //Path export pdf
 //let saveFolder = './public/tauro';
 let saveFolder = './public/tmp';
 let jpgPath = saveFolder;
-
 app.use(cors());
 app.use(express.urlencoded({ extended: false }));
 app.use('/public', express.static(path.join(__dirname, './public')));
@@ -55,7 +53,7 @@ function search(format) {
 
 app.get('/', (req, res) => {
   success = false;
-  console.log(`Version: ${appVersion.version}`);
+
   res.sendFile(path.join(__dirname, './client/dist/index.html'));
 });
 
@@ -138,10 +136,10 @@ app.post('/', async (req, res) => {
     ];
     //XLSX create file
     if (fs.existsSync('./public/session.xlsx')) {
-      const wb = XLSX.readFile('./public/session.xlsx');
+      const wb = XLSX.readFile('./public/session.xlsx', { cellStyles: true });
       const ws = wb.Sheets[wb.SheetNames[0]];
       XLSX.utils.sheet_add_json(ws, csvFile, { origin: -1, skipHeader: true });
-      XLSX.writeFile(wb, './public/session.xlsx');
+      XLSX.writeFile(wb, './public/session.xlsx', { cellStyles: true });
     } else {
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.json_to_sheet(csvFile);
@@ -177,13 +175,19 @@ app.get('/path', async (req, res) => {
   res.json(dirDeco);
 });
 
-app.get('/:format', async (req, res) => {
-  const format = search(req.params.format);
-  if (format === undefined) {
-    res.json({ Info: getFiles(decoFolder).map((el) => el.name) });
+app.get('/formatsTauro', (req, res) => {
+  let arr = [];
+  if (fs.existsSync('./formatsTauro.conf')) {
+    const readFile = fs.readFileSync('./formatsTauro.conf', { encoding: 'utf8' });
+    arr.push(readFile.split(/\r?\n/g));
+
+    const json = arr[0].map((v, i) => ({
+      id: i,
+      value: v,
+    }));
+    res.json(json);
   } else {
-    //console.log(format)
-    res.json(format);
+    fs.writeFileSync('./formatsTauro.conf', '');
   }
 });
 

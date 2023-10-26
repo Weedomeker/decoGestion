@@ -1,17 +1,15 @@
 import PropTypes from 'prop-types';
-
 import { Dropdown } from 'semantic-ui-react';
 
-function FormatTauro({ onValue }) {
-  const format = ['Deco_Std_100x205', 'Deco_Std_101x205', 'Deco_Std_125x250', 'Deco_Std_125x260', 'Deco_Std_150x305', 'Prod avec BLANC'];
-  const formatOptions = format.map((value, index) => ({
+function FormatTauro({ onValue, formatTauro, isLoading }) {
+  const formatOptions = formatTauro.map((value, index) => ({
     key: index,
-    text: value.split('_').pop(),
+    text: value,
     value: value,
   }));
-
   return (
     <Dropdown
+      loading={isLoading}
       placeholder="Select folder"
       fluid
       selection
@@ -25,6 +23,8 @@ function FormatTauro({ onValue }) {
 
 FormatTauro.propTypes = {
   onValue: PropTypes.func,
+  formatTauro: PropTypes.array,
+  isLoading: PropTypes.bool,
 };
 
 export default FormatTauro;
