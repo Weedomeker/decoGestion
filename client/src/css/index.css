@@ -106,9 +106,9 @@ input {
 .format-tauro {
   display: flex;
   flex-direction: column;
-  width: 100%;
 }
 .add-button {
   min-width: 25px;
   max-width: 300px;
+  max-height: 25px;
 }

@@ -73,6 +73,7 @@ app.post('/', async (req, res) => {
   success ? (success = false) : success;
   console.log('Process status reset: ', success, '🔄');
   const data = {
+    allFormatTauro: req.body.allFormatTauro,
     formatTauro: req.body.formatTauro,
     visuel: req.body.visuel,
     numCmd: req.body.numCmd,
@@ -83,7 +84,17 @@ app.post('/', async (req, res) => {
   visuel = data.visuel.split('-').pop();
   visuPath = data.visuel;
   formatTauro = data.formatTauro;
+  allFormatTauro = data.allFormatTauro;
 
+  //Lecture Ecriture format tauro
+  let arr = [];
+  if (fs.existsSync('./formatsTauro.conf')) {
+    const readFile = fs.readFileSync('./formatsTauro.conf', { encoding: 'utf8' });
+    arr.push(readFile.split(/\r?\n/g));
+    if (allFormatTauro.length > arr[0].length) {
+      fs.writeFileSync('./formatsTauro.conf', allFormatTauro.join('\n'));
+    }
+  }
   //Chemin sortie fichiers
   let writePath = saveFolder + '/' + formatTauro;
 

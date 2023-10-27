@@ -106,6 +106,7 @@ function App() {
     const form = e.target;
     const formData = new FormData(form);
     const data = {
+      allFormatTauro: formatTauro,
       formatTauro: selectedFormatTauro,
       format: selectedFormat,
       visuel: selectedFile,
@@ -142,6 +143,12 @@ function App() {
 
   const handleToggleAddFormat = () => {
     showAddFormat ? setShowAddFormat(false) : setShowAddFormat(true);
+    if (showAddFormat) {
+      const value = document.getElementById('addFormatTauro').value;
+      if (value !== '') {
+        setFormatTauro((curr) => [...curr, value]);
+      }
+    }
   };
   return (
     <div className="container">
@@ -155,7 +162,7 @@ function App() {
       <div className="main">
         <Form onSubmit={handleSubmit} className="form" warning success error>
           <Form.Field className="format-tauro" required error={validateForm.session}>
-            <label htmlFor="session">Répertoires Tauro</label>
+            <label htmlFor="FormatTauro">Répertoires Tauro</label>
             <FormatTauro
               isLoading={isloadingFormatTauro}
               onValue={(data) => {
@@ -164,8 +171,8 @@ function App() {
               formatTauro={formatTauro}
             />
             <Button
-              className="add-button"
               attached="bottom"
+              className="add-button"
               type="button"
               icon="add"
               color="grey"
@@ -174,16 +181,7 @@ function App() {
             />
 
             {showAddFormat && (
-              <Input
-                size="small"
-                label="Add format"
-                onChange={(e, data) => {
-                  let update = [];
-                  const value = data.value;
-                  update.push(value);
-                  setFormatTauro((curr) => [...curr, ...update]);
-                }}
-              />
+              <Input id="addFormatTauro" size="small" label="Add format" placeholder="Deco_Std_FORMAT" />
             )}
           </Form.Field>
 
@@ -240,7 +238,6 @@ function App() {
               onChange={(e, data) => {
                 const value = data.value;
                 value !== '' ? setValidateForm({ numCmd: false }) : setValidateForm({ numCmd: true });
-                console.log(e);
               }}
             />
           </Form.Field>
@@ -249,7 +246,6 @@ function App() {
             <Place
               onValue={(value) => {
                 value !== '' ? setValidateForm({ ville: false }) : setValidateForm({ ville: true });
-                console.log(value);
               }}
             />
           </Form.Field>
@@ -261,7 +257,6 @@ function App() {
               type="number"
               placeholder="Ex"
               onChange={(e, data) => {
-                console.log(data);
                 const value = data.value;
                 value !== '' ? setValidateForm({ ex: false }) : setValidateForm({ ex: true });
               }}
