@@ -71,6 +71,7 @@ h4 {
 input {
   text-transform: capitalize;
 }
+
 .ui.dropdown {
   max-width: 300px;
 }
@@ -111,4 +112,12 @@ input {
   min-width: 25px;
   max-width: 300px;
   max-height: 25px;
+}
+
+.form .warning-message {
+  text-align: justify;
+}
+
+.content .header {
+  padding: 0px;
 }

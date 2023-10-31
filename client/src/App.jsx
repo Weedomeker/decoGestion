@@ -1,6 +1,6 @@
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
-
+import CheckFormats from './CheckFormats';
 import { useEffect, useState } from 'react';
 import { Button, Form, Icon, Input } from 'semantic-ui-react';
 import Header from './components/Header';
@@ -13,6 +13,8 @@ import VisuelDropdown from './components/VisuelDropdown';
 import ImageRender from './components/ImageRender';
 import Place from './components/Place';
 import FormatTauro from './components/FormatTauro';
+import InfoMessage from './components/InfoMessage';
+import Log from './components/Log';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -33,8 +35,12 @@ function App() {
   const [isShowPdf, setIsShowPdf] = useState(false);
   const [isShowJpg, setIsShowJpg] = useState(false);
   const [isShowLouis, setIsShowLouis] = useState(false);
-  const [validateForm, setValidateForm] = useState({
-    session: false,
+  const [isShowLog, setIsShowLog] = useState(false);
+  const [dataLog, setDataLog] = useState(['']);
+  const [validate, setValidate] = useState(true);
+  const [warnMsg, setWarnMsg] = useState({ hidden: true, header: '', msg: '' });
+  const [error, setError] = useState({
+    formatTauro: false,
     format: false,
     visuel: false,
     numCmd: false,
@@ -74,7 +80,7 @@ function App() {
     })
       .then((res) => res.json())
       .then((res) => {
-        setData(res.map((res) => res).slice(3, -5));
+        setData(res.map((res) => res));
         setIsLoading(false);
         setIsFooter(false);
       })
@@ -133,6 +139,7 @@ function App() {
     setIsShowPdf(false);
     setIsShowLouis(false);
     setIsShowJpg(false);
+    setIsShowLog(false);
 
     //Set Loading Process
     setIsProcessLoading(true);
@@ -141,6 +148,7 @@ function App() {
     handleGetProcess();
   };
 
+  // Ajout Format Plaque Tauro
   const handleToggleAddFormat = () => {
     showAddFormat ? setShowAddFormat(false) : setShowAddFormat(true);
     if (showAddFormat) {
@@ -150,6 +158,7 @@ function App() {
       }
     }
   };
+
   return (
     <div className="container">
       {/* LOADING */}
@@ -160,15 +169,32 @@ function App() {
 
       {/* Session Input */}
       <div className="main">
-        <Form onSubmit={handleSubmit} className="form" warning success error>
-          <Form.Field className="format-tauro" required error={validateForm.session}>
+        <Form onSubmit={handleSubmit} className="form">
+          {/* Warning Message */}
+          <InfoMessage isHidden={warnMsg.hidden} title={warnMsg.header} text={warnMsg.msg} />
+
+          {/* Format Tauro */}
+          <Form.Field className="format-tauro" required error={error.formatTauro}>
             <label htmlFor="FormatTauro">Répertoires Tauro</label>
             <FormatTauro
+              error={error.formatTauro}
               isLoading={isloadingFormatTauro}
-              onValue={(data) => {
-                setSelectedFormatTauro(data.value);
-              }}
               formatTauro={formatTauro}
+              onValue={(e, data) => {
+                setSelectedFormatTauro(data.value);
+                CheckFormats(data.value, selectedFormat) == false
+                  ? setWarnMsg({
+                      hidden: false,
+                      header: 'Problème format',
+                      msg: 'Le format du visuel est plus grand que celui de la plaque.',
+                    })
+                  : setWarnMsg({ hidden: true });
+                if (data.value == '' || data.value == undefined) {
+                  setError({ ...error, formatTauro: true });
+                } else {
+                  setError({ ...error, formatTauro: false });
+                }
+              }}
             />
             <Button
               attached="bottom"
@@ -186,9 +212,10 @@ function App() {
           </Form.Field>
 
           {/* Format */}
-          <Form.Field required error={validateForm.format}>
+          <Form.Field required error={error.format}>
             <label htmlFor="format">Format</label>
             <FormatDropdown
+              error={error.format}
               id="format"
               className="format"
               isLoading={isLoading}
@@ -196,19 +223,33 @@ function App() {
               value={selectedFormat}
               text={selectedFormat}
               selectedFormat={selectedFormat}
-              onSelectFormat={(v) => {
+              onSelectFormat={(e, v) => {
                 const value = isLoading ? 'Loading..' : data.find((x) => x.path === v.value);
                 setSelectedFormat(value.name);
                 setFiles(value.files);
                 setIsFile(true);
                 setIsFooter(false);
+                CheckFormats(selectedFormatTauro, value.name) == false
+                  ? setWarnMsg({
+                      hidden: false,
+                      header: 'Problème format',
+                      msg: 'Le format du visuel est plus grand que celui de la plaque.',
+                    })
+                  : setWarnMsg({ hidden: true });
+                if (value.name == '' || value.name == undefined) {
+                  setError({ ...error, format: true });
+                } else {
+                  setError({ ...error, format: false });
+                }
               }}
             />
           </Form.Field>
+
           {/* Visu */}
-          <Form.Field required error={validateForm.visuel}>
+          <Form.Field required error={error.visuel}>
             <label htmlFor="visuel">Visuel</label>
             <VisuelDropdown
+              error={error.visuel}
               id="visuel"
               className="visuel"
               isFile={isFile}
@@ -222,52 +263,75 @@ function App() {
                 setIsShowPdf(true);
                 setIsShowLouis(false);
                 setIsShowJpg(false);
+                setIsShowLog(false);
+                if (value.name == '' || value.name == undefined) {
+                  setError({ ...error, visuel: true });
+                  setValidate(true);
+                } else {
+                  setError({ ...error, visuel: false });
+                  setValidate(false);
+                }
               }}
             />
             <p style={{ fontSize: '10px', textAlign: 'right', width: '300px', marginTop: '2px' }}>{fileSize}</p>
           </Form.Field>
 
           {/* Infos commande */}
-          <Form.Field required error={validateForm.numCmd}>
+          <Form.Field required error={error.numCmd}>
             <label htmlFor="numCmd">N° commande</label>
             <Input
+              error={error.numCmd}
               id="numCmd"
               name="numCmd"
               type="number"
               placeholder="N° commande"
               onChange={(e, data) => {
-                const value = data.value;
-                value !== '' ? setValidateForm({ numCmd: false }) : setValidateForm({ numCmd: true });
+                data.value;
+                if (data.value.length < 5) {
+                  setError({ ...error, numCmd: true });
+                } else {
+                  setError({ ...error, numCmd: false });
+                }
               }}
             />
           </Form.Field>
-          <Form.Field required error={validateForm.ville}>
+          <Form.Field required error={error.ville}>
             <label htmlFor="ville">Ville / Mag</label>
             <Place
               onValue={(value) => {
-                value !== '' ? setValidateForm({ ville: false }) : setValidateForm({ ville: true });
+                value;
+                if (value.length < 1) {
+                  setError({ ...error, ville: true });
+                } else {
+                  setError({ ...error, ville: false });
+                }
               }}
             />
           </Form.Field>
-          <Form.Field required error={validateForm.ex}>
+          <Form.Field required error={error.ex}>
             <label htmlFor="ex">Ex</label>
             <Input
+              error={error.ex}
               id="ex"
               name="ex"
               type="number"
               placeholder="Ex"
               onChange={(e, data) => {
-                const value = data.value;
-                value !== '' ? setValidateForm({ ex: false }) : setValidateForm({ ex: true });
+                data.value;
+                if (data.value < 1 || data.value == '') {
+                  setError({ ...error, ex: true });
+                } else {
+                  setError({ ...error, ex: false });
+                }
               }}
             />
           </Form.Field>
 
           <div className="button-form">
-            <Button primary compact inverted type="submit">
-              Valider
-            </Button>
+            <Button disabled={validate} primary compact inverted type="submit" content="Valider" />
+
             <Button
+              content="Louis"
               compact
               inverted
               color="green"
@@ -277,13 +341,13 @@ function App() {
                   setIsShowLouis(true);
                   setIsShowPdf(false);
                   setIsShowJpg(false);
+                  setIsShowLog(false);
                 } else {
                   setIsShowLouis(false);
                 }
               }}
-            >
-              Louis
-            </Button>
+            />
+
             <Button
               compact
               inverted
@@ -294,6 +358,7 @@ function App() {
                   setIsShowJpg(true);
                   setIsShowLouis(false);
                   setIsShowPdf(false);
+                  setIsShowLog(false);
                 } else {
                   setIsShowJpg(false);
                 }
@@ -301,17 +366,37 @@ function App() {
             >
               <Icon className="image icon" size="large" fitted />
             </Button>
+            <Button
+              type="button"
+              icon="file text"
+              color="vk"
+              toggle
+              onClick={() => {
+                if (!isShowLog) {
+                  setIsShowLog(true);
+                  setIsShowJpg(false);
+                  setIsShowLouis(false);
+                  setIsShowPdf(false);
+                } else {
+                  setIsShowLog(false);
+                }
+              }}
+            />
           </div>
         </Form>
       </div>
+
       {/* Preview visu */}
       <PreviewDeco fileSelected={selectedFile} show={isShowPdf} />
 
-      {/* Preview Louis Files */}
+      {/*  Louis Files */}
       <LouisPreview show={isShowLouis} />
 
-      {/* Preview Jpg */}
+      {/*  Jpg */}
       <ImageRender active={isShowJpg} src={timeProcess.jpgPath} />
+
+      {/* Log */}
+      <Log show={isShowLog} data={dataLog} />
 
       {/* FOOTER */}
       <Footer active={!isFooter} appVersion={timeProcess.version} timePdf={timeProcess.pdf} timeJpg={timeProcess.jpg} />

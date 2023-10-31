@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { Dropdown } from 'semantic-ui-react';
 
-function FormatDropdown({ data, isLoading, onSelectFormat, selectedFormat }) {
+function FormatDropdown({ data, isLoading, onSelectFormat, selectedFormat, error }) {
   const formatOptions = data.map((format, index) => ({
     text: format.name,
     value: format.path,
@@ -10,6 +10,7 @@ function FormatDropdown({ data, isLoading, onSelectFormat, selectedFormat }) {
 
   return (
     <Dropdown
+      error={error}
       id="format"
       className="format"
       loading={isLoading}
@@ -19,8 +20,8 @@ function FormatDropdown({ data, isLoading, onSelectFormat, selectedFormat }) {
       value={selectedFormat}
       text={selectedFormat}
       options={formatOptions}
-      onChange={(e, value) => {
-        onSelectFormat(value);
+      onChange={(e, data) => {
+        onSelectFormat(e, data);
       }}
     />
   );
@@ -31,6 +32,7 @@ FormatDropdown.propTypes = {
   isLoading: PropTypes.bool.isRequired,
   selectedFormat: PropTypes.string,
   onSelectFormat: PropTypes.func.isRequired,
+  error: PropTypes.bool,
 };
 
 export default FormatDropdown;
