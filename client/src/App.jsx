@@ -36,7 +36,7 @@ function App() {
   const [isShowJpg, setIsShowJpg] = useState(false);
   const [isShowLouis, setIsShowLouis] = useState(false);
   const [isShowLog, setIsShowLog] = useState(false);
-  const [dataLog, setDataLog] = useState(['']);
+  const [dataLog, setDataLog] = useState([]);
   const [validate, setValidate] = useState(true);
   const [warnMsg, setWarnMsg] = useState({ hidden: true, header: '', msg: '' });
   const [error, setError] = useState({
@@ -87,22 +87,39 @@ function App() {
       .catch((err) => console.log(err));
   }, []);
 
-  const handleGetProcess = () => {
-    let update = {};
-    fetch(`http://${HOST}:${PORT}/process`, { method: 'GET', headers: { Accept: 'Application/json' } })
-      .then((res) => res.json())
-      .then((res) => {
-        if (res.success) {
-          update = { pdf: res.pdfTime, jpg: res.jpgTime, jpgPath: res.jpgPath, version: res.version };
-          setIsProcessLoading(false);
-          setIsFooter(true);
-          setIsShowJpg(true);
-        } else {
-          handleGetProcess();
-        }
+  let timeoutId;
+  const handleGetProcess = async () => {
+    try {
+      const res = await fetch(`http://${HOST}:${PORT}/process`, {
+        method: 'GET',
+        headers: { Accept: 'Application/json' },
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        const update = {
+          pdf: data.pdfTime,
+          jpg: data.jpgTime,
+          jpgPath: data.jpgPath,
+          fileName: data.fileName,
+          version: data.version,
+        };
+        setDataLog((curr) => [...curr, update.fileName]);
+        setIsProcessLoading(false);
+        setIsFooter(true);
+        setIsShowJpg(true);
         setTimeProcess((timeProcess) => ({ ...timeProcess, ...update }));
-      })
-      .catch((err) => console.log(err));
+      } else {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        timeoutId = setTimeout(() => {
+          handleGetProcess();
+        }, 1000);
+      }
+    } catch (err) {
+      console.log(err);
+    }
   };
 
   // Submit form

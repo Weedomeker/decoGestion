@@ -170,6 +170,7 @@ app.get('/process', async (req, res) => {
     jpgTime: parseFloat(jpgTime),
     pdfTime: parseFloat(pdfTime),
     jpgPath: jpgName.split('/').slice(2).join('/') + '.jpg',
+    fileName: fileName,
     version: appVersion.version,
     success: success,
   });
