@@ -69,7 +69,7 @@ function App() {
       .then((res) => res.json())
       .then((res) => setVersion(res.version))
       .catch((err) => console.log(err));
-  });
+  }, []);
 
   useEffect(() => {
     fetch(`http://${HOST}:${PORT}/path`, {
@@ -104,7 +104,10 @@ function App() {
           fileName: data.fileName,
           version: data.version,
         };
-        setDataLog((curr) => [...curr, update.fileName]);
+        setDataLog((curr) => [...curr, {
+          id: curr.length + 1,
+          value: update.fileName
+        }]);
         setIsProcessLoading(false);
         setIsFooter(true);
         setIsShowJpg(true);

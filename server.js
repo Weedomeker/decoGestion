@@ -13,7 +13,8 @@ const fs = require('fs');
 const { performance } = require('perf_hooks');
 const PORT = process.env.PORT || 8000;
 //Path déco
-const decoFolder = './public/deco/1_FORMATS STANDARDS';
+//const decoFolder = './public/deco/1_FORMATS STANDARDS';
+const decoFolder = './public/deco';
 //Path export pdf
 //let saveFolder = './public/tauro';
 let saveFolder = './public/tmp';

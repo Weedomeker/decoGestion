@@ -2,27 +2,30 @@ import PropTypes from 'prop-types';
 import { Message, List } from 'semantic-ui-react';
 
 function Log({ show, data }) {
-  const logTime = new Date().toLocaleDateString('fr-FR');
+
+
+  data.forEach((item, i) => {
+    item.id = i + 1
+  })
+
+  const logTime = new Date().toLocaleTimeString('fr-FR')
   const options =
     data &&
-    data.map((value, index) => {
+    data.map((v) => {
       return (
-        <Message.List key={index}>
-          {' '}
-          <List.Icon name="check" color="green" />
-          {value}
+     
+        <Message.List key={v.id}>
+         <div className='time'> {logTime}</div>
+        <List.Icon name="check" color="green" />
+          {v.value}
         </Message.List>
       );
     });
 
   if (show) {
     return (
-      <div className="preview-deco">
-        <Message color="black" size="tiny">
-          <Message.Header>Log session en cours: {logTime}</Message.Header>
-
+      <div className="log">
           {options}
-        </Message>
       </div>
     );
   } else {
