@@ -23,7 +23,7 @@ function App() {
   const [formatTauro, setFormatTauro] = useState(['']);
   const [showAddFormat, setShowAddFormat] = useState(false);
   const [selectedFormatTauro, setSelectedFormatTauro] = useState('');
-  const [version, setVersion] = useState('');
+  const [version, setVersion] = useState(null);
   const [isloadingFormatTauro, setLoadingFormatTauro] = useState(true);
   const [files, setFiles] = useState([{ name: '', fileSize: '' }]);
   const [isFile, setIsFile] = useState(false);
@@ -61,13 +61,15 @@ function App() {
         setLoadingFormatTauro(false);
       })
       .catch((err) => console.log(err));
-  }, []);
+  }, [selectedFormatTauro]);
 
   //Get App version
   useEffect(() => {
     fetch(`http://${HOST}:${PORT}/process`, { method: 'GET', headers: { Accept: 'Application/json' } })
       .then((res) => res.json())
-      .then((res) => setVersion(res.version))
+      .then((res) => {
+        setVersion(res.version);
+      })
       .catch((err) => console.log(err));
   }, []);
 
@@ -102,12 +104,17 @@ function App() {
           jpg: data.jpgTime,
           jpgPath: data.jpgPath,
           fileName: data.fileName,
+          time: data.time,
           version: data.version,
         };
-        setDataLog((curr) => [...curr, {
-          id: curr.length + 1,
-          value: update.fileName
-        }]);
+        setDataLog((curr) => [
+          ...curr,
+          {
+            id: curr.length + 1,
+            time: update.time,
+            value: update.fileName,
+          },
+        ]);
         setIsProcessLoading(false);
         setIsFooter(true);
         setIsShowJpg(true);
@@ -419,7 +426,7 @@ function App() {
       <Log show={isShowLog} data={dataLog} />
 
       {/* FOOTER */}
-      <Footer active={!isFooter} appVersion={timeProcess.version} timePdf={timeProcess.pdf} timeJpg={timeProcess.jpg} />
+      <Footer active={!isFooter} timePdf={timeProcess.pdf} timeJpg={timeProcess.jpg} />
     </div>
   );
 }

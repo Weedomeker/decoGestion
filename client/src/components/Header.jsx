@@ -9,14 +9,13 @@ const Header = ({ appVersion }) => {
         style={{
           textAlign: 'center',
           fontFamily: 'monospace',
-          letterSpacing: '1px',
-          textTransform: 'uppercase',
+          textTransform: 'capitalize',
           fontSize: '10px',
           color: 'grey',
           marginTop: '14px',
         }}
       >
-        V{appVersion}
+        {appVersion && appVersion}
       </p>
     </div>
   );

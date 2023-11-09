@@ -1,7 +1,8 @@
-const appVersion = require('./package.json');
+const isDev = require('isdev');
+const checkVersion = require('./src/checkVersion');
+const version = require('./package.json');
 const express = require('express');
 const XLSX = require('xlsx');
-const { stringify } = require('csv-stringify');
 const app = express();
 const serveIndex = require('serve-index');
 const cors = require('cors');
@@ -12,13 +13,14 @@ const path = require('path');
 const fs = require('fs');
 const { performance } = require('perf_hooks');
 const PORT = process.env.PORT || 8000;
+
 //Path déco
-//const decoFolder = './public/deco/1_FORMATS STANDARDS';
-const decoFolder = './public/deco';
-//Path export pdf
-//let saveFolder = './public/tauro';
-let saveFolder = './public/tmp';
-let jpgPath = saveFolder;
+const decoFolder = './public/deco/1_FORMATS STANDARDS';
+
+//Path export
+const saveFolder = isDev ? './public/tmp' : './public/tauro';
+const jpgPath = saveFolder;
+
 app.use(cors());
 app.use(express.urlencoded({ extended: false }));
 app.use('/public', express.static(path.join(__dirname, './public')));
@@ -54,7 +56,6 @@ function search(format) {
 
 app.get('/', (req, res) => {
   success = false;
-
   res.sendFile(path.join(__dirname, './client/dist/index.html'));
 });
 
@@ -76,6 +77,7 @@ app.post('/', async (req, res) => {
   const data = {
     allFormatTauro: req.body.allFormatTauro,
     formatTauro: req.body.formatTauro,
+    format: req.body.format,
     visuel: req.body.visuel,
     numCmd: req.body.numCmd,
     ville: req.body.ville.toUpperCase(),
@@ -83,9 +85,10 @@ app.post('/', async (req, res) => {
   };
   let visuel = data.visuel.split('/').pop();
   visuel = data.visuel.split('-').pop();
-  visuPath = data.visuel;
-  formatTauro = data.formatTauro;
-  allFormatTauro = data.allFormatTauro;
+  let visuPath = data.visuel;
+  let formatTauro = data.formatTauro;
+  let allFormatTauro = data.allFormatTauro;
+  let format = data.format;
 
   //Lecture Ecriture format tauro
   let arr = [];
@@ -118,7 +121,7 @@ app.post('/', async (req, res) => {
 
   //Edition pdf
   start = performance.now();
-  await modifyPdf(visuPath, writePath, fileName);
+  await modifyPdf(visuPath, writePath, fileName, format);
   timeExec = ((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2);
   pdfTime = timeExec;
   console.log(`Pdf: ✔️`);
@@ -136,7 +139,7 @@ app.post('/', async (req, res) => {
     console.log('Fin de tache:', success);
 
     //Fichier log csv etc.
-    const csvFile = [
+    const dataFileExport = [
       {
         date: date,
         heure: time,
@@ -144,17 +147,19 @@ app.post('/', async (req, res) => {
         mag: fileName.split(' - ').slice(1).shift(),
         dibond: fileName.split(' - ').slice(2).shift(),
         deco: fileName.split(' - ').slice(2).pop(),
+        app_version: `v${version.version}`,
+        ip: req.hostname,
       },
     ];
     //XLSX create file
     if (fs.existsSync('./public/session.xlsx')) {
       const wb = XLSX.readFile('./public/session.xlsx', { cellStyles: true });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      XLSX.utils.sheet_add_json(ws, csvFile, { origin: -1, skipHeader: true });
+      XLSX.utils.sheet_add_json(ws, dataFileExport, { origin: -1, skipHeader: true });
       XLSX.writeFile(wb, './public/session.xlsx', { cellStyles: true });
     } else {
       const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(csvFile);
+      const ws = XLSX.utils.json_to_sheet(dataFileExport);
       XLSX.utils.book_append_sheet(wb, ws, 'session');
       XLSX.writeFile(wb, './public/session.xlsx');
     }
@@ -167,12 +172,16 @@ app.post('/', async (req, res) => {
 });
 
 app.get('/process', async (req, res) => {
+  let time = new Date().toLocaleTimeString('fr-FR');
+  const version = await checkVersion().then((res) => res.message);
+
   res.json({
     jpgTime: parseFloat(jpgTime),
     pdfTime: parseFloat(pdfTime),
     jpgPath: jpgName.split('/').slice(2).join('/') + '.jpg',
     fileName: fileName,
-    version: appVersion.version,
+    time: time,
+    version: version,
     success: success,
   });
 });
@@ -205,5 +214,12 @@ app.get('/formatsTauro', (req, res) => {
 });
 
 app.listen(PORT, () => {
+  checkVersion()
+    .then((result) => {
+      console.log(result.message);
+    })
+    .catch((error) => {
+      console.error('Error:', error);
+    });
   console.log(`Server start on port ${PORT}`);
 });

@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 
-function Footer({ active, timePdf, timeJpg, appVersion }) {
+function Footer({ active, timePdf, timeJpg }) {
   if (active) {
     return (
       <div className="footer">
@@ -15,7 +15,6 @@ function Footer({ active, timePdf, timeJpg, appVersion }) {
   } else {
     return (
       <div className="footer">
-        <p>App Version: {appVersion}</p>
         <p>
           Pdf completed: {timePdf} secs - Jpg completed: {timeJpg} secs.
         </p>
@@ -28,6 +27,5 @@ Footer.propTypes = {
   active: PropTypes.bool.isRequired,
   timePdf: PropTypes.number,
   timeJpg: PropTypes.number,
-  appVersion: PropTypes.string,
 };
 export default Footer;
