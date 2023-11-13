@@ -2,6 +2,7 @@ import { Image } from 'semantic-ui-react';
 import PropTypes from 'prop-types';
 
 const Header = ({ appVersion }) => {
+  const app = appVersion && appVersion.replace(/(\d)/g, '$1');
   return (
     <div className="header">
       <Image src="../src/images/logo_deco_noir.svg" />
@@ -15,7 +16,7 @@ const Header = ({ appVersion }) => {
           marginTop: '14px',
         }}
       >
-        {appVersion && appVersion}
+        {appVersion && app}
       </p>
     </div>
   );

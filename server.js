@@ -40,8 +40,7 @@ let fileName = '',
   pdfTime,
   jpgTime,
   format,
-  formatTauro,
-  success = false;
+  formatTauro;
 
 //Sous dossiers par formats
 
@@ -55,7 +54,6 @@ function search(format) {
 }
 
 app.get('/', (req, res) => {
-  success = false;
   res.sendFile(path.join(__dirname, './client/dist/index.html'));
 });
 
@@ -71,9 +69,6 @@ app.post('/', async (req, res) => {
     .replace('.', '')
     .toLocaleUpperCase();
 
-  //Verfi success process
-  success ? (success = false) : success;
-  console.log('Process status reset: ', success, '🔄');
   const data = {
     allFormatTauro: req.body.allFormatTauro,
     formatTauro: req.body.formatTauro,
@@ -134,19 +129,17 @@ app.post('/', async (req, res) => {
     jpgTime = timeExec;
     console.log(`Jpg: ✔️`);
 
-    if (getFiles(decoFolder).length) success = true;
     console.log(`${date} ${time}:`, fileName);
-    console.log('Fin de tache:', success);
 
-    //Fichier log csv etc.
     const dataFileExport = [
       {
-        date: date,
-        heure: time,
-        numCmd: fileName.split(' - ').shift(),
-        mag: fileName.split(' - ').slice(1).shift(),
-        dibond: fileName.split(' - ').slice(2).shift(),
-        deco: fileName.split(' - ').slice(2).pop(),
+        Date: date,
+        Heure: time,
+        numCmd: fileName.split(' - ')[0],
+        Mag: fileName.split(' - ')[1],
+        Dibond: fileName.split(' - ')[2],
+        Deco: fileName.split(' - ').slice(2).pop(),
+        Temps: (parseFloat(jpgTime) + parseFloat(pdfTime)).toFixed(2).replace('.', ','),
         app_version: `v${version.version}`,
         ip: req.hostname,
       },
@@ -164,7 +157,7 @@ app.post('/', async (req, res) => {
       XLSX.writeFile(wb, './public/session.xlsx');
     }
 
-    res.status(200).send({ msg: 'Success' });
+    res.status(200).send();
   } catch (error) {
     console.log('FAILED GENERATE IMAGE: ', error);
     res.send(error);
@@ -175,14 +168,13 @@ app.get('/process', async (req, res) => {
   let time = new Date().toLocaleTimeString('fr-FR');
   const version = await checkVersion().then((res) => res.message);
 
-  res.json({
+  res.status(200).json({
     jpgTime: parseFloat(jpgTime),
     pdfTime: parseFloat(pdfTime),
     jpgPath: jpgName.split('/').slice(2).join('/') + '.jpg',
     fileName: fileName,
     time: time,
     version: version,
-    success: success,
   });
 });
 
@@ -191,8 +183,6 @@ app.get('/public', async (req, res) => {
 });
 
 app.get('/path', async (req, res) => {
-  success = false;
-  console.log('Etat du process: ', success);
   const dirDeco = getFiles(decoFolder);
   res.json(dirDeco);
 });

@@ -89,7 +89,6 @@ function App() {
       .catch((err) => console.log(err));
   }, []);
 
-  let timeoutId;
   const handleGetProcess = async () => {
     try {
       const res = await fetch(`http://${HOST}:${PORT}/process`, {
@@ -98,7 +97,7 @@ function App() {
       });
       const data = await res.json();
 
-      if (data.success) {
+      if (res.status === 200) {
         const update = {
           pdf: data.pdfTime,
           jpg: data.jpgTime,
@@ -118,14 +117,7 @@ function App() {
         setIsProcessLoading(false);
         setIsFooter(true);
         setIsShowJpg(true);
-        setTimeProcess((timeProcess) => ({ ...timeProcess, ...update }));
-      } else {
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-        timeoutId = setTimeout(() => {
-          handleGetProcess();
-        }, 1000);
+        setTimeProcess((timeProcess) => Object.assign({}, timeProcess, update));
       }
     } catch (err) {
       console.log(err);
@@ -154,8 +146,12 @@ function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     })
-      .then((res) => res.json())
-      .then((res) => res);
+      .then((res) => {
+        if (res.status == 200) {
+          handleGetProcess();
+        }
+      })
+      .catch((err) => console.log(err));
 
     // Reset form
     form.reset();
@@ -170,9 +166,6 @@ function App() {
 
     //Set Loading Process
     setIsProcessLoading(true);
-
-    //Check response
-    handleGetProcess();
   };
 
   // Ajout Format Plaque Tauro
