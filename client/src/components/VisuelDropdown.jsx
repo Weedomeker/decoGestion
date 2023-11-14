@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { Dropdown } from 'semantic-ui-react';
 
-function VisuelDropdown({ files, isFile, onSelectedFile, selectedFile, error }) {
+function VisuelDropdown({ files, isFile, onSelectedFile, selectedFile, error, enabled }) {
   const filesOptions = files.map((file, index) => ({
     text: file.name.split('-').pop(),
     value: file,
@@ -9,6 +9,7 @@ function VisuelDropdown({ files, isFile, onSelectedFile, selectedFile, error }) 
   }));
   return (
     <Dropdown
+      disabled={enabled}
       error={error}
       id="visuel"
       clearable
@@ -34,6 +35,7 @@ VisuelDropdown.propTypes = {
   selectedFile: PropTypes.string,
   onSelectedFile: PropTypes.func,
   error: PropTypes.bool,
+  enabled: PropTypes.bool,
 };
 
 export default VisuelDropdown;

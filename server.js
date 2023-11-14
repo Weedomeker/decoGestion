@@ -60,6 +60,7 @@ app.get('/', (req, res) => {
 app.post('/', async (req, res) => {
   //Date
   let time = new Date().toLocaleTimeString('fr-FR');
+
   let date = new Date()
     .toLocaleDateString('fr-FR', {
       year: 'numeric',
@@ -117,7 +118,7 @@ app.post('/', async (req, res) => {
   //Edition pdf
   start = performance.now();
   await modifyPdf(visuPath, writePath, fileName, format);
-  timeExec = ((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2);
+  timeExec = parseFloat(((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2));
   pdfTime = timeExec;
   console.log(`Pdf: ✔️`);
 
@@ -125,7 +126,7 @@ app.post('/', async (req, res) => {
   try {
     start = performance.now();
     await pdfToimg(`${pdfName}.pdf`, `${jpgName}.jpg`);
-    timeExec = ((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2);
+    timeExec = parseFloat(((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2));
     jpgTime = timeExec;
     console.log(`Jpg: ✔️`);
 
@@ -135,11 +136,11 @@ app.post('/', async (req, res) => {
       {
         Date: date,
         Heure: time,
-        numCmd: fileName.split(' - ')[0],
+        numCmd: parseFloat(fileName.split(' - ')[0]),
         Mag: fileName.split(' - ')[1],
         Dibond: fileName.split(' - ')[2],
         Deco: fileName.split(' - ').slice(2).pop(),
-        Temps: (parseFloat(jpgTime) + parseFloat(pdfTime)).toFixed(2).replace('.', ','),
+        Temps: parseFloat((jpgTime + pdfTime).toFixed(2)),
         app_version: `v${version.version}`,
         ip: req.hostname,
       },

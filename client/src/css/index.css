@@ -46,7 +46,7 @@ img.ui.image {
   max-width: 1400px;
   min-width: 600px;
 }
-.log{
+.log {
   grid-column: span 2;
   grid-row: 3;
   overflow-y: auto;
@@ -57,10 +57,9 @@ img.ui.image {
   padding-left: 7%;
   width: 100%;
 }
-.log .list{
+.log .list {
   margin: 0;
   padding: 0;
- 
 }
 .log .time {
   float: left;
@@ -138,13 +137,14 @@ input {
 
 .form .warning-message {
   text-align: justify;
+  max-width: 450px;
 }
 
 .content .header {
   padding: 0px;
 }
 
-ul{
+ul {
   margin: 0;
   text-align: left;
 }

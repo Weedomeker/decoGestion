@@ -15,6 +15,7 @@ import Place from './components/Place';
 import FormatTauro from './components/FormatTauro';
 import InfoMessage from './components/InfoMessage';
 import Log from './components/Log';
+import checkFormats from './CheckFormats';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -37,7 +38,6 @@ function App() {
   const [isShowLouis, setIsShowLouis] = useState(false);
   const [isShowLog, setIsShowLog] = useState(false);
   const [dataLog, setDataLog] = useState([]);
-  const [validate, setValidate] = useState(true);
   const [warnMsg, setWarnMsg] = useState({ hidden: true, header: '', msg: '', icon: 'warning sign', color: 'red' });
   const [error, setError] = useState({
     formatTauro: false,
@@ -46,6 +46,14 @@ function App() {
     numCmd: false,
     ville: false,
     ex: false,
+  });
+  const [enabled, setEnabled] = useState({
+    format: true,
+    visu: true,
+    numCmd: true,
+    ville: true,
+    ex: true,
+    validate: true,
   });
 
   //Get Format Tauro
@@ -208,13 +216,16 @@ function App() {
               formatTauro={formatTauro}
               onValue={(e, data) => {
                 setSelectedFormatTauro(data.value);
-
+                setEnabled({ ...enabled, format: false });
+                //info
                 if (CheckFormats(data.value, selectedFormat) && CheckFormats(data.value, selectedFormat).gap == true) {
                   setWarnMsg({
                     ...warnMsg,
                     hidden: false,
                     header: 'Attention au format',
-                    msg: 'Le format de la plaque est beaucoup plus grand que le visuel.',
+                    msg: `Le format de la plaque est beaucoup plus grand que le visuel. Perte: (${
+                      checkFormats(data.value, selectedFormat).surface
+                    }/m2)`,
                     icon: 'info circle',
                     color: 'yellow',
                   });
@@ -222,6 +233,7 @@ function App() {
                   CheckFormats(data.value, selectedFormat) &&
                   CheckFormats(data.value, selectedFormat).isChecked == false
                 ) {
+                  //alerte
                   setWarnMsg({
                     ...warnMsg,
                     hidden: false,
@@ -260,6 +272,7 @@ function App() {
           <Form.Field required error={error.format}>
             <label htmlFor="format">Format</label>
             <FormatDropdown
+              enabled={enabled.format}
               error={error.format}
               id="format"
               className="format"
@@ -274,6 +287,7 @@ function App() {
                 setFiles(value.files);
                 setIsFile(true);
                 setIsFooter(false);
+                setEnabled({ ...enabled, visu: false });
 
                 if (
                   CheckFormats(selectedFormatTauro, value.name) &&
@@ -283,7 +297,9 @@ function App() {
                     ...warnMsg,
                     hidden: false,
                     header: 'Attention au format',
-                    msg: 'Le format de la plaque est beaucoup plus grand que le visuel.',
+                    msg: `Le format de la plaque est beaucoup plus grand que le visuel. \r\n(Perte: ${
+                      checkFormats(selectedFormatTauro, value.name).surface
+                    }/m2)`,
                     icon: 'info circle',
                     color: 'yellow',
                   });
@@ -312,6 +328,7 @@ function App() {
           <Form.Field required error={error.visuel}>
             <label htmlFor="visuel">Visuel</label>
             <VisuelDropdown
+              enabled={enabled.visu}
               error={error.visuel}
               id="visuel"
               className="visuel"
@@ -329,10 +346,9 @@ function App() {
                 setIsShowLog(false);
                 if (value.name == '' || value.name == undefined) {
                   setError({ ...error, visuel: true });
-                  setValidate(true);
                 } else {
+                  setEnabled({ ...enabled, numCmd: false });
                   setError({ ...error, visuel: false });
-                  setValidate(false);
                 }
               }}
             />
@@ -343,37 +359,49 @@ function App() {
           <Form.Field required error={error.numCmd}>
             <label htmlFor="numCmd">N° commande</label>
             <Input
+              disabled={enabled.numCmd}
               error={error.numCmd}
               id="numCmd"
               name="numCmd"
               type="number"
               placeholder="N° commande"
               onChange={(e, data) => {
-                data.value;
+                const maxValidate = (string) => {
+                  return string.slice(0, 5);
+                };
                 if (data.value.length < 5) {
                   setError({ ...error, numCmd: true });
                 } else {
+                  setEnabled({ ...enabled, ville: false });
+                  maxValidate(data.value);
                   setError({ ...error, numCmd: false });
                 }
               }}
             />
           </Form.Field>
+
+          {/* Ville / Mag */}
           <Form.Field required error={error.ville}>
             <label htmlFor="ville">Ville / Mag</label>
             <Place
+              enabled={enabled.ville}
               onValue={(value) => {
                 value;
                 if (value.length < 1) {
                   setError({ ...error, ville: true });
                 } else {
+                  setEnabled({ ...enabled, ex: false });
                   setError({ ...error, ville: false });
                 }
               }}
             />
           </Form.Field>
+
+          {/* Exemplaires */}
           <Form.Field required error={error.ex}>
             <label htmlFor="ex">Ex</label>
             <Input
+              disabled={enabled.ex}
               error={error.ex}
               id="ex"
               name="ex"
@@ -384,6 +412,7 @@ function App() {
                 if (data.value < 1 || data.value == '') {
                   setError({ ...error, ex: true });
                 } else {
+                  setEnabled({ ...enabled, validate: false });
                   setError({ ...error, ex: false });
                 }
               }}
@@ -391,7 +420,7 @@ function App() {
           </Form.Field>
 
           <div className="button-form">
-            <Button disabled={validate} primary compact inverted type="submit" content="Valider" />
+            <Button disabled={enabled.validate} primary compact inverted type="submit" content="Valider" />
 
             <Button
               content="Louis"

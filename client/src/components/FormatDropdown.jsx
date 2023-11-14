@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { Dropdown } from 'semantic-ui-react';
 
-function FormatDropdown({ data, isLoading, onSelectFormat, selectedFormat, error }) {
+function FormatDropdown({ data, isLoading, onSelectFormat, selectedFormat, error, enabled }) {
   const formatOptions = data
     .map((format, index) => ({
       text: format.name,
@@ -12,6 +12,7 @@ function FormatDropdown({ data, isLoading, onSelectFormat, selectedFormat, error
 
   return (
     <Dropdown
+      disabled={enabled}
       error={error}
       id="format"
       className="format"
@@ -35,6 +36,7 @@ FormatDropdown.propTypes = {
   selectedFormat: PropTypes.string,
   onSelectFormat: PropTypes.func.isRequired,
   error: PropTypes.bool,
+  enabled: PropTypes.bool,
 };
 
 export default FormatDropdown;

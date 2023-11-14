@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { StandaloneSearchBox, useJsApiLoader } from '@react-google-maps/api';
 import PropTypes from 'prop-types';
 
-const Place = ({ onValue }) => {
+const Place = ({ onValue, enabled }) => {
   const [libraries] = useState(['places']);
   const inputRef = useRef();
 
@@ -21,6 +21,7 @@ const Place = ({ onValue }) => {
     isLoaded && (
       <StandaloneSearchBox onLoad={(ref) => (inputRef.current = ref)} onPlacesChanged={handlePlaceChanged}>
         <input
+          disabled={enabled}
           type="text"
           name="ville"
           id="ville"
@@ -36,6 +37,7 @@ const Place = ({ onValue }) => {
 
 Place.propTypes = {
   onValue: PropTypes.func,
+  enabled: PropTypes.bool,
 };
 
 export default Place;
