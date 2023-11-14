@@ -2,11 +2,13 @@ import PropTypes from 'prop-types';
 import { Dropdown } from 'semantic-ui-react';
 
 function FormatDropdown({ data, isLoading, onSelectFormat, selectedFormat, error }) {
-  const formatOptions = data.map((format, index) => ({
-    text: format.name,
-    value: format.path,
-    key: index,
-  }));
+  const formatOptions = data
+    .map((format, index) => ({
+      text: format.name,
+      value: format.path,
+      key: index,
+    }))
+    .sort((a, b) => a.text.localeCompare(b.text));
 
   return (
     <Dropdown

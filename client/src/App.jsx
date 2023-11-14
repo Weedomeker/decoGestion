@@ -38,7 +38,7 @@ function App() {
   const [isShowLog, setIsShowLog] = useState(false);
   const [dataLog, setDataLog] = useState([]);
   const [validate, setValidate] = useState(true);
-  const [warnMsg, setWarnMsg] = useState({ hidden: true, header: '', msg: '' });
+  const [warnMsg, setWarnMsg] = useState({ hidden: true, header: '', msg: '', icon: 'warning sign', color: 'red' });
   const [error, setError] = useState({
     formatTauro: false,
     format: false,
@@ -191,7 +191,13 @@ function App() {
       <div className="main">
         <Form onSubmit={handleSubmit} className="form">
           {/* Warning Message */}
-          <InfoMessage isHidden={warnMsg.hidden} title={warnMsg.header} text={warnMsg.msg} />
+          <InfoMessage
+            isHidden={warnMsg.hidden}
+            title={warnMsg.header}
+            text={warnMsg.msg}
+            icon={warnMsg.icon}
+            color={warnMsg.color}
+          />
 
           {/* Format Tauro */}
           <Form.Field className="format-tauro" required error={error.formatTauro}>
@@ -202,13 +208,32 @@ function App() {
               formatTauro={formatTauro}
               onValue={(e, data) => {
                 setSelectedFormatTauro(data.value);
-                CheckFormats(data.value, selectedFormat) == false
-                  ? setWarnMsg({
-                      hidden: false,
-                      header: 'Problème format',
-                      msg: 'Le format du visuel est plus grand que celui de la plaque.',
-                    })
-                  : setWarnMsg({ hidden: true });
+
+                if (CheckFormats(data.value, selectedFormat) && CheckFormats(data.value, selectedFormat).gap == true) {
+                  setWarnMsg({
+                    ...warnMsg,
+                    hidden: false,
+                    header: 'Attention au format',
+                    msg: 'Le format de la plaque est beaucoup plus grand que le visuel.',
+                    icon: 'info circle',
+                    color: 'yellow',
+                  });
+                } else if (
+                  CheckFormats(data.value, selectedFormat) &&
+                  CheckFormats(data.value, selectedFormat).isChecked == false
+                ) {
+                  setWarnMsg({
+                    ...warnMsg,
+                    hidden: false,
+                    header: 'Problème format',
+                    msg: 'Le format du visuel est plus grand que celui de la plaque.',
+                    icon: 'warning sign',
+                    color: 'red',
+                  });
+                } else {
+                  setWarnMsg({ ...warnMsg, hidden: true });
+                }
+
                 if (data.value == '' || data.value == undefined) {
                   setError({ ...error, formatTauro: true });
                 } else {
@@ -249,13 +274,31 @@ function App() {
                 setFiles(value.files);
                 setIsFile(true);
                 setIsFooter(false);
-                CheckFormats(selectedFormatTauro, value.name) == false
-                  ? setWarnMsg({
-                      hidden: false,
-                      header: 'Problème format',
-                      msg: 'Le format du visuel est plus grand que celui de la plaque.',
-                    })
-                  : setWarnMsg({ hidden: true });
+
+                if (
+                  CheckFormats(selectedFormatTauro, value.name) &&
+                  CheckFormats(selectedFormatTauro, value.name).gap == true
+                ) {
+                  setWarnMsg({
+                    ...warnMsg,
+                    hidden: false,
+                    header: 'Attention au format',
+                    msg: 'Le format de la plaque est beaucoup plus grand que le visuel.',
+                    icon: 'info circle',
+                    color: 'yellow',
+                  });
+                } else if (CheckFormats(selectedFormatTauro, value.name).isChecked == false) {
+                  setWarnMsg({
+                    ...warnMsg,
+                    hidden: false,
+                    header: 'Problème format',
+                    msg: 'Le format du visuel est plus grand que celui de la plaque.',
+                    icon: 'warning sign',
+                    color: 'red',
+                  });
+                } else {
+                  setWarnMsg({ ...warnMsg, hidden: true });
+                }
                 if (value.name == '' || value.name == undefined) {
                   setError({ ...error, format: true });
                 } else {
