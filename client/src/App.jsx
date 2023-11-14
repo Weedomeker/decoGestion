@@ -216,7 +216,6 @@ function App() {
               formatTauro={formatTauro}
               onValue={(e, data) => {
                 setSelectedFormatTauro(data.value);
-                setEnabled({ ...enabled, format: false });
                 //info
                 if (CheckFormats(data.value, selectedFormat) && CheckFormats(data.value, selectedFormat).gap == true) {
                   setWarnMsg({
@@ -247,8 +246,10 @@ function App() {
                 }
 
                 if (data.value == '' || data.value == undefined) {
+                  setEnabled({ ...enabled, format: false });
                   setError({ ...error, formatTauro: true });
                 } else {
+                  setEnabled({ ...enabled, format: false });
                   setError({ ...error, formatTauro: false });
                 }
               }}
