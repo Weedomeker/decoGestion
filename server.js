@@ -78,6 +78,7 @@ app.post('/', async (req, res) => {
     numCmd: req.body.numCmd,
     ville: req.body.ville.toUpperCase(),
     ex: req.body.ex,
+    perte: req.body.perte,
   };
   let visuel = data.visuel.split('/').pop();
   visuel = data.visuel.split('-').pop();
@@ -141,6 +142,7 @@ app.post('/', async (req, res) => {
         Dibond: fileName.split(' - ')[2],
         Deco: fileName.split(' - ').slice(2).pop(),
         Temps: parseFloat((jpgTime + pdfTime).toFixed(2)),
+        Perte_m2: data.perte,
         app_version: `v${version.version}`,
         ip: req.hostname,
       },

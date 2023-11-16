@@ -7,7 +7,7 @@ function checkFormats(formatTauro, formatVisu) {
   let checked = {
     isChecked: false,
     gap: false,
-    surface: '',
+    surface: 0,
   };
 
   if (formatTauro && formatTauro !== '') {
@@ -34,7 +34,7 @@ function checkFormats(formatTauro, formatVisu) {
 
   let surfaceAreaVisu = widthVisu * heightVisu;
   let surfaceAreaTauro = widthTauro * heightTauro;
-  let surfaceArea = (surfaceAreaTauro - surfaceAreaVisu) / 10000;
+  let surfaceArea = parseFloat((surfaceAreaTauro - surfaceAreaVisu) / 10000);
 
   if (surfaceArea > 2) {
     checked.gap = true;

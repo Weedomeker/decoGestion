@@ -55,6 +55,7 @@ function App() {
     ex: true,
     validate: true,
   });
+  const [perte, setPerte] = useState(0);
 
   //Get Format Tauro
   useEffect(() => {
@@ -146,8 +147,8 @@ function App() {
       numCmd: formData.get('numCmd'),
       ville: formData.get('ville'),
       ex: formData.get('ex'),
+      perte: perte,
     };
-
     //POST data
     fetch(`http://${HOST}:${PORT}`, {
       method: 'POST',
@@ -165,6 +166,15 @@ function App() {
     form.reset();
     setSelectedFile('');
     setSelectedFormat('');
+    setPerte(0);
+    setEnabled({
+      format: true,
+      visu: true,
+      numCmd: true,
+      ville: true,
+      ex: true,
+      validate: true,
+    });
 
     // Hide view
     setIsShowPdf(false);
@@ -294,13 +304,12 @@ function App() {
                   CheckFormats(selectedFormatTauro, value.name) &&
                   CheckFormats(selectedFormatTauro, value.name).gap == true
                 ) {
+                  setPerte(checkFormats(selectedFormatTauro, value.name).surface);
                   setWarnMsg({
                     ...warnMsg,
                     hidden: false,
                     header: 'Attention au format',
-                    msg: `Le format de la plaque est beaucoup plus grand que le visuel. \r\n(Perte: ${
-                      checkFormats(selectedFormatTauro, value.name).surface
-                    }/m2)`,
+                    msg: `Le format de la plaque est beaucoup plus grand que le visuel. \r\n(Perte: ${perte}/m2)`,
                     icon: 'info circle',
                     color: 'yellow',
                   });
