@@ -26,7 +26,7 @@ const Place = ({ onValue, enabled }) => {
           name="ville"
           id="ville"
           placeholder="VILLE / MAG"
-          onBlur={(e) => {
+          onChange={(e) => {
             onValue(e.target.value);
           }}
         />

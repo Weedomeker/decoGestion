@@ -1,15 +1,14 @@
 import PropTypes from 'prop-types';
 import { Dropdown } from 'semantic-ui-react';
 
-function FormatTauro({ onValue, formatTauro, isLoading, error }) {
+function FormatTauro({ value, onValue, formatTauro, isLoading, error }) {
   const formatOptions = formatTauro
     .map((value, index) => ({ key: index, text: value.split('_').pop(), value: value }))
     .sort();
-
   return (
     <Dropdown
       id="FormatTauro"
-      clearable
+      value={value}
       error={error}
       loading={isLoading}
       placeholder="Select folder"
@@ -24,6 +23,7 @@ function FormatTauro({ onValue, formatTauro, isLoading, error }) {
 }
 
 FormatTauro.propTypes = {
+  value: PropTypes.string,
   onValue: PropTypes.func,
   formatTauro: PropTypes.array,
   isLoading: PropTypes.bool,

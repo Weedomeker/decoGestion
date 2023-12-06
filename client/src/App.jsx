@@ -58,6 +58,7 @@ function App() {
   const [perte, setPerte] = useState(0);
 
   //Get Format Tauro
+
   useEffect(() => {
     fetch(`http://${HOST}:${PORT}/formatsTauro`, { method: 'GET', headers: { Accept: 'Application/json' } })
       .then((res) => res.json())
@@ -96,7 +97,7 @@ function App() {
         setIsFooter(false);
       })
       .catch((err) => console.log(err));
-  }, []);
+  }, [formatTauro]);
 
   const handleGetProcess = async () => {
     try {
@@ -149,6 +150,7 @@ function App() {
       ex: formData.get('ex'),
       perte: perte,
     };
+
     //POST data
     fetch(`http://${HOST}:${PORT}`, {
       method: 'POST',
@@ -164,6 +166,7 @@ function App() {
 
     // Reset form
     form.reset();
+    setSelectedFormatTauro('');
     setSelectedFile('');
     setSelectedFormat('');
     setPerte(0);
@@ -223,6 +226,7 @@ function App() {
             <FormatTauro
               error={error.formatTauro}
               isLoading={isloadingFormatTauro}
+              value={selectedFormatTauro}
               formatTauro={formatTauro}
               onValue={(e, data) => {
                 setSelectedFormatTauro(data.value);
@@ -255,7 +259,7 @@ function App() {
                   setWarnMsg({ ...warnMsg, hidden: true });
                 }
 
-                if (data.value == '' || data.value == undefined) {
+                if (data.value == '') {
                   setEnabled({ ...enabled, format: false });
                   setError({ ...error, formatTauro: true });
                 } else {
@@ -400,7 +404,7 @@ function App() {
                 if (value.length < 1) {
                   setError({ ...error, ville: true });
                 } else {
-                  setEnabled({ ...enabled, ex: false });
+                  setEnabled({ ...enabled, ex: false, validate: false });
                   setError({ ...error, ville: false });
                 }
               }}
@@ -408,25 +412,9 @@ function App() {
           </Form.Field>
 
           {/* Exemplaires */}
-          <Form.Field required error={error.ex}>
+          <Form.Field>
             <label htmlFor="ex">Ex</label>
-            <Input
-              disabled={enabled.ex}
-              error={error.ex}
-              id="ex"
-              name="ex"
-              type="number"
-              placeholder="Ex"
-              onChange={(e, data) => {
-                data.value;
-                if (data.value < 1 || data.value == '') {
-                  setError({ ...error, ex: true });
-                } else {
-                  setEnabled({ ...enabled, validate: false });
-                  setError({ ...error, ex: false });
-                }
-              }}
-            />
+            <Input disabled={enabled.ex} id="ex" name="ex" type="number" defaultValue={1} />
           </Form.Field>
 
           <div className="button-form">

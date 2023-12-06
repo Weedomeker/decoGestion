@@ -76,8 +76,8 @@ app.post('/', async (req, res) => {
     format: req.body.format,
     visuel: req.body.visuel,
     numCmd: req.body.numCmd,
-    ville: req.body.ville.toUpperCase(),
-    ex: req.body.ex,
+    ville: req.body.ville != null ? req.body.ville.toUpperCase() : '',
+    ex: req.body.ex != null ? req.body.ex : '',
     perte: req.body.perte,
   };
   let visuel = data.visuel.split('/').pop();
