@@ -15,7 +15,7 @@ const { performance } = require('perf_hooks');
 const PORT = process.env.PORT || 8000;
 
 //Path déco
-const decoFolder = './public/deco/1_FORMATS STANDARDS';
+const decoFolder = './public/deco/';
 
 //Path export
 const saveFolder = isDev ? './public/tmp' : './public/tauro';
@@ -73,6 +73,7 @@ app.post('/', async (req, res) => {
   const data = {
     allFormatTauro: req.body.allFormatTauro,
     formatTauro: req.body.formatTauro,
+    prodBlanc: req.body.prodBlanc,
     format: req.body.format,
     visuel: req.body.visuel,
     numCmd: req.body.numCmd,
@@ -84,6 +85,7 @@ app.post('/', async (req, res) => {
   visuel = data.visuel.split('-').pop();
   let visuPath = data.visuel;
   let formatTauro = data.formatTauro;
+  let prodBlanc = data.prodBlanc;
   let allFormatTauro = data.allFormatTauro;
   let format = data.format;
 
@@ -97,7 +99,8 @@ app.post('/', async (req, res) => {
     }
   }
   //Chemin sortie fichiers
-  let writePath = saveFolder + '/' + formatTauro;
+  let writePath;
+  prodBlanc ? writePath = saveFolder + '/Prod avec BLANC' : writePath = saveFolder + '/' + formatTauro;
 
   //Nom fichier
   fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro.split('_').pop()} - ${visuel.replace(
@@ -118,7 +121,7 @@ app.post('/', async (req, res) => {
 
   //Edition pdf
   start = performance.now();
-  await modifyPdf(visuPath, writePath, fileName, format);
+  await modifyPdf(visuPath, writePath, fileName, format, formatTauro);
   timeExec = parseFloat(((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2));
   pdfTime = timeExec;
   console.log(`Pdf: ✔️`);

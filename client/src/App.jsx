@@ -2,7 +2,7 @@ const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
 import CheckFormats from './CheckFormats';
 import { useEffect, useState } from 'react';
-import { Button, Form, Icon, Input } from 'semantic-ui-react';
+import { Button, Form, Icon, Input, Checkbox } from 'semantic-ui-react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Loading from './components/Loading';
@@ -22,6 +22,7 @@ function App() {
   const [data, setData] = useState(['']);
   const [selectedFormat, setSelectedFormat] = useState('');
   const [formatTauro, setFormatTauro] = useState(['']);
+  const [checkProdBlanc, setCheckProdBlanc] = useState(false);
   const [showAddFormat, setShowAddFormat] = useState(false);
   const [selectedFormatTauro, setSelectedFormatTauro] = useState('');
   const [version, setVersion] = useState(null);
@@ -71,7 +72,7 @@ function App() {
         setLoadingFormatTauro(false);
       })
       .catch((err) => console.log(err));
-  }, [selectedFormatTauro]);
+  }, []);
 
   //Get App version
   useEffect(() => {
@@ -143,6 +144,7 @@ function App() {
     const data = {
       allFormatTauro: formatTauro,
       formatTauro: selectedFormatTauro,
+      prodBlanc: checkProdBlanc,
       format: selectedFormat,
       visuel: selectedFile,
       numCmd: formData.get('numCmd'),
@@ -282,6 +284,12 @@ function App() {
               <Input id="addFormatTauro" size="small" label="Add format" placeholder="Deco_Std_FORMAT" />
             )}
           </Form.Field>
+
+           {/* PROD AVEC BLANC */}
+           <Form.Field>
+           <label htmlFor="prodBlanc">Prod avec blanc</label>
+           <Checkbox toggle checked={checkProdBlanc}   onChange={(e, data) => setCheckProdBlanc(data.checked)} />
+           </Form.Field>
 
           {/* Format */}
           <Form.Field required error={error.format}>
