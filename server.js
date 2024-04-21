@@ -9,13 +9,14 @@ const cors = require('cors');
 const modifyPdf = require('./src/app');
 const getFiles = require('./src/getFiles').getData;
 const { pdfToimg } = require('./src/pdfToimg');
+const createDec = require('./src/dec');
 const path = require('path');
 const fs = require('fs');
 const { performance } = require('perf_hooks');
 const PORT = process.env.PORT || 8000;
 
 //Path déco
-const decoFolder = './public/deco/';
+const decoFolder = './public/deco/1_FORMATS STANDARDS';
 
 //Path export
 const saveFolder = isDev ? './public/tmp' : './public/tauro';
@@ -24,6 +25,7 @@ const jpgPath = saveFolder;
 app.use(cors());
 app.use(express.urlencoded({ extended: false }));
 app.use('/public', express.static(path.join(__dirname, './public')));
+app.use('/download', express.static(path.join(__dirname, './public/tmp')));
 app.use(express.static(path.join(__dirname, './client/dist')));
 app.use(
   '/louis',
@@ -39,8 +41,7 @@ let fileName = '',
   timeExec,
   pdfTime,
   jpgTime,
-  format,
-  formatTauro;
+  fileDownload;
 
 //Sous dossiers par formats
 
@@ -100,7 +101,7 @@ app.post('/', async (req, res) => {
   }
   //Chemin sortie fichiers
   let writePath;
-  prodBlanc ? writePath = saveFolder + '/Prod avec BLANC' : writePath = saveFolder + '/' + formatTauro;
+  prodBlanc ? (writePath = saveFolder + '/Prod avec BLANC') : (writePath = saveFolder + '/' + formatTauro);
 
   //Nom fichier
   fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro.split('_').pop()} - ${visuel.replace(
@@ -168,6 +169,19 @@ app.post('/', async (req, res) => {
     console.log('FAILED GENERATE IMAGE: ', error);
     res.send(error);
   }
+
+  //Générer découpe
+  try {
+    const fTauro = formatTauro.split('_').pop();
+    const wPlate = parseFloat(fTauro.split('x')[0]);
+    const hPlate = parseFloat(fTauro.split('x')[1]);
+    const width = parseFloat(format.split('x')[0]);
+    const height = parseFloat(format.split('x')[1]);
+
+    createDec(wPlate, hPlate, width, height);
+  } catch (error) {
+    console.log(error);
+  }
 });
 
 app.get('/process', async (req, res) => {
@@ -207,6 +221,26 @@ app.get('/formatsTauro', (req, res) => {
   } else {
     fs.writeFileSync('./formatsTauro.conf', '');
   }
+});
+
+app.get('/download', (req, res) => {
+  const files = fs.readdirSync(path.join(__dirname, './public/tmp/'));
+  files.forEach((file) => {
+    if (path.extname(file) == '.dxf') {
+      fileDownload = file;
+      console.log('✔️ ', file);
+    } else if (path.extname(file) == '.svg') {
+      fileDownload = file;
+      console.log('✔️ ', file);
+    }
+  });
+
+  res.download('./public/tmp/' + fileDownload, (err) => {
+    if (err) {
+      console.log('Download error: ', err);
+      res.redirect('/');
+    }
+  });
 });
 
 app.listen(PORT, () => {

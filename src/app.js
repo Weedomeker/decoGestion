@@ -1,8 +1,7 @@
 const { degrees, PDFDocument, rgb, StandardFonts, grayscale } = require('pdf-lib');
 const fs = require('fs');
 const { performance } = require('perf_hooks');
-const {cmToPxl, pxlToCm} = require('./convertPxlCm')
-
+const { cmToPxl, pxlToCm } = require('./convertPxlCm');
 
 async function modifyPdf(filePath, writePath, fileName, format, formatTauro) {
   const readPdf = await fs.promises.readFile(filePath);
@@ -14,33 +13,33 @@ async function modifyPdf(filePath, writePath, fileName, format, formatTauro) {
   const pages = pdfDoc.getPages();
   const firstPage = pages[0];
   const { width, height } = firstPage.getSize();
-  const fTauro = formatTauro.split('_').pop()
-  const largeurPlaque = cmToPxl(parseInt(fTauro.split('x')[0]), 72)
-  const longueurPlaque = cmToPxl(parseInt(fTauro.split('x')[1]), 72)
-  
+  const fTauro = formatTauro.split('_').pop();
+  const largeurPlaque = cmToPxl(parseInt(fTauro.split('x')[0]));
+  const longueurPlaque = cmToPxl(parseInt(fTauro.split('x')[1]));
 
-  firstPage.setSize(longueurPlaque,  largeurPlaque)
+  firstPage.setSize(longueurPlaque, largeurPlaque);
 
+  const drawRegmarks = (xReg, yReg, sizeReg) => {
+    if (sizeReg == null || sizeReg == '' || sizeReg == undefined) {
+      sizeReg = 0.6;
+    }
+    firstPage.drawCircle({
+      x: xReg,
+      y: yReg,
+      size: cmToPxl(sizeReg / 2),
+      color: rgb(0, 0, 0),
+    });
+  };
+  drawRegmarks(-cmToPxl(1), cmToPxl(2));
+  drawRegmarks(-cmToPxl(1), height - cmToPxl(2));
+  drawRegmarks(-cmToPxl(1), height - cmToPxl(12));
+  drawRegmarks(width + cmToPxl(1), cmToPxl(2));
+  drawRegmarks(width + cmToPxl(1), height - cmToPxl(2));
 
-const drawRegmarks = (xReg, yReg) => {
-  firstPage.drawCircle({
-    x: xReg,
-    y: yReg,
-    size: cmToPxl(0.3, 72),
-    color: rgb(0,0,0),
-  })
-}
-drawRegmarks(- cmToPxl(1, 72), cmToPxl(1, 72))
-drawRegmarks(- cmToPxl(1, 72),height- cmToPxl(1, 72))
-drawRegmarks(- cmToPxl(1, 72),height- cmToPxl(10, 72))
-drawRegmarks(width+ cmToPxl(1, 72),  cmToPxl(1, 72))
-drawRegmarks(width+ cmToPxl(1, 72), height- cmToPxl(1, 72))
+  firstPage.translateContent((longueurPlaque - width) / 2, (largeurPlaque - height) / 2);
 
-firstPage.translateContent((longueurPlaque-width)/2 ,(largeurPlaque-height)/2)
-
-console.log('Format visuel: ',pxlToCm(width,72), 'x', pxlToCm(height,72), "cm");
-console.log('Format plaque: ', pxlToCm(largeurPlaque, 72), 'x',  pxlToCm(longueurPlaque, 72));
-
+  console.log('Format visuel: ', pxlToCm(height), 'x', pxlToCm(width), 'cm');
+  console.log('Format plaque: ', pxlToCm(largeurPlaque), 'x', pxlToCm(longueurPlaque), 'cm');
 
   let xPosition = -25;
   let textSize = 35;

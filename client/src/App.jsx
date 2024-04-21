@@ -16,6 +16,7 @@ import FormatTauro from './components/FormatTauro';
 import InfoMessage from './components/InfoMessage';
 import Log from './components/Log';
 import checkFormats from './CheckFormats';
+import DownloadFile from './components/DownloadFile';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -23,6 +24,8 @@ function App() {
   const [selectedFormat, setSelectedFormat] = useState('');
   const [formatTauro, setFormatTauro] = useState(['']);
   const [checkProdBlanc, setCheckProdBlanc] = useState(false);
+  const [checkCreateCut, setCheckCreateCut] = useState(false);
+  const [fileNameCut, setFileNameCut] = useState('');
   const [showAddFormat, setShowAddFormat] = useState(false);
   const [selectedFormatTauro, setSelectedFormatTauro] = useState('');
   const [version, setVersion] = useState(null);
@@ -38,6 +41,7 @@ function App() {
   const [isShowJpg, setIsShowJpg] = useState(false);
   const [isShowLouis, setIsShowLouis] = useState(false);
   const [isShowLog, setIsShowLog] = useState(false);
+  const [isShowDownloadCut, setIsShowDownloadCut] = useState(false);
   const [dataLog, setDataLog] = useState([]);
   const [warnMsg, setWarnMsg] = useState({ hidden: true, header: '', msg: '', icon: 'warning sign', color: 'red' });
   const [error, setError] = useState({
@@ -129,6 +133,7 @@ function App() {
         setIsFooter(true);
         setIsShowJpg(true);
         setTimeProcess((timeProcess) => Object.assign({}, timeProcess, update));
+        checkCreateCut ? setIsShowDownloadCut(true) : setIsShowDownloadCut(false);
       }
     } catch (err) {
       console.log(err);
@@ -285,11 +290,24 @@ function App() {
             )}
           </Form.Field>
 
-           {/* PROD AVEC BLANC */}
-           <Form.Field>
-           <label htmlFor="prodBlanc">Prod avec blanc</label>
-           <Checkbox toggle checked={checkProdBlanc}   onChange={(e, data) => setCheckProdBlanc(data.checked)} />
-           </Form.Field>
+          {/* PROD AVEC BLANC */}
+          <Form.Field inline>
+            <Checkbox
+              label="Prod avec blanc"
+              checked={checkProdBlanc}
+              onChange={(e, data) => setCheckProdBlanc(data.checked)}
+            />
+          </Form.Field>
+          <Form.Field inline>
+            <Checkbox
+              label="Générer découpe"
+              checked={checkCreateCut}
+              onChange={(e, data) => {
+                setCheckCreateCut(data.checked);
+              }}
+            />
+            {isShowDownloadCut && <DownloadFile urlFile={`http://${HOST}:${PORT}/download`} fileName={fileNameCut} />}
+          </Form.Field>
 
           {/* Format */}
           <Form.Field required error={error.format}>
@@ -307,6 +325,7 @@ function App() {
               onSelectFormat={(e, v) => {
                 const value = isLoading ? 'Loading..' : data.find((x) => x.path === v.value);
                 setSelectedFormat(value.name);
+                setFileNameCut(value.name);
                 setFiles(value.files);
                 setIsFile(true);
                 setIsFooter(false);
