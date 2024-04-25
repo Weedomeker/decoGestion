@@ -13,6 +13,7 @@ const createDec = (widthPlate = Number, heightPlate = Number, decWidth = Number,
       plate: {
         models: {
           dec: new makerjs.models.RoundRectangle(decHeight, decWidth, 0),
+          dec2: new makerjs.models.RoundRectangle(heightPlate, widthPlate, 0),
         },
       },
 
@@ -46,17 +47,25 @@ const createDec = (widthPlate = Number, heightPlate = Number, decWidth = Number,
       },
     },
   };
-  const waste = Wastecut(widthPlate, heightPlate, decHeight, decWidth).paths;
+
+  const dec = model.models.plate.models.dec;
+  const result = model.models.plate.models.dec2;
+  makerjs.model.center(dec);
+  makerjs.model.center(result);
+  const waste = Wastecut(widthPlate, heightPlate, decWidth, decHeight).paths;
   model.models.wasteCut.paths = waste;
   console.log(model.models.wasteCut.paths);
-  const result = model.models.plate.models.dec;
-  makerjs.model.center(result);
+
   model.models.plate.models.dec.layer = 'red';
   model.models.regmarks.paths.reg1.layer = 'black';
   model.models.regmarks.paths.reg2.layer = 'black';
   model.models.regmarks.paths.reg3.layer = 'black';
   model.models.regmarks.paths.reg4.layer = 'black';
   model.models.regmarks.paths.reg5.layer = 'black';
+
+  model.models.wasteCut.paths.Top1.layer = 'orange';
+  model.models.wasteCut.paths.Top2.layer = 'blue';
+
   // model.models.wasteCut.paths.h1.layer = 'maroon';
   // model.models.wasteCut.paths.h2.layer = 'maroon';
   // model.models.wasteCut.paths.v1.layer = 'maroon';
