@@ -1,7 +1,7 @@
 const makerjs = require('makerjs');
-//const pdfkit = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
+
 let exportPath = [];
 
 const createDec = (widthPlate = Number, heightPlate = Number, decWidth = Number, decHeight = Number) => {
@@ -32,17 +32,11 @@ const createDec = (widthPlate = Number, heightPlate = Number, decWidth = Number,
         paths: {
           //Top
           v1: new makerjs.paths.Line([-decHeight / 3, widthPlate / 2], [-decHeight / 3, decWidth / 2 + 0.6]),
-          v2:
-            decHeight <= 80
-              ? console.log('Plus petit que 80: ', true)
-              : new makerjs.paths.Line([0, widthPlate / 2], [0, decWidth / 2 + 0.6]),
+          v2: decHeight <= 80 ? console.log('Plus petit que 80: ', true) : new makerjs.paths.Line([0, widthPlate / 2], [0, decWidth / 2 + 0.6]),
           v3: new makerjs.paths.Line([decHeight / 3, widthPlate / 2], [decHeight / 3, decWidth / 2 + 0.6]),
           //Bottom
           v4: new makerjs.paths.Line([-decHeight / 3, -widthPlate / 2], [-decHeight / 3, -decWidth / 2 - 0.6]),
-          v5:
-            decHeight <= 80
-              ? console.log('Plus petit que 80: ', true)
-              : new makerjs.paths.Line([0, -widthPlate / 2], [0, -decWidth / 2 - 0.6]),
+          v5: decHeight <= 80 ? console.log('Plus petit que 80: ', true) : new makerjs.paths.Line([0, -widthPlate / 2], [0, -decWidth / 2 - 0.6]),
           v6: new makerjs.paths.Line([decHeight / 3, -widthPlate / 2], [decHeight / 3, -decWidth / 2 - 0.6]),
           //Left
           h1: new makerjs.paths.Line([-heightPlate / 2, 0], [(-decHeight - 0.6) / 2, 0]),
@@ -52,6 +46,8 @@ const createDec = (widthPlate = Number, heightPlate = Number, decWidth = Number,
       },
     },
   };
+  model.models.wasteCut.paths = Wastecut(heightPlate, 80).paths;
+  console.log(model.models);
   const result = model.models.plate.models.dec;
   makerjs.model.center(result);
   model.models.plate.models.dec.layer = 'red';
@@ -60,10 +56,10 @@ const createDec = (widthPlate = Number, heightPlate = Number, decWidth = Number,
   model.models.regmarks.paths.reg3.layer = 'black';
   model.models.regmarks.paths.reg4.layer = 'black';
   model.models.regmarks.paths.reg5.layer = 'black';
-  model.models.wasteCut.paths.h1.layer = 'maroon';
-  model.models.wasteCut.paths.h2.layer = 'maroon';
-  model.models.wasteCut.paths.v1.layer = 'maroon';
-  model.models.wasteCut.paths.v2.layer = 'maroon';
+  model.models.wasteCut.paths.Top1.layer = 'maroon';
+  model.models.wasteCut.paths.Top2.layer = 'maroon';
+  model.models.wasteCut.paths.Bottom1.layer = 'maroon';
+  model.models.wasteCut.paths.Bottom2.layer = 'maroon';
   model.models.wasteCut.paths.v3.layer = 'maroon';
   model.models.wasteCut.paths.v4.layer = 'maroon';
   model.models.wasteCut.paths.v5.layer = 'maroon';
@@ -73,7 +69,7 @@ const createDec = (widthPlate = Number, heightPlate = Number, decWidth = Number,
     let pathFile = path.join(__dirname, '../public/tmp/');
     let fileName = `${decWidth}x${decHeight}`;
     const dxf = makerjs.exporter.toDXF(model, { units: 'cm', layerOptions: { dec: { color: 2 } } });
-    const svg = makerjs.exporter.toSVG(model, { units: 'cm' });
+    const svg = makerjs.exporter.toSVG(model, { units: 'mm' });
     try {
       if (fs.existsSync(pathFile)) {
         fs.writeFileSync(pathFile + fileName + '.dxf', dxf);
@@ -92,5 +88,5 @@ const createDec = (widthPlate = Number, heightPlate = Number, decWidth = Number,
   }
 };
 
-// createDec(101, 215, 100, 200);
+// createDec(125, 260, 100, 200);
 module.exports = createDec;
