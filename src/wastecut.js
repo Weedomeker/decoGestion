@@ -1,43 +1,59 @@
 const makerjs = require('makerjs');
 
-function Wastcut(widthPlate, heightPlate, decWidth, decHeight, name) {
+function Wastcut(widthPlate, heightPlate, decWidth, decHeight) {
   const espacement = 80;
   const fraise = 2;
-  let paths = {};
+  const paths = {};
   let layers = [];
-  if (name == undefined || name == null) name = '';
   let interval = heightPlate / espacement;
+
+  // Check debord plaque si wastecut necessaire
+  const debordDecPlaque = parseFloat(widthPlate - decWidth) / 2;
+  let wasteCutWidth = true;
+  debordDecPlaque <= 1 ? (wasteCutWidth = false) : (wasteCutWidth = true);
+
   if (interval > 3) interval = Math.floor(interval);
+  const coupe = parseFloat((heightPlate / Math.round(interval)).toFixed(2));
 
   if (heightPlate < espacement) {
     console.log('Pas besoin de Wastcut');
   } else {
-    //Nbr de decoupes
-    console.log('Nbrs morceaux: ', interval);
-    const coupe = parseFloat((heightPlate / Math.round(interval)).toFixed(2));
+    //Left
+    (paths[`Left`] = new makerjs.paths.Line(
+      [parseFloat(`${-heightPlate / 2}`), 0],
+      [(-decHeight - fraise) / 2, 0],
+    )),
+      layers.push('Left');
+    //Right
+    (paths[`Right`] = new makerjs.paths.Line(
+      [parseFloat(`${heightPlate / 2}`), 0],
+      [(decHeight + fraise) / 2, 0],
+    )),
+      layers.push('Right');
 
     //Iteration decoupe par interval
     for (let i = 1; i < interval; i++) {
-      let negative;
-      i < 2 ? (negative = '-') : (negative = '');
+      if (wasteCutWidth == true) {
+        //Waste Top
+        (paths[`Top${i}`] = new makerjs.paths.Line(
+          [parseFloat(`${-heightPlate / 2 + coupe * i}`), widthPlate / 2],
+          [
+            parseFloat(`${-heightPlate / 2 + coupe * i}`),
+            decWidth / 2 + fraise,
+          ],
+        )),
+          layers.push(`Top${i}`);
 
-      //Left
-      (paths[`${name}Left${i}`] = new makerjs.paths.Line([parseFloat(`-${heightPlate / 2}`), 0], [(-decHeight - fraise) / 2, 0])),
-        layers.push(`model.models.wasteCut.paths.${name}Left${i}.layer = 'maroon';`);
-      //Right
-      (paths[`${name}Right${i}`] = new makerjs.paths.Line([parseFloat(`${heightPlate / 2}`), 0], [(decHeight + fraise) / 2, 0])),
-        layers.push(`model.models.wasteCut.paths.${name}Right${i}.layer = 'maroon';`);
-
-      //Waste Top
-      (paths[`${name}Top${i}`] = new makerjs.paths.Line([parseFloat(`${negative}${coupe * i}`), widthPlate / 2], [parseFloat(`${negative}${coupe * i}`), decWidth / 2 + fraise])),
-        layers.push(`model.models.wasteCut.paths.${name}Top${i}.layer = 'maroon';`);
-
-      //Waste Bottom
-      (paths[`${name}Bottom${i}`] = new makerjs.paths.Line(
-        [parseFloat(`${negative}${coupe * i}`), -widthPlate / 2],
-        [parseFloat(`${negative}${coupe * i}`), -decWidth / 2 - fraise],
-      )),
-        layers.push(`model.models.wasteCut.paths.${name}Bottom${i}.layer = 'maroon';`);
+        //Waste Bottom
+        (paths[`Bottom${i}`] = new makerjs.paths.Line(
+          [parseFloat(`${-heightPlate / 2 + coupe * i}`), -widthPlate / 2],
+          [
+            parseFloat(`${-heightPlate / 2 + coupe * i}`),
+            -decWidth / 2 - fraise,
+          ],
+        )),
+          layers.push(`Bottom${i}`);
+      }
     }
   }
   return { paths, layers };

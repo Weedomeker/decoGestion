@@ -4,7 +4,12 @@ const path = require('path');
 const Wastecut = require('./wastecut');
 let exportPath = [];
 
-const createDec = (widthPlate = Number, heightPlate = Number, decWidth = Number, decHeight = Number) => {
+const createDec = (
+  widthPlate = Number,
+  heightPlate = Number,
+  decWidth = Number,
+  decHeight = Number,
+) => {
   const regSize = 0.3;
   const regPosition = 1.5;
 
@@ -20,12 +25,27 @@ const createDec = (widthPlate = Number, heightPlate = Number, decWidth = Number,
       regmarks: {
         paths: {
           //BAS
-          reg1: new makerjs.paths.Circle([-decHeight / 2 - regPosition, decWidth / 2 - regPosition], regSize),
-          reg2: new makerjs.paths.Circle([-decHeight / 2 - regPosition, decWidth / 2 - (regPosition + 10)], regSize),
-          reg3: new makerjs.paths.Circle([-decHeight / 2 - regPosition, -decWidth / 2 + regPosition], regSize),
+          reg1: new makerjs.paths.Circle(
+            [-decHeight / 2 - regPosition, decWidth / 2 - regPosition],
+            regSize,
+          ),
+          reg2: new makerjs.paths.Circle(
+            [-decHeight / 2 - regPosition, decWidth / 2 - (regPosition + 10)],
+            regSize,
+          ),
+          reg3: new makerjs.paths.Circle(
+            [-decHeight / 2 - regPosition, -decWidth / 2 + regPosition],
+            regSize,
+          ),
           //HAUT
-          reg4: new makerjs.paths.Circle([decHeight / 2 + regPosition, decWidth / 2 - regPosition], regSize),
-          reg5: new makerjs.paths.Circle([decHeight / 2 + regPosition, -decWidth / 2 + regPosition], regSize),
+          reg4: new makerjs.paths.Circle(
+            [decHeight / 2 + regPosition, decWidth / 2 - regPosition],
+            regSize,
+          ),
+          reg5: new makerjs.paths.Circle(
+            [decHeight / 2 + regPosition, -decWidth / 2 + regPosition],
+            regSize,
+          ),
         },
       },
 
@@ -54,7 +74,6 @@ const createDec = (widthPlate = Number, heightPlate = Number, decWidth = Number,
   makerjs.model.center(result);
   const waste = Wastecut(widthPlate, heightPlate, decWidth, decHeight).paths;
   model.models.wasteCut.paths = waste;
-  console.log(model.models.wasteCut.paths);
 
   model.models.plate.models.dec.layer = 'red';
   model.models.regmarks.paths.reg1.layer = 'black';
@@ -63,23 +82,25 @@ const createDec = (widthPlate = Number, heightPlate = Number, decWidth = Number,
   model.models.regmarks.paths.reg4.layer = 'black';
   model.models.regmarks.paths.reg5.layer = 'black';
 
-  model.models.wasteCut.paths.Top1.layer = 'orange';
-  model.models.wasteCut.paths.Top2.layer = 'blue';
+  // const { layers } = Wastecut(widthPlate, heightPlate, decWidth, decHeight);
+  // layers.map((v) => {
+  //   console.log(v);
+  //   return v;
+  // });
 
-  // model.models.wasteCut.paths.h1.layer = 'maroon';
-  // model.models.wasteCut.paths.h2.layer = 'maroon';
-  // model.models.wasteCut.paths.v1.layer = 'maroon';
-  // model.models.wasteCut.paths.v2.layer = 'maroon';
-  // model.models.wasteCut.paths.v3.layer = 'maroon';
-  // model.models.wasteCut.paths.v4.layer = 'maroon';
-  // model.models.wasteCut.paths.v5.layer = 'maroon';
-  // model.models.wasteCut.paths.v6.layer = 'maroon';
+  // const { paths } = Wastecut(widthPlate, heightPlate, decWidth, decHeight);
+  // Object.keys(paths).map((el) => {
+  //   model.models.wasteCut.${el}.layer = 'maroon'
+  // });
 
   try {
     let pathFile = path.join(__dirname, '../public/tmp/');
     let fileName = `${decWidth}x${decHeight}`;
-    const dxf = makerjs.exporter.toDXF(model, { units: 'cm', layerOptions: { dec: { color: 2 } } });
-    const svg = makerjs.exporter.toSVG(model, { units: 'mm' });
+    const dxf = makerjs.exporter.toDXF(model, {
+      units: 'cm',
+      layerOptions: { dec: { color: 2 } },
+    });
+    const svg = makerjs.exporter.toSVG(model, { units: 'px' });
     try {
       if (fs.existsSync(pathFile)) {
         fs.writeFileSync(pathFile + fileName + '.dxf', dxf);
