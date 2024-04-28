@@ -49,22 +49,7 @@ const createDec = (
         },
       },
 
-      wasteCut: {
-        paths: {
-          // //Top
-          // v1: new makerjs.paths.Line([-decHeight / 3, widthPlate / 2], [-decHeight / 3, decWidth / 2 + 0.6]),
-          // v2: decHeight <= 80 ? console.log('Plus petit que 80: ', true) : new makerjs.paths.Line([0, widthPlate / 2], [0, decWidth / 2 + 0.6]),
-          // v3: new makerjs.paths.Line([decHeight / 3, widthPlate / 2], [decHeight / 3, decWidth / 2 + 0.6]),
-          // //Bottom
-          // v4: new makerjs.paths.Line([-decHeight / 3, -widthPlate / 2], [-decHeight / 3, -decWidth / 2 - 0.6]),
-          // v5: decHeight <= 80 ? console.log('Plus petit que 80: ', true) : new makerjs.paths.Line([0, -widthPlate / 2], [0, -decWidth / 2 - 0.6]),
-          // v6: new makerjs.paths.Line([decHeight / 3, -widthPlate / 2], [decHeight / 3, -decWidth / 2 - 0.6]),
-          // //Left
-          // h1: new makerjs.paths.Line([-heightPlate / 2, 0], [(-decHeight - 0.6) / 2, 0]),
-          // //Right
-          // h2: new makerjs.paths.Line([heightPlate / 2, 0], [(decHeight + 0.6) / 2, 0]),
-        },
-      },
+      wasteCut: {},
     },
   };
 
@@ -82,16 +67,13 @@ const createDec = (
   model.models.regmarks.paths.reg4.layer = 'black';
   model.models.regmarks.paths.reg5.layer = 'black';
 
-  // const { layers } = Wastecut(widthPlate, heightPlate, decWidth, decHeight);
-  // layers.map((v) => {
-  //   console.log(v);
-  //   return v;
-  // });
+  console.log(model.models.wasteCut.paths.Top1);
+  console.log(model.models.wasteCut.paths.Top2);
 
-  // const { paths } = Wastecut(widthPlate, heightPlate, decWidth, decHeight);
-  // Object.keys(paths).map((el) => {
-  //   model.models.wasteCut.${el}.layer = 'maroon'
-  // });
+  const { paths } = Wastecut(widthPlate, heightPlate, decWidth, decHeight);
+  Object.keys(paths).map((el) => {
+    model.models.wasteCut.paths[el].layer = 'maroon';
+  });
 
   try {
     let pathFile = path.join(__dirname, '../public/tmp/');
@@ -100,7 +82,7 @@ const createDec = (
       units: 'cm',
       layerOptions: { dec: { color: 2 } },
     });
-    const svg = makerjs.exporter.toSVG(model, { units: 'px' });
+    const svg = makerjs.exporter.toSVG(model, { units: 'mm' });
     try {
       if (fs.existsSync(pathFile)) {
         fs.writeFileSync(pathFile + fileName + '.dxf', dxf);
