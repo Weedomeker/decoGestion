@@ -60,15 +60,21 @@ const createDec = (
   const waste = Wastecut(widthPlate, heightPlate, decWidth, decHeight).paths;
   model.models.wasteCut.paths = waste;
 
+  const obj = model.models.plate.models.dec.paths;
+  console.log(obj);
+  for (const key in obj) {
+    if (Object.hasOwnProperty.call(obj, key)) {
+      const element = obj[key];
+      //console.log(element.origin, element.end);
+    }
+  }
+
   model.models.plate.models.dec.layer = 'red';
   model.models.regmarks.paths.reg1.layer = 'black';
   model.models.regmarks.paths.reg2.layer = 'black';
   model.models.regmarks.paths.reg3.layer = 'black';
   model.models.regmarks.paths.reg4.layer = 'black';
   model.models.regmarks.paths.reg5.layer = 'black';
-
-  console.log(model.models.wasteCut.paths.Top1);
-  console.log(model.models.wasteCut.paths.Top2);
 
   const { paths } = Wastecut(widthPlate, heightPlate, decWidth, decHeight);
   Object.keys(paths).map((el) => {
@@ -80,9 +86,8 @@ const createDec = (
     let fileName = `${decWidth}x${decHeight}`;
     const dxf = makerjs.exporter.toDXF(model, {
       units: 'cm',
-      layerOptions: { dec: { color: 2 } },
     });
-    const svg = makerjs.exporter.toSVG(model, { units: 'mm' });
+    const svg = makerjs.exporter.toSVG(model, { units: 'px' });
     try {
       if (fs.existsSync(pathFile)) {
         fs.writeFileSync(pathFile + fileName + '.dxf', dxf);
