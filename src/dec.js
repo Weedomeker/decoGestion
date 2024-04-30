@@ -2,7 +2,9 @@ const makerjs = require('makerjs');
 const fs = require('fs');
 const path = require('path');
 const Wastecut = require('./wastecut');
-let exportPath = [];
+const exportPath = [];
+const arrDec = [];
+const iCut = require('./icut');
 
 const createDec = (
   widthPlate = Number,
@@ -61,13 +63,14 @@ const createDec = (
   model.models.wasteCut.paths = waste;
 
   const obj = model.models.plate.models.dec.paths;
-  console.log(obj);
+  let arr = [];
   for (const key in obj) {
     if (Object.hasOwnProperty.call(obj, key)) {
       const element = obj[key];
-      //console.log(element.origin, element.end);
+      arr.push(element.origin);
     }
   }
+  arrDec.push(arr[3], arr[1], arr[2], arr[0]);
 
   model.models.plate.models.dec.layer = 'red';
   model.models.regmarks.paths.reg1.layer = 'black';
@@ -107,4 +110,5 @@ const createDec = (
 };
 
 createDec(125, 260, 100, 200);
-// module.exports = createDec;
+iCut(arrDec);
+// module.exports = { createDec };
