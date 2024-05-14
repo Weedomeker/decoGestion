@@ -8,11 +8,12 @@ const serveIndex = require('serve-index');
 const cors = require('cors');
 const modifyPdf = require('./src/app');
 const getFiles = require('./src/getFiles').getData;
-const { pdfToimg } = require('./src/pdfToimg');
+// const { pdfToimg } = require('./src/pdfToimg');
 const createDec = require('./src/dec');
 const path = require('path');
 const fs = require('fs');
 const { performance } = require('perf_hooks');
+const { Worker, workerData } = require('worker_threads');
 const PORT = process.env.PORT || 8000;
 
 //Path déco
@@ -32,6 +33,19 @@ app.use(
   express.static(saveFolder),
   serveIndex(saveFolder, { icons: true, stylesheet: './public/style.css' }),
 );
+app.use(function (req, res, next) {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'DELETE, PUT');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept',
+  );
+  if ('OPTIONS' == req.method) {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
 app.use(express.json());
 
 let fileName = '',
@@ -43,8 +57,23 @@ let fileName = '',
   jpgTime,
   fileDownload;
 
-//Sous dossiers par formats
+function _useWorker(data) {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker('./src/pdfToimg.js', { workerData: data });
+    worker.on('online', () => {
+      console.log('Launching intensive CPU task');
+    });
+    worker.on('message', resolve);
+    worker.on('error', reject);
+    worker.on('exit', (code) => {
+      if (code !== 0) {
+        reject(new Error(`Worker stopped with exit code ${code}`));
+      }
+    });
+  });
+}
 
+//Sous dossiers par formats
 function search(format) {
   const data = getFiles(decoFolder);
   for (let i = 0; i < data.length; i++) {
@@ -93,7 +122,9 @@ app.post('/', async (req, res) => {
   //Lecture Ecriture format tauro
   let arr = [];
   if (fs.existsSync('./formatsTauro.conf')) {
-    const readFile = fs.readFileSync('./formatsTauro.conf', { encoding: 'utf8' });
+    const readFile = fs.readFileSync('./formatsTauro.conf', {
+      encoding: 'utf8',
+    });
     arr.push(readFile.split(/\r?\n/g));
     if (allFormatTauro.length > arr[0].length) {
       fs.writeFileSync('./formatsTauro.conf', allFormatTauro.join('\n'));
@@ -101,13 +132,14 @@ app.post('/', async (req, res) => {
   }
   //Chemin sortie fichiers
   let writePath;
-  prodBlanc ? (writePath = saveFolder + '/Prod avec BLANC') : (writePath = saveFolder + '/' + formatTauro);
+  prodBlanc
+    ? (writePath = saveFolder + '/Prod avec BLANC')
+    : (writePath = saveFolder + '/' + formatTauro);
 
   //Nom fichier
-  fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro.split('_').pop()} - ${visuel.replace(
-    /\.[^/.]+$/,
-    '',
-  )} ${data.ex}_EX`;
+  fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro
+    .split('_')
+    .pop()} - ${visuel.replace(/\.[^/.]+$/, '')} ${data.ex}_EX`;
 
   //Verifier si dossiers exist si pas le créer
   if (fs.existsSync(writePath) && fs.existsSync(`${jpgPath}/PRINTSA#${date}`)) {
@@ -123,15 +155,20 @@ app.post('/', async (req, res) => {
   //Edition pdf
   start = performance.now();
   await modifyPdf(visuPath, writePath, fileName, format, formatTauro);
-  timeExec = parseFloat(((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2));
+  timeExec = parseFloat(
+    ((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2),
+  );
   pdfTime = timeExec;
   console.log(`Pdf: ✔️`);
 
   //Genererate img
   try {
     start = performance.now();
-    await pdfToimg(`${pdfName}.pdf`, `${jpgName}.jpg`);
-    timeExec = parseFloat(((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2));
+    await _useWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
+    //await pdfToimg(`${pdfName}.pdf`, `${jpgName}.jpg`);
+    timeExec = parseFloat(
+      ((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2),
+    );
     jpgTime = timeExec;
     console.log(`Jpg: ✔️`);
 
@@ -155,7 +192,10 @@ app.post('/', async (req, res) => {
     if (fs.existsSync('./public/session.xlsx')) {
       const wb = XLSX.readFile('./public/session.xlsx', { cellStyles: true });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      XLSX.utils.sheet_add_json(ws, dataFileExport, { origin: -1, skipHeader: true });
+      XLSX.utils.sheet_add_json(ws, dataFileExport, {
+        origin: -1,
+        skipHeader: true,
+      });
       XLSX.writeFile(wb, './public/session.xlsx', { cellStyles: true });
     } else {
       const wb = XLSX.utils.book_new();
@@ -210,7 +250,9 @@ app.get('/path', async (req, res) => {
 app.get('/formatsTauro', (req, res) => {
   let arr = [];
   if (fs.existsSync('./formatsTauro.conf')) {
-    const readFile = fs.readFileSync('./formatsTauro.conf', { encoding: 'utf8' });
+    const readFile = fs.readFileSync('./formatsTauro.conf', {
+      encoding: 'utf8',
+    });
     arr.push(readFile.split(/\r?\n/g));
 
     const json = arr[0].map((v, i) => ({

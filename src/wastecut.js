@@ -2,7 +2,7 @@ const makerjs = require('makerjs');
 
 function Wastcut(widthPlate, heightPlate, decWidth, decHeight) {
   const espacement = 80;
-  const fraise = 2;
+  const fraise = 3;
   const paths = {};
   let layers = [];
   let interval = heightPlate / espacement;
@@ -21,13 +21,13 @@ function Wastcut(widthPlate, heightPlate, decWidth, decHeight) {
     //Left
     (paths[`Left`] = new makerjs.paths.Line(
       [parseFloat(`${-heightPlate / 2}`), 0],
-      [(-decHeight - fraise) / 2, 0],
+      [-decHeight / 2 - fraise, 0],
     )),
       layers.push('Left');
     //Right
     (paths[`Right`] = new makerjs.paths.Line(
       [parseFloat(`${heightPlate / 2}`), 0],
-      [(decHeight + fraise) / 2, 0],
+      [decHeight / 2 + fraise, 0],
     )),
       layers.push('Right');
 

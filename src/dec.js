@@ -18,7 +18,6 @@ const createDec = (
       plate: {
         models: {
           dec: new makerjs.models.RoundRectangle(decHeight, decWidth, 0),
-          dec2: new makerjs.models.RoundRectangle(heightPlate, widthPlate, 0),
         },
       },
 
@@ -54,9 +53,7 @@ const createDec = (
   };
 
   const dec = model.models.plate.models.dec;
-  const result = model.models.plate.models.dec2;
   makerjs.model.center(dec);
-  makerjs.model.center(result);
   const waste = Wastecut(widthPlate, heightPlate, decWidth, decHeight).paths;
   model.models.wasteCut.paths = waste;
 
@@ -66,9 +63,6 @@ const createDec = (
   model.models.regmarks.paths.reg3.layer = 'black';
   model.models.regmarks.paths.reg4.layer = 'black';
   model.models.regmarks.paths.reg5.layer = 'black';
-
-  console.log(model.models.wasteCut.paths.Top1);
-  console.log(model.models.wasteCut.paths.Top2);
 
   const { paths } = Wastecut(widthPlate, heightPlate, decWidth, decHeight);
   Object.keys(paths).map((el) => {
@@ -101,5 +95,5 @@ const createDec = (
   }
 };
 
-createDec(125, 260, 100, 200);
-// module.exports = createDec;
+// createDec(125, 260, 100, 200);
+module.exports = createDec;
