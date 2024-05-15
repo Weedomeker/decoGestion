@@ -39,11 +39,18 @@ function App() {
   const [isFooter, setIsFooter] = useState(false);
   const [isShowPdf, setIsShowPdf] = useState(false);
   const [isShowJpg, setIsShowJpg] = useState(false);
+  const [srcJpg, setSrcJpg] = useState({ src: '', key: Date.now() });
   const [isShowLouis, setIsShowLouis] = useState(false);
   const [isShowLog, setIsShowLog] = useState(false);
   const [isShowDownloadCut, setIsShowDownloadCut] = useState(false);
   const [dataLog, setDataLog] = useState([]);
-  const [warnMsg, setWarnMsg] = useState({ hidden: true, header: '', msg: '', icon: 'warning sign', color: 'red' });
+  const [warnMsg, setWarnMsg] = useState({
+    hidden: true,
+    header: '',
+    msg: '',
+    icon: 'warning sign',
+    color: 'red',
+  });
   const [error, setError] = useState({
     formatTauro: false,
     format: false,
@@ -65,7 +72,10 @@ function App() {
   //Get Format Tauro
 
   useEffect(() => {
-    fetch(`http://${HOST}:${PORT}/formatsTauro`, { method: 'GET', headers: { Accept: 'Application/json' } })
+    fetch(`http://${HOST}:${PORT}/formatsTauro`, {
+      method: 'GET',
+      headers: { Accept: 'Application/json' },
+    })
       .then((res) => res.json())
       .then((res) => {
         let arr = [];
@@ -80,7 +90,10 @@ function App() {
 
   //Get App version
   useEffect(() => {
-    fetch(`http://${HOST}:${PORT}/process`, { method: 'GET', headers: { Accept: 'Application/json' } })
+    fetch(`http://${HOST}:${PORT}/process`, {
+      method: 'GET',
+      headers: { Accept: 'Application/json' },
+    })
       .then((res) => res.json())
       .then((res) => {
         setVersion(res.version);
@@ -133,7 +146,10 @@ function App() {
         setIsFooter(true);
         setIsShowJpg(true);
         setTimeProcess((timeProcess) => Object.assign({}, timeProcess, update));
-        checkCreateCut ? setIsShowDownloadCut(true) : setIsShowDownloadCut(false);
+        setSrcJpg({ src: update.jpgPath, key: Date.now() });
+        checkCreateCut
+          ? setIsShowDownloadCut(true)
+          : setIsShowDownloadCut(false);
       }
     } catch (err) {
       console.log(err);
@@ -228,7 +244,11 @@ function App() {
           />
 
           {/* Format Tauro */}
-          <Form.Field className="format-tauro" required error={error.formatTauro}>
+          <Form.Field
+            className="format-tauro"
+            required
+            error={error.formatTauro}
+          >
             <label htmlFor="FormatTauro">Répertoires Tauro</label>
             <FormatTauro
               error={error.formatTauro}
@@ -238,7 +258,10 @@ function App() {
               onValue={(e, data) => {
                 setSelectedFormatTauro(data.value);
                 //info
-                if (CheckFormats(data.value, selectedFormat) && CheckFormats(data.value, selectedFormat).gap == true) {
+                if (
+                  CheckFormats(data.value, selectedFormat) &&
+                  CheckFormats(data.value, selectedFormat).gap == true
+                ) {
                   setWarnMsg({
                     ...warnMsg,
                     hidden: false,
@@ -286,7 +309,12 @@ function App() {
             />
 
             {showAddFormat && (
-              <Input id="addFormatTauro" size="small" label="Add format" placeholder="Deco_Std_FORMAT" />
+              <Input
+                id="addFormatTauro"
+                size="small"
+                label="Add format"
+                placeholder="Deco_Std_FORMAT"
+              />
             )}
           </Form.Field>
 
@@ -306,7 +334,12 @@ function App() {
                 setCheckCreateCut(data.checked);
               }}
             />
-            {isShowDownloadCut && <DownloadFile urlFile={`http://${HOST}:${PORT}/download`} fileName={fileNameCut} />}
+            {isShowDownloadCut && (
+              <DownloadFile
+                urlFile={`http://${HOST}:${PORT}/download`}
+                fileName={fileNameCut}
+              />
+            )}
           </Form.Field>
 
           {/* Format */}
@@ -323,7 +356,9 @@ function App() {
               text={selectedFormat}
               selectedFormat={selectedFormat}
               onSelectFormat={(e, v) => {
-                const value = isLoading ? 'Loading..' : data.find((x) => x.path === v.value);
+                const value = isLoading
+                  ? 'Loading..'
+                  : data.find((x) => x.path === v.value);
                 setSelectedFormat(value.name);
                 setFileNameCut(value.name);
                 setFiles(value.files);
@@ -335,7 +370,9 @@ function App() {
                   CheckFormats(selectedFormatTauro, value.name) &&
                   CheckFormats(selectedFormatTauro, value.name).gap == true
                 ) {
-                  setPerte(checkFormats(selectedFormatTauro, value.name).surface);
+                  setPerte(
+                    checkFormats(selectedFormatTauro, value.name).surface,
+                  );
                   setWarnMsg({
                     ...warnMsg,
                     hidden: false,
@@ -344,7 +381,10 @@ function App() {
                     icon: 'info circle',
                     color: 'yellow',
                   });
-                } else if (CheckFormats(selectedFormatTauro, value.name).isChecked == false) {
+                } else if (
+                  CheckFormats(selectedFormatTauro, value.name).isChecked ==
+                  false
+                ) {
                   setWarnMsg({
                     ...warnMsg,
                     hidden: false,
@@ -393,7 +433,16 @@ function App() {
                 }
               }}
             />
-            <p style={{ fontSize: '10px', textAlign: 'right', width: '300px', marginTop: '2px' }}>{fileSize}</p>
+            <p
+              style={{
+                fontSize: '10px',
+                textAlign: 'right',
+                width: '300px',
+                marginTop: '2px',
+              }}
+            >
+              {fileSize}
+            </p>
           </Form.Field>
 
           {/* Infos commande */}
@@ -441,11 +490,24 @@ function App() {
           {/* Exemplaires */}
           <Form.Field>
             <label htmlFor="ex">Ex</label>
-            <Input disabled={enabled.ex} id="ex" name="ex" type="number" defaultValue={1} />
+            <Input
+              disabled={enabled.ex}
+              id="ex"
+              name="ex"
+              type="number"
+              defaultValue={1}
+            />
           </Form.Field>
 
           <div className="button-form">
-            <Button disabled={enabled.validate} primary compact inverted type="submit" content="Valider" />
+            <Button
+              disabled={enabled.validate}
+              primary
+              compact
+              inverted
+              type="submit"
+              content="Valider"
+            />
 
             <Button
               content="Louis"
@@ -510,13 +572,19 @@ function App() {
       <LouisPreview show={isShowLouis} />
 
       {/*  Jpg */}
-      <ImageRender active={isShowJpg} src={timeProcess.jpgPath} />
+      {timeProcess.jpgPath && (
+        <ImageRender active={isShowJpg} src={srcJpg.src} key={srcJpg.key} />
+      )}
 
       {/* Log */}
       <Log show={isShowLog} data={dataLog} />
 
       {/* FOOTER */}
-      <Footer active={!isFooter} timePdf={timeProcess.pdf} timeJpg={timeProcess.jpg} />
+      <Footer
+        active={!isFooter}
+        timePdf={timeProcess.pdf}
+        timeJpg={timeProcess.jpg}
+      />
     </div>
   );
 }

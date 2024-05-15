@@ -6,9 +6,14 @@ import { Image } from 'semantic-ui-react';
 function ImageRender({ src, active }) {
   if (active && src != undefined) {
     const title = src.split('/').pop();
+
     return (
       <div className="preview-deco">
-        <a href={`http://${HOST}:${PORT}/public/` + src.replace(/#/i, '%23')} data-lightbox={title} data-title={title}>
+        <a
+          href={`http://${HOST}:${PORT}/public/` + src.replace(/#/i, '%23')}
+          data-lightbox={title}
+          data-title={title}
+        >
           <Image
             wrapped
             fluid
