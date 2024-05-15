@@ -74,9 +74,8 @@ const createDec = (
     let fileName = `${decWidth}x${decHeight}`;
     const dxf = makerjs.exporter.toDXF(model, {
       units: 'cm',
-      layerOptions: { dec: { color: 2 } },
     });
-    const svg = makerjs.exporter.toSVG(model, { units: 'mm' });
+    const svg = makerjs.exporter.toSVG(model, { units: 'px' });
     try {
       if (fs.existsSync(pathFile)) {
         fs.writeFileSync(pathFile + fileName + '.dxf', dxf);
