@@ -17,7 +17,7 @@ const { Worker, workerData } = require('worker_threads');
 const PORT = process.env.PORT || 8000;
 
 //Path déco
-const decoFolder = './public/deco/1_FORMATS STANDARDS';
+const decoFolder = './public/deco';
 
 //Path export
 const saveFolder = isDev ? './public/tmp' : './public/tauro';

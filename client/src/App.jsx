@@ -36,10 +36,10 @@ function App() {
   const [fileSize, setFileSize] = useState('');
   const [isProcessLoading, setIsProcessLoading] = useState(false);
   const [timeProcess, setTimeProcess] = useState({});
+  const [srcImg, setSrcImg] = useState('');
   const [isFooter, setIsFooter] = useState(false);
   const [isShowPdf, setIsShowPdf] = useState(false);
   const [isShowJpg, setIsShowJpg] = useState(false);
-  const [srcJpg, setSrcJpg] = useState({ src: '', key: Date.now() });
   const [isShowLouis, setIsShowLouis] = useState(false);
   const [isShowLog, setIsShowLog] = useState(false);
   const [isShowDownloadCut, setIsShowDownloadCut] = useState(false);
@@ -70,7 +70,6 @@ function App() {
   const [perte, setPerte] = useState(0);
 
   //Get Format Tauro
-
   useEffect(() => {
     fetch(`http://${HOST}:${PORT}/formatsTauro`, {
       method: 'GET',
@@ -144,9 +143,9 @@ function App() {
         ]);
         setIsProcessLoading(false);
         setIsFooter(true);
-        setIsShowJpg(true);
         setTimeProcess((timeProcess) => Object.assign({}, timeProcess, update));
-        setSrcJpg({ src: update.jpgPath, key: Date.now() });
+        setIsShowJpg(true);
+        setSrcImg(update.jpgPath);
         checkCreateCut
           ? setIsShowDownloadCut(true)
           : setIsShowDownloadCut(false);
@@ -572,9 +571,8 @@ function App() {
       <LouisPreview show={isShowLouis} />
 
       {/*  Jpg */}
-      {timeProcess.jpgPath && (
-        <ImageRender active={isShowJpg} src={srcJpg.src} key={srcJpg.key} />
-      )}
+
+      {srcImg != '' ? <ImageRender active={isShowJpg} src={srcImg} /> : null}
 
       {/* Log */}
       <Log show={isShowLog} data={dataLog} />
