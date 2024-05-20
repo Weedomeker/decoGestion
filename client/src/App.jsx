@@ -578,7 +578,7 @@ function App() {
       <LouisPreview show={isShowLouis} />
 
       {/*  Jpg */}
-      <ImageRender active={isShowJpg} src={srcImg} />
+      {timeProcess.jpgPath && <ImageRender active={isShowJpg} src={srcImg} />}
 
       {/* Log */}
       <Log show={isShowLog} data={dataLog} />

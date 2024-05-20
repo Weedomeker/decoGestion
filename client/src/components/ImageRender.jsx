@@ -6,14 +6,9 @@ import { useState } from 'react';
 
 function ImageRender({ src, active }) {
   const [imageSourceUrl, setImageSourceUrl] = useState('');
-
   const fetchBlob = async (url) => {
     const res = await fetch(url, { method: 'GET' });
-    if (res.ok) {
-      return res.blob();
-    } else {
-      return;
-    }
+    if (res.status == 200) return res.blob();
   };
 
   if (active) {
@@ -22,10 +17,11 @@ function ImageRender({ src, active }) {
 
     const downloadImageAndSetSource = async (imageUrl) => {
       const image = await fetchBlob(imageUrl);
+      console.log(image);
       setImageSourceUrl(URL.createObjectURL(image));
     };
 
-    if (imageSourceUrl != imageSourceUrl) downloadImageAndSetSource(url);
+    downloadImageAndSetSource(url);
 
     return (
       <div className="preview-deco">

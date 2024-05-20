@@ -17,7 +17,7 @@ const { Worker, workerData } = require('worker_threads');
 const PORT = process.env.PORT || 8000;
 
 //Path déco
-const decoFolder = './public/deco/1_FORMATS STANDARDS';
+const decoFolder = './public/deco/';
 
 //Path export
 const saveFolder = isDev ? './public/tmp' : './public/tauro';
@@ -154,13 +154,12 @@ app.post('/', async (req, res) => {
   try {
     start = performance.now();
     await _useWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
-    //await pdfToimg(`${pdfName}.pdf`, `${jpgName}.jpg`);
     timeExec = parseFloat(
       ((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2),
     );
     jpgTime = timeExec;
-    console.log(`Jpg: ✔️`);
 
+    console.log(`Jpg: ✔️`);
     console.log(`${date} ${time}:`, fileName);
 
     const dataFileExport = [
@@ -192,13 +191,9 @@ app.post('/', async (req, res) => {
       XLSX.utils.book_append_sheet(wb, ws, 'session');
       XLSX.writeFile(wb, './public/session.xlsx');
     }
-
-    res.status(200).send();
   } catch (error) {
     console.log('FAILED GENERATE IMAGE: ', error);
-    res.send(error);
   }
-
   //Générer découpe
   try {
     const fTauro = formatTauro.split('_').pop();
@@ -211,6 +206,8 @@ app.post('/', async (req, res) => {
   } catch (error) {
     console.log(error);
   }
+  console.log(fs.existsSync(`${jpgName}.jpg`));
+  res.status(200).send();
 });
 
 app.get('/process', async (req, res) => {

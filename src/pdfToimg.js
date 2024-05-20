@@ -7,9 +7,12 @@ const pdfToimg = async (readFile, writeFile) => {
   await pdftobuffer(pdf, 0).then((buffer) => {
     fs.writeFileSync(writeFile, buffer, null);
   });
+  const fileExist = fs.existsSync(writeFile);
+  if (fileExist) {
+    console.log('ExistFile TRUE:', fileExist);
+    parentPort.postMessage('ok');
+  } else {
+    console.log('ExistFile FALSE:', fileExist);
+  }
 };
-
 pdfToimg(workerData.pdf, workerData.jpg);
-parentPort.postMessage('jpg ok');
-
-// module.exports = { pdfToimg };
