@@ -17,13 +17,14 @@ const { Worker, workerData } = require('worker_threads');
 const PORT = process.env.PORT || 8000;
 
 //Path déco
-const decoFolder = './public/deco';
+const decoFolder = './public/deco/1_FORMATS STANDARDS';
 
 //Path export
 const saveFolder = isDev ? './public/tmp' : './public/tauro';
 const jpgPath = saveFolder;
 
 app.use(cors());
+
 app.use(express.urlencoded({ extended: false }));
 app.use('/public', express.static(path.join(__dirname, './public')));
 app.use('/download', express.static(path.join(__dirname, './public/tmp')));

@@ -91,7 +91,10 @@ function App() {
   useEffect(() => {
     fetch(`http://${HOST}:${PORT}/process`, {
       method: 'GET',
-      headers: { Accept: 'Application/json' },
+      headers: {
+        Accept: 'Application/json',
+        'Content-Type': 'application/json',
+      },
     })
       .then((res) => res.json())
       .then((res) => {
@@ -120,7 +123,11 @@ function App() {
     try {
       const res = await fetch(`http://${HOST}:${PORT}/process`, {
         method: 'GET',
-        headers: { Accept: 'Application/json' },
+        headers: {
+          Accept: 'Application/json',
+          credentials: 'same-origin',
+          'Content-Type': 'application/json',
+        },
       });
       const data = await res.json();
 
@@ -571,8 +578,7 @@ function App() {
       <LouisPreview show={isShowLouis} />
 
       {/*  Jpg */}
-
-      {srcImg != '' ? <ImageRender active={isShowJpg} src={srcImg} /> : null}
+      <ImageRender active={isShowJpg} src={srcImg} />
 
       {/* Log */}
       <Log show={isShowLog} data={dataLog} />
