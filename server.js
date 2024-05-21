@@ -49,9 +49,6 @@ let fileName = '',
 function _useWorker(data) {
   return new Promise((resolve, reject) => {
     const worker = new Worker('./src/pdfToimg.js', { workerData: data });
-    worker.on('online', () => {
-      console.log('Launching intensive CPU task');
-    });
     worker.on('message', resolve);
     worker.on('error', reject);
     worker.on('exit', (code) => {
@@ -77,9 +74,22 @@ app.get('/', (req, res) => {
 });
 
 app.post('/', async (req, res) => {
+  let jobList = {
+    jobs: [
+      {
+        _id: Date.now(),
+        cmd: 00007,
+        ville: 'Tourcoing',
+        format_Plaque: '101x215',
+        visuel: 'TEST',
+        ex: 2,
+      },
+    ],
+    completed: [],
+  };
+
   //Date
   let time = new Date().toLocaleTimeString('fr-FR');
-
   let date = new Date()
     .toLocaleDateString('fr-FR', {
       year: 'numeric',
@@ -99,6 +109,7 @@ app.post('/', async (req, res) => {
     ville: req.body.ville != null ? req.body.ville.toUpperCase() : '',
     ex: req.body.ex != null ? req.body.ex : '',
     perte: req.body.perte,
+    regmarks: req.body.regmarks,
   };
   let visuel = data.visuel.split('/').pop();
   visuel = data.visuel.split('-').pop();
@@ -107,6 +118,7 @@ app.post('/', async (req, res) => {
   let prodBlanc = data.prodBlanc;
   let allFormatTauro = data.allFormatTauro;
   let format = data.format;
+  let reg = data.regmarks;
 
   //Lecture Ecriture format tauro
   let arr = [];
@@ -119,6 +131,7 @@ app.post('/', async (req, res) => {
       fs.writeFileSync('./formatsTauro.conf', allFormatTauro.join('\n'));
     }
   }
+
   //Chemin sortie fichiers
   let writePath;
   prodBlanc
@@ -141,9 +154,22 @@ app.post('/', async (req, res) => {
     jpgName = `${jpgPath}/PRINTSA#${date}` + '/' + fileName;
   }
 
+  // JOBS LIST STANDBY
+  let newJob = {
+    _id: Date.now(),
+    cmd: data.numCmd,
+    ville: data.ville.toUpperCase(),
+    format_Plaque: formatTauro.split('_').pop(),
+    visuel: visuel.replace(/\.[^/.]+$/, ''),
+    ex: data.ex,
+  };
+  jobList.jobs.push(newJob);
+  console.log('En attente: ', jobList.jobs);
+  console.log('Completed: ', jobList.completed);
+
   //Edition pdf
   start = performance.now();
-  await modifyPdf(visuPath, writePath, fileName, format, formatTauro);
+  await modifyPdf(visuPath, writePath, fileName, format, formatTauro, reg);
   timeExec = parseFloat(
     ((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2),
   );
@@ -160,7 +186,7 @@ app.post('/', async (req, res) => {
     jpgTime = timeExec;
 
     console.log(`Jpg: ✔️`);
-    console.log(`${date} ${time}:`, fileName);
+    console.log(`${date} ${time}:`, fileName + '✔️');
 
     const dataFileExport = [
       {
@@ -206,6 +232,16 @@ app.post('/', async (req, res) => {
   } catch (error) {
     console.log(error);
   }
+
+  //JOBS LIST completed
+  const findJob = jobList.jobs.find((x) => x._id === newJob._id);
+  const index = jobList.jobs.indexOf(findJob);
+  if (index > -1) {
+    jobList.jobs.splice(index, 1);
+  }
+  jobList.completed.push(findJob);
+  console.log('En attente: ', jobList.jobs);
+  console.log('Completed: ', jobList.completed);
 
   res.status(200).send();
 });

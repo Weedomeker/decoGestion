@@ -1,9 +1,22 @@
-const { degrees, PDFDocument, rgb, StandardFonts, grayscale } = require('pdf-lib');
+const {
+  degrees,
+  PDFDocument,
+  rgb,
+  StandardFonts,
+  grayscale,
+} = require('pdf-lib');
 const fs = require('fs');
 const { performance } = require('perf_hooks');
 const { cmToPxl, pxlToCm } = require('./convertPxlCm');
 
-async function modifyPdf(filePath, writePath, fileName, format, formatTauro) {
+async function modifyPdf(
+  filePath,
+  writePath,
+  fileName,
+  format,
+  formatTauro,
+  reg,
+) {
   const readPdf = await fs.promises.readFile(filePath);
   const pdfDoc = await PDFDocument.load(readPdf);
   const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -17,37 +30,38 @@ async function modifyPdf(filePath, writePath, fileName, format, formatTauro) {
   const largeurPlaque = cmToPxl(parseInt(fTauro.split('x')[0]));
   const longueurPlaque = cmToPxl(parseInt(fTauro.split('x')[1]));
 
-  firstPage.setSize(longueurPlaque, largeurPlaque);
-
-  const drawRegmarks = (xReg, yReg, sizeReg) => {
-    if (sizeReg == null || sizeReg == '' || sizeReg == undefined) {
-      sizeReg = 0.6;
-    }
-    firstPage.drawCircle({
-      x: xReg,
-      y: yReg,
-      size: cmToPxl(sizeReg / 2),
-      color: rgb(0, 0, 0),
-    });
-  };
-  drawRegmarks(-cmToPxl(1), cmToPxl(2));
-  drawRegmarks(-cmToPxl(1), height - cmToPxl(2));
-  drawRegmarks(-cmToPxl(1), height - cmToPxl(12));
-  drawRegmarks(width + cmToPxl(1), cmToPxl(2));
-  drawRegmarks(width + cmToPxl(1), height - cmToPxl(2));
-
-  firstPage.translateContent((longueurPlaque - width) / 2, (largeurPlaque - height) / 2);
-
-  console.log('Format visuel: ', pxlToCm(height), 'x', pxlToCm(width), 'cm');
-  console.log('Format plaque: ', pxlToCm(largeurPlaque), 'x', pxlToCm(longueurPlaque), 'cm');
-
-  let xPosition = -25;
+  let xPosition = 35;
   let textSize = 35;
+
+  // ADD REGMARKS
+  if (reg) {
+    xPosition = -25;
+    firstPage.setSize(longueurPlaque, largeurPlaque);
+    const drawRegmarks = (xReg, yReg, sizeReg) => {
+      if (sizeReg == null || sizeReg == '' || sizeReg == undefined) {
+        sizeReg = 0.6;
+      }
+      firstPage.drawCircle({
+        x: xReg,
+        y: yReg,
+        size: cmToPxl(sizeReg / 2),
+        color: rgb(0, 0, 0),
+      });
+    };
+    drawRegmarks(-cmToPxl(1), cmToPxl(2));
+    drawRegmarks(-cmToPxl(1), height - cmToPxl(2));
+    drawRegmarks(-cmToPxl(1), height - cmToPxl(12));
+    drawRegmarks(width + cmToPxl(1), cmToPxl(2));
+    drawRegmarks(width + cmToPxl(1), height - cmToPxl(2));
+
+    firstPage.translateContent(
+      (longueurPlaque - width) / 2,
+      (largeurPlaque - height) / 2,
+    );
+  }
+
   const getFormat = () => {
-    if (hSize == 210) {
-      xPosition = xPosition;
-      textSize = 70;
-    } else if (wSize == 150 && hSize == 255) {
+    if (wSize == 150 && hSize == 255) {
       xPosition = xPosition;
       textSize = 70;
     } else {

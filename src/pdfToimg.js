@@ -9,10 +9,9 @@ const pdfToimg = async (readFile, writeFile) => {
   });
   const fileExist = fs.existsSync(writeFile);
   if (fileExist) {
-    console.log('ExistFile TRUE:', fileExist);
     parentPort.postMessage('ok');
   } else {
-    console.log('ExistFile FALSE:', fileExist);
+    return;
   }
 };
 pdfToimg(workerData.pdf, workerData.jpg);

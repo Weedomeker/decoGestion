@@ -24,7 +24,10 @@ function App() {
   const [selectedFormat, setSelectedFormat] = useState('');
   const [formatTauro, setFormatTauro] = useState(['']);
   const [checkProdBlanc, setCheckProdBlanc] = useState(false);
-  const [checkCreateCut, setCheckCreateCut] = useState(false);
+  const [checkGenerate, setCheckGenerate] = useState({
+    cut: false,
+    reg: false,
+  });
   const [fileNameCut, setFileNameCut] = useState('');
   const [showAddFormat, setShowAddFormat] = useState(false);
   const [selectedFormatTauro, setSelectedFormatTauro] = useState('');
@@ -153,7 +156,7 @@ function App() {
         setTimeProcess((timeProcess) => Object.assign({}, timeProcess, update));
         setIsShowJpg(true);
         setSrcImg(update.jpgPath);
-        checkCreateCut
+        checkGenerate.cut
           ? setIsShowDownloadCut(true)
           : setIsShowDownloadCut(false);
       }
@@ -178,6 +181,7 @@ function App() {
       ville: formData.get('ville'),
       ex: formData.get('ex'),
       perte: perte,
+      regmarks: checkGenerate.reg,
     };
 
     //POST data
@@ -332,12 +336,22 @@ function App() {
               onChange={(e, data) => setCheckProdBlanc(data.checked)}
             />
           </Form.Field>
+
+          {/* GENERATE REGMARKS */}
           <Form.Field inline>
             <Checkbox
-              label="Générer découpe"
-              checked={checkCreateCut}
+              label="Générer regmarks"
+              checked={checkGenerate.reg}
               onChange={(e, data) => {
-                setCheckCreateCut(data.checked);
+                setCheckGenerate({ ...checkGenerate, reg: data.checked });
+              }}
+            />
+            {/* GENERATE CUT */}
+            <Checkbox
+              label="Générer découpe"
+              checked={checkGenerate.cut}
+              onChange={(e, data) => {
+                setCheckGenerate({ ...checkGenerate, cut: data.checked });
               }}
             />
             {isShowDownloadCut && (
