@@ -10,6 +10,7 @@ const modifyPdf = require('./src/app');
 const getFiles = require('./src/getFiles').getData;
 // const { pdfToimg } = require('./src/pdfToimg');
 const createDec = require('./src/dec');
+const createJob = require('./src/jobsList');
 const path = require('path');
 const fs = require('fs');
 const { performance } = require('perf_hooks');
@@ -38,6 +39,7 @@ app.use(
 app.use(express.json());
 
 let fileName = '',
+  writePath = '',
   pdfName = '',
   jpgName = '',
   start,
@@ -45,6 +47,22 @@ let fileName = '',
   pdfTime,
   jpgTime,
   fileDownload;
+
+let jobList = {
+  jobs: [
+    {
+      _id: Date.now(),
+      date: '',
+      time: '',
+      cmd: 00007,
+      ville: 'Test',
+      format_Plaque: '101x215',
+      visuel: 'Test',
+      ex: 2,
+    },
+  ],
+  completed: [],
+};
 
 function _useWorker(data) {
   return new Promise((resolve, reject) => {
@@ -74,20 +92,6 @@ app.get('/', (req, res) => {
 });
 
 app.post('/', async (req, res) => {
-  let jobList = {
-    jobs: [
-      {
-        _id: Date.now(),
-        cmd: 00007,
-        ville: 'Tourcoing',
-        format_Plaque: '101x215',
-        visuel: 'TEST',
-        ex: 2,
-      },
-    ],
-    completed: [],
-  };
-
   //Date
   let time = new Date().toLocaleTimeString('fr-FR');
   let date = new Date()
@@ -133,15 +137,13 @@ app.post('/', async (req, res) => {
   }
 
   //Chemin sortie fichiers
-  let writePath;
-  prodBlanc
-    ? (writePath = saveFolder + '/Prod avec BLANC')
-    : (writePath = saveFolder + '/' + formatTauro);
+  prodBlanc ? (writePath = saveFolder + '/Prod avec BLANC') : (writePath = saveFolder + '/' + formatTauro);
 
   //Nom fichier
-  fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro
-    .split('_')
-    .pop()} - ${visuel.replace(/\.[^/.]+$/, '')} ${data.ex}_EX`;
+  fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro.split('_').pop()} - ${visuel.replace(
+    /\.[^/.]+$/,
+    '',
+  )} ${data.ex}_EX`;
 
   //Verifier si dossiers exist si pas le créer
   if (fs.existsSync(writePath) && fs.existsSync(`${jpgPath}/PRINTSA#${date}`)) {
@@ -155,14 +157,19 @@ app.post('/', async (req, res) => {
   }
 
   // JOBS LIST STANDBY
-  let newJob = {
-    _id: Date.now(),
-    cmd: data.numCmd,
-    ville: data.ville.toUpperCase(),
-    format_Plaque: formatTauro.split('_').pop(),
-    visuel: visuel.replace(/\.[^/.]+$/, ''),
-    ex: data.ex,
-  };
+  const newJob = createJob(
+    date,
+    time,
+    data.numCmd,
+    data.ville,
+    format,
+    formatTauro,
+    visuel,
+    data.ex,
+    visuPath,
+    writePath,
+    reg,
+  );
   jobList.jobs.push(newJob);
   console.log('En attente: ', jobList.jobs);
   console.log('Completed: ', jobList.completed);
@@ -170,9 +177,7 @@ app.post('/', async (req, res) => {
   //Edition pdf
   start = performance.now();
   await modifyPdf(visuPath, writePath, fileName, format, formatTauro, reg);
-  timeExec = parseFloat(
-    ((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2),
-  );
+  timeExec = parseFloat(((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2));
   pdfTime = timeExec;
   console.log(`Pdf: ✔️`);
 
@@ -180,9 +185,7 @@ app.post('/', async (req, res) => {
   try {
     start = performance.now();
     await _useWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
-    timeExec = parseFloat(
-      ((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2),
-    );
+    timeExec = parseFloat(((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2));
     jpgTime = timeExec;
 
     console.log(`Jpg: ✔️`);
