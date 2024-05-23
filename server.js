@@ -310,6 +310,10 @@ app.get('/download', (req, res) => {
   });
 });
 
+app.get('/jobs', (req, res) => {
+  res.json(jobList);
+});
+
 app.listen(PORT, () => {
   checkVersion()
     .then((result) => {

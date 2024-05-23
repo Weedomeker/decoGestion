@@ -1,22 +1,22 @@
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
-import CheckFormats from './CheckFormats';
 import { useEffect, useState } from 'react';
-import { Button, Form, Icon, Input, Checkbox } from 'semantic-ui-react';
-import Header from './components/Header';
-import Footer from './components/Footer';
-import Loading from './components/Loading';
-import PreviewDeco from './components/PreviewDeco';
-import LouisPreview from './components/LouisPreview';
-import FormatDropdown from './components/FormatDropdown';
-import VisuelDropdown from './components/VisuelDropdown';
-import ImageRender from './components/ImageRender';
-import Place from './components/Place';
-import FormatTauro from './components/FormatTauro';
-import InfoMessage from './components/InfoMessage';
-import Log from './components/Log';
-import checkFormats from './CheckFormats';
+import { Button, Checkbox, Form, Icon, Input } from 'semantic-ui-react';
+import { default as CheckFormats, default as checkFormats } from './CheckFormats';
 import DownloadFile from './components/DownloadFile';
+import Footer from './components/Footer';
+import FormatDropdown from './components/FormatDropdown';
+import FormatTauro from './components/FormatTauro';
+import Header from './components/Header';
+import ImageRender from './components/ImageRender';
+import InfoMessage from './components/InfoMessage';
+import JobsList from './components/JobsList';
+import Loading from './components/Loading';
+import Log from './components/Log';
+import LouisPreview from './components/LouisPreview';
+import Place from './components/Place';
+import PreviewDeco from './components/PreviewDeco';
+import VisuelDropdown from './components/VisuelDropdown';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -45,6 +45,7 @@ function App() {
   const [isShowJpg, setIsShowJpg] = useState(false);
   const [isShowLouis, setIsShowLouis] = useState(false);
   const [isShowLog, setIsShowLog] = useState(false);
+  const [isShowJobsList, setIsShowJobsList] = useState(false);
   const [isShowDownloadCut, setIsShowDownloadCut] = useState(false);
   const [dataLog, setDataLog] = useState([]);
   const [warnMsg, setWarnMsg] = useState({
@@ -156,9 +157,7 @@ function App() {
         setTimeProcess((timeProcess) => Object.assign({}, timeProcess, update));
         setIsShowJpg(true);
         setSrcImg(update.jpgPath);
-        checkGenerate.cut
-          ? setIsShowDownloadCut(true)
-          : setIsShowDownloadCut(false);
+        checkGenerate.cut ? setIsShowDownloadCut(true) : setIsShowDownloadCut(false);
       }
     } catch (err) {
       console.log(err);
@@ -254,11 +253,7 @@ function App() {
           />
 
           {/* Format Tauro */}
-          <Form.Field
-            className="format-tauro"
-            required
-            error={error.formatTauro}
-          >
+          <Form.Field className="format-tauro" required error={error.formatTauro}>
             <label htmlFor="FormatTauro">Répertoires Tauro</label>
             <FormatTauro
               error={error.formatTauro}
@@ -268,10 +263,7 @@ function App() {
               onValue={(e, data) => {
                 setSelectedFormatTauro(data.value);
                 //info
-                if (
-                  CheckFormats(data.value, selectedFormat) &&
-                  CheckFormats(data.value, selectedFormat).gap == true
-                ) {
+                if (CheckFormats(data.value, selectedFormat) && CheckFormats(data.value, selectedFormat).gap == true) {
                   setWarnMsg({
                     ...warnMsg,
                     hidden: false,
@@ -319,12 +311,7 @@ function App() {
             />
 
             {showAddFormat && (
-              <Input
-                id="addFormatTauro"
-                size="small"
-                label="Add format"
-                placeholder="Deco_Std_FORMAT"
-              />
+              <Input id="addFormatTauro" size="small" label="Add format" placeholder="Deco_Std_FORMAT" />
             )}
           </Form.Field>
 
@@ -354,12 +341,7 @@ function App() {
                 setCheckGenerate({ ...checkGenerate, cut: data.checked });
               }}
             />
-            {isShowDownloadCut && (
-              <DownloadFile
-                urlFile={`http://${HOST}:${PORT}/download`}
-                fileName={fileNameCut}
-              />
-            )}
+            {isShowDownloadCut && <DownloadFile urlFile={`http://${HOST}:${PORT}/download`} fileName={fileNameCut} />}
           </Form.Field>
 
           {/* Format */}
@@ -376,9 +358,7 @@ function App() {
               text={selectedFormat}
               selectedFormat={selectedFormat}
               onSelectFormat={(e, v) => {
-                const value = isLoading
-                  ? 'Loading..'
-                  : data.find((x) => x.path === v.value);
+                const value = isLoading ? 'Loading..' : data.find((x) => x.path === v.value);
                 setSelectedFormat(value.name);
                 setFileNameCut(value.name);
                 setFiles(value.files);
@@ -390,9 +370,7 @@ function App() {
                   CheckFormats(selectedFormatTauro, value.name) &&
                   CheckFormats(selectedFormatTauro, value.name).gap == true
                 ) {
-                  setPerte(
-                    checkFormats(selectedFormatTauro, value.name).surface,
-                  );
+                  setPerte(checkFormats(selectedFormatTauro, value.name).surface);
                   setWarnMsg({
                     ...warnMsg,
                     hidden: false,
@@ -401,10 +379,7 @@ function App() {
                     icon: 'info circle',
                     color: 'yellow',
                   });
-                } else if (
-                  CheckFormats(selectedFormatTauro, value.name).isChecked ==
-                  false
-                ) {
+                } else if (CheckFormats(selectedFormatTauro, value.name).isChecked == false) {
                   setWarnMsg({
                     ...warnMsg,
                     hidden: false,
@@ -510,24 +485,11 @@ function App() {
           {/* Exemplaires */}
           <Form.Field>
             <label htmlFor="ex">Ex</label>
-            <Input
-              disabled={enabled.ex}
-              id="ex"
-              name="ex"
-              type="number"
-              defaultValue={1}
-            />
+            <Input disabled={enabled.ex} id="ex" name="ex" type="number" defaultValue={1} />
           </Form.Field>
 
           <div className="button-form">
-            <Button
-              disabled={enabled.validate}
-              primary
-              compact
-              inverted
-              type="submit"
-              content="Valider"
-            />
+            <Button disabled={enabled.validate} primary compact inverted type="submit" content="Valider" />
 
             <Button
               content="Louis"
@@ -541,6 +503,7 @@ function App() {
                   setIsShowPdf(false);
                   setIsShowJpg(false);
                   setIsShowLog(false);
+                  setIsShowJobsList(false);
                 } else {
                   setIsShowLouis(false);
                 }
@@ -558,6 +521,7 @@ function App() {
                   setIsShowLouis(false);
                   setIsShowPdf(false);
                   setIsShowLog(false);
+                  setIsShowJobsList(false);
                 } else {
                   setIsShowJpg(false);
                 }
@@ -576,8 +540,26 @@ function App() {
                   setIsShowJpg(false);
                   setIsShowLouis(false);
                   setIsShowPdf(false);
+                  setIsShowJobsList(false);
                 } else {
                   setIsShowLog(false);
+                }
+              }}
+            />
+            <Button
+              type="button"
+              icon="list"
+              color="youtube"
+              toggle
+              onClick={() => {
+                if (!isShowJobsList) {
+                  setIsShowJobsList(true);
+                  setIsShowLog(false);
+                  setIsShowJpg(false);
+                  setIsShowLouis(false);
+                  setIsShowPdf(false);
+                } else {
+                  setIsShowJobsList(false);
                 }
               }}
             />
@@ -597,12 +579,11 @@ function App() {
       {/* Log */}
       <Log show={isShowLog} data={dataLog} src={srcImg} />
 
+      {/* JobsList */}
+      <JobsList show={isShowJobsList} />
+
       {/* FOOTER */}
-      <Footer
-        active={!isFooter}
-        timePdf={timeProcess.pdf}
-        timeJpg={timeProcess.jpg}
-      />
+      <Footer active={!isFooter} timePdf={timeProcess.pdf} timeJpg={timeProcess.jpg} />
     </div>
   );
 }
