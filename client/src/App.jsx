@@ -155,7 +155,8 @@ function App() {
         setIsProcessLoading(false);
         setIsFooter(true);
         setTimeProcess((timeProcess) => Object.assign({}, timeProcess, update));
-        setIsShowJpg(true);
+        setIsShowJpg(false);
+        setIsShowJobsList(true);
         setSrcImg(update.jpgPath);
         checkGenerate.cut ? setIsShowDownloadCut(true) : setIsShowDownloadCut(false);
       }
@@ -263,7 +264,10 @@ function App() {
               onValue={(e, data) => {
                 setSelectedFormatTauro(data.value);
                 //info
-                if (CheckFormats(data.value, selectedFormat) && CheckFormats(data.value, selectedFormat).gap == true) {
+                if (
+                  CheckFormats(data.value, selectedFormat) &&
+                  CheckFormats(data.value, selectedFormat).gap == true
+                ) {
                   setWarnMsg({
                     ...warnMsg,
                     hidden: false,
@@ -311,7 +315,12 @@ function App() {
             />
 
             {showAddFormat && (
-              <Input id="addFormatTauro" size="small" label="Add format" placeholder="Deco_Std_FORMAT" />
+              <Input
+                id="addFormatTauro"
+                size="small"
+                label="Add format"
+                placeholder="Deco_Std_FORMAT"
+              />
             )}
           </Form.Field>
 
@@ -341,7 +350,9 @@ function App() {
                 setCheckGenerate({ ...checkGenerate, cut: data.checked });
               }}
             />
-            {isShowDownloadCut && <DownloadFile urlFile={`http://${HOST}:${PORT}/download`} fileName={fileNameCut} />}
+            {isShowDownloadCut && (
+              <DownloadFile urlFile={`http://${HOST}:${PORT}/download`} fileName={fileNameCut} />
+            )}
           </Form.Field>
 
           {/* Format */}
@@ -420,6 +431,7 @@ function App() {
                 setIsShowLouis(false);
                 setIsShowJpg(false);
                 setIsShowLog(false);
+                setIsShowJobsList(false);
                 if (value.name == '' || value.name == undefined) {
                   setError({ ...error, visuel: true });
                 } else {
@@ -489,7 +501,14 @@ function App() {
           </Form.Field>
 
           <div className="button-form">
-            <Button disabled={enabled.validate} primary compact inverted type="submit" content="Valider" />
+            <Button
+              disabled={enabled.validate}
+              primary
+              compact
+              inverted
+              type="submit"
+              content="Valider"
+            />
 
             <Button
               content="Louis"

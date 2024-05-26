@@ -54,11 +54,15 @@ let jobList = {
       _id: Date.now(),
       date: '',
       time: '',
-      cmd: 00007,
-      ville: 'Test',
-      format_Plaque: '101x215',
-      visuel: 'Test',
-      ex: 2,
+      cmd: '',
+      ville: '',
+      format_visu: '',
+      format_Plaque: '',
+      visuel: '',
+      ex: '',
+      visuPath: '',
+      writePath: '',
+      reg: '',
     },
   ],
   completed: [],
@@ -122,7 +126,7 @@ app.post('/', async (req, res) => {
   let prodBlanc = data.prodBlanc;
   let allFormatTauro = data.allFormatTauro;
   let format = data.format;
-  let reg = data.regmarks;
+  let reg = data.regmarks.toString();
 
   //Lecture Ecriture format tauro
   let arr = [];
@@ -137,13 +141,14 @@ app.post('/', async (req, res) => {
   }
 
   //Chemin sortie fichiers
-  prodBlanc ? (writePath = saveFolder + '/Prod avec BLANC') : (writePath = saveFolder + '/' + formatTauro);
+  prodBlanc
+    ? (writePath = saveFolder + '/Prod avec BLANC')
+    : (writePath = saveFolder + '/' + formatTauro);
 
   //Nom fichier
-  fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro.split('_').pop()} - ${visuel.replace(
-    /\.[^/.]+$/,
-    '',
-  )} ${data.ex}_EX`;
+  fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro
+    .split('_')
+    .pop()} - ${visuel.replace(/\.[^/.]+$/, '')} ${data.ex}_EX`;
 
   //Verifier si dossiers exist si pas le créer
   if (fs.existsSync(writePath) && fs.existsSync(`${jpgPath}/PRINTSA#${date}`)) {
