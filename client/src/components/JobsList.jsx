@@ -25,40 +25,39 @@ function JobsList({ show }) {
     dataFetch();
   }, [show]);
 
-  useEffect(() => {
-    console.log(data);
-  }, [data]);
-
   const ItemsJob = (status) => {
     status == 'jobs' ? status == 'jobs' : status == 'completed';
 
     const newTableEntries =
       !isLoading &&
-      data[0][status].map((x, i) => {
+      data[0][status].map((value, i) => {
         return (
           <TableRow key={i}>
-            {Object.values(x).map((value, i) => {
-              return <TableCell key={i}>{value}</TableCell>;
-            })}
+            <TableCell>{value.date}</TableCell>
+            <TableCell>{value.time}</TableCell>
+            <TableCell>{value.cmd}</TableCell>
+            <TableCell>{value.ville}</TableCell>
+            <TableCell>{value.visuel}</TableCell>
+            <TableCell>{value.format_visu}</TableCell>
+            <TableCell>{value.format_Plaque}</TableCell>
+            <TableCell>{value.ex}</TableCell>
           </TableRow>
         );
       });
 
-    const newTableHeader =
-      !isLoading &&
-      data[0].jobs
-        .map((x) => {
-          return Object.keys(x).map((key, i) => {
-            return <TableHeaderCell key={i}>{key}</TableHeaderCell>;
-          });
-        })
-        .entries()
-        .next().value[1];
-
     const newTable = !isLoading && (
       <Table celled inverted size="small" compact>
         <TableHeader>
-          <TableRow>{newTableHeader}</TableRow>
+          <TableRow>
+            <TableHeaderCell>Dates</TableHeaderCell>
+            <TableHeaderCell>Heures</TableHeaderCell>
+            <TableHeaderCell>Commandes</TableHeaderCell>
+            <TableHeaderCell>Villes</TableHeaderCell>
+            <TableHeaderCell>Visuels</TableHeaderCell>
+            <TableHeaderCell>Formats</TableHeaderCell>
+            <TableHeaderCell>Plaques</TableHeaderCell>
+            <TableHeaderCell>Ex</TableHeaderCell>
+          </TableRow>
         </TableHeader>
         <TableBody>{newTableEntries}</TableBody>
       </Table>
