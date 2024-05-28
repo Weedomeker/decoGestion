@@ -46,7 +46,7 @@ function JobsList({ show }) {
       });
 
     const newTable = !isLoading && (
-      <Table celled inverted size="small" compact>
+      <Table celled inverted size="small" compact selectable stackable sortable>
         <TableHeader>
           <TableRow>
             <TableHeaderCell>Dates</TableHeaderCell>

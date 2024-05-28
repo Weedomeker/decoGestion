@@ -1,7 +1,7 @@
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
 import { useEffect, useState } from 'react';
-import { Button, Checkbox, Form, Icon, Input } from 'semantic-ui-react';
+import { Button, ButtonContent, Checkbox, Form, Icon, Input } from 'semantic-ui-react';
 import { default as CheckFormats, default as checkFormats } from './CheckFormats';
 import DownloadFile from './components/DownloadFile';
 import Footer from './components/Footer';
@@ -12,7 +12,6 @@ import ImageRender from './components/ImageRender';
 import InfoMessage from './components/InfoMessage';
 import JobsList from './components/JobsList';
 import Loading from './components/Loading';
-import Log from './components/Log';
 import LouisPreview from './components/LouisPreview';
 import Place from './components/Place';
 import PreviewDeco from './components/PreviewDeco';
@@ -44,10 +43,8 @@ function App() {
   const [isShowPdf, setIsShowPdf] = useState(false);
   const [isShowJpg, setIsShowJpg] = useState(false);
   const [isShowLouis, setIsShowLouis] = useState(false);
-  const [isShowLog, setIsShowLog] = useState(false);
   const [isShowJobsList, setIsShowJobsList] = useState(false);
   const [isShowDownloadCut, setIsShowDownloadCut] = useState(false);
-  const [dataLog, setDataLog] = useState([]);
   const [warnMsg, setWarnMsg] = useState({
     hidden: true,
     header: '',
@@ -144,14 +141,7 @@ function App() {
           time: data.time,
           version: data.version,
         };
-        setDataLog((curr) => [
-          ...curr,
-          {
-            id: curr.length + 1,
-            time: update.time,
-            value: update.fileName,
-          },
-        ]);
+
         setIsProcessLoading(false);
         setIsFooter(true);
         setTimeProcess((timeProcess) => Object.assign({}, timeProcess, update));
@@ -216,7 +206,6 @@ function App() {
     setIsShowPdf(false);
     setIsShowLouis(false);
     setIsShowJpg(false);
-    setIsShowLog(false);
 
     //Set Loading Process
     setIsProcessLoading(true);
@@ -430,7 +419,6 @@ function App() {
                 setIsShowPdf(true);
                 setIsShowLouis(false);
                 setIsShowJpg(false);
-                setIsShowLog(false);
                 setIsShowJobsList(false);
                 if (value.name == '' || value.name == undefined) {
                   setError({ ...error, visuel: true });
@@ -521,7 +509,6 @@ function App() {
                   setIsShowLouis(true);
                   setIsShowPdf(false);
                   setIsShowJpg(false);
-                  setIsShowLog(false);
                   setIsShowJobsList(false);
                 } else {
                   setIsShowLouis(false);
@@ -539,7 +526,6 @@ function App() {
                   setIsShowJpg(true);
                   setIsShowLouis(false);
                   setIsShowPdf(false);
-                  setIsShowLog(false);
                   setIsShowJobsList(false);
                 } else {
                   setIsShowJpg(false);
@@ -548,32 +534,15 @@ function App() {
             >
               <Icon className="image icon" size="large" fitted />
             </Button>
+
             <Button
-              type="button"
-              icon="file text"
-              color="vk"
-              toggle
-              onClick={() => {
-                if (!isShowLog) {
-                  setIsShowLog(true);
-                  setIsShowJpg(false);
-                  setIsShowLouis(false);
-                  setIsShowPdf(false);
-                  setIsShowJobsList(false);
-                } else {
-                  setIsShowLog(false);
-                }
-              }}
-            />
-            <Button
-              type="button"
+              animated
               icon="list"
               color="youtube"
-              toggle
+              type="button"
               onClick={() => {
                 if (!isShowJobsList) {
                   setIsShowJobsList(true);
-                  setIsShowLog(false);
                   setIsShowJpg(false);
                   setIsShowLouis(false);
                   setIsShowPdf(false);
@@ -581,7 +550,12 @@ function App() {
                   setIsShowJobsList(false);
                 }
               }}
-            />
+            >
+              <ButtonContent hidden>Jobs list</ButtonContent>
+              <ButtonContent visible>
+                <Icon name="list" />
+              </ButtonContent>
+            </Button>
           </div>
         </Form>
       </div>
@@ -594,9 +568,6 @@ function App() {
 
       {/*  Jpg */}
       <ImageRender active={isShowJpg} src={srcImg} />
-
-      {/* Log */}
-      <Log show={isShowLog} data={dataLog} src={srcImg} />
 
       {/* JobsList */}
       <JobsList show={isShowJobsList} />
