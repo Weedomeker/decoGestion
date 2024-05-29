@@ -46,27 +46,6 @@ img.ui.image {
   max-width: 1400px;
   min-width: 600px;
 }
-.log {
-  grid-column: span 2;
-  grid-row: 3;
-  overflow-y: auto;
-  margin-top: 34px;
-  margin-bottom: 12px;
-  min-height: 80px;
-  font-size: 12px;
-  padding-left: 7%;
-  width: 100%;
-}
-.log .list {
-  margin: 0;
-  padding: 0;
-}
-.log .time {
-  float: left;
-  margin-right: 8px;
-  color: grey;
-  font-size: 12px;
-}
 
 .footer {
   grid-column: span 2;
@@ -111,10 +90,12 @@ input {
 
 .ui.primary.button {
   min-width: 100px;
+  width: 100px;
 }
 
 .ui.button.compact {
   min-width: 100px;
+  width: 100px;
 }
 
 .button-form {
@@ -123,6 +104,12 @@ input {
   margin: auto;
   margin-top: 14px;
   margin-left: 0px;
+}
+
+.container-buttons {
+  padding-top: 14px;
+  padding-left: 15%;
+  margin-bottom: 24px;
 }
 
 .format-tauro {

@@ -155,6 +155,37 @@ function App() {
     }
   };
 
+  const handleJobSubmit = (e) => {
+    // e.preventDefault();
+    // const form = e.target;
+    // const formData = new FormData(form);
+    // const data = {
+    //   allFormatTauro: formatTauro,
+    //   formatTauro: selectedFormatTauro,
+    //   prodBlanc: checkProdBlanc,
+    //   format: selectedFormat,
+    //   visuel: selectedFile,
+    //   numCmd: formData.get('numCmd'),
+    //   ville: formData.get('ville'),
+    //   ex: formData.get('ex'),
+    //   perte: perte,
+    //   regmarks: checkGenerate.reg,
+    // };
+    // //POST data
+    // fetch(`http://${HOST}:${PORT}`, {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify(data),
+    // })
+    //   .then((res) => {
+    //     if (res.status == 200) {
+    //       handleGetProcess();
+    //     }
+    //   })
+    //   .catch((err) => console.log(err));
+    console.log(e);
+  };
+
   // Submit form
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -488,6 +519,7 @@ function App() {
             <Input disabled={enabled.ex} id="ex" name="ex" type="number" defaultValue={1} />
           </Form.Field>
 
+          {/* Validation formulaire */}
           <div className="button-form">
             <Button
               disabled={enabled.validate}
@@ -497,73 +529,89 @@ function App() {
               type="submit"
               content="Valider"
             />
-
             <Button
-              content="Louis"
+              primary
               compact
               inverted
-              color="green"
               type="button"
-              onClick={() => {
-                if (!isShowLouis) {
-                  setIsShowLouis(true);
-                  setIsShowPdf(false);
-                  setIsShowJpg(false);
-                  setIsShowJobsList(false);
-                } else {
-                  setIsShowLouis(false);
-                }
-              }}
+              content="+"
+              onClick={(e) => handleJobSubmit(e)}
             />
-
-            <Button
-              compact
-              inverted
-              color="orange"
-              type="button"
-              onClick={() => {
-                if (!isShowJpg) {
-                  setIsShowJpg(true);
-                  setIsShowLouis(false);
-                  setIsShowPdf(false);
-                  setIsShowJobsList(false);
-                } else {
-                  setIsShowJpg(false);
-                }
-              }}
-            >
-              <Icon className="image icon" size="large" fitted />
-            </Button>
-
-            <Button
-              animated
-              icon="list"
-              color="youtube"
-              type="button"
-              onClick={() => {
-                if (!isShowJobsList) {
-                  setIsShowJobsList(true);
-                  setIsShowJpg(false);
-                  setIsShowLouis(false);
-                  setIsShowPdf(false);
-                } else {
-                  setIsShowJobsList(false);
-                }
-              }}
-            >
-              <ButtonContent hidden>Jobs list</ButtonContent>
-              <ButtonContent visible>
-                <Icon name="list" />
-              </ButtonContent>
-            </Button>
           </div>
         </Form>
+        <div className="container-buttons">
+          <Button
+            animated
+            compact
+            color="blue"
+            type="button"
+            onClick={() => {
+              if (!isShowLouis) {
+                setIsShowLouis(true);
+                setIsShowPdf(false);
+                setIsShowJpg(false);
+                setIsShowJobsList(false);
+              } else {
+                setIsShowLouis(false);
+              }
+            }}
+          >
+            <ButtonContent hidden>Fichiers</ButtonContent>
+            <ButtonContent visible>
+              <Icon name="file" fitted />
+            </ButtonContent>
+          </Button>
+
+          <Button
+            animated
+            compact
+            color="blue"
+            type="button"
+            onClick={() => {
+              if (!isShowJpg) {
+                setIsShowJpg(true);
+                setIsShowLouis(false);
+                setIsShowPdf(false);
+                setIsShowJobsList(false);
+              } else {
+                setIsShowJpg(false);
+              }
+            }}
+          >
+            <ButtonContent hidden>Rendu</ButtonContent>
+            <ButtonContent visible>
+              <Icon name="image outline" fitted />
+            </ButtonContent>
+          </Button>
+
+          <Button
+            animated
+            compact
+            color="red"
+            type="button"
+            onClick={() => {
+              if (!isShowJobsList) {
+                setIsShowJobsList(true);
+                setIsShowJpg(false);
+                setIsShowLouis(false);
+                setIsShowPdf(false);
+              } else {
+                setIsShowJobsList(false);
+              }
+            }}
+          >
+            <ButtonContent hidden>Jobs list</ButtonContent>
+            <ButtonContent visible>
+              <Icon name="list" fitted />
+            </ButtonContent>
+          </Button>
+        </div>
       </div>
 
       {/* Preview visu */}
       <PreviewDeco fileSelected={selectedFile} show={isShowPdf} />
 
-      {/*  Louis Files */}
+      {/*  FolderFiles Files */}
       <LouisPreview show={isShowLouis} />
 
       {/*  Jpg */}

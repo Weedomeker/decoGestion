@@ -69,7 +69,7 @@ function JobsList({ show }) {
   const completed = ItemsJob('completed');
   if (show) {
     return (
-      <div>
+      <div className="preview-deco">
         {jobs}
         {completed}
       </div>
