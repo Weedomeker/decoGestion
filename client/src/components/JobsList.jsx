@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Table,
   TableBody,
@@ -14,6 +14,18 @@ const PORT = import.meta.env.VITE_PORT;
 function JobsList({ show }) {
   const [data, setData] = useState([]);
   const [isLoading, setLoading] = useState(true);
+  const [refresh, setRefresh] = useState(false);
+
+  const usePrevValue = (value) => {
+    const ref = useRef();
+    useEffect(() => {
+      ref.current = value;
+      console.log(ref.current);
+    });
+    return ref.current;
+  };
+
+  const prevValue = usePrevValue(...data);
 
   useEffect(() => {
     const dataFetch = async () => {
@@ -24,6 +36,11 @@ function JobsList({ show }) {
     };
     dataFetch();
   }, [show]);
+
+  useEffect(() => {
+    prevValue !== data ? setRefresh(true) : setRefresh(false);
+    console.log(prevValue);
+  }, [prevValue, data]);
 
   const ItemsJob = (status) => {
     status == 'jobs' ? status == 'jobs' : status == 'completed';
@@ -67,7 +84,7 @@ function JobsList({ show }) {
   };
   const jobs = ItemsJob('jobs');
   const completed = ItemsJob('completed');
-  if (show) {
+  if (show || refresh) {
     return (
       <div className="preview-deco">
         {jobs}

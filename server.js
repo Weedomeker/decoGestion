@@ -95,6 +95,64 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, './client/dist/index.html'));
 });
 
+app.post('/add_job', async (req, res) => {
+  //Date
+  let time = new Date().toLocaleTimeString('fr-FR');
+  let date = new Date()
+    .toLocaleDateString('fr-FR', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+    .replace('.', '')
+    .toLocaleUpperCase();
+
+  const data = {
+    allFormatTauro: req.body.allFormatTauro,
+    formatTauro: req.body.formatTauro,
+    prodBlanc: req.body.prodBlanc,
+    format: req.body.format,
+    visuel: req.body.visuel,
+    numCmd: req.body.numCmd,
+    ville: req.body.ville != null ? req.body.ville.toUpperCase() : '',
+    ex: req.body.ex != null ? req.body.ex : '',
+    perte: req.body.perte,
+    regmarks: req.body.regmarks,
+  };
+  let visuel = data.visuel.split('/').pop();
+  visuel = data.visuel.split('-').pop();
+  let visuPath = data.visuel;
+  let formatTauro = data.formatTauro;
+  let prodBlanc = data.prodBlanc;
+  let allFormatTauro = data.allFormatTauro;
+  let format = data.format;
+  let reg = data.regmarks.toString();
+  //Chemin sortie fichiers
+  prodBlanc
+    ? (writePath = saveFolder + '/Prod avec BLANC')
+    : (writePath = saveFolder + '/' + formatTauro);
+
+  // JOBS LIST STANDBY
+  const newJob = createJob(
+    date,
+    time,
+    data.numCmd,
+    data.ville,
+    format,
+    formatTauro,
+    visuel.split(' ')[0],
+    data.ex,
+    visuPath,
+    writePath,
+    reg,
+  );
+  jobList.jobs.push(newJob);
+  console.log('En attente: ', jobList.jobs);
+  console.log('Completed: ', jobList.completed);
+
+  res.sendStatus(200);
+});
+
 app.post('/', async (req, res) => {
   //Date
   let time = new Date().toLocaleTimeString('fr-FR');

@@ -156,34 +156,34 @@ function App() {
   };
 
   const handleJobSubmit = (e) => {
-    // e.preventDefault();
-    // const form = e.target;
-    // const formData = new FormData(form);
-    // const data = {
-    //   allFormatTauro: formatTauro,
-    //   formatTauro: selectedFormatTauro,
-    //   prodBlanc: checkProdBlanc,
-    //   format: selectedFormat,
-    //   visuel: selectedFile,
-    //   numCmd: formData.get('numCmd'),
-    //   ville: formData.get('ville'),
-    //   ex: formData.get('ex'),
-    //   perte: perte,
-    //   regmarks: checkGenerate.reg,
-    // };
+    e.preventDefault();
+    const form = document.querySelector('form');
+    const formData = new FormData(form);
+
+    const data = {
+      allFormatTauro: formatTauro,
+      formatTauro: selectedFormatTauro,
+      prodBlanc: checkProdBlanc,
+      format: selectedFormat,
+      visuel: selectedFile,
+      numCmd: formData.get('numCmd'),
+      ville: formData.get('ville'),
+      ex: formData.get('ex'),
+      perte: perte,
+      regmarks: checkGenerate.reg,
+    };
     // //POST data
-    // fetch(`http://${HOST}:${PORT}`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(data),
-    // })
-    //   .then((res) => {
-    //     if (res.status == 200) {
-    //       handleGetProcess();
-    //     }
-    //   })
-    //   .catch((err) => console.log(err));
-    console.log(e);
+    fetch(`http://${HOST}:${PORT}/add_job`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+      .then((res) => {
+        if (res.status == 200) {
+          setIsShowJobsList(true);
+        }
+      })
+      .catch((err) => console.log(err));
   };
 
   // Submit form
@@ -534,9 +534,20 @@ function App() {
               compact
               inverted
               type="button"
-              content="+"
-              onClick={(e) => handleJobSubmit(e)}
-            />
+              onClick={(e) => {
+                handleJobSubmit(e);
+                if (!isShowJobsList) {
+                  setIsShowJobsList(true);
+                  setIsShowJpg(false);
+                  setIsShowLouis(false);
+                  setIsShowPdf(false);
+                } else {
+                  return;
+                }
+              }}
+            >
+              <Icon name="add" />
+            </Button>
           </div>
         </Form>
         <div className="container-buttons">
