@@ -1,6 +1,8 @@
 import PropTypes from 'prop-types';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
+  Button,
+  Icon,
   Table,
   TableBody,
   TableCell,
@@ -14,18 +16,6 @@ const PORT = import.meta.env.VITE_PORT;
 function JobsList({ show }) {
   const [data, setData] = useState([]);
   const [isLoading, setLoading] = useState(true);
-  const [refresh, setRefresh] = useState(false);
-
-  const usePrevValue = (value) => {
-    const ref = useRef();
-    useEffect(() => {
-      ref.current = value;
-      console.log(ref.current);
-    });
-    return ref.current;
-  };
-
-  const prevValue = usePrevValue(...data);
 
   useEffect(() => {
     const dataFetch = async () => {
@@ -37,10 +27,15 @@ function JobsList({ show }) {
     dataFetch();
   }, [show]);
 
-  useEffect(() => {
-    prevValue !== data ? setRefresh(true) : setRefresh(false);
-    console.log(prevValue);
-  }, [prevValue, data]);
+  const handleRemoveJob = (e) => {
+    const arr = [...data[0].jobs];
+    const index = arr[e.target.value];
+
+    if (index !== -1) {
+      // const test = arr.splice(index, 1);
+    }
+    console.log(index);
+  };
 
   const ItemsJob = (status) => {
     status == 'jobs' ? status == 'jobs' : status == 'completed';
@@ -58,6 +53,19 @@ function JobsList({ show }) {
             <TableCell>{value.format_visu}</TableCell>
             <TableCell>{value.format_Plaque}</TableCell>
             <TableCell>{value.ex}</TableCell>
+
+            {status == 'jobs' ? (
+              <TableCell>
+                <Button
+                  size="mini"
+                  color="vk"
+                  value={i}
+                  onClick={(e, data) => handleRemoveJob(e, data)}
+                >
+                  <Icon name="remove" fitted inverted />
+                </Button>
+              </TableCell>
+            ) : null}
           </TableRow>
         );
       });
@@ -84,7 +92,7 @@ function JobsList({ show }) {
   };
   const jobs = ItemsJob('jobs');
   const completed = ItemsJob('completed');
-  if (show || refresh) {
+  if (show) {
     return (
       <div className="preview-deco">
         {jobs}

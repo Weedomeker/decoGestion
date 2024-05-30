@@ -172,7 +172,7 @@ function App() {
       perte: perte,
       regmarks: checkGenerate.reg,
     };
-    // //POST data
+    //POST data
     fetch(`http://${HOST}:${PORT}/add_job`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -542,7 +542,7 @@ function App() {
                   setIsShowLouis(false);
                   setIsShowPdf(false);
                 } else {
-                  return;
+                  setIsShowJobsList(false);
                 }
               }}
             >

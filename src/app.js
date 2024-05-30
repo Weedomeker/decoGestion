@@ -1,22 +1,9 @@
-const {
-  degrees,
-  PDFDocument,
-  rgb,
-  StandardFonts,
-  grayscale,
-} = require('pdf-lib');
+const { degrees, PDFDocument, rgb, StandardFonts, grayscale } = require('pdf-lib');
 const fs = require('fs');
 const { performance } = require('perf_hooks');
 const { cmToPxl, pxlToCm } = require('./convertPxlCm');
 
-async function modifyPdf(
-  filePath,
-  writePath,
-  fileName,
-  format,
-  formatTauro,
-  reg,
-) {
+async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg) {
   const readPdf = await fs.promises.readFile(filePath);
   const pdfDoc = await PDFDocument.load(readPdf);
   const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -34,7 +21,7 @@ async function modifyPdf(
   let textSize = 35;
 
   // ADD REGMARKS
-  if (reg) {
+  if (reg == true) {
     xPosition = -25;
     firstPage.setSize(longueurPlaque, largeurPlaque);
     const drawRegmarks = (xReg, yReg, sizeReg) => {
@@ -54,10 +41,7 @@ async function modifyPdf(
     drawRegmarks(width + cmToPxl(1), cmToPxl(2));
     drawRegmarks(width + cmToPxl(1), height - cmToPxl(2));
 
-    firstPage.translateContent(
-      (longueurPlaque - width) / 2,
-      (largeurPlaque - height) / 2,
-    );
+    firstPage.translateContent((longueurPlaque - width) / 2, (largeurPlaque - height) / 2);
   }
 
   const getFormat = () => {
