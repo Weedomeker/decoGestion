@@ -49,22 +49,7 @@ let fileName = '',
   fileDownload;
 
 let jobList = {
-  jobs: [
-    {
-      _id: Date.now(),
-      date: '08 aout 2024',
-      time: '11:11:00',
-      cmd: '24688',
-      ville: 'Perpignan',
-      format_visu: '100x200',
-      format_Plaque: '101x215',
-      visuel: 'Test',
-      ex: '1',
-      visuPath: '/public/deco/2_100x200CM/DIBOND 125x250-TEST_JOHN 100x200_S_ .pdf',
-      writePath: './public/tmp/',
-      reg: '',
-    },
-  ],
+  jobs: [],
   completed: [],
 };
 
@@ -96,6 +81,7 @@ app.get('/', (req, res) => {
 });
 
 app.post('/add_job', async (req, res) => {
+  console.log('JOBS: ', req.body);
   //Date
   let time = new Date().toLocaleTimeString('fr-FR');
   let date = new Date()
@@ -147,8 +133,8 @@ app.post('/add_job', async (req, res) => {
     reg,
   );
   jobList.jobs.push(newJob);
-  console.log('En attente: ', jobList.jobs);
-  console.log('Completed: ', jobList.completed);
+  // console.log('En attente: ', jobList.jobs);
+  // console.log('Completed: ', jobList.completed);
 
   res.sendStatus(200);
 });

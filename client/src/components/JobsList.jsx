@@ -25,16 +25,29 @@ function JobsList({ show }) {
       setLoading(false);
     };
     dataFetch();
+    console.log('FETCHED');
   }, [show]);
 
-  const handleRemoveJob = (e) => {
-    const arr = [...data[0].jobs];
-    const index = arr[e.target.value];
+  const handleRemoveJob = (id) => {
+    const arr = data[0].jobs;
+    const newArr = arr.filter((el) => {
+      return el._id !== id;
+    });
+    setData([...data, { jobs: newArr, completed: data[0].completed }]);
 
-    if (index !== -1) {
-      // const test = arr.splice(index, 1);
-    }
-    console.log(index);
+    console.log(newArr);
+    //POST data
+    fetch(`http://${HOST}:${PORT}/add_job`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data[0]),
+    })
+      .then((res) => {
+        if (res.status == 200) {
+          console.log(res.status);
+        }
+      })
+      .catch((err) => console.log(err));
   };
 
   const ItemsJob = (status) => {
@@ -59,8 +72,8 @@ function JobsList({ show }) {
                 <Button
                   size="mini"
                   color="vk"
-                  value={i}
-                  onClick={(e, data) => handleRemoveJob(e, data)}
+                  value={value._id}
+                  onClick={() => handleRemoveJob(value._id)}
                 >
                   <Icon name="remove" fitted inverted />
                 </Button>
