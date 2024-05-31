@@ -80,8 +80,40 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, './client/dist/index.html'));
 });
 
-app.post('/add_job', async (req, res) => {
-  console.log('JOBS: ', req.body);
+app.post('/delete_job', (req, res) => {
+  const data = {
+    allFormatTauro: req.body.allFormatTauro,
+    formatTauro: req.body.formatTauro,
+    prodBlanc: req.body.prodBlanc,
+    format: req.body.format,
+    visuel: req.body.visuel,
+    numCmd: req.body.numCmd,
+    ville: req.body.ville != null ? req.body.ville.toUpperCase() : '',
+    ex: req.body.ex != null ? req.body.ex : '',
+    perte: req.body.perte,
+    regmarks: req.body.regmarks,
+  };
+  // let visuel = data.visuel.split('/').pop();
+  // visuel = data.visuel.split('-').pop();
+  let visuel = data.visuel;
+  let visuPath = data.visuel;
+  let formatTauro = data.formatTauro;
+  let prodBlanc = data.prodBlanc;
+  let allFormatTauro = data.allFormatTauro;
+  let format = data.format;
+  let reg = data.regmarks;
+  //Chemin sortie fichiers
+  prodBlanc
+    ? (writePath = saveFolder + '/Prod avec BLANC')
+    : (writePath = saveFolder + '/' + formatTauro);
+
+  jobList.jobs = [];
+  jobList.jobs.push(req.body[0].jobs[0]);
+
+  res.sendStatus(200);
+});
+
+app.post('/add_job', (req, res) => {
   //Date
   let time = new Date().toLocaleTimeString('fr-FR');
   let date = new Date()
@@ -105,14 +137,15 @@ app.post('/add_job', async (req, res) => {
     perte: req.body.perte,
     regmarks: req.body.regmarks,
   };
-  let visuel = data.visuel.split('/').pop();
-  visuel = data.visuel.split('-').pop();
+  // let visuel = data.visuel.split('/').pop();
+  // visuel = data.visuel.split('-').pop();
+  let visuel = data.visuel;
   let visuPath = data.visuel;
   let formatTauro = data.formatTauro;
   let prodBlanc = data.prodBlanc;
   let allFormatTauro = data.allFormatTauro;
   let format = data.format;
-  let reg = data.regmarks.toString();
+  let reg = data.regmarks;
   //Chemin sortie fichiers
   prodBlanc
     ? (writePath = saveFolder + '/Prod avec BLANC')
@@ -126,7 +159,7 @@ app.post('/add_job', async (req, res) => {
     data.ville,
     format,
     formatTauro,
-    visuel.split(' ')[0],
+    visuel,
     data.ex,
     visuPath,
     writePath,

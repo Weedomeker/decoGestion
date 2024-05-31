@@ -25,26 +25,24 @@ function JobsList({ show }) {
       setLoading(false);
     };
     dataFetch();
-    console.log('FETCHED');
   }, [show]);
 
   const handleRemoveJob = (id) => {
     const arr = data[0].jobs;
-    const newArr = arr.filter((el) => {
+    let newArr = arr.filter((el) => {
       return el._id !== id;
     });
-    setData([...data, { jobs: newArr, completed: data[0].completed }]);
-
-    console.log(newArr);
+    setData([{ jobs: newArr, completed: data[0].completed }]);
+    console.log('new Array: ', newArr);
     //POST data
-    fetch(`http://${HOST}:${PORT}/add_job`, {
+    fetch(`http://${HOST}:${PORT}/delete_job`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data[0]),
+      body: JSON.stringify(data),
     })
       .then((res) => {
         if (res.status == 200) {
-          console.log(res.status);
+          res.ok;
         }
       })
       .catch((err) => console.log(err));
@@ -56,6 +54,8 @@ function JobsList({ show }) {
     const newTableEntries =
       !isLoading &&
       data[0][status].map((value, i) => {
+        // let visuel = value.visuel.split('/').pop();
+        // visuel = visuel.split('-').pop();
         return (
           <TableRow key={i}>
             <TableCell>{value.date}</TableCell>
