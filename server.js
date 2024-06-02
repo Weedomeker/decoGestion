@@ -81,35 +81,12 @@ app.get('/', (req, res) => {
 });
 
 app.post('/delete_job', (req, res) => {
-  const data = {
-    allFormatTauro: req.body.allFormatTauro,
-    formatTauro: req.body.formatTauro,
-    prodBlanc: req.body.prodBlanc,
-    format: req.body.format,
-    visuel: req.body.visuel,
-    numCmd: req.body.numCmd,
-    ville: req.body.ville != null ? req.body.ville.toUpperCase() : '',
-    ex: req.body.ex != null ? req.body.ex : '',
-    perte: req.body.perte,
-    regmarks: req.body.regmarks,
-  };
-  // let visuel = data.visuel.split('/').pop();
-  // visuel = data.visuel.split('-').pop();
-  let visuel = data.visuel;
-  let visuPath = data.visuel;
-  let formatTauro = data.formatTauro;
-  let prodBlanc = data.prodBlanc;
-  let allFormatTauro = data.allFormatTauro;
-  let format = data.format;
-  let reg = data.regmarks;
-  //Chemin sortie fichiers
-  prodBlanc
-    ? (writePath = saveFolder + '/Prod avec BLANC')
-    : (writePath = saveFolder + '/' + formatTauro);
-
   jobList.jobs = [];
-  jobList.jobs.push(req.body[0].jobs[0]);
 
+  if (req.body[0] !== undefined && req.body[0] !== null) {
+    jobList.jobs.push(req.body[0]);
+  }
+  console.log(req.body[0], '\n===================================');
   res.sendStatus(200);
 });
 
