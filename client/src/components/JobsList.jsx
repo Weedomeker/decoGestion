@@ -19,26 +19,13 @@ function JobsList({ show }) {
   useEffect(() => {
     const dataFetch = async () => {
       const res = await (await fetch(`http://${HOST}:${PORT}/jobs/`, { method: 'GET' })).json();
-
       setData([{ jobs: res.jobs, completed: res.completed }]);
       setLoading(false);
     };
     dataFetch();
   }, [show]);
 
-  useEffect(() => {
-    console.log(
-      'DATA:',
-      !isLoading &&
-        data[0].jobs.map((el) => {
-          if (el !== undefined && el !== null) {
-            return el.ville;
-          }
-        }),
-    );
-  }, [data, isLoading]);
-
-  const handleDeleteJob = (id) => {
+  const handleDeleteJob = async (id) => {
     const updateJobs =
       !isLoading &&
       data[0].jobs
@@ -46,7 +33,6 @@ function JobsList({ show }) {
         .filter((item) => {
           return item._id !== id;
         });
-    console.log('UPDATED: ', updateJobs);
     setData((prevData) => [
       {
         ...prevData[0],
@@ -55,11 +41,11 @@ function JobsList({ show }) {
     ]);
 
     // POST data
-    fetch(`http://${HOST}:${PORT}/delete_job`, {
+    await fetch(`http://${HOST}:${PORT}/delete_job`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify(updateJobs),
-    }).catch((err) => console.log(err));
+    });
   };
 
   const ItemsJob = (status) => {

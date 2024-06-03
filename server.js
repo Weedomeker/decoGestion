@@ -81,12 +81,11 @@ app.get('/', (req, res) => {
 });
 
 app.post('/delete_job', (req, res) => {
-  jobList.jobs = [];
-
   if (req.body[0] !== undefined && req.body[0] !== null) {
-    jobList.jobs.push(req.body[0]);
+    jobList.jobs = [];
+    //jobList.jobs.push(req.body[0]);
+    req.body.map((el) => jobList.jobs.push(el));
   }
-  console.log(req.body[0], '\n===================================');
   res.sendStatus(200);
 });
 

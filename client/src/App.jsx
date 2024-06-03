@@ -364,6 +364,7 @@ function App() {
             />
             {/* GENERATE CUT */}
             <Checkbox
+              className="decoupe"
               label="Générer découpe"
               checked={checkGenerate.cut}
               onChange={(e, data) => {
