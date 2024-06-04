@@ -66,32 +66,28 @@ function _useWorker(data) {
   });
 }
 
-//Sous dossiers par formats
-function search(format) {
-  const data = getFiles(decoFolder);
-  for (let i = 0; i < data.length; i++) {
-    if (data[i].name === format) {
-      return data[i];
-    }
-  }
-}
-
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, './client/dist/index.html'));
 });
 
 app.post('/delete_job', (req, res) => {
-  if (req.body[0] !== undefined && req.body[0] !== null) {
-    jobList.jobs = [];
-    //jobList.jobs.push(req.body[0]);
-    req.body.map((el) => {
-      {
-        jobList.jobs.push(el);
-      }
-    });
+  const jobId = req.body._id;
+
+  if (!jobId) {
+    return res.status(400).json({ error: 'No job ID provided' });
   }
 
-  res.sendStatus(200);
+  // Trouver l'index de l'élément à supprimer
+  const jobIndex = jobList.jobs.findIndex((job) => job._id === jobId);
+
+  if (jobIndex === -1) {
+    return res.status(404).json({ error: 'Job not found' });
+  }
+
+  // Supprimer l'élément du tableau
+  jobList.jobs.splice(jobIndex, 1);
+
+  return res.sendStatus(200); // Renvoie un statut de succès
 });
 
 app.post('/add_job', (req, res) => {
@@ -201,9 +197,10 @@ app.post('/', async (req, res) => {
   prodBlanc ? (writePath = saveFolder + '/Prod avec BLANC') : (writePath = saveFolder + '/' + formatTauro);
 
   //Nom fichier
-  fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro
-    .split('_')
-    .pop()} - ${visuel.replace(/\.[^/.]+$/, '')} ${data.ex}_EX`;
+  fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro.split('_').pop()} - ${visuel.replace(
+    /\.[^/.]+$/,
+    '',
+  )} ${data.ex}_EX`;
 
   //Verifier si dossiers exist si pas le créer
   if (fs.existsSync(writePath) && fs.existsSync(`${jpgPath}/PRINTSA#${date}`)) {
