@@ -84,8 +84,13 @@ app.post('/delete_job', (req, res) => {
   if (req.body[0] !== undefined && req.body[0] !== null) {
     jobList.jobs = [];
     //jobList.jobs.push(req.body[0]);
-    req.body.map((el) => jobList.jobs.push(el));
+    req.body.map((el) => {
+      {
+        jobList.jobs.push(el);
+      }
+    });
   }
+
   res.sendStatus(200);
 });
 
@@ -123,9 +128,7 @@ app.post('/add_job', (req, res) => {
   let format = data.format;
   let reg = data.regmarks;
   //Chemin sortie fichiers
-  prodBlanc
-    ? (writePath = saveFolder + '/Prod avec BLANC')
-    : (writePath = saveFolder + '/' + formatTauro);
+  prodBlanc ? (writePath = saveFolder + '/Prod avec BLANC') : (writePath = saveFolder + '/' + formatTauro);
 
   // JOBS LIST STANDBY
   const newJob = createJob(
@@ -139,6 +142,7 @@ app.post('/add_job', (req, res) => {
     data.ex,
     visuPath,
     writePath,
+    jpgName,
     reg,
   );
   jobList.jobs.push(newJob);
@@ -194,9 +198,7 @@ app.post('/', async (req, res) => {
   }
 
   //Chemin sortie fichiers
-  prodBlanc
-    ? (writePath = saveFolder + '/Prod avec BLANC')
-    : (writePath = saveFolder + '/' + formatTauro);
+  prodBlanc ? (writePath = saveFolder + '/Prod avec BLANC') : (writePath = saveFolder + '/' + formatTauro);
 
   //Nom fichier
   fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro
@@ -222,10 +224,11 @@ app.post('/', async (req, res) => {
     data.ville,
     format,
     formatTauro,
-    visuel.split(' ')[0],
+    visuel,
     data.ex,
     visuPath,
     writePath,
+    jpgName,
     reg,
   );
   jobList.jobs.push(newJob);

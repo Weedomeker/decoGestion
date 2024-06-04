@@ -1,21 +1,13 @@
 import PropTypes from 'prop-types';
 import { useEffect, useState } from 'react';
-import {
-  Button,
-  Icon,
-  Table,
-  TableBody,
-  TableCell,
-  TableHeader,
-  TableHeaderCell,
-  TableRow,
-} from 'semantic-ui-react';
+import { Button, Icon, Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from 'semantic-ui-react';
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
 
 function JobsList({ show }) {
   const [data, setData] = useState([]);
   const [isLoading, setLoading] = useState(true);
+
   useEffect(() => {
     const dataFetch = async () => {
       const res = await (await fetch(`http://${HOST}:${PORT}/jobs/`, { method: 'GET' })).json();
@@ -33,19 +25,21 @@ function JobsList({ show }) {
         .filter((item) => {
           return item._id !== id;
         });
+
     setData((prevData) => [
       {
         ...prevData[0],
         jobs: updateJobs,
       },
-    ]);
+    ]),
+      // POST data
+      await fetch(`http://${HOST}:${PORT}/delete_job`, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateJobs),
+      });
 
-    // POST data
-    await fetch(`http://${HOST}:${PORT}/delete_job`, {
-      method: 'POST',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify(updateJobs),
-    });
+    console.log(data[0].jobs.length);
   };
 
   const ItemsJob = (status) => {
@@ -55,8 +49,12 @@ function JobsList({ show }) {
       !isLoading &&
       data[0][status].map((value, i) => {
         let visuel;
+        let title;
+        let url;
         if (value !== undefined && value !== null) {
           visuel = value.visuel;
+          title = value.jpgName.split('/').pop();
+          url = `http://${HOST}:${PORT}/public/` + value.jpgName.replace(/#/i, '%23');
         } else {
           return;
         }
@@ -75,19 +73,22 @@ function JobsList({ show }) {
             <TableCell>{value.time}</TableCell>
             <TableCell>{value.cmd}</TableCell>
             <TableCell>{value.ville}</TableCell>
-            <TableCell>{visuel}</TableCell>
+            <TableCell>
+              {status == 'completed' ? (
+                <a href={url} data-lightbox={title} data-title={title}>
+                  {visuel}
+                </a>
+              ) : (
+                visuel
+              )}
+            </TableCell>
             <TableCell>{value.format_visu}</TableCell>
             <TableCell>{value.format_Plaque.split('_').pop()}</TableCell>
             <TableCell>{value.ex}</TableCell>
 
             {status == 'jobs' ? (
               <TableCell>
-                <Button
-                  size="mini"
-                  color="vk"
-                  value={value._id}
-                  onClick={() => handleDeleteJob(value._id)}
-                >
+                <Button size="mini" color="vk" value={value._id} onClick={() => handleDeleteJob(value._id)}>
                   <Icon name="remove" fitted inverted />
                 </Button>
               </TableCell>

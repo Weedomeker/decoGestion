@@ -1,18 +1,5 @@
-function createJob(
-  date,
-  time,
-  cmd,
-  ville,
-  format,
-  formatPlaque,
-  visuel,
-  ex,
-  visuPath,
-  writePath,
-  reg,
-) {
+function createJob(date, time, cmd, ville, format, formatPlaque, visuel, ex, visuPath, writePath, jpgName, reg) {
   const newJob = {
-    //  visuel.replace(/\.[^/.]+$/, '')
     _id: Date.now(),
     date: date,
     time: time,
@@ -24,6 +11,7 @@ function createJob(
     ex: parseInt(ex),
     visuPath: visuPath,
     writePath: writePath,
+    jpgName: jpgName !== undefined ? jpgName.split('/').slice(2).join('/') + '.jpg' : '',
     reg: reg,
   };
   return newJob;
