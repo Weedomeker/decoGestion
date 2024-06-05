@@ -70,6 +70,17 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, './client/dist/index.html'));
 });
 
+app.post('/delete_job_completed', (req, res) => {
+  const clearJobs = req.body.clear;
+
+  if (!clearJobs) {
+    return res.status(400).json({ error: 'No jobs ' });
+  }
+  // Supprimer l'élément du tableau
+  jobList.completed = [];
+  return res.sendStatus(200); // Renvoie un statut de succès
+});
+
 app.post('/delete_job', (req, res) => {
   const jobId = req.body._id;
 

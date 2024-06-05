@@ -139,3 +139,28 @@ ul {
   margin: 0;
   text-align: left;
 }
+
+.ui.inverted.table {
+  position: relative;
+}
+
+.ui.inverted.table td {
+  position: relative;
+}
+
+.transparent-cell {
+  position: relative;
+  z-index: 1;
+}
+
+.transparent-cell::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: transparent;
+  z-index: -1;
+  background: inherit;
+}
