@@ -47,21 +47,21 @@ function JobsList({ show }) {
       }
 
       console.log('Jobs start successfully');
+
+      // Recharger les données après l'exécution des tâches
+      const res = await fetch(`http://${HOST}:${PORT}/jobs/`, { method: 'GET' });
+      const jsonData = await res.json();
+
+      console.log('Fetched jobs data after running jobs:', jsonData); // Ajout de journaux pour vérifier les données
+
+      // Mise à jour de l'état après la suppression réussie
+      setData([{ jobs: jsonData.jobs, completed: jsonData.completed }]);
     } catch (error) {
-      console.error('Error deleting job:', error);
+      console.error('Error running jobs:', error);
     }
   };
 
   const handleDeleteJob = async (id) => {
-    const updateJobs = data[0].jobs.filter((item) => item._id !== id);
-
-    setData((prevData) => [
-      {
-        ...prevData[0],
-        jobs: updateJobs,
-      },
-    ]);
-
     try {
       const response = await fetch(`http://${HOST}:${PORT}/delete_job`, {
         method: 'POST',
@@ -69,12 +69,23 @@ function JobsList({ show }) {
         body: JSON.stringify({ _id: id }), // Envoie l'ID du job à supprimer
       });
 
+      // Gestion de la réponse de suppression
       if (!response.ok) {
         console.error('Failed to delete job:', response.statusText);
         return;
       }
 
       console.log('Job deleted successfully');
+
+      // Mise à jour de l'état après la suppression réussie
+      const updateJobs = data[0].jobs.filter((item) => item._id !== id);
+
+      setData((prevData) => [
+        {
+          ...prevData[0],
+          jobs: updateJobs,
+        },
+      ]);
     } catch (error) {
       console.error('Error deleting job:', error);
     }
@@ -161,11 +172,25 @@ function JobsList({ show }) {
           </TableRow>
         </TableHeader>
         <TableBody>{newTableEntries}</TableBody>
+        {status == 'jobs' && (
+          <TableFooter fullWidth>
+            <TableRow>
+              <TableHeaderCell verticalAlign="middle" colSpan="8" collapsing>
+                <Button type="button" color="red" animated="fade" size="small" compact onClick={() => runJobsList()}>
+                  <ButtonContent visible>
+                    <Icon name="send" inverted />
+                  </ButtonContent>
+                  <ButtonContent hidden content="Traiter la file" />
+                </Button>
+              </TableHeaderCell>
+            </TableRow>
+          </TableFooter>
+        )}
         {status == 'completed' && (
           <TableFooter fullWidth>
             <TableRow>
               <TableHeaderCell verticalAlign="middle" colSpan="8" collapsing>
-                <Button animated="fade" color="youtube" size="small" compact onClick={() => handleDeleteJobComplete()}>
+                <Button animated="fade" color="red" size="small" compact onClick={() => handleDeleteJobComplete()}>
                   <ButtonContent hidden content="Clear" />
                   <ButtonContent visible>
                     <Icon name="warning circle" />
@@ -188,22 +213,6 @@ function JobsList({ show }) {
       <div className="preview-deco">
         {jobs}
         {data[0].completed.length > 0 ? completed : null}
-        <Button
-          type="button"
-          color="red"
-          animated="fade"
-          style={{ width: '180px', padding: 'auto' }}
-          onClick={() => runJobsList()}
-        >
-          <ButtonContent visible>
-            <Icon name="send" inverted />
-          </ButtonContent>
-          <ButtonContent
-            hidden
-            content="Traiter la file"
-            style={{ textTransform: 'uppercase', letterSpacing: '2px' }}
-          />
-        </Button>
       </div>
     );
   } else {

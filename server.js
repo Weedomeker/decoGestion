@@ -84,67 +84,79 @@ app.post('/delete_job_completed', (req, res) => {
 app.post('/run_jobs', async (req, res) => {
   const status = req.body.run;
   if (!status) {
-    return res.status(400).json({ error: 'Jobs not runned' });
+    return res.status(400).json({ error: 'Jobs not run' });
   }
 
-  //Date
-  let time = new Date().toLocaleTimeString('fr-FR');
-  let date = new Date()
-    .toLocaleDateString('fr-FR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-    .replace('.', '')
-    .toLocaleUpperCase();
+  try {
+    for (const job of jobList.jobs) {
+      // Date
+      let time = new Date().toLocaleTimeString('fr-FR');
+      let date = new Date()
+        .toLocaleDateString('fr-FR', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        })
+        .replace('.', '')
+        .toLocaleUpperCase();
+      // Nom fichier
+      const fileName = `${job.cmd} - LM ${job.ville.toUpperCase()} - ${job.format_Plaque
+        .split('_')
+        .pop()} - ${job.visuel.replace(/\.[^/.]+$/, '')} ${job.ex}_EX`;
 
-  await Promise.all(
-    jobList.jobs.map(async (job) => {
-      //Nom fichier
-      fileName = `${job.cmd} - LM ${job.ville.toUpperCase()} - ${job.format_Plaque.split('_').pop()} - ${job.visuel.replace(
-        /\.[^/.]+$/,
-        '',
-      )} ${job.ex}_EX`;
-
-      //Verifier si dossiers exist si pas le créer
-      if (fs.existsSync(job.writePath) && fs.existsSync(`${jpgPath}/PRINTSA#${date}`)) {
-        pdfName = job.writePath + '/' + fileName;
-        jpgName = `${jpgPath}/PRINTSA#${date}` + '/' + fileName;
-      } else {
+      // Vérifier si dossiers existent, sinon les créer
+      const jobWritePathExists = fs.existsSync(job.writePath);
+      const jpgPathExists = fs.existsSync(`${jpgPath}/PRINTSA#${date}`);
+      if (!jobWritePathExists) {
         fs.mkdirSync(job.writePath, { recursive: true });
+      }
+      if (!jpgPathExists) {
         fs.mkdirSync(`${jpgPath}/PRINTSA#${date}`, { recursive: true });
-        pdfName = job.writePath + '/' + fileName;
-        jpgName = `${jpgPath}/PRINTSA#${date}` + '/' + fileName;
       }
+      const pdfName = `${job.writePath}/${fileName}`;
+      const jpgName = `${jpgPath}/PRINTSA#${date}/${fileName}`;
 
       try {
-        //Edition pdf
-        start = performance.now();
+        // Edition pdf
+        let startPdf = performance.now();
         await modifyPdf(job.visuPath, job.writePath, fileName, job.format_visu, job.format_Plaque, job.reg);
-        timeExec = parseFloat(((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2));
-        pdfTime = timeExec;
-        console.log(`Pdf: ✔️ `, pdfTime + ' ms');
+        let endPdf = performance.now();
+        let pdfTime = endPdf - startPdf;
+        console.log(
+          `✔️ ${date} ${time}:`,
+          `${fileName}.pdf (${pdfTime < 1000 ? pdfTime.toFixed(2) + 'ms' : (pdfTime / 1000).toFixed(2) + 's'})`,
+        );
       } catch (error) {
-        console.log(error);
+        console.error(`Error modifying PDF for job ${job.cmd}:`, error);
       }
 
       try {
-        //Genererate img
-        start = performance.now();
+        // Générer image
+        let startJpg = performance.now();
         await _useWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
-        timeExec = parseFloat(((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2));
-        jpgTime = timeExec;
+        let endJpg = performance.now();
+        let jpgTime = endJpg - startJpg;
+        console.log(
+          `✔️ ${date} ${time}:`,
+          `${fileName}.jpg (${jpgTime < 1000 ? jpgTime.toFixed(2) + 'ms' : (jpgTime / 1000).toFixed(2) + 's'} )`,
+        );
 
-        console.log(`Jpg: ✔️`);
-        console.log(`${date} ${time}:`, fileName + '✔️');
+        // Ajouter la tâche terminée à jobList.completed et la retirer de jobList.jobs
+        jobList.completed.push(job);
+        const jobIndex = jobList.jobs.indexOf(job);
+        jobList.jobs.splice(jobIndex, 1);
+        console.log('JOBINDEX: ', jobList.jobs.length);
       } catch (error) {
-        console.log(error);
+        console.error(`Error generating JPG for job ${job.cmd}:`, error);
       }
-    }),
-  );
-
-  return res.sendStatus(200);
+    }
+    res.status(200).json({ message: 'Jobs completed successfully' });
+  } catch (error) {
+    console.error('Error running jobs:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
+
 app.post('/delete_job', (req, res) => {
   const jobId = req.body._id;
 
