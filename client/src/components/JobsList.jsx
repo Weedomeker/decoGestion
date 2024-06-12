@@ -33,6 +33,25 @@ function JobsList({ show }) {
     dataFetch();
   }, [show]);
 
+  const runJobsList = async () => {
+    try {
+      const response = await fetch(`http://${HOST}:${PORT}/run_jobs`, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ run: true }),
+      });
+
+      if (!response.ok) {
+        console.error('Failed to run jobs:', response.statusText);
+        return;
+      }
+
+      console.log('Jobs start successfully');
+    } catch (error) {
+      console.error('Error deleting job:', error);
+    }
+  };
+
   const handleDeleteJob = async (id) => {
     const updateJobs = data[0].jobs.filter((item) => item._id !== id);
 
@@ -116,8 +135,8 @@ function JobsList({ show }) {
           <TableCell>{value.ex}</TableCell>
 
           {status == 'jobs' ? (
-            <TableCell className="transparent-cell">
-              <Button size="mini" color="vk" value={value._id} onClick={() => handleDeleteJob(value._id)}>
+            <TableCell className="transparent-cell" width={'1'}>
+              <Button compact size="mini" color="vk" value={value._id} onClick={() => handleDeleteJob(value._id)}>
                 <Icon name="remove" fitted inverted />
               </Button>
             </TableCell>
@@ -127,7 +146,7 @@ function JobsList({ show }) {
     });
 
     const newTable = !isLoading && (
-      <Table celled size="small" compact inverted>
+      <Table celled size="small" compact inverted columns={'9'}>
         <TableHeader fullWidth>
           <TableRow>
             <TableHeaderCell>Dates</TableHeaderCell>
@@ -138,6 +157,7 @@ function JobsList({ show }) {
             <TableHeaderCell>Formats</TableHeaderCell>
             <TableHeaderCell>Plaques</TableHeaderCell>
             <TableHeaderCell>Ex</TableHeaderCell>
+            {status == 'completed' && <TableHeaderCell width={'1'} />}
           </TableRow>
         </TableHeader>
         <TableBody>{newTableEntries}</TableBody>
@@ -168,6 +188,22 @@ function JobsList({ show }) {
       <div className="preview-deco">
         {jobs}
         {data[0].completed.length > 0 ? completed : null}
+        <Button
+          type="button"
+          color="red"
+          animated="fade"
+          style={{ width: '180px', padding: 'auto' }}
+          onClick={() => runJobsList()}
+        >
+          <ButtonContent visible>
+            <Icon name="send" inverted />
+          </ButtonContent>
+          <ButtonContent
+            hidden
+            content="Traiter la file"
+            style={{ textTransform: 'uppercase', letterSpacing: '2px' }}
+          />
+        </Button>
       </div>
     );
   } else {

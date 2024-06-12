@@ -81,6 +81,70 @@ app.post('/delete_job_completed', (req, res) => {
   return res.sendStatus(200); // Renvoie un statut de succès
 });
 
+app.post('/run_jobs', async (req, res) => {
+  const status = req.body.run;
+  if (!status) {
+    return res.status(400).json({ error: 'Jobs not runned' });
+  }
+
+  //Date
+  let time = new Date().toLocaleTimeString('fr-FR');
+  let date = new Date()
+    .toLocaleDateString('fr-FR', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+    .replace('.', '')
+    .toLocaleUpperCase();
+
+  await Promise.all(
+    jobList.jobs.map(async (job) => {
+      //Nom fichier
+      fileName = `${job.cmd} - LM ${job.ville.toUpperCase()} - ${job.format_Plaque.split('_').pop()} - ${job.visuel.replace(
+        /\.[^/.]+$/,
+        '',
+      )} ${job.ex}_EX`;
+
+      //Verifier si dossiers exist si pas le créer
+      if (fs.existsSync(job.writePath) && fs.existsSync(`${jpgPath}/PRINTSA#${date}`)) {
+        pdfName = job.writePath + '/' + fileName;
+        jpgName = `${jpgPath}/PRINTSA#${date}` + '/' + fileName;
+      } else {
+        fs.mkdirSync(job.writePath, { recursive: true });
+        fs.mkdirSync(`${jpgPath}/PRINTSA#${date}`, { recursive: true });
+        pdfName = job.writePath + '/' + fileName;
+        jpgName = `${jpgPath}/PRINTSA#${date}` + '/' + fileName;
+      }
+
+      try {
+        //Edition pdf
+        start = performance.now();
+        await modifyPdf(job.visuPath, job.writePath, fileName, job.format_visu, job.format_Plaque, job.reg);
+        timeExec = parseFloat(((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2));
+        pdfTime = timeExec;
+        console.log(`Pdf: ✔️ `, pdfTime + ' ms');
+      } catch (error) {
+        console.log(error);
+      }
+
+      try {
+        //Genererate img
+        start = performance.now();
+        await _useWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
+        timeExec = parseFloat(((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2));
+        jpgTime = timeExec;
+
+        console.log(`Jpg: ✔️`);
+        console.log(`${date} ${time}:`, fileName + '✔️');
+      } catch (error) {
+        console.log(error);
+      }
+    }),
+  );
+
+  return res.sendStatus(200);
+});
 app.post('/delete_job', (req, res) => {
   const jobId = req.body._id;
 
@@ -125,17 +189,35 @@ app.post('/add_job', (req, res) => {
     perte: req.body.perte,
     regmarks: req.body.regmarks,
   };
-  // let visuel = data.visuel.split('/').pop();
-  // visuel = data.visuel.split('-').pop();
-  let visuel = data.visuel;
+  let visuel = data.visuel.split('/').pop();
+  visuel = data.visuel.split('-').pop();
+
   let visuPath = data.visuel;
   let formatTauro = data.formatTauro;
   let prodBlanc = data.prodBlanc;
   let allFormatTauro = data.allFormatTauro;
   let format = data.format;
   let reg = data.regmarks;
+
   //Chemin sortie fichiers
   prodBlanc ? (writePath = saveFolder + '/Prod avec BLANC') : (writePath = saveFolder + '/' + formatTauro);
+
+  //Nom fichier
+  fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro.split('_').pop()} - ${visuel.replace(
+    /\.[^/.]+$/,
+    '',
+  )} ${data.ex}_EX`;
+
+  //Verifier si dossiers exist si pas le créer
+  if (fs.existsSync(writePath) && fs.existsSync(`${jpgPath}/PRINTSA#${date}`)) {
+    pdfName = writePath + '/' + fileName;
+    jpgName = `${jpgPath}/PRINTSA#${date}` + '/' + fileName;
+  } else {
+    fs.mkdirSync(writePath, { recursive: true });
+    fs.mkdirSync(`${jpgPath}/PRINTSA#${date}`, { recursive: true });
+    pdfName = writePath + '/' + fileName;
+    jpgName = `${jpgPath}/PRINTSA#${date}` + '/' + fileName;
+  }
 
   // JOBS LIST STANDBY
   const newJob = createJob(
@@ -190,7 +272,7 @@ app.post('/', async (req, res) => {
   let prodBlanc = data.prodBlanc;
   let allFormatTauro = data.allFormatTauro;
   let format = data.format;
-  let reg = data.regmarks.toString();
+  let reg = data.regmarks;
 
   //Lecture Ecriture format tauro
   let arr = [];
