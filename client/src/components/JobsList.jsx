@@ -18,7 +18,7 @@ const PORT = import.meta.env.VITE_PORT;
 function JobsList({ show }) {
   const [data, setData] = useState([]);
   const [isLoading, setLoading] = useState(true);
-
+  const [refreshFlag, setRefreshFlag] = useState(false);
   useEffect(() => {
     const dataFetch = async () => {
       try {
@@ -31,7 +31,33 @@ function JobsList({ show }) {
       }
     };
     dataFetch();
-  }, [show]);
+    const ws = new WebSocket(`ws://${HOST}:${PORT}`);
+    ws.onopen = () => {
+      console.log('Connected to WebSocket server');
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.completedJob) {
+        setData((prevData) => {
+          const updatedCompleted = [...prevData[0].completed, data.completedJob];
+          return [{ ...prevData[0], completed: updatedCompleted }];
+        });
+      }
+    };
+
+    ws.onclose = () => {
+      console.log('Disconnected from WebSocket server');
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [show, refreshFlag]);
 
   const runJobsList = async () => {
     try {
@@ -47,15 +73,7 @@ function JobsList({ show }) {
       }
 
       console.log('Jobs start successfully');
-
-      // Recharger les données après l'exécution des tâches
-      const res = await fetch(`http://${HOST}:${PORT}/jobs/`, { method: 'GET' });
-      const jsonData = await res.json();
-
-      console.log('Fetched jobs data after running jobs:', jsonData); // Ajout de journaux pour vérifier les données
-
-      // Mise à jour de l'état après la suppression réussie
-      setData([{ jobs: jsonData.jobs, completed: jsonData.completed }]);
+      setRefreshFlag((prev) => !prev);
     } catch (error) {
       console.error('Error running jobs:', error);
     }

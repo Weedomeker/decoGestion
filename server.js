@@ -15,6 +15,8 @@ const path = require('path');
 const fs = require('fs');
 const { performance } = require('perf_hooks');
 const { Worker, workerData } = require('worker_threads');
+const WebSocket = require('ws');
+const http = require('http'); // Importer le module http
 const PORT = process.env.PORT || 8000;
 
 //Path déco
@@ -25,7 +27,7 @@ const saveFolder = isDev ? './public/tmp' : './public/tauro';
 const jpgPath = saveFolder;
 
 app.use(cors());
-
+app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use('/public', express.static(path.join(__dirname, './public')));
 app.use('/download', express.static(path.join(__dirname, './public/tmp')));
@@ -35,8 +37,6 @@ app.use(
   express.static(saveFolder),
   serveIndex(saveFolder, { icons: true, stylesheet: './public/style.css' }),
 );
-
-app.use(express.json());
 
 let fileName = '',
   writePath = '',
@@ -51,6 +51,26 @@ let fileName = '',
 let jobList = {
   jobs: [],
   completed: [],
+};
+
+// WebSocket setup
+const server = http.createServer(app); // Créer le serveur HTTP
+const wss = new WebSocket.Server({ server });
+
+wss.on('connection', (ws) => {
+  console.log('Client connected');
+
+  ws.on('close', () => {
+    console.log('Client disconnected');
+  });
+});
+
+const broadcastCompletedJob = (job) => {
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ completedJob: job }));
+    }
+  });
 };
 
 function _useWorker(data) {
@@ -88,7 +108,9 @@ app.post('/run_jobs', async (req, res) => {
   }
 
   try {
-    for (const job of jobList.jobs) {
+    const jobsToRun = [...jobList.jobs]; // Créer une copie pour éviter de modifier l'original pendant l'itération
+
+    for (const job of jobsToRun) {
       // Date
       let time = new Date().toLocaleTimeString('fr-FR');
       let date = new Date()
@@ -99,17 +121,17 @@ app.post('/run_jobs', async (req, res) => {
         })
         .replace('.', '')
         .toLocaleUpperCase();
+
       // Nom fichier
       const fileName = `${job.cmd} - LM ${job.ville.toUpperCase()} - ${job.format_Plaque
         .split('_')
         .pop()} - ${job.visuel.replace(/\.[^/.]+$/, '')} ${job.ex}_EX`;
 
       // Vérifier si dossiers existent, sinon les créer
-      const jobWritePathExists = fs.existsSync(job.writePath);
-      const jpgPathExists = fs.existsSync(`${jpgPath}/PRINTSA#${date}`);
-      if (!jobWritePathExists) {
+      if (!fs.existsSync(job.writePath)) {
         fs.mkdirSync(job.writePath, { recursive: true });
       }
+      const jpgPathExists = fs.existsSync(`${jpgPath}/PRINTSA#${date}`);
       if (!jpgPathExists) {
         fs.mkdirSync(`${jpgPath}/PRINTSA#${date}`, { recursive: true });
       }
@@ -138,18 +160,20 @@ app.post('/run_jobs', async (req, res) => {
         let jpgTime = endJpg - startJpg;
         console.log(
           `✔️ ${date} ${time}:`,
-          `${fileName}.jpg (${jpgTime < 1000 ? jpgTime.toFixed(2) + 'ms' : (jpgTime / 1000).toFixed(2) + 's'} )`,
+          `${fileName}.jpg (${jpgTime < 1000 ? jpgTime.toFixed(2) + 'ms' : (jpgTime / 1000).toFixed(2) + 's'})`,
         );
-
-        // Ajouter la tâche terminée à jobList.completed et la retirer de jobList.jobs
-        jobList.completed.push(job);
-        const jobIndex = jobList.jobs.indexOf(job);
-        jobList.jobs.splice(jobIndex, 1);
-        console.log('JOBINDEX: ', jobList.jobs.length);
       } catch (error) {
         console.error(`Error generating JPG for job ${job.cmd}:`, error);
       }
+
+      // Ajouter la tâche terminée à jobList.completed et la retirer de jobList.jobs
+      jobList.completed.push(job);
+      broadcastCompletedJob(job);
     }
+
+    // Supprimer tous les jobs traités de jobList.jobs
+    jobList.jobs = jobList.jobs.filter((job) => !jobList.completed.includes(job));
+
     res.status(200).json({ message: 'Jobs completed successfully' });
   } catch (error) {
     console.error('Error running jobs:', error);
@@ -473,11 +497,11 @@ app.get('/download', (req, res) => {
   });
 });
 
-app.get('/jobs', (req, res) => {
+app.get('/jobs', async (req, res) => {
   res.json(jobList);
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   checkVersion()
     .then((result) => {
       console.log(result.message);
