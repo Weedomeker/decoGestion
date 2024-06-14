@@ -19,6 +19,8 @@ function JobsList({ show }) {
   const [data, setData] = useState([]);
   const [isLoading, setLoading] = useState(true);
   const [refreshFlag, setRefreshFlag] = useState(false);
+  const [startTime, setStartTime] = useState(null);
+  const [endTime, setEndTime] = useState(null);
   useEffect(() => {
     const dataFetch = async () => {
       try {
@@ -37,12 +39,19 @@ function JobsList({ show }) {
     };
 
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.completedJob) {
+      const message = JSON.parse(event.data);
+      if (message.type === 'start') {
+        setStartTime(message.startTime);
+      }
+      if (message.completedJob) {
         setData((prevData) => {
-          const updatedCompleted = [...prevData[0].completed, data.completedJob];
-          return [{ ...prevData[0], completed: updatedCompleted }];
+          const updatedCompleted = [...prevData[0].completed, message.completedJob];
+          const updatedJobs = prevData[0].jobs.filter((job) => job._id !== message.completedJob._id);
+          return [{ jobs: updatedJobs, completed: updatedCompleted }];
         });
+      }
+      if (message.type === 'end') {
+        setEndTime(message.endTime);
       }
     };
 
@@ -71,8 +80,6 @@ function JobsList({ show }) {
         console.error('Failed to run jobs:', response.statusText);
         return;
       }
-
-      console.log('Jobs start successfully');
       setRefreshFlag((prev) => !prev);
     } catch (error) {
       console.error('Error running jobs:', error);
@@ -136,7 +143,7 @@ function JobsList({ show }) {
 
   const ItemsJob = (status) => {
     if (isLoading || !data[0]) return null;
-
+    const executionTime = startTime && endTime ? endTime - startTime : null;
     const newTableEntries = data[0][status].map((value, i) => {
       if (!value) return null;
 
@@ -214,6 +221,13 @@ function JobsList({ show }) {
                     <Icon name="warning circle" />
                   </ButtonContent>
                 </Button>
+                {executionTime && (
+                  <div>
+                    {data[0].jobs.length === 0 ? (
+                      <p>Temps d&apos;exécution total: {(executionTime / 1000).toFixed(2)} secondes</p>
+                    ) : null}
+                  </div>
+                )}
               </TableHeaderCell>
             </TableRow>
           </TableFooter>

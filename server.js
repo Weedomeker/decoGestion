@@ -109,7 +109,12 @@ app.post('/run_jobs', async (req, res) => {
 
   try {
     const jobsToRun = [...jobList.jobs]; // Créer une copie pour éviter de modifier l'original pendant l'itération
-
+    const startTime = performance.now();
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ type: 'start', startTime }));
+      }
+    });
     for (const job of jobsToRun) {
       // Date
       let time = new Date().toLocaleTimeString('fr-FR');
@@ -173,7 +178,12 @@ app.post('/run_jobs', async (req, res) => {
 
     // Supprimer tous les jobs traités de jobList.jobs
     jobList.jobs = jobList.jobs.filter((job) => !jobList.completed.includes(job));
-
+    const endTime = performance.now();
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ type: 'end', endTime }));
+      }
+    });
     res.status(200).json({ message: 'Jobs completed successfully' });
   } catch (error) {
     console.error('Error running jobs:', error);
