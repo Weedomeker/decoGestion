@@ -12,6 +12,7 @@ import {
   TableHeaderCell,
   TableRow,
 } from 'semantic-ui-react';
+
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
 
@@ -21,6 +22,9 @@ function JobsList({ show }) {
   const [refreshFlag, setRefreshFlag] = useState(false);
   const [startTime, setStartTime] = useState(null);
   const [endTime, setEndTime] = useState(null);
+  const [onLoading, setOnLoading] = useState(false);
+  const [progress, setProgress] = useState(0); // Nouvel état pour la barre de progression
+
   useEffect(() => {
     const dataFetch = async () => {
       try {
@@ -33,6 +37,7 @@ function JobsList({ show }) {
       }
     };
     dataFetch();
+
     const ws = new WebSocket(`ws://${HOST}:${PORT}`);
     ws.onopen = () => {
       console.log('Connected to WebSocket server');
@@ -42,16 +47,21 @@ function JobsList({ show }) {
       const message = JSON.parse(event.data);
       if (message.type === 'start') {
         setStartTime(message.startTime);
+        setOnLoading(true);
       }
       if (message.completedJob) {
         setData((prevData) => {
           const updatedCompleted = [...prevData[0].completed, message.completedJob];
           const updatedJobs = prevData[0].jobs.filter((job) => job._id !== message.completedJob._id);
+          // Mise à jour de la progression
+          const newProgress = (updatedCompleted.length / (updatedJobs.length + updatedCompleted.length)) * 100;
+          setProgress(newProgress);
           return [{ jobs: updatedJobs, completed: updatedCompleted }];
         });
       }
       if (message.type === 'end') {
         setEndTime(message.endTime);
+        setOnLoading(false);
       }
     };
 
@@ -152,13 +162,13 @@ function JobsList({ show }) {
       const url = `http://${HOST}:${PORT}/public/` + value.jpgName.replace(/#/i, '%23');
 
       return (
-        <TableRow key={i}>
+        <TableRow key={i} disabled={status === 'jobs' ? onLoading : null}>
           <TableCell>{value.date}</TableCell>
           <TableCell>{value.time}</TableCell>
           <TableCell>{value.cmd}</TableCell>
           <TableCell>{value.ville}</TableCell>
           <TableCell>
-            {status == 'completed' ? (
+            {status === 'completed' ? (
               <a href={url} data-lightbox={title} data-title={title}>
                 {visuel}
               </a>
@@ -170,9 +180,16 @@ function JobsList({ show }) {
           <TableCell>{value.format_Plaque.split('_').pop()}</TableCell>
           <TableCell>{value.ex}</TableCell>
 
-          {status == 'jobs' ? (
+          {status === 'jobs' ? (
             <TableCell className="transparent-cell" width={'1'}>
-              <Button compact size="mini" color="vk" value={value._id} onClick={() => handleDeleteJob(value._id)}>
+              <Button
+                compact
+                size="mini"
+                color="vk"
+                value={value._id}
+                onClick={() => handleDeleteJob(value._id)}
+                disabled={onLoading}
+              >
                 <Icon name="remove" fitted inverted />
               </Button>
             </TableCell>
@@ -193,28 +210,43 @@ function JobsList({ show }) {
             <TableHeaderCell>Formats</TableHeaderCell>
             <TableHeaderCell>Plaques</TableHeaderCell>
             <TableHeaderCell>Ex</TableHeaderCell>
-            {status == 'completed' && <TableHeaderCell width={'1'} />}
+            {status === 'completed' && <TableHeaderCell width={'1'} />}
           </TableRow>
         </TableHeader>
         <TableBody>{newTableEntries}</TableBody>
-        {status == 'jobs' && (
+        {status === 'jobs' && (
           <TableFooter fullWidth>
             <TableRow>
-              <TableHeaderCell verticalAlign="middle" colSpan="8" collapsing>
-                <Button type="button" color="red" animated="fade" size="small" compact onClick={() => runJobsList()}>
+              <TableHeaderCell verticalAlign="middle" colSpan="9" collapsing>
+                <Button
+                  type="button"
+                  color="red"
+                  animated="fade"
+                  size="small"
+                  compact
+                  onClick={() => runJobsList()}
+                  disabled={onLoading}
+                >
                   <ButtonContent visible>
                     <Icon name="send" inverted />
                   </ButtonContent>
                   <ButtonContent hidden content="Traiter la file" />
                 </Button>
+                {onLoading && (
+                  <progress
+                    value={progress}
+                    max={100}
+                    style={{ paddingLeft: '20px', paddingRight: '50px', width: '100%', verticalAlign: 'middle' }}
+                  />
+                )}
               </TableHeaderCell>
             </TableRow>
           </TableFooter>
         )}
-        {status == 'completed' && (
+        {status === 'completed' && (
           <TableFooter fullWidth>
             <TableRow>
-              <TableHeaderCell verticalAlign="middle" colSpan="8" collapsing>
+              <TableHeaderCell verticalAlign="middle" colSpan="9" collapsing>
                 <Button animated="fade" color="red" size="small" compact onClick={() => handleDeleteJobComplete()}>
                   <ButtonContent hidden content="Clear" />
                   <ButtonContent visible>
@@ -248,7 +280,7 @@ function JobsList({ show }) {
       </div>
     );
   } else {
-    return;
+    return null;
   }
 }
 

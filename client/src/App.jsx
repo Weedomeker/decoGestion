@@ -275,7 +275,7 @@ function App() {
 
           {/* Format Tauro */}
           <Form.Field className="format-tauro" required error={error.formatTauro}>
-            <label htmlFor="FormatTauro">Répertoires Tauro</label>
+            <label>Répertoires Tauro</label>
             <FormatTauro
               error={error.formatTauro}
               isLoading={isloadingFormatTauro}
@@ -289,9 +289,7 @@ function App() {
                     ...warnMsg,
                     hidden: false,
                     header: 'Attention au format',
-                    msg: `Le format de la plaque est beaucoup plus grand que le visuel. Perte: (${
-                      CheckFormats(data.value, selectedFormat).surface
-                    }/m2)`,
+                    msg: `Perte matère: (${CheckFormats(data.value, selectedFormat).surface}/m2)`,
                     icon: 'info circle',
                     color: 'yellow',
                   });
@@ -339,6 +337,7 @@ function App() {
           {/* PROD AVEC BLANC */}
           <Form.Field inline>
             <Checkbox
+              name="Prod avec blanc"
               label="Prod avec blanc"
               checked={checkProdBlanc}
               onChange={(e, data) => setCheckProdBlanc(data.checked)}
@@ -348,6 +347,7 @@ function App() {
           {/* GENERATE REGMARKS */}
           <Form.Field inline>
             <Checkbox
+              name="Générer regmarks"
               label="Générer regmarks"
               checked={checkGenerate.reg}
               onChange={(e, data) => {
@@ -357,6 +357,7 @@ function App() {
             {/* GENERATE CUT */}
             <Checkbox
               className="decoupe"
+              name="Générer découpe"
               label="Générer découpe"
               checked={checkGenerate.cut}
               onChange={(e, data) => {
@@ -368,7 +369,7 @@ function App() {
 
           {/* Format */}
           <Form.Field required error={error.format}>
-            <label htmlFor="format">Format</label>
+            <label>Format</label>
             <FormatDropdown
               enabled={enabled.format}
               error={error.format}
@@ -397,7 +398,7 @@ function App() {
                     ...warnMsg,
                     hidden: false,
                     header: 'Attention au format',
-                    msg: `Le format de la plaque est beaucoup plus grand que le visuel. \r\n(Perte: ${perte}/m2)`,
+                    msg: `Perte matière: ${perte}/m2`,
                     icon: 'info circle',
                     color: 'yellow',
                   });
@@ -424,7 +425,7 @@ function App() {
 
           {/* Visu */}
           <Form.Field required error={error.visuel}>
-            <label htmlFor="visuel">Visuel</label>
+            <label>Visuel</label>
             <VisuelDropdown
               enabled={enabled.visu}
               error={error.visuel}
@@ -464,7 +465,7 @@ function App() {
 
           {/* Infos commande */}
           <Form.Field required error={error.numCmd}>
-            <label htmlFor="numCmd">N° commande</label>
+            <label>N° commande</label>
             <Input
               disabled={enabled.numCmd}
               error={error.numCmd}
@@ -489,7 +490,7 @@ function App() {
 
           {/* Ville / Mag */}
           <Form.Field required error={error.ville}>
-            <label htmlFor="ville">Ville / Mag</label>
+            <label>Ville / Mag</label>
             <Place
               enabled={enabled.ville}
               onValue={(value) => {

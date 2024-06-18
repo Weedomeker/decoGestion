@@ -1,51 +1,26 @@
 function checkFormats(formatTauro, formatVisu) {
-  let widthTauro;
-  let heightTauro;
-  let widthVisu;
-  let heightVisu;
+  if (!formatTauro || !formatVisu) return;
 
-  let checked = {
-    isChecked: false,
-    gap: false,
-    surface: 0,
+  const parseDimensions = (format) => {
+    const [width, height] = format.split('_').pop().split('x');
+    return [parseFloat(width), parseFloat(height)];
   };
 
-  if (formatTauro && formatTauro !== '') {
-    const [width, height] = formatTauro.split('_').pop().split('x');
-    widthTauro = parseFloat(width);
-    heightTauro = parseFloat(height);
-  } else {
-    return;
+  const [widthTauro, heightTauro] = parseDimensions(formatTauro);
+  const [widthVisu, heightVisu] = parseDimensions(formatVisu);
+
+  const isChecked = widthVisu <= widthTauro && heightVisu <= heightTauro;
+  const surfaceAreaTauro = widthTauro * heightTauro; // in cm²
+  const surfaceAreaVisu = widthVisu * heightVisu; // in cm²
+  let surface = (surfaceAreaTauro - surfaceAreaVisu) / 10000; // convert cm² to m²
+
+  if (surface < 1) {
+    surface = Math.round(surface * 100) / 100; // round to two decimal places
   }
 
-  if (formatVisu && formatVisu !== '') {
-    const [width, height] = formatVisu.split('_').pop().split('x');
-    widthVisu = parseFloat(width);
-    heightVisu = parseFloat(height);
-  } else {
-    return;
-  }
+  const gap = surface > 1;
 
-  if (widthVisu > widthTauro || heightVisu > heightTauro) {
-    checked.isChecked = false;
-  } else {
-    checked.isChecked = true;
-  }
-
-  let surfaceAreaVisu = widthVisu * heightVisu;
-  let surfaceAreaTauro = widthTauro * heightTauro;
-  let surfaceArea = parseFloat((surfaceAreaTauro - surfaceAreaVisu) / 10000);
-
-  if (surfaceArea > 0) {
-    checked.gap = true;
-    checked.surface = surfaceArea;
-    console.log('TRUE: ', surfaceArea);
-  } else {
-    checked.gap = false;
-    checked.surface = surfaceArea;
-    console.log('FALSE: ', surfaceArea);
-  }
-  return checked;
+  return { isChecked, gap, surface, unit: 'm²' };
 }
 
 export default checkFormats;
