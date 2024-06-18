@@ -12,16 +12,16 @@ function checkFormats(formatTauro, formatVisu) {
 
   if (formatTauro && formatTauro !== '') {
     const [width, height] = formatTauro.split('_').pop().split('x');
-    widthTauro = parseInt(width);
-    heightTauro = parseInt(height);
+    widthTauro = parseFloat(width);
+    heightTauro = parseFloat(height);
   } else {
     return;
   }
 
   if (formatVisu && formatVisu !== '') {
     const [width, height] = formatVisu.split('_').pop().split('x');
-    widthVisu = parseInt(width);
-    heightVisu = parseInt(height);
+    widthVisu = parseFloat(width);
+    heightVisu = parseFloat(height);
   } else {
     return;
   }
@@ -36,12 +36,14 @@ function checkFormats(formatTauro, formatVisu) {
   let surfaceAreaTauro = widthTauro * heightTauro;
   let surfaceArea = parseFloat((surfaceAreaTauro - surfaceAreaVisu) / 10000);
 
-  if (surfaceArea > 2) {
+  if (surfaceArea > 0) {
     checked.gap = true;
     checked.surface = surfaceArea;
+    console.log('TRUE: ', surfaceArea);
   } else {
     checked.gap = false;
     checked.surface = surfaceArea;
+    console.log('FALSE: ', surfaceArea);
   }
   return checked;
 }

@@ -89,7 +89,7 @@ function JobsList({ show }) {
   const handleDeleteJob = async (id) => {
     try {
       const response = await fetch(`http://${HOST}:${PORT}/delete_job`, {
-        method: 'POST',
+        method: 'DELETE',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({ _id: id }), // Envoie l'ID du job à supprimer
       });
@@ -125,7 +125,7 @@ function JobsList({ show }) {
     ]);
     try {
       const response = await fetch(`http://${HOST}:${PORT}/delete_job_completed`, {
-        method: 'POST',
+        method: 'DELETE',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({ clear: true }),
       });

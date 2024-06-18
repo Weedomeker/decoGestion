@@ -2,13 +2,11 @@ const isDev = require('isdev');
 const checkVersion = require('./src/checkVersion');
 const version = require('./package.json');
 const express = require('express');
-const XLSX = require('xlsx');
 const app = express();
 const serveIndex = require('serve-index');
 const cors = require('cors');
 const modifyPdf = require('./src/app');
 const getFiles = require('./src/getFiles').getData;
-// const { pdfToimg } = require('./src/pdfToimg');
 const createDec = require('./src/dec');
 const createJob = require('./src/jobsList');
 const path = require('path');
@@ -18,6 +16,7 @@ const { Worker, workerData } = require('worker_threads');
 const WebSocket = require('ws');
 const http = require('http'); // Importer le module http
 const PORT = process.env.PORT || 8000;
+const createXlsx = require('./src/xlsx');
 
 //Path déco
 const decoFolder = './public/deco/';
@@ -88,203 +87,6 @@ function _useWorker(data) {
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, './client/dist/index.html'));
-});
-
-app.post('/delete_job_completed', (req, res) => {
-  const clearJobs = req.body.clear;
-
-  if (!clearJobs) {
-    return res.status(400).json({ error: 'No jobs ' });
-  }
-  // Supprimer l'élément du tableau
-  jobList.completed = [];
-  return res.sendStatus(200); // Renvoie un statut de succès
-});
-
-app.post('/run_jobs', async (req, res) => {
-  const status = req.body.run;
-  if (!status) {
-    return res.status(400).json({ error: 'Jobs not run' });
-  }
-
-  try {
-    const jobsToRun = [...jobList.jobs]; // Créer une copie pour éviter de modifier l'original pendant l'itération
-    const startTime = performance.now();
-    wss.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({ type: 'start', startTime }));
-      }
-    });
-    for (const job of jobsToRun) {
-      // Date
-      let time = new Date().toLocaleTimeString('fr-FR');
-      let date = new Date()
-        .toLocaleDateString('fr-FR', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        })
-        .replace('.', '')
-        .toLocaleUpperCase();
-
-      // Nom fichier
-      const fileName = `${job.cmd} - LM ${job.ville.toUpperCase()} - ${job.format_Plaque
-        .split('_')
-        .pop()} - ${job.visuel.replace(/\.[^/.]+$/, '')} ${job.ex}_EX`;
-
-      // Vérifier si dossiers existent, sinon les créer
-      if (!fs.existsSync(job.writePath)) {
-        fs.mkdirSync(job.writePath, { recursive: true });
-      }
-      const jpgPathExists = fs.existsSync(`${jpgPath}/PRINTSA#${date}`);
-      if (!jpgPathExists) {
-        fs.mkdirSync(`${jpgPath}/PRINTSA#${date}`, { recursive: true });
-      }
-      const pdfName = `${job.writePath}/${fileName}`;
-      const jpgName = `${jpgPath}/PRINTSA#${date}/${fileName}`;
-
-      try {
-        // Edition pdf
-        let startPdf = performance.now();
-        await modifyPdf(job.visuPath, job.writePath, fileName, job.format_visu, job.format_Plaque, job.reg);
-        let endPdf = performance.now();
-        let pdfTime = endPdf - startPdf;
-        console.log(
-          `✔️ ${date} ${time}:`,
-          `${fileName}.pdf (${pdfTime < 1000 ? pdfTime.toFixed(2) + 'ms' : (pdfTime / 1000).toFixed(2) + 's'})`,
-        );
-      } catch (error) {
-        console.error(`Error modifying PDF for job ${job.cmd}:`, error);
-      }
-
-      try {
-        // Générer image
-        let startJpg = performance.now();
-        await _useWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
-        let endJpg = performance.now();
-        let jpgTime = endJpg - startJpg;
-        console.log(
-          `✔️ ${date} ${time}:`,
-          `${fileName}.jpg (${jpgTime < 1000 ? jpgTime.toFixed(2) + 'ms' : (jpgTime / 1000).toFixed(2) + 's'})`,
-        );
-      } catch (error) {
-        console.error(`Error generating JPG for job ${job.cmd}:`, error);
-      }
-
-      // Ajouter la tâche terminée à jobList.completed et la retirer de jobList.jobs
-      jobList.completed.push(job);
-      broadcastCompletedJob(job);
-    }
-
-    // Supprimer tous les jobs traités de jobList.jobs
-    jobList.jobs = jobList.jobs.filter((job) => !jobList.completed.includes(job));
-    const endTime = performance.now();
-    wss.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({ type: 'end', endTime }));
-      }
-    });
-    res.status(200).json({ message: 'Jobs completed successfully' });
-  } catch (error) {
-    console.error('Error running jobs:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.post('/delete_job', (req, res) => {
-  const jobId = req.body._id;
-
-  if (!jobId) {
-    return res.status(400).json({ error: 'No job ID provided' });
-  }
-
-  // Trouver l'index de l'élément à supprimer
-  const jobIndex = jobList.jobs.findIndex((job) => job._id === jobId);
-
-  if (jobIndex === -1) {
-    return res.status(404).json({ error: 'Job not found' });
-  }
-
-  // Supprimer l'élément du tableau
-  jobList.jobs.splice(jobIndex, 1);
-
-  return res.sendStatus(200); // Renvoie un statut de succès
-});
-
-app.post('/add_job', (req, res) => {
-  //Date
-  let time = new Date().toLocaleTimeString('fr-FR');
-  let date = new Date()
-    .toLocaleDateString('fr-FR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-    .replace('.', '')
-    .toLocaleUpperCase();
-
-  const data = {
-    allFormatTauro: req.body.allFormatTauro,
-    formatTauro: req.body.formatTauro,
-    prodBlanc: req.body.prodBlanc,
-    format: req.body.format,
-    visuel: req.body.visuel,
-    numCmd: req.body.numCmd,
-    ville: req.body.ville != null ? req.body.ville.toUpperCase() : '',
-    ex: req.body.ex != null ? req.body.ex : '',
-    perte: req.body.perte,
-    regmarks: req.body.regmarks,
-  };
-  let visuel = data.visuel.split('/').pop();
-  visuel = data.visuel.split('-').pop();
-
-  let visuPath = data.visuel;
-  let formatTauro = data.formatTauro;
-  let prodBlanc = data.prodBlanc;
-  let allFormatTauro = data.allFormatTauro;
-  let format = data.format;
-  let reg = data.regmarks;
-
-  //Chemin sortie fichiers
-  prodBlanc ? (writePath = saveFolder + '/Prod avec BLANC') : (writePath = saveFolder + '/' + formatTauro);
-
-  //Nom fichier
-  fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro.split('_').pop()} - ${visuel.replace(
-    /\.[^/.]+$/,
-    '',
-  )} ${data.ex}_EX`;
-
-  //Verifier si dossiers exist si pas le créer
-  if (fs.existsSync(writePath) && fs.existsSync(`${jpgPath}/PRINTSA#${date}`)) {
-    pdfName = writePath + '/' + fileName;
-    jpgName = `${jpgPath}/PRINTSA#${date}` + '/' + fileName;
-  } else {
-    fs.mkdirSync(writePath, { recursive: true });
-    fs.mkdirSync(`${jpgPath}/PRINTSA#${date}`, { recursive: true });
-    pdfName = writePath + '/' + fileName;
-    jpgName = `${jpgPath}/PRINTSA#${date}` + '/' + fileName;
-  }
-
-  // JOBS LIST STANDBY
-  const newJob = createJob(
-    date,
-    time,
-    data.numCmd,
-    data.ville,
-    format,
-    formatTauro,
-    visuel,
-    data.ex,
-    visuPath,
-    writePath,
-    jpgName,
-    reg,
-  );
-  jobList.jobs.push(newJob);
-  // console.log('En attente: ', jobList.jobs);
-  // console.log('Completed: ', jobList.completed);
-
-  res.sendStatus(200);
 });
 
 app.post('/', async (req, res) => {
@@ -368,15 +170,17 @@ app.post('/', async (req, res) => {
     reg,
   );
   jobList.jobs.push(newJob);
-  console.log('En attente: ', jobList.jobs);
-  console.log('Completed: ', jobList.completed);
 
   //Edition pdf
-  start = performance.now();
-  await modifyPdf(visuPath, writePath, fileName, format, formatTauro, reg);
-  timeExec = parseFloat(((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2));
-  pdfTime = timeExec;
-  console.log(`Pdf: ✔️`);
+  try {
+    start = performance.now();
+    await modifyPdf(visuPath, writePath, fileName, format, formatTauro, reg);
+    timeExec = parseFloat(((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2));
+    pdfTime = timeExec;
+    console.log(`Pdf: ✔️`);
+  } catch (error) {
+    console.log(error);
+  }
 
   //Genererate img
   try {
@@ -384,42 +188,34 @@ app.post('/', async (req, res) => {
     await _useWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
     timeExec = parseFloat(((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2));
     jpgTime = timeExec;
-
     console.log(`Jpg: ✔️`);
     console.log(`${date} ${time}:`, fileName + '✔️');
-
-    const dataFileExport = [
-      {
-        Date: date,
-        Heure: time,
-        numCmd: parseFloat(fileName.split(' - ')[0]),
-        Mag: fileName.split(' - ')[1],
-        Dibond: fileName.split(' - ')[2],
-        Deco: fileName.split(' - ').slice(2).pop(),
-        Temps: parseFloat((jpgTime + pdfTime).toFixed(2)),
-        Perte_m2: data.perte,
-        app_version: `v${version.version}`,
-        ip: req.hostname,
-      },
-    ];
-    //XLSX create file
-    if (fs.existsSync('./public/session.xlsx')) {
-      const wb = XLSX.readFile('./public/session.xlsx', { cellStyles: true });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      XLSX.utils.sheet_add_json(ws, dataFileExport, {
-        origin: -1,
-        skipHeader: true,
-      });
-      XLSX.writeFile(wb, './public/session.xlsx', { cellStyles: true });
-    } else {
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(dataFileExport);
-      XLSX.utils.book_append_sheet(wb, ws, 'session');
-      XLSX.writeFile(wb, './public/session.xlsx');
-    }
   } catch (error) {
     console.log('FAILED GENERATE IMAGE: ', error);
   }
+
+  const dataFileExport = [
+    {
+      Date: date,
+      Heure: time,
+      numCmd: parseFloat(fileName.split(' - ')[0]),
+      Mag: fileName.split(' - ')[1],
+      Dibond: fileName.split(' - ')[2],
+      Deco: fileName.split(' - ').slice(2).pop(),
+      Temps: parseFloat(((jpgTime + pdfTime) / 1000).toFixed(2)),
+      Perte_m2: data.perte,
+      app_version: `v${version.version}`,
+      ip: req.hostname,
+    },
+  ];
+
+  //XLSX create file
+  try {
+    await createXlsx(dataFileExport);
+  } catch (error) {
+    console.log(error);
+  }
+
   //Générer découpe
   try {
     const fTauro = formatTauro.split('_').pop();
@@ -440,10 +236,225 @@ app.post('/', async (req, res) => {
     jobList.jobs.splice(index, 1);
   }
   jobList.completed.push(findJob);
-  console.log('En attente: ', jobList.jobs);
-  console.log('Completed: ', jobList.completed);
 
   res.status(200).send();
+});
+
+app.post('/add_job', (req, res) => {
+  //Date
+  let time = new Date().toLocaleTimeString('fr-FR');
+  let date = new Date()
+    .toLocaleDateString('fr-FR', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+    .replace('.', '')
+    .toLocaleUpperCase();
+
+  const data = {
+    allFormatTauro: req.body.allFormatTauro,
+    formatTauro: req.body.formatTauro,
+    prodBlanc: req.body.prodBlanc,
+    format: req.body.format,
+    visuel: req.body.visuel,
+    numCmd: req.body.numCmd,
+    ville: req.body.ville != null ? req.body.ville.toUpperCase() : '',
+    ex: req.body.ex != null ? req.body.ex : '',
+    perte: req.body.perte,
+    regmarks: req.body.regmarks,
+  };
+  let visuel = data.visuel.split('/').pop();
+  visuel = data.visuel.split('-').pop();
+
+  let visuPath = data.visuel;
+  let formatTauro = data.formatTauro;
+  let prodBlanc = data.prodBlanc;
+  let allFormatTauro = data.allFormatTauro;
+  let format = data.format;
+  let reg = data.regmarks;
+
+  //Chemin sortie fichiers
+  prodBlanc ? (writePath = saveFolder + '/Prod avec BLANC') : (writePath = saveFolder + '/' + formatTauro);
+
+  //Nom fichier
+  fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro.split('_').pop()} - ${visuel.replace(
+    /\.[^/.]+$/,
+    '',
+  )} ${data.ex}_EX`;
+
+  //Verifier si dossiers exist si pas le créer
+  if (fs.existsSync(writePath) && fs.existsSync(`${jpgPath}/PRINTSA#${date}`)) {
+    pdfName = writePath + '/' + fileName;
+    jpgName = `${jpgPath}/PRINTSA#${date}` + '/' + fileName;
+  } else {
+    fs.mkdirSync(writePath, { recursive: true });
+    fs.mkdirSync(`${jpgPath}/PRINTSA#${date}`, { recursive: true });
+    pdfName = writePath + '/' + fileName;
+    jpgName = `${jpgPath}/PRINTSA#${date}` + '/' + fileName;
+  }
+
+  // JOBS LIST STANDBY
+  const newJob = createJob(
+    date,
+    time,
+    data.numCmd,
+    data.ville,
+    format,
+    formatTauro,
+    visuel,
+    data.ex,
+    visuPath,
+    writePath,
+    jpgName,
+    reg,
+    data.perte,
+  );
+  jobList.jobs.push(newJob);
+  res.sendStatus(200);
+});
+
+app.post('/run_jobs', async (req, res) => {
+  let pdfTime;
+  let jpgTime;
+  const status = req.body.run;
+  if (!status) {
+    return res.status(400).json({ error: 'Jobs not run' });
+  }
+
+  try {
+    const jobsToRun = [...jobList.jobs]; // Créer une copie pour éviter de modifier l'original pendant l'itération
+    const startTime = performance.now();
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ type: 'start', startTime }));
+      }
+    });
+    for (const job of jobsToRun) {
+      // Date
+      let time = new Date().toLocaleTimeString('fr-FR');
+      let date = new Date()
+        .toLocaleDateString('fr-FR', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        })
+        .replace('.', '')
+        .toLocaleUpperCase();
+
+      // Nom fichier
+      const fileName = `${job.cmd} - LM ${job.ville.toUpperCase()} - ${job.format_Plaque
+        .split('_')
+        .pop()} - ${job.visuel.replace(/\.[^/.]+$/, '')} ${job.ex}_EX`;
+
+      // Vérifier si dossiers existent, sinon les créer
+      if (!fs.existsSync(job.writePath)) {
+        fs.mkdirSync(job.writePath, { recursive: true });
+      }
+      const jpgPathExists = fs.existsSync(`${jpgPath}/PRINTSA#${date}`);
+      if (!jpgPathExists) {
+        fs.mkdirSync(`${jpgPath}/PRINTSA#${date}`, { recursive: true });
+      }
+      const pdfName = `${job.writePath}/${fileName}`;
+      const jpgName = `${jpgPath}/PRINTSA#${date}/${fileName}`;
+
+      try {
+        // Edition pdf
+        let startPdf = performance.now();
+        await modifyPdf(job.visuPath, job.writePath, fileName, job.format_visu, job.format_Plaque, job.reg);
+        let endPdf = performance.now();
+        pdfTime = endPdf - startPdf;
+        console.log(
+          `✔️ ${date} ${time}:`,
+          `${fileName}.pdf (${pdfTime < 1000 ? pdfTime.toFixed(2) + 'ms' : (pdfTime / 1000).toFixed(2) + 's'})`,
+        );
+      } catch (error) {
+        console.error(`Error modifying PDF for job ${job.cmd}:`, error);
+      }
+
+      try {
+        // Générer image
+        let startJpg = performance.now();
+        await _useWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
+        let endJpg = performance.now();
+        jpgTime = endJpg - startJpg;
+        console.log(
+          `✔️ ${date} ${time}:`,
+          `${fileName}.jpg (${jpgTime < 1000 ? jpgTime.toFixed(2) + 'ms' : (jpgTime / 1000).toFixed(2) + 's'})`,
+        );
+      } catch (error) {
+        console.error(`Error generating JPG for job ${job.cmd}:`, error);
+      }
+
+      try {
+        const dataFileExport = [
+          {
+            Date: date,
+            Heure: time,
+            numCmd: parseFloat(fileName.split(' - ')[0]),
+            Mag: fileName.split(' - ')[1],
+            Dibond: fileName.split(' - ')[2],
+            Deco: job.visuel.replace(/\.[^/.]+$/, ''),
+            Temps: parseFloat(((jpgTime + pdfTime) / 1000).toFixed(2)),
+            Perte_m2: job.perte,
+            app_version: `v${version.version}`,
+            ip: req.hostname,
+          },
+        ];
+        await createXlsx(dataFileExport);
+      } catch (error) {
+        console.error(error);
+      }
+
+      // Ajouter la tâche terminée à jobList.completed et la retirer de jobList.jobs
+      jobList.completed.push(job);
+      broadcastCompletedJob(job);
+    }
+
+    // Supprimer tous les jobs traités de jobList.jobs
+    jobList.jobs = jobList.jobs.filter((job) => !jobList.completed.includes(job));
+    const endTime = performance.now();
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ type: 'end', endTime }));
+      }
+    });
+    res.status(200).json({ message: 'Jobs completed successfully' });
+  } catch (error) {
+    console.error('Error running jobs:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.delete('/delete_job', (req, res) => {
+  const jobId = req.body._id;
+
+  if (!jobId) {
+    return res.status(400).json({ error: 'No job ID provided' });
+  }
+
+  // Trouver l'index de l'élément à supprimer
+  const jobIndex = jobList.jobs.findIndex((job) => job._id === jobId);
+
+  if (jobIndex === -1) {
+    return res.status(404).json({ error: 'Job not found' });
+  }
+
+  // Supprimer l'élément du tableau
+  jobList.jobs.splice(jobIndex, 1);
+
+  return res.sendStatus(200); // Renvoie un statut de succès
+});
+
+app.delete('/delete_job_completed', (req, res) => {
+  const clearJobs = req.body.clear;
+
+  if (!clearJobs) {
+    return res.status(400).json({ error: 'No jobs ' });
+  }
+  // Supprimer l'élément du tableau
+  jobList.completed = [];
+  return res.sendStatus(200); // Renvoie un statut de succès
 });
 
 app.get('/process', async (req, res) => {

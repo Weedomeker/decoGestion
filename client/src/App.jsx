@@ -2,7 +2,7 @@ const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
 import { useEffect, useState } from 'react';
 import { Button, ButtonContent, Checkbox, Form, Icon, Input } from 'semantic-ui-react';
-import { default as CheckFormats, default as checkFormats } from './CheckFormats';
+import CheckFormats from './CheckFormats';
 import DownloadFile from './components/DownloadFile';
 import Footer from './components/Footer';
 import FormatDropdown from './components/FormatDropdown';
@@ -284,16 +284,13 @@ function App() {
               onValue={(e, data) => {
                 setSelectedFormatTauro(data.value);
                 //info
-                if (
-                  CheckFormats(data.value, selectedFormat) &&
-                  CheckFormats(data.value, selectedFormat).gap == true
-                ) {
+                if (CheckFormats(data.value, selectedFormat) && CheckFormats(data.value, selectedFormat).gap == true) {
                   setWarnMsg({
                     ...warnMsg,
                     hidden: false,
                     header: 'Attention au format',
                     msg: `Le format de la plaque est beaucoup plus grand que le visuel. Perte: (${
-                      checkFormats(data.value, selectedFormat).surface
+                      CheckFormats(data.value, selectedFormat).surface
                     }/m2)`,
                     icon: 'info circle',
                     color: 'yellow',
@@ -335,12 +332,7 @@ function App() {
             />
 
             {showAddFormat && (
-              <Input
-                id="addFormatTauro"
-                size="small"
-                label="Add format"
-                placeholder="Deco_Std_FORMAT"
-              />
+              <Input id="addFormatTauro" size="small" label="Add format" placeholder="Deco_Std_FORMAT" />
             )}
           </Form.Field>
 
@@ -371,9 +363,7 @@ function App() {
                 setCheckGenerate({ ...checkGenerate, cut: data.checked });
               }}
             />
-            {isShowDownloadCut && (
-              <DownloadFile urlFile={`http://${HOST}:${PORT}/download`} fileName={fileNameCut} />
-            )}
+            {isShowDownloadCut && <DownloadFile urlFile={`http://${HOST}:${PORT}/download`} fileName={fileNameCut} />}
           </Form.Field>
 
           {/* Format */}
@@ -402,7 +392,7 @@ function App() {
                   CheckFormats(selectedFormatTauro, value.name) &&
                   CheckFormats(selectedFormatTauro, value.name).gap == true
                 ) {
-                  setPerte(checkFormats(selectedFormatTauro, value.name).surface);
+                  setPerte(CheckFormats(selectedFormatTauro, value.name).surface);
                   setWarnMsg({
                     ...warnMsg,
                     hidden: false,
@@ -522,14 +512,7 @@ function App() {
 
           {/* Validation formulaire */}
           <div className="button-form">
-            <Button
-              disabled={enabled.validate}
-              primary
-              compact
-              inverted
-              type="submit"
-              content="Valider"
-            />
+            <Button disabled={enabled.validate} primary compact inverted type="submit" content="Valider" />
             <Button
               primary
               compact
