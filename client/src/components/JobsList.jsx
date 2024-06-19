@@ -12,6 +12,7 @@ import {
   TableHeaderCell,
   TableRow,
 } from 'semantic-ui-react';
+import '../css/JobsList.css';
 
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
@@ -162,12 +163,12 @@ function JobsList({ show }) {
       const url = `http://${HOST}:${PORT}/public/` + value.jpgName.replace(/#/i, '%23');
 
       return (
-        <TableRow style={{ height: '10px', maxHeight: '10px' }} key={i} disabled={status === 'jobs' ? onLoading : null}>
-          <TableCell>{value.date}</TableCell>
-          <TableCell>{value.time}</TableCell>
-          <TableCell>{value.cmd}</TableCell>
-          <TableCell>{value.ville}</TableCell>
-          <TableCell>
+        <TableRow key={i} disabled={status === 'jobs' ? onLoading : null} className="table-row">
+          <TableCell className="table-cell">{value.date}</TableCell>
+          <TableCell className="table-cell">{value.time}</TableCell>
+          <TableCell className="table-cell">{value.cmd}</TableCell>
+          <TableCell className="table-cell">{value.ville}</TableCell>
+          <TableCell className="table-cell">
             {status === 'completed' ? (
               <a href={url} data-lightbox={title} data-title={title}>
                 {visuel}
@@ -176,12 +177,12 @@ function JobsList({ show }) {
               visuel
             )}
           </TableCell>
-          <TableCell>{value.format_visu}</TableCell>
-          <TableCell>{value.format_Plaque.split('_').pop()}</TableCell>
-          <TableCell>{value.ex}</TableCell>
+          <TableCell className="table-cell">{value.format_visu}</TableCell>
+          <TableCell className="table-cell">{value.format_Plaque.split('_').pop()}</TableCell>
+          <TableCell className="table-cell">{value.ex}</TableCell>
 
           {status === 'jobs' ? (
-            <TableCell>
+            <TableCell className="table-cell ">
               <Button
                 compact
                 size="mini"
@@ -199,69 +200,51 @@ function JobsList({ show }) {
     });
 
     const newTable = !isLoading && (
-      <div style={{ height: '50%', overflowY: 'auto', minHeight: '400px' }}>
-        <Table size="small" compact inverted columns={'9'} style={{ maxHeight: '500px' }}>
-          <TableHeader style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: '#333' }} fullWidth>
-            <TableRow>
-              <TableHeaderCell>Dates</TableHeaderCell>
-              <TableHeaderCell>Heures</TableHeaderCell>
-              <TableHeaderCell>Commandes</TableHeaderCell>
-              <TableHeaderCell>Villes</TableHeaderCell>
-              <TableHeaderCell>Visuels</TableHeaderCell>
-              <TableHeaderCell>Formats</TableHeaderCell>
-              <TableHeaderCell>Plaques</TableHeaderCell>
-              <TableHeaderCell>Ex</TableHeaderCell>
-              <TableHeaderCell></TableHeaderCell>
+      <Table size="small" compact inverted columns={'9'} className="jobs-table">
+        <TableHeader className="sticky-header">
+          <TableRow className="table-row">
+            <TableHeaderCell className="table-cell">Dates</TableHeaderCell>
+            <TableHeaderCell className="table-cell">Heures</TableHeaderCell>
+            <TableHeaderCell className="table-cell">Commandes</TableHeaderCell>
+            <TableHeaderCell className="table-cell">Villes</TableHeaderCell>
+            <TableHeaderCell className="table-cell">Visuels</TableHeaderCell>
+            <TableHeaderCell className="table-cell">Formats</TableHeaderCell>
+            <TableHeaderCell className="table-cell">Plaques</TableHeaderCell>
+            <TableHeaderCell className="table-cell">Ex</TableHeaderCell>
+            {status === 'jobs' && <TableHeaderCell className="table-cell" width={'1'} />}
+          </TableRow>
+        </TableHeader>
+        <TableBody className="body-table-jobs">{newTableEntries}</TableBody>
+        {status === 'jobs' && (
+          <TableFooter className="sticky-footer">
+            <TableRow className="table-row">
+              <TableHeaderCell colSpan="9" collapsing>
+                <div className="sticky-footer-content">
+                  <Button
+                    type="button"
+                    color="red"
+                    animated="fade"
+                    size="small"
+                    compact
+                    onClick={() => runJobsList()}
+                    disabled={onLoading}
+                  >
+                    <ButtonContent visible>
+                      <Icon name="send" inverted />
+                    </ButtonContent>
+                    <ButtonContent hidden content="Traiter la file" />
+                  </Button>
+                  {onLoading && <progress value={progress} max={100} className="progress" />}
+                </div>
+              </TableHeaderCell>
             </TableRow>
-          </TableHeader>
-
-          <TableBody style={{ overflowY: 'auto', maxHeight: 'calc(100% - 50px)', height: '200px' }}>
-            {newTableEntries}
-          </TableBody>
-
-          {status === 'jobs' && (
-            <TableFooter fullWidth>
-              <TableRow>
-                <TableHeaderCell verticalAlign="middle" colSpan="9" collapsing>
-                  <div>
-                    <Button
-                      type="button"
-                      color="red"
-                      animated="fade"
-                      size="small"
-                      compact
-                      onClick={() => runJobsList()}
-                      disabled={onLoading}
-                      style={{ float: 'left' }}
-                    >
-                      <ButtonContent visible>
-                        <Icon name="send" inverted />
-                      </ButtonContent>
-                      <ButtonContent hidden content="Traiter la file" />
-                    </Button>
-                    {!onLoading && (
-                      <div
-                        style={{
-                          width: '100%',
-                          maxWidth: '100%',
-                          margin: 0,
-                          padding: 0,
-                          verticalAlign: 'middle',
-                          paddingLeft: '20px',
-                        }}
-                      >
-                        <progress value={progress} max={100} style={{ marginLeft: '10px' }} />
-                      </div>
-                    )}
-                  </div>
-                </TableHeaderCell>
-              </TableRow>
-            </TableFooter>
-          )}
-          {status === 'completed' && (
-            <TableFooter fullWidth>
-              <TableRow>
-                <TableHeaderCell verticalAlign="middle" colSpan="9" collapsing>
+          </TableFooter>
+        )}
+        {status === 'completed' && (
+          <TableFooter className="sticky-footer">
+            <TableRow className="table-row">
+              <TableHeaderCell colSpan="9" collapsing>
+                <div className="sticky-footer-content">
                   <Button animated="fade" color="red" size="small" compact onClick={() => handleDeleteJobComplete()}>
                     <ButtonContent hidden content="Clear" />
                     <ButtonContent visible>
@@ -275,12 +258,12 @@ function JobsList({ show }) {
                       ) : null}
                     </div>
                   )}
-                </TableHeaderCell>
-              </TableRow>
-            </TableFooter>
-          )}
-        </Table>
-      </div>
+                </div>
+              </TableHeaderCell>
+            </TableRow>
+          </TableFooter>
+        )}
+      </Table>
     );
 
     return newTable;

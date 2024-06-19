@@ -1,0 +1,47 @@
+.jobs-table {
+  max-height: 400px; /* Ajustez cette valeur selon vos besoins */
+  overflow-y: auto;
+  width: 100%;
+  display: table;
+}
+
+.sticky-header {
+  position: sticky;
+  top: 0;
+  background-color: #1b1c1d; /* Assurez-vous que cela correspond à la couleur de fond du header */
+  z-index: 1;
+  display: table-header-group;
+}
+
+.sticky-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: table-footer-group;
+}
+
+.sticky-footer-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Ajoute de l'espace entre le bouton et la barre de progression */
+  width: 100%;
+}
+
+.body-table-jobs {
+  overflow-y: auto;
+  max-height: calc(100% - 50px);
+  height: 200px;
+  display: table-row-group;
+  width: 100%;
+}
+
+.table-row {
+  height: 40px; /* Ajustez cette valeur selon vos besoins pour une hauteur de ligne fixe */
+  display: table-row;
+}
+
+.table-cell {
+  overflow: hidden; /* Assurez que le contenu ne déborde pas */
+  text-overflow: ellipsis; /* Ajoute des points de suspension pour le contenu débordant */
+  white-space: nowrap; /* Empêche le texte de s'étendre sur plusieurs lignes */
+}
