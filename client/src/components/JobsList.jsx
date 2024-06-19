@@ -162,7 +162,7 @@ function JobsList({ show }) {
       const url = `http://${HOST}:${PORT}/public/` + value.jpgName.replace(/#/i, '%23');
 
       return (
-        <TableRow key={i} disabled={status === 'jobs' ? onLoading : null}>
+        <TableRow style={{ height: '10px', maxHeight: '10px' }} key={i} disabled={status === 'jobs' ? onLoading : null}>
           <TableCell>{value.date}</TableCell>
           <TableCell>{value.time}</TableCell>
           <TableCell>{value.cmd}</TableCell>
@@ -181,7 +181,7 @@ function JobsList({ show }) {
           <TableCell>{value.ex}</TableCell>
 
           {status === 'jobs' ? (
-            <TableCell className="transparent-cell" width={'1'}>
+            <TableCell>
               <Button
                 compact
                 size="mini"
@@ -199,76 +199,93 @@ function JobsList({ show }) {
     });
 
     const newTable = !isLoading && (
-      <Table celled size="small" compact inverted columns={'9'}>
-        <TableHeader fullWidth>
-          <TableRow>
-            <TableHeaderCell>Dates</TableHeaderCell>
-            <TableHeaderCell>Heures</TableHeaderCell>
-            <TableHeaderCell>Commandes</TableHeaderCell>
-            <TableHeaderCell>Villes</TableHeaderCell>
-            <TableHeaderCell>Visuels</TableHeaderCell>
-            <TableHeaderCell>Formats</TableHeaderCell>
-            <TableHeaderCell>Plaques</TableHeaderCell>
-            <TableHeaderCell>Ex</TableHeaderCell>
-            {status === 'completed' && <TableHeaderCell width={'1'} />}
-          </TableRow>
-        </TableHeader>
-        <TableBody>{newTableEntries}</TableBody>
-        {status === 'jobs' && (
-          <TableFooter fullWidth>
+      <div style={{ height: '50%', overflowY: 'auto', minHeight: '400px' }}>
+        <Table size="small" compact inverted columns={'9'} style={{ maxHeight: '500px' }}>
+          <TableHeader style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: '#333' }} fullWidth>
             <TableRow>
-              <TableHeaderCell verticalAlign="middle" colSpan="9" collapsing>
-                <Button
-                  type="button"
-                  color="red"
-                  animated="fade"
-                  size="small"
-                  compact
-                  onClick={() => runJobsList()}
-                  disabled={onLoading}
-                >
-                  <ButtonContent visible>
-                    <Icon name="send" inverted />
-                  </ButtonContent>
-                  <ButtonContent hidden content="Traiter la file" />
-                </Button>
-                {onLoading && (
-                  <progress
-                    value={progress}
-                    max={100}
-                    style={{ paddingLeft: '20px', paddingRight: '50px', width: '100%', verticalAlign: 'middle' }}
-                  />
-                )}
-              </TableHeaderCell>
+              <TableHeaderCell>Dates</TableHeaderCell>
+              <TableHeaderCell>Heures</TableHeaderCell>
+              <TableHeaderCell>Commandes</TableHeaderCell>
+              <TableHeaderCell>Villes</TableHeaderCell>
+              <TableHeaderCell>Visuels</TableHeaderCell>
+              <TableHeaderCell>Formats</TableHeaderCell>
+              <TableHeaderCell>Plaques</TableHeaderCell>
+              <TableHeaderCell>Ex</TableHeaderCell>
+              <TableHeaderCell></TableHeaderCell>
             </TableRow>
-          </TableFooter>
-        )}
-        {status === 'completed' && (
-          <TableFooter fullWidth>
-            <TableRow>
-              <TableHeaderCell verticalAlign="middle" colSpan="9" collapsing>
-                <Button animated="fade" color="red" size="small" compact onClick={() => handleDeleteJobComplete()}>
-                  <ButtonContent hidden content="Clear" />
-                  <ButtonContent visible>
-                    <Icon name="warning circle" />
-                  </ButtonContent>
-                </Button>
-                {executionTime && (
+          </TableHeader>
+
+          <TableBody style={{ overflowY: 'auto', maxHeight: 'calc(100% - 50px)', height: '200px' }}>
+            {newTableEntries}
+          </TableBody>
+
+          {status === 'jobs' && (
+            <TableFooter fullWidth>
+              <TableRow>
+                <TableHeaderCell verticalAlign="middle" colSpan="9" collapsing>
                   <div>
-                    {data[0].jobs.length === 0 ? (
-                      <p>Temps d&apos;exécution total: {(executionTime / 1000).toFixed(2)} secondes</p>
-                    ) : null}
+                    <Button
+                      type="button"
+                      color="red"
+                      animated="fade"
+                      size="small"
+                      compact
+                      onClick={() => runJobsList()}
+                      disabled={onLoading}
+                      style={{ float: 'left' }}
+                    >
+                      <ButtonContent visible>
+                        <Icon name="send" inverted />
+                      </ButtonContent>
+                      <ButtonContent hidden content="Traiter la file" />
+                    </Button>
+                    {!onLoading && (
+                      <div
+                        style={{
+                          width: '100%',
+                          maxWidth: '100%',
+                          margin: 0,
+                          padding: 0,
+                          verticalAlign: 'middle',
+                          paddingLeft: '20px',
+                        }}
+                      >
+                        <progress value={progress} max={100} style={{ marginLeft: '10px' }} />
+                      </div>
+                    )}
                   </div>
-                )}
-              </TableHeaderCell>
-            </TableRow>
-          </TableFooter>
-        )}
-      </Table>
+                </TableHeaderCell>
+              </TableRow>
+            </TableFooter>
+          )}
+          {status === 'completed' && (
+            <TableFooter fullWidth>
+              <TableRow>
+                <TableHeaderCell verticalAlign="middle" colSpan="9" collapsing>
+                  <Button animated="fade" color="red" size="small" compact onClick={() => handleDeleteJobComplete()}>
+                    <ButtonContent hidden content="Clear" />
+                    <ButtonContent visible>
+                      <Icon name="warning circle" />
+                    </ButtonContent>
+                  </Button>
+                  {executionTime && (
+                    <div>
+                      {data[0].jobs.length === 0 ? (
+                        <p>Temps d&apos;exécution total: {(executionTime / 1000).toFixed(2)} secondes</p>
+                      ) : null}
+                    </div>
+                  )}
+                </TableHeaderCell>
+              </TableRow>
+            </TableFooter>
+          )}
+        </Table>
+      </div>
     );
 
     return newTable;
   };
+
   const jobs = ItemsJob('jobs');
   const completed = ItemsJob('completed');
 
