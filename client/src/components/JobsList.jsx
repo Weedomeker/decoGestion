@@ -194,76 +194,89 @@ function JobsList({ show }) {
                 <Icon name="remove" fitted inverted />
               </Button>
             </TableCell>
-          ) : null}
+          ) : (
+            <TableCell className="table-cell " />
+          )}
         </TableRow>
       );
     });
 
     const newTable = !isLoading && (
-      <Table size="small" compact inverted columns={'9'} className="jobs-table">
-        <TableHeader className="sticky-header">
-          <TableRow className="table-row">
-            <TableHeaderCell className="table-cell">Dates</TableHeaderCell>
-            <TableHeaderCell className="table-cell">Heures</TableHeaderCell>
-            <TableHeaderCell className="table-cell">Commandes</TableHeaderCell>
-            <TableHeaderCell className="table-cell">Villes</TableHeaderCell>
-            <TableHeaderCell className="table-cell">Visuels</TableHeaderCell>
-            <TableHeaderCell className="table-cell">Formats</TableHeaderCell>
-            <TableHeaderCell className="table-cell">Plaques</TableHeaderCell>
-            <TableHeaderCell className="table-cell">Ex</TableHeaderCell>
-            {status === 'jobs' && <TableHeaderCell className="table-cell" width={'1'} />}
-          </TableRow>
-        </TableHeader>
-        <TableBody className="body-table-jobs">{newTableEntries}</TableBody>
-        {status === 'jobs' && (
-          <TableFooter className="sticky-footer">
+      <div className="jobs-table-container">
+        <Table size="small" compact inverted columns={'9'} className="jobs-table">
+          <TableHeader className="sticky-header">
             <TableRow className="table-row">
-              <TableHeaderCell colSpan="9" collapsing>
-                <div className="sticky-footer-content">
-                  <Button
-                    type="button"
-                    color="red"
-                    animated="fade"
-                    size="small"
-                    compact
-                    onClick={() => runJobsList()}
-                    disabled={onLoading}
-                  >
-                    <ButtonContent visible>
-                      <Icon name="send" inverted />
-                    </ButtonContent>
-                    <ButtonContent hidden content="Traiter la file" />
-                  </Button>
-                  {onLoading && <progress value={progress} max={100} className="progress" />}
-                </div>
-              </TableHeaderCell>
+              <TableHeaderCell className="table-cell">Dates</TableHeaderCell>
+              <TableHeaderCell className="table-cell">Heures</TableHeaderCell>
+              <TableHeaderCell className="table-cell">Commandes</TableHeaderCell>
+              <TableHeaderCell className="table-cell">Villes</TableHeaderCell>
+              <TableHeaderCell className="table-cell">Visuels</TableHeaderCell>
+              <TableHeaderCell className="table-cell">Formats</TableHeaderCell>
+              <TableHeaderCell className="table-cell">Plaques</TableHeaderCell>
+              <TableHeaderCell className="table-cell">Ex</TableHeaderCell>
+              <TableHeaderCell className="table-cell" />
             </TableRow>
-          </TableFooter>
-        )}
-        {status === 'completed' && (
-          <TableFooter className="sticky-footer">
-            <TableRow className="table-row">
-              <TableHeaderCell colSpan="9" collapsing>
-                <div className="sticky-footer-content">
-                  <Button animated="fade" color="red" size="small" compact onClick={() => handleDeleteJobComplete()}>
-                    <ButtonContent hidden content="Clear" />
-                    <ButtonContent visible>
-                      <Icon name="warning circle" />
-                    </ButtonContent>
-                  </Button>
-                  {executionTime && (
-                    <div>
-                      {data[0].jobs.length === 0 ? (
-                        <p>Temps d&apos;exécution total: {(executionTime / 1000).toFixed(2)} secondes</p>
-                      ) : null}
-                    </div>
-                  )}
-                </div>
-              </TableHeaderCell>
-            </TableRow>
-          </TableFooter>
-        )}
-      </Table>
+          </TableHeader>
+
+          {/* BODY */}
+          <TableBody className="body-table-jobs">{newTableEntries}</TableBody>
+
+          {/* FOOTER */}
+          {status === 'jobs' && (
+            <TableFooter className="sticky-footer">
+              <TableRow className="table-row">
+                <TableHeaderCell colSpan="9" collapsing>
+                  <div className="sticky-footer-content">
+                    <Button
+                      type="button"
+                      color="red"
+                      animated="fade"
+                      size="small"
+                      compact
+                      onClick={() => runJobsList()}
+                      disabled={onLoading}
+                    >
+                      <ButtonContent visible>
+                        <Icon name="send" inverted />
+                      </ButtonContent>
+                      <ButtonContent hidden content="Traiter la file" />
+                    </Button>
+                    {onLoading && <progress value={progress} max={100} className="progress" />}
+                  </div>
+                </TableHeaderCell>
+              </TableRow>
+            </TableFooter>
+          )}
+          {status === 'completed' && (
+            <TableFooter className="sticky-footer">
+              <TableRow className="table-row">
+                <TableHeaderCell colSpan="9" collapsing>
+                  <div className="sticky-footer-content">
+                    <Button animated="fade" color="red" size="small" compact onClick={() => handleDeleteJobComplete()}>
+                      <ButtonContent hidden content="Clear" />
+                      <ButtonContent visible>
+                        <Icon name="warning circle" />
+                      </ButtonContent>
+                    </Button>
+                    {executionTime && (
+                      <div>
+                        {data[0].jobs.length === 0 ? (
+                          <p>
+                            Temps d&apos;exécution total:
+                            {executionTime / 1000 > 60
+                              ? (executionTime / 1000 / 60).toFixed(2) + ' min(s)'
+                              : (executionTime / 1000).toFixed(2) + ' sec(s)'}
+                          </p>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                </TableHeaderCell>
+              </TableRow>
+            </TableFooter>
+          )}
+        </Table>
+      </div>
     );
 
     return newTable;
@@ -276,7 +289,7 @@ function JobsList({ show }) {
     return (
       <div className="preview-deco">
         {jobs}
-        {data[0].completed.length > 0 ? completed : null}
+        {completed}
       </div>
     );
   } else {

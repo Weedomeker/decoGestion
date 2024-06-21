@@ -1,23 +1,35 @@
+.jobs-table-container {
+  overflow: auto;
+  width: 100%;
+  max-height: calc(100% - 40px); /* Ajustez cette valeur en fonction de la hauteur du header et du footer */
+  height: calc(400px - 40px);
+}
+
 .jobs-table {
-  max-height: 400px; /* Ajustez cette valeur selon vos besoins */
-  overflow-y: auto;
   width: 100%;
   display: table;
+  table-layout: fixed; /* Pour garder une largeur uniforme des colonnes */
+  border-collapse: collapse; /* S'assure qu'il n'y a pas d'espace entre les bordures de cellules */
+  height: calc(400px - 40px);
+}
+
+.sticky-header,
+.sticky-footer {
+  position: sticky;
+  z-index: 1;
+  display: table-header-group; /* Garder la structure de table pour le header */
+  width: 100%;
 }
 
 .sticky-header {
-  position: sticky;
+  background-color: #353535;
   top: 0;
-  background-color: #1b1c1d; /* Assurez-vous que cela correspond à la couleur de fond du header */
-  z-index: 1;
-  display: table-header-group;
 }
 
 .sticky-footer {
-  position: sticky;
+  background-color: #353535df;
   bottom: 0;
-  z-index: 1;
-  display: table-footer-group;
+  display: table-footer-group; /* Garder la structure de table pour le footer */
 }
 
 .sticky-footer-content {
@@ -28,15 +40,12 @@
 }
 
 .body-table-jobs {
-  overflow-y: auto;
-  max-height: calc(100% - 50px);
-  height: 200px;
-  display: table-row-group;
-  width: 100%;
+  display: table-row-group; /* Utiliser table-row-group pour garder la structure de la table */
 }
 
 .table-row {
-  height: 40px; /* Ajustez cette valeur selon vos besoins pour une hauteur de ligne fixe */
+  font-size: 0.8rem;
+  height: 10px; /* Hauteur fixe pour les lignes */
   display: table-row;
 }
 
@@ -44,4 +53,9 @@
   overflow: hidden; /* Assurez que le contenu ne déborde pas */
   text-overflow: ellipsis; /* Ajoute des points de suspension pour le contenu débordant */
   white-space: nowrap; /* Empêche le texte de s'étendre sur plusieurs lignes */
+  display: table-cell; /* Les cellules restent en table-cell */
+}
+
+.progress {
+  width: 100%;
 }
