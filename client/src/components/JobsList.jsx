@@ -203,7 +203,7 @@ function JobsList({ show }) {
 
     const newTable = !isLoading && (
       <div className="jobs-table-container">
-        <Table size="small" compact inverted columns={'9'} className="jobs-table">
+        <Table size="small" compact inverted columns={'9'} className="jobs-table" striped>
           <TableHeader className="sticky-header">
             <TableRow className="table-row">
               <TableHeaderCell className="table-cell">Dates</TableHeaderCell>

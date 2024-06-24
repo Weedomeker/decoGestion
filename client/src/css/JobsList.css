@@ -1,7 +1,8 @@
 .jobs-table-container {
   overflow: auto;
   width: 100%;
-  max-height: calc(100% - 40px); /* Ajustez cette valeur en fonction de la hauteur du header et du footer */
+  max-height: 300px; /* Ajustez cette valeur en fonction de la hauteur du header et du footer */
+  min-height: 300px;
   height: calc(400px - 40px);
 }
 
@@ -10,7 +11,7 @@
   display: table;
   table-layout: fixed; /* Pour garder une largeur uniforme des colonnes */
   border-collapse: collapse; /* S'assure qu'il n'y a pas d'espace entre les bordures de cellules */
-  height: calc(400px - 40px);
+  height: 100%;
 }
 
 .sticky-header,
@@ -41,15 +42,16 @@
 
 .body-table-jobs {
   display: table-row-group; /* Utiliser table-row-group pour garder la structure de la table */
+  table-layout: fixed;
 }
 
 .table-row {
-  font-size: 0.8rem;
-  height: 10px; /* Hauteur fixe pour les lignes */
   display: table-row;
+  width: 100%;
 }
 
 .table-cell {
+  font-size: 12px;
   overflow: hidden; /* Assurez que le contenu ne déborde pas */
   text-overflow: ellipsis; /* Ajoute des points de suspension pour le contenu débordant */
   white-space: nowrap; /* Empêche le texte de s'étendre sur plusieurs lignes */

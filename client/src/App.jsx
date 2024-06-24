@@ -8,7 +8,6 @@ import Footer from './components/Footer';
 import FormatDropdown from './components/FormatDropdown';
 import FormatTauro from './components/FormatTauro';
 import Header from './components/Header';
-import ImageRender from './components/ImageRender';
 import InfoMessage from './components/InfoMessage';
 import JobsList from './components/JobsList';
 import Loading from './components/Loading';
@@ -38,12 +37,10 @@ function App() {
   const [fileSize, setFileSize] = useState('');
   const [isProcessLoading, setIsProcessLoading] = useState(false);
   const [timeProcess, setTimeProcess] = useState({});
-  const [srcImg, setSrcImg] = useState('');
   const [isFooter, setIsFooter] = useState(false);
   const [isShowPdf, setIsShowPdf] = useState(false);
-  const [isShowJpg, setIsShowJpg] = useState(false);
   const [isShowLouis, setIsShowLouis] = useState(false);
-  const [isShowJobsList, setIsShowJobsList] = useState(false);
+  const [isShowJobsList, setIsShowJobsList] = useState(true);
   const [isShowDownloadCut, setIsShowDownloadCut] = useState(false);
   const [warnMsg, setWarnMsg] = useState({
     hidden: true,
@@ -145,9 +142,7 @@ function App() {
         setIsProcessLoading(false);
         setIsFooter(true);
         setTimeProcess((timeProcess) => Object.assign({}, timeProcess, update));
-        setIsShowJpg(false);
         setIsShowJobsList(true);
-        setSrcImg(update.jpgPath);
         checkGenerate.cut ? setIsShowDownloadCut(true) : setIsShowDownloadCut(false);
       }
     } catch (err) {
@@ -236,7 +231,6 @@ function App() {
     // Hide view
     setIsShowPdf(false);
     setIsShowLouis(false);
-    setIsShowJpg(false);
 
     //Set Loading Process
     setIsProcessLoading(true);
@@ -441,7 +435,6 @@ function App() {
                 setFileSize(value.size);
                 setIsShowPdf(true);
                 setIsShowLouis(false);
-                setIsShowJpg(false);
                 setIsShowJobsList(false);
                 if (value.name == '' || value.name == undefined) {
                   setError({ ...error, visuel: true });
@@ -510,95 +503,48 @@ function App() {
             <label htmlFor="ex">Ex</label>
             <Input disabled={enabled.ex} id="ex" name="ex" type="number" defaultValue={1} />
           </Form.Field>
-
-          {/* Validation formulaire */}
-          <div className="button-form">
-            <Button disabled={enabled.validate} primary compact inverted type="submit" content="Valider" />
-            <Button
-              primary
-              compact
-              inverted
-              type="button"
-              onClick={(e) => {
-                handleJobSubmit(e);
-                if (!isShowJobsList) {
-                  setIsShowJobsList(true);
-                  setIsShowJpg(false);
-                  setIsShowLouis(false);
-                  setIsShowPdf(false);
-                } else {
-                  setIsShowJobsList(false);
-                }
-              }}
-            >
-              <Icon name="add" />
-            </Button>
-          </div>
         </Form>
         <div className="container-buttons">
           <Button
-            animated
+            animated="fade"
             compact
-            color="blue"
+            type="button"
+            color="vk"
+            onClick={(e) => {
+              handleJobSubmit(e);
+              if (!isShowJobsList) {
+                setIsShowJobsList(true);
+                setIsShowLouis(false);
+                setIsShowPdf(false);
+              } else {
+                setIsShowJobsList(false);
+              }
+            }}
+          >
+            <ButtonContent visible>Ajouter</ButtonContent>
+            <ButtonContent hidden>
+              <Icon name="add" />
+            </ButtonContent>
+          </Button>
+          <Button
+            animated="fade"
+            compact
+            color="vk"
             type="button"
             onClick={() => {
               if (!isShowLouis) {
                 setIsShowLouis(true);
                 setIsShowPdf(false);
-                setIsShowJpg(false);
                 setIsShowJobsList(false);
               } else {
                 setIsShowLouis(false);
-              }
-            }}
-          >
-            <ButtonContent hidden>Fichiers</ButtonContent>
-            <ButtonContent visible>
-              <Icon name="file" fitted />
-            </ButtonContent>
-          </Button>
-
-          <Button
-            animated
-            compact
-            color="blue"
-            type="button"
-            onClick={() => {
-              if (!isShowJpg) {
-                setIsShowJpg(true);
-                setIsShowLouis(false);
-                setIsShowPdf(false);
-                setIsShowJobsList(false);
-              } else {
-                setIsShowJpg(false);
-              }
-            }}
-          >
-            <ButtonContent hidden>Rendu</ButtonContent>
-            <ButtonContent visible>
-              <Icon name="image outline" fitted />
-            </ButtonContent>
-          </Button>
-
-          <Button
-            animated
-            compact
-            color="red"
-            type="button"
-            onClick={() => {
-              if (!isShowJobsList) {
                 setIsShowJobsList(true);
-                setIsShowJpg(false);
-                setIsShowLouis(false);
-                setIsShowPdf(false);
-              } else {
-                setIsShowJobsList(false);
               }
             }}
           >
-            <ButtonContent hidden>Jobs list</ButtonContent>
-            <ButtonContent visible>
-              <Icon name="list" fitted />
+            <ButtonContent visible>Fichiers</ButtonContent>
+            <ButtonContent hidden>
+              <Icon name="file" fitted />
             </ButtonContent>
           </Button>
         </div>
@@ -609,9 +555,6 @@ function App() {
 
       {/*  FolderFiles Files */}
       <LouisPreview show={isShowLouis} />
-
-      {/*  Jpg */}
-      <ImageRender active={isShowJpg} src={srcImg} />
 
       {/* JobsList */}
       <JobsList show={isShowJobsList} />
