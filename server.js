@@ -17,6 +17,7 @@ const WebSocket = require('ws');
 const http = require('http'); // Importer le module http
 const PORT = process.env.PORT || 8000;
 const createXlsx = require('./src/xlsx');
+const mongoose = require('./src/mongoose');
 
 //Path déco
 const decoFolder = './public/deco/';
@@ -522,7 +523,7 @@ app.get('/jobs', async (req, res) => {
   res.json(jobList);
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   checkVersion()
     .then((result) => {
       console.log(result.message);
@@ -531,4 +532,5 @@ server.listen(PORT, () => {
       console.error('Error:', error);
     });
   console.log(`Server start on port ${PORT}`);
+  await mongoose().catch((err) => console.log(err));
 });
