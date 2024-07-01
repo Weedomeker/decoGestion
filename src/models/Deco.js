@@ -1,20 +1,19 @@
 const mongoose = require('mongoose');
 
-const Deco = mongoose.model('Deco', {
-  _id: Number,
-  date: String,
-  time: String,
-  cmd: Number,
-  ville: String,
-  format_visu: String,
-  format_Plaque: String,
-  visuel: String,
-  ex: Number,
-  visuPath: String,
-  writePath: String,
-  jpgName: String,
-  reg: Boolean,
-  perte: String,
+const Deco = mongoose.model('lm_commandes', {
+  Date: String,
+  Heure: String,
+  numCmd: Number,
+  Mag: String,
+  Dibond: String,
+  Deco: String,
+  Formats: String,
+  Ref: Number,
+  Exs: Number,
+  Temps: Number,
+  Perte_m2: Number,
+  app_version: String,
+  ip: String,
 });
 
 module.exports = Deco;

@@ -18,6 +18,7 @@ const http = require('http'); // Importer le module http
 const PORT = process.env.PORT || 8000;
 const createXlsx = require('./src/xlsx');
 const mongoose = require('./src/mongoose');
+const modelDeco = require('./src/models/Deco');
 
 //Path déco
 const decoFolder = './public/deco/';
@@ -387,24 +388,36 @@ app.post('/run_jobs', async (req, res) => {
         console.error(`Error generating JPG for job ${job.cmd}:`, error);
       }
 
+      let regexVisuelName = / \d{3}x\d{3}/;
+      let match = job.visuel.match(regexVisuelName);
+      const dataFileExport = [
+        {
+          Date: date,
+          Heure: time,
+          numCmd: parseFloat(fileName.split(' - ')[0]),
+          Mag: fileName.split(' - ')[1],
+          Dibond: fileName.split(' - ')[2],
+          Deco: match ? job.visuel.substring(0, job.visuel.indexOf(match[0])) : '',
+          Formats: job.format_visu,
+          Exs: parseFloat(job.ex),
+          Temps: parseFloat(((jpgTime + pdfTime) / 1000).toFixed(2)),
+          Perte_m2: job.perte,
+          app_version: `v${version.version}`,
+          ip: req.hostname,
+        },
+      ];
       try {
-        const dataFileExport = [
-          {
-            Date: date,
-            Heure: time,
-            numCmd: parseFloat(fileName.split(' - ')[0]),
-            Mag: fileName.split(' - ')[1],
-            Dibond: fileName.split(' - ')[2],
-            Deco: job.visuel.replace(/\.[^/.]+$/, ''),
-            Temps: parseFloat(((jpgTime + pdfTime) / 1000).toFixed(2)),
-            Perte_m2: job.perte,
-            app_version: `v${version.version}`,
-            ip: req.hostname,
-          },
-        ];
         await createXlsx(dataFileExport);
       } catch (error) {
         console.error(error);
+      }
+
+      try {
+        const newDeco = new modelDeco(dataFileExport[0]);
+        console.log(newDeco);
+        await newDeco.save();
+      } catch (error) {
+        console.log(error);
       }
 
       // Ajouter la tâche terminée à jobList.completed et la retirer de jobList.jobs

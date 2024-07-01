@@ -20,7 +20,7 @@ function checkFormats(formatTauro, formatVisu) {
 
   const gap = surface > 1;
 
-  return { isChecked, gap, surface, unit: 'm²' };
+  return { isChecked, gap, surface };
 }
 
 export default checkFormats;
