@@ -1,12 +1,14 @@
-function createJob(date, time, cmd, ville, format, formatPlaque, visuel, ex, visuPath, writePath, jpgName, reg, perte) {
+function createJob(cmd, ville, format, formatPlaque, visuel, ex, visuPath, writePath, jpgName, reg, perte) {
+  const date = new Date();
+
+  //const dateUTC = new Date(date.getTime() + 2 * 60 * 60 * 1000);
   const newJob = {
     _id: Date.now(),
-    date: date,
-    time: time,
+    date: date.toLocaleString('fr-FR'),
     cmd: parseInt(cmd),
     ville: ville,
     format_visu: format,
-    format_Plaque: formatPlaque,
+    format_Plaque: formatPlaque.split('_').pop(),
     visuel: visuel,
     ex: parseInt(ex),
     visuPath: visuPath,

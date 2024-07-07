@@ -165,7 +165,7 @@ function JobsList({ show }) {
       return (
         <TableRow key={i} disabled={status === 'jobs' ? onLoading : null} className="table-row">
           <TableCell className="table-cell">{value.date}</TableCell>
-          <TableCell className="table-cell">{value.time}</TableCell>
+          {/* <TableCell className="table-cell">{value.time}</TableCell> */}
           <TableCell className="table-cell">{value.cmd}</TableCell>
           <TableCell className="table-cell">{value.ville}</TableCell>
           <TableCell className="table-cell">
@@ -203,11 +203,11 @@ function JobsList({ show }) {
 
     const newTable = !isLoading && (
       <div className="jobs-table-container">
-        <Table size="small" compact inverted columns={'9'} className="jobs-table" striped>
+        <Table size="small" compact inverted columns={'8'} className="jobs-table" striped>
           <TableHeader className="sticky-header">
             <TableRow className="table-row">
               <TableHeaderCell className="table-cell">Dates</TableHeaderCell>
-              <TableHeaderCell className="table-cell">Heures</TableHeaderCell>
+              {/* <TableHeaderCell className="table-cell">Heures</TableHeaderCell> */}
               <TableHeaderCell className="table-cell">Commandes</TableHeaderCell>
               <TableHeaderCell className="table-cell">Villes</TableHeaderCell>
               <TableHeaderCell className="table-cell">Visuels</TableHeaderCell>
@@ -225,7 +225,7 @@ function JobsList({ show }) {
           {status === 'jobs' && (
             <TableFooter className="sticky-footer">
               <TableRow className="table-row">
-                <TableHeaderCell colSpan="9" collapsing>
+                <TableHeaderCell colSpan="8" collapsing>
                   <div className="sticky-footer-content">
                     <Button
                       type="button"

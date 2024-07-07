@@ -263,7 +263,6 @@ app.post('/add_job', (req, res) => {
     numCmd: req.body.numCmd,
     ville: req.body.ville != null ? req.body.ville.toUpperCase() : '',
     ex: req.body.ex != null ? req.body.ex : '',
-    perte: req.body.perte,
     regmarks: req.body.regmarks,
   };
   let visuel = data.visuel.split('/').pop();
@@ -296,10 +295,17 @@ app.post('/add_job', (req, res) => {
     jpgName = `${jpgPath}/PRINTSA#${date}` + '/' + fileName;
   }
 
+  const parseDimensions = (format) => {
+    const [width, height] = format.split('_').pop().split('x');
+    return [parseFloat(width), parseFloat(height)];
+  };
+
+  const [widthPlaque, heightPlaque] = parseDimensions(formatTauro);
+  const [widthVisu, heightVisu] = parseDimensions(format);
+  const perteCalc = parseFloat(widthPlaque * heightPlaque - widthVisu * heightVisu) / 10000;
+
   // JOBS LIST STANDBY
   const newJob = createJob(
-    date,
-    time,
     data.numCmd,
     data.ville,
     format,
@@ -310,7 +316,7 @@ app.post('/add_job', (req, res) => {
     writePath,
     jpgName,
     reg,
-    data.perte,
+    perteCalc,
   );
   jobList.jobs.push(newJob);
   res.sendStatus(200);
@@ -388,18 +394,18 @@ app.post('/run_jobs', async (req, res) => {
         console.error(`Error generating JPG for job ${job.cmd}:`, error);
       }
 
-      let regexVisuelName = / \d{3}x\d{3}/;
-      let match = job.visuel.match(regexVisuelName);
+      let matchName = job.visuel.match(/ \d{3}x\d{3}/);
+      let matchRef = job.visuel.match(/\d{8}/);
       const dataFileExport = [
         {
-          Date: date,
-          Heure: time,
-          numCmd: parseFloat(fileName.split(' - ')[0]),
-          Mag: fileName.split(' - ')[1],
-          Dibond: fileName.split(' - ')[2],
-          Deco: match ? job.visuel.substring(0, job.visuel.indexOf(match[0])) : '',
-          Formats: job.format_visu,
-          Exs: parseFloat(job.ex),
+          Date: job.date,
+          numCmd: job.cmd,
+          Mag: job.ville,
+          Dibond: job.format_Plaque,
+          Deco: matchName ? job.visuel.substring(0, job.visuel.indexOf(matchName[0])) : '',
+          Ref: matchRef ? matchRef[0] : 0,
+          Format: job.format_visu,
+          Ex: job.ex,
           Temps: parseFloat(((jpgTime + pdfTime) / 1000).toFixed(2)),
           Perte_m2: job.perte,
           app_version: `v${version.version}`,

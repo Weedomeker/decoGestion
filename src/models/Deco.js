@@ -1,8 +1,7 @@
 const mongoose = require('mongoose');
 
 const Deco = mongoose.model('lm_commandes', {
-  Date: String,
-  Heure: String,
+  Date: Date,
   numCmd: Number,
   Mag: String,
   Dibond: String,
