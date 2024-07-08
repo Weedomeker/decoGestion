@@ -240,7 +240,7 @@ function App() {
   const handleToggleAddFormat = () => {
     showAddFormat ? setShowAddFormat(false) : setShowAddFormat(true);
     if (showAddFormat) {
-      const value = document.getElementById('addFormatTauro').value;
+      const value = 'Deco_Std_' + document.getElementById('addFormatTauro').value;
       if (value !== '') {
         setFormatTauro((curr) => [...curr, value]);
       }
@@ -323,9 +323,7 @@ function App() {
               onClick={handleToggleAddFormat}
             />
 
-            {showAddFormat && (
-              <Input id="addFormatTauro" size="small" label="Add format" placeholder="Deco_Std_FORMAT" />
-            )}
+            {showAddFormat && <Input id="addFormatTauro" size="small" label="Add format" placeholder="ex: 101x215" />}
           </Form.Field>
 
           {/* PROD AVEC BLANC */}
@@ -557,7 +555,7 @@ function App() {
       <LouisPreview show={isShowLouis} />
 
       {/* JobsList */}
-      <JobsList show={isShowJobsList} />
+      <JobsList show={isShowJobsList} formatTauro={formatTauro} />
 
       {/* FOOTER */}
       <Footer active={!isFooter} timePdf={timeProcess.pdf} timeJpg={timeProcess.jpg} />

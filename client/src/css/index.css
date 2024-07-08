@@ -41,9 +41,9 @@ img.ui.image {
 .preview-deco {
   display: grid;
   grid-template-columns: 100%;
-  grid-template-rows: min-content min-content;
+  grid-template-rows: 1fr 1fr;
   column-gap: 10px;
-  row-gap: 25px;
+  row-gap: 8px;
   grid-column: 2;
   grid-row: 2;
   width: 100%;

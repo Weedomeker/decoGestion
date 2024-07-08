@@ -323,6 +323,18 @@ app.post('/add_job', (req, res) => {
 });
 
 app.post('/run_jobs', async (req, res) => {
+  //Lecture Ecriture format tauro
+  let arr = [];
+  if (fs.existsSync('./formatsTauro.conf')) {
+    const readFile = fs.readFileSync('./formatsTauro.conf', {
+      encoding: 'utf8',
+    });
+    arr.push(readFile.split(/\r?\n/g));
+    if (req.body.formatTauro.length > arr[0].length) {
+      fs.writeFileSync('./formatsTauro.conf', req.body.formatTauro.join('\n'));
+    }
+  }
+
   let pdfTime;
   let jpgTime;
   const status = req.body.run;

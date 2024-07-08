@@ -1,7 +1,7 @@
 .jobs-table-container {
   overflow: auto;
   width: 100%;
-  max-height: 300px; /* Ajustez cette valeur en fonction de la hauteur du header et du footer */
+  max-height: max-content; /* Ajustez cette valeur en fonction de la hauteur du header et du footer */
   min-height: 300px;
   height: calc(400px - 40px);
 }
@@ -23,12 +23,12 @@
 }
 
 .sticky-header {
-  background-color: #353535;
+  background-color: #1c1c1c !important;
   top: 0;
 }
 
 .sticky-footer {
-  background-color: #353535df;
+  background-color: #1c1c1cdf !important;
   bottom: 0;
   display: table-footer-group; /* Garder la structure de table pour le footer */
 }

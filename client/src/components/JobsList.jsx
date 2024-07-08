@@ -17,7 +17,7 @@ import '../css/JobsList.css';
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
 
-function JobsList({ show }) {
+function JobsList({ show, formatTauro }) {
   const [data, setData] = useState([]);
   const [isLoading, setLoading] = useState(true);
   const [refreshFlag, setRefreshFlag] = useState(false);
@@ -84,7 +84,7 @@ function JobsList({ show }) {
       const response = await fetch(`http://${HOST}:${PORT}/run_jobs`, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ run: true }),
+        body: JSON.stringify({ run: true, formatTauro: formatTauro }),
       });
 
       if (!response.ok) {
@@ -161,11 +161,11 @@ function JobsList({ show }) {
       const visuel = value.visuel ? value.visuel.split('/').pop().split('-').pop().split(' ')[0] : '';
       const title = value.jpgName.split('/').pop();
       const url = `http://${HOST}:${PORT}/public/` + value.jpgName.replace(/#/i, '%23');
-
       return (
         <TableRow key={i} disabled={status === 'jobs' ? onLoading : null} className="table-row">
-          <TableCell className="table-cell">{value.date}</TableCell>
-          {/* <TableCell className="table-cell">{value.time}</TableCell> */}
+          <TableCell className="table-cell">
+            {new Date(value.date).toLocaleString('fr-FR', { timeZone: 'EUROPE/PARIS' })}
+          </TableCell>
           <TableCell className="table-cell">{value.cmd}</TableCell>
           <TableCell className="table-cell">{value.ville}</TableCell>
           <TableCell className="table-cell">
@@ -186,7 +186,7 @@ function JobsList({ show }) {
               <Button
                 compact
                 size="mini"
-                color="vk"
+                color="grey"
                 value={value._id}
                 onClick={() => handleDeleteJob(value._id)}
                 disabled={onLoading}
@@ -203,7 +203,7 @@ function JobsList({ show }) {
 
     const newTable = !isLoading && (
       <div className="jobs-table-container">
-        <Table size="small" compact inverted columns={'8'} className="jobs-table" striped>
+        <Table size="small" compact columns={'8'} className="jobs-table" striped>
           <TableHeader className="sticky-header">
             <TableRow className="table-row">
               <TableHeaderCell className="table-cell">Dates</TableHeaderCell>
@@ -250,7 +250,7 @@ function JobsList({ show }) {
           {status === 'completed' && (
             <TableFooter className="sticky-footer">
               <TableRow className="table-row">
-                <TableHeaderCell colSpan="9" collapsing>
+                <TableHeaderCell colSpan="8" collapsing>
                   <div className="sticky-footer-content">
                     <Button animated="fade" color="red" size="small" compact onClick={() => handleDeleteJobComplete()}>
                       <ButtonContent hidden content="Clear" />
@@ -299,6 +299,7 @@ function JobsList({ show }) {
 
 JobsList.propTypes = {
   show: PropTypes.bool,
+  formatTauro: PropTypes.array,
 };
 
 export default JobsList;
