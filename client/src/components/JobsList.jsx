@@ -180,6 +180,7 @@ function JobsList({ show, formatTauro }) {
           <TableCell className="table-cell">{value.format_visu}</TableCell>
           <TableCell className="table-cell">{value.format_Plaque.split('_').pop()}</TableCell>
           <TableCell className="table-cell">{value.ex}</TableCell>
+          <TableCell className="table-cell">{value.cut ? <Icon name="cut" /> : null}</TableCell>
 
           {status === 'jobs' ? (
             <TableCell className="table-cell ">
@@ -203,7 +204,7 @@ function JobsList({ show, formatTauro }) {
 
     const newTable = !isLoading && (
       <div className="jobs-table-container">
-        <Table size="small" compact columns={'8'} className="jobs-table" striped>
+        <Table size="small" compact columns={'9'} className="jobs-table" striped>
           <TableHeader className="sticky-header">
             <TableRow className="table-row">
               <TableHeaderCell className="table-cell">Dates</TableHeaderCell>
@@ -215,6 +216,7 @@ function JobsList({ show, formatTauro }) {
               <TableHeaderCell className="table-cell">Plaques</TableHeaderCell>
               <TableHeaderCell className="table-cell">Ex</TableHeaderCell>
               <TableHeaderCell className="table-cell" />
+              <TableHeaderCell className="table-cell" />
             </TableRow>
           </TableHeader>
 
@@ -225,7 +227,7 @@ function JobsList({ show, formatTauro }) {
           {status === 'jobs' && (
             <TableFooter className="sticky-footer">
               <TableRow className="table-row">
-                <TableHeaderCell colSpan="8" collapsing>
+                <TableHeaderCell colSpan="9" collapsing>
                   <div className="sticky-footer-content">
                     <Button
                       type="button"
@@ -250,7 +252,7 @@ function JobsList({ show, formatTauro }) {
           {status === 'completed' && (
             <TableFooter className="sticky-footer">
               <TableRow className="table-row">
-                <TableHeaderCell colSpan="8" collapsing>
+                <TableHeaderCell colSpan="9" collapsing>
                   <div className="sticky-footer-content">
                     <Button animated="fade" color="red" size="small" compact onClick={() => handleDeleteJobComplete()}>
                       <ButtonContent hidden content="Clear" />

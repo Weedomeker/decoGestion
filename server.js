@@ -264,6 +264,7 @@ app.post('/add_job', (req, res) => {
     ville: req.body.ville != null ? req.body.ville.toUpperCase() : '',
     ex: req.body.ex != null ? req.body.ex : '',
     regmarks: req.body.regmarks,
+    cut: req.body.cut,
   };
   let visuel = data.visuel.split('/').pop();
   visuel = data.visuel.split('-').pop();
@@ -316,6 +317,7 @@ app.post('/add_job', (req, res) => {
     writePath,
     jpgName,
     reg,
+    data.cut,
     perteCalc,
   );
   jobList.jobs.push(newJob);
@@ -424,16 +426,32 @@ app.post('/run_jobs', async (req, res) => {
           ip: req.hostname,
         },
       ];
+
+      //XLSX LOG
       try {
         await createXlsx(dataFileExport);
       } catch (error) {
         console.error(error);
       }
 
+      //SAVE DB
       try {
         const newDeco = new modelDeco(dataFileExport[0]);
         console.log(newDeco);
         await newDeco.save();
+      } catch (error) {
+        console.log(error);
+      }
+
+      //Générer découpe
+      try {
+        const fTauro = job.format_Plaque.split('_').pop();
+        const wPlate = parseFloat(fTauro.split('x')[0]);
+        const hPlate = parseFloat(fTauro.split('x')[1]);
+        const width = parseFloat(job.format_visu.split('x')[0]);
+        const height = parseFloat(job.format_visu.split('x')[1]);
+
+        createDec(wPlate, hPlate, width, height);
       } catch (error) {
         console.log(error);
       }

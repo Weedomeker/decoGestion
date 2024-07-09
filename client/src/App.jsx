@@ -166,6 +166,7 @@ function App() {
       ex: formData.get('ex'),
       perte: perte,
       regmarks: checkGenerate.reg,
+      cut: checkGenerate.cut,
     };
     //POST data
     fetch(`http://${HOST}:${PORT}/add_job`, {
@@ -353,7 +354,7 @@ function App() {
               label="Générer découpe"
               checked={checkGenerate.cut}
               onChange={(e, data) => {
-                setCheckGenerate({ ...checkGenerate, cut: data.checked });
+                setCheckGenerate({ cut: data.checked, reg: data.checked });
               }}
             />
             {isShowDownloadCut && <DownloadFile urlFile={`http://${HOST}:${PORT}/download`} fileName={fileNameCut} />}
@@ -378,6 +379,7 @@ function App() {
                 setFileNameCut(value.name);
                 setFiles(value.files);
                 setIsFile(true);
+                setSelectedFile(null);
                 setIsFooter(false);
                 setEnabled({ ...enabled, visu: false });
 

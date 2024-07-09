@@ -10,7 +10,7 @@ function VisuelDropdown({ files, isFile, onSelectedFile, selectedFile, error, en
 
   const handleChange = (e, data) => {
     const selectedFile = files.find((file) => file.name === data.value);
-    const value = isFile ? selectedFile : data.value;
+    const value = isFile ? selectedFile : '';
     onSelectedFile(value);
   };
 
