@@ -1,4 +1,4 @@
-function createJob(cmd, ville, format, formatPlaque, visuel, ex, visuPath, writePath, jpgName, reg, cut, perte) {
+function createJob(cmd, ville, format, formatPlaque, visuel, ref, ex, visuPath, writePath, jpgName, reg, cut, perte) {
   const date = new Date();
 
   const newJob = {
@@ -9,6 +9,7 @@ function createJob(cmd, ville, format, formatPlaque, visuel, ex, visuPath, write
     format_visu: format,
     format_Plaque: formatPlaque.split('_').pop(),
     visuel: visuel,
+    ref: parseInt(ref),
     ex: parseInt(ex),
     visuPath: visuPath,
     writePath: writePath,

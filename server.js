@@ -59,11 +59,7 @@ const server = http.createServer(app); // Créer le serveur HTTP
 const wss = new WebSocket.Server({ server });
 
 wss.on('connection', (ws) => {
-  console.log('Client connected');
-
-  ws.on('close', () => {
-    console.log('Client disconnected');
-  });
+  ws.on('close', () => {});
 });
 
 const broadcastCompletedJob = (job) => {
@@ -312,6 +308,7 @@ app.post('/add_job', (req, res) => {
     format,
     formatTauro,
     visuel,
+    visuel.match(/\d{8}/)[0],
     data.ex,
     visuPath,
     writePath,
@@ -320,7 +317,25 @@ app.post('/add_job', (req, res) => {
     data.cut,
     perteCalc,
   );
-  jobList.jobs.push(newJob);
+
+  // Check if ref deco exist or not
+  function addObjectIfNotPresent(array, newObj) {
+    const exists = jobList.jobs.some((item) => {
+      item.cmd === newObj.cmd && item.ref === newObj.ref && item.ex === newObj.ex;
+    });
+
+    if (!exists) {
+      console.log('ON ENVOI');
+      jobList.jobs.push(newJob);
+    } else {
+      const value = jobList.jobs.filter((item) => {
+        item.cmd === newObj.cmd && item.ref === newObj.ref && item.ex === newObj.ex;
+      });
+      console.log('EXIST DEJA', value);
+    }
+  }
+  addObjectIfNotPresent(jobList.jobs, newJob);
+
   res.sendStatus(200);
 });
 
