@@ -12,6 +12,7 @@ import InfoMessage from './components/InfoMessage';
 import JobsList from './components/JobsList';
 import Loading from './components/Loading';
 import LouisPreview from './components/LouisPreview';
+import Modal from './components/ModalJobs';
 import Place from './components/Place';
 import PreviewDeco from './components/PreviewDeco';
 import VisuelDropdown from './components/VisuelDropdown';
@@ -175,10 +176,15 @@ function App() {
       body: JSON.stringify(data),
     })
       .then((res) => {
-        if (res.status == 200) {
+        if (res.status === 201) {
           setIsShowJobsList(true);
         }
+        if (res.status === 200) {
+          console.log(res.status);
+          return <Modal />;
+        }
       })
+
       .catch((err) => console.log(err));
   };
 

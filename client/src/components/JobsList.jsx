@@ -13,6 +13,7 @@ import {
   TableRow,
 } from 'semantic-ui-react';
 import '../css/JobsList.css';
+import './ModalJobs';
 
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
@@ -24,7 +25,7 @@ function JobsList({ show, formatTauro }) {
   const [startTime, setStartTime] = useState(null);
   const [endTime, setEndTime] = useState(null);
   const [onLoading, setOnLoading] = useState(false);
-  const [progress, setProgress] = useState(0); // Nouvel état pour la barre de progression
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     const dataFetch = async () => {
@@ -50,6 +51,7 @@ function JobsList({ show, formatTauro }) {
         setStartTime(message.startTime);
         setOnLoading(true);
       }
+
       if (message.completedJob) {
         setData((prevData) => {
           const updatedCompleted = [...prevData[0].completed, message.completedJob];
@@ -243,6 +245,7 @@ function JobsList({ show, formatTauro }) {
                       </ButtonContent>
                       <ButtonContent hidden content="Traiter la file" />
                     </Button>
+
                     {onLoading && <progress value={progress} max={100} className="progress" />}
                   </div>
                 </TableHeaderCell>

@@ -318,25 +318,27 @@ app.post('/add_job', (req, res) => {
     perteCalc,
   );
 
-  // Check if ref deco exist or not
-  function addObjectIfNotPresent(array, newObj) {
-    const exists = jobList.jobs.some((item) => {
-      item.cmd === newObj.cmd && item.ref === newObj.ref && item.ex === newObj.ex;
-    });
+  // Fonction pour comparer et mettre à jour les tableaux
+  function compareAndAddObject(originalArray, newObject) {
+    const jobExist = originalArray.find(
+      (item) => item.cmd === newObject.cmd && item.ref === newObject.ref && item.ex === newObject.ex,
+    );
 
-    if (!exists) {
-      console.log('ON ENVOI');
-      jobList.jobs.push(newJob);
+    if (jobExist) {
+      return { exist: true, object: jobExist };
     } else {
-      const value = jobList.jobs.filter((item) => {
-        item.cmd === newObj.cmd && item.ref === newObj.ref && item.ex === newObj.ex;
-      });
-      console.log('EXIST DEJA', value);
+      originalArray.push(newObject);
+      return { exist: false, object: newObject };
     }
   }
-  addObjectIfNotPresent(jobList.jobs, newJob);
 
-  res.sendStatus(200);
+  const result = compareAndAddObject(jobList.jobs, newJob);
+
+  if (result.exist) {
+    return res.status(200).json({ message: 'Commande déjà existante', object: result.object });
+  } else {
+    return res.status(201).json({ message: 'Commande ajoutée', object: result.object });
+  }
 });
 
 app.post('/run_jobs', async (req, res) => {
