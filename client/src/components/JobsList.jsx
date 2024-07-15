@@ -13,7 +13,7 @@ import {
   TableRow,
 } from 'semantic-ui-react';
 import '../css/JobsList.css';
-import './ModalJobs';
+import './InfoModal';
 
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;

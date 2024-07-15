@@ -2,7 +2,7 @@
   display: grid;
   grid-template-columns: 0.5fr 2fr;
   grid-template-rows: 0.5fr 3fr auto 80px;
-  column-gap: 8px;
+  column-gap: 20px;
   height: 100vh;
   justify-content: space-between;
   margin: 0;
@@ -48,6 +48,7 @@ img.ui.image {
   grid-row: 2;
   width: 100%;
   padding-right: 20px;
+  padding-left: 40px;
 }
 
 .footer {

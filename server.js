@@ -239,6 +239,7 @@ app.post('/', async (req, res) => {
 });
 
 app.post('/add_job', (req, res) => {
+  console.log(req.body);
   //Date
   let time = new Date().toLocaleTimeString('fr-FR');
   let date = new Date()
@@ -267,6 +268,7 @@ app.post('/add_job', (req, res) => {
 
   let visuPath = data.visuel;
   let formatTauro = data.formatTauro;
+  formatTauro = formatTauro !== undefined ? formatTauro.split('_').pop() : formatTauro;
   let prodBlanc = data.prodBlanc;
   let allFormatTauro = data.allFormatTauro;
   let format = data.format;
@@ -276,7 +278,7 @@ app.post('/add_job', (req, res) => {
   prodBlanc ? (writePath = saveFolder + '/Prod avec BLANC') : (writePath = saveFolder + '/' + formatTauro);
 
   //Nom fichier
-  fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro.split('_').pop()} - ${visuel.replace(
+  fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro} - ${visuel.replace(
     /\.[^/.]+$/,
     '',
   )} ${data.ex}_EX`;
@@ -293,7 +295,7 @@ app.post('/add_job', (req, res) => {
   }
 
   const parseDimensions = (format) => {
-    const [width, height] = format.split('_').pop().split('x');
+    const [width, height] = format !== undefined ? format.split('_').pop().split('x') : data.format_visu.split('x');
     return [parseFloat(width), parseFloat(height)];
   };
 

@@ -9,10 +9,10 @@ import FormatDropdown from './components/FormatDropdown';
 import FormatTauro from './components/FormatTauro';
 import Header from './components/Header';
 import InfoMessage from './components/InfoMessage';
+import InfoModal from './components/InfoModal';
 import JobsList from './components/JobsList';
 import Loading from './components/Loading';
 import LouisPreview from './components/LouisPreview';
-import Modal from './components/ModalJobs';
 import Place from './components/Place';
 import PreviewDeco from './components/PreviewDeco';
 import VisuelDropdown from './components/VisuelDropdown';
@@ -67,6 +67,12 @@ function App() {
     validate: true,
   });
   const [perte, setPerte] = useState(0);
+  const [modalData, setModalData] = useState({
+    open: false,
+    message: '',
+    object: null,
+    error: null,
+  });
 
   //Get Format Tauro
   useEffect(() => {
@@ -118,6 +124,15 @@ function App() {
       .catch((err) => console.log(err));
   }, [formatTauro]);
 
+  const handleClose = () => {
+    setModalData({
+      open: false,
+      message: '',
+      object: null,
+      error: null,
+    });
+  };
+
   const handleGetProcess = async () => {
     try {
       const res = await fetch(`http://${HOST}:${PORT}/process`, {
@@ -151,7 +166,7 @@ function App() {
     }
   };
 
-  const handleJobSubmit = (e) => {
+  const handleJobSubmit = async (e) => {
     e.preventDefault();
     const form = document.querySelector('form');
     const formData = new FormData(form);
@@ -170,22 +185,35 @@ function App() {
       cut: checkGenerate.cut,
     };
     //POST data
-    fetch(`http://${HOST}:${PORT}/add_job`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-      .then((res) => {
-        if (res.status === 201) {
-          setIsShowJobsList(true);
-        }
-        if (res.status === 200) {
-          console.log(res.status);
-          return <Modal />;
-        }
-      })
-
-      .catch((err) => console.log(err));
+    try {
+      const response = await fetch(`http://${HOST}:${PORT}/add_job`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Une erreur est survenue');
+      }
+      if (response.status === 200) {
+        setIsShowJobsList(true);
+        setModalData({
+          open: true,
+          message: result.message,
+          object: result.object,
+          error: null,
+        });
+      } else {
+        setIsShowJobsList(true);
+      }
+    } catch (err) {
+      setModalData({
+        open: true,
+        message: '',
+        object: null,
+        error: err.message,
+      });
+    }
   };
 
   // Submit form
@@ -564,6 +592,15 @@ function App() {
 
       {/* JobsList */}
       <JobsList show={isShowJobsList} formatTauro={formatTauro} />
+
+      {/* InfoModal */}
+      <InfoModal
+        open={modalData.open}
+        onClose={handleClose}
+        message={modalData.message}
+        object={modalData.object}
+        error={modalData.error}
+      />
 
       {/* FOOTER */}
       <Footer active={!isFooter} timePdf={timeProcess.pdf} timeJpg={timeProcess.jpg} />
