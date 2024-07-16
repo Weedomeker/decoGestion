@@ -3,7 +3,7 @@
   width: 100%;
   max-height: max-content; /* Ajustez cette valeur en fonction de la hauteur du header et du footer */
   min-height: 300px;
-  height: calc(400px - 40px);
+  height: calc(300px - 40px);
 }
 
 .jobs-table {

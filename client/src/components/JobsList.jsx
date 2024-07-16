@@ -32,7 +32,6 @@ function JobsList({ show, formatTauro }) {
       try {
         const response = await fetch(`http://${HOST}:${PORT}/jobs/`, { method: 'GET' });
         const res = await response.json();
-        console.log(res.jobs[0].jpgName);
         setData([{ jobs: res.jobs, completed: res.completed }]);
         setLoading(false);
       } catch (error) {

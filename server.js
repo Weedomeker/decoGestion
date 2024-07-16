@@ -321,13 +321,14 @@ app.post('/add_job', (req, res) => {
   const perteCalc = parseFloat(widthPlaque * heightPlaque - widthVisu * heightVisu) / 10000;
 
   // JOBS LIST STANDBY
+  const matchRef = visuel.match(/\d{8}/);
   const newJob = createJob(
     data.numCmd,
     data.ville,
     format,
     formatTauro,
     visuel,
-    visuel.match(/\d{8}/)[0],
+    matchRef !== null ? matchRef[0] : 0,
     data.ex,
     visuPath,
     writePath,

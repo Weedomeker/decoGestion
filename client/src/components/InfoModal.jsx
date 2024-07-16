@@ -4,13 +4,11 @@ import PropTypes from 'prop-types';
 import { useEffect, useState } from 'react';
 import { Button, Input, Message, Modal } from 'semantic-ui-react';
 const InfoModal = ({ open, onClose, message, object, error }) => {
-  const [addEx, setAddEx] = useState(object && object.ex);
   const [data, setData] = useState(object);
   const visuel = object && object.visuel ? object.visuel.split('/').pop().split('-').pop().split(' ')[0] : '';
 
   useEffect(() => {
     setData(object);
-    setAddEx(object && object.ex);
   }, [object]);
 
   //POST data
@@ -52,14 +50,14 @@ const InfoModal = ({ open, onClose, message, object, error }) => {
       </Modal.Content>
       <Modal.Actions>
         <Input
-          value={addEx}
           content={object && object.ex}
           label="Ajouter ex"
           type="number"
           onChange={(e) => {
             const newValue = parseInt(e.target.value);
-            setAddEx(newValue);
-            setData({ ...data, ex: newValue });
+            const matchEx = data.jpgName.match(/\d_EX/gi);
+            const newJpgName = data.jpgName.replace(matchEx, newValue + '_EX');
+            setData({ ...data, ex: newValue, jpgName: newJpgName });
           }}
         />
         <Button
