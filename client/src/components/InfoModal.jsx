@@ -9,15 +9,15 @@ const InfoModal = ({ open, onClose, message, object, error }) => {
   const visuel = object && object.visuel ? object.visuel.split('/').pop().split('-').pop().split(' ')[0] : '';
 
   useEffect(() => {
-    object && setData(object);
-    object && setAddEx(object.ex);
+    setData(object);
+    setAddEx(object && object.ex);
   }, [object]);
 
   //POST data
   const updateJob = async () => {
     try {
-      const response = await fetch(`http://${HOST}:${PORT}/add_job`, {
-        method: 'POST',
+      const response = await fetch(`http://${HOST}:${PORT}/edit_job`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
@@ -25,6 +25,8 @@ const InfoModal = ({ open, onClose, message, object, error }) => {
       if (!response.ok) {
         throw new Error(result.error || 'Une erreur est survenue');
       }
+
+      onClose(); // Fermer le modal après une mise à jour réussie
     } catch (err) {
       console.log(err);
     }
@@ -55,11 +57,18 @@ const InfoModal = ({ open, onClose, message, object, error }) => {
           label="Ajouter ex"
           type="number"
           onChange={(e) => {
-            setAddEx(e.target.value);
-            setData({ ...data, ex: e.target.value });
+            const newValue = parseInt(e.target.value);
+            setAddEx(newValue);
+            setData({ ...data, ex: newValue });
           }}
         />
-        <Button onClick={updateJob()}>Valider</Button>
+        <Button
+          onClick={() => {
+            updateJob();
+          }}
+        >
+          Valider
+        </Button>
         <Button onClick={onClose}>Fermer</Button>
       </Modal.Actions>
     </Modal>
@@ -67,9 +76,9 @@ const InfoModal = ({ open, onClose, message, object, error }) => {
 };
 
 InfoModal.propTypes = {
-  open: PropTypes.func,
-  onClose: PropTypes.func,
-  message: PropTypes.string,
+  open: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  message: PropTypes.string.isRequired,
   object: PropTypes.object,
   error: PropTypes.string,
 };

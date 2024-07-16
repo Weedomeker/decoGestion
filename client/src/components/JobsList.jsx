@@ -30,7 +30,9 @@ function JobsList({ show, formatTauro }) {
   useEffect(() => {
     const dataFetch = async () => {
       try {
-        const res = await (await fetch(`http://${HOST}:${PORT}/jobs/`, { method: 'GET' })).json();
+        const response = await fetch(`http://${HOST}:${PORT}/jobs/`, { method: 'GET' });
+        const res = await response.json();
+        console.log(res.jobs[0].jpgName);
         setData([{ jobs: res.jobs, completed: res.completed }]);
         setLoading(false);
       } catch (error) {
@@ -163,6 +165,7 @@ function JobsList({ show, formatTauro }) {
       const visuel = value.visuel ? value.visuel.split('/').pop().split('-').pop().split(' ')[0] : '';
       const title = value.jpgName.split('/').pop();
       const url = `http://${HOST}:${PORT}/public/` + value.jpgName.replace(/#/i, '%23');
+
       return (
         <TableRow key={i} disabled={status === 'jobs' ? onLoading : null} className="table-row">
           <TableCell className="table-cell">

@@ -238,8 +238,25 @@ app.post('/', async (req, res) => {
   res.status(200).send();
 });
 
+app.patch('/edit_job', async (req, res) => {
+  const updates = req.body;
+  console.log('Reçu mise à jour:', updates);
+
+  // Rechercher l'objet par `_id`
+  const objIndex = jobList.jobs.findIndex((obj) => obj._id === updates._id);
+
+  if (objIndex === -1) {
+    return res.status(404).json({ error: 'Objet non trouvé' });
+  }
+
+  // Mettre à jour l'objet avec les nouvelles valeurs
+  jobList.jobs[objIndex] = { ...jobList.jobs[objIndex], ...updates };
+
+  // Envoyer la réponse
+  res.status(200).json({ message: 'Objet mis à jour avec succès', object: jobList.jobs[objIndex] });
+});
+
 app.post('/add_job', (req, res) => {
-  console.log(req.body);
   //Date
   let time = new Date().toLocaleTimeString('fr-FR');
   let date = new Date()
@@ -259,7 +276,7 @@ app.post('/add_job', (req, res) => {
     visuel: req.body.visuel,
     numCmd: req.body.numCmd,
     ville: req.body.ville != null ? req.body.ville.toUpperCase() : '',
-    ex: req.body.ex != null ? req.body.ex : '',
+    ex: req.body.ex !== null ? req.body.ex : '',
     regmarks: req.body.regmarks,
     cut: req.body.cut,
   };
@@ -268,7 +285,7 @@ app.post('/add_job', (req, res) => {
 
   let visuPath = data.visuel;
   let formatTauro = data.formatTauro;
-  formatTauro = formatTauro !== undefined ? formatTauro.split('_').pop() : formatTauro;
+  formatTauro = formatTauro.split('_').pop();
   let prodBlanc = data.prodBlanc;
   let allFormatTauro = data.allFormatTauro;
   let format = data.format;
@@ -295,7 +312,7 @@ app.post('/add_job', (req, res) => {
   }
 
   const parseDimensions = (format) => {
-    const [width, height] = format !== undefined ? format.split('_').pop().split('x') : data.format_visu.split('x');
+    const [width, height] = format.split('_').pop().split('x');
     return [parseFloat(width), parseFloat(height)];
   };
 
@@ -322,9 +339,7 @@ app.post('/add_job', (req, res) => {
 
   // Fonction pour comparer et mettre à jour les tableaux
   function compareAndAddObject(originalArray, newObject) {
-    const jobExist = originalArray.find(
-      (item) => item.cmd === newObject.cmd && item.ref === newObject.ref && item.ex === newObject.ex,
-    );
+    const jobExist = originalArray.find((item) => item.cmd === newObject.cmd && item.ref === newObject.ref);
 
     if (jobExist) {
       return { exist: true, object: jobExist };
@@ -463,16 +478,18 @@ app.post('/run_jobs', async (req, res) => {
       }
 
       //Générer découpe
-      try {
-        const fTauro = job.format_Plaque.split('_').pop();
-        const wPlate = parseFloat(fTauro.split('x')[0]);
-        const hPlate = parseFloat(fTauro.split('x')[1]);
-        const width = parseFloat(job.format_visu.split('x')[0]);
-        const height = parseFloat(job.format_visu.split('x')[1]);
+      if (job.cut) {
+        try {
+          const fTauro = job.format_Plaque.split('_').pop();
+          const wPlate = parseFloat(fTauro.split('x')[0]);
+          const hPlate = parseFloat(fTauro.split('x')[1]);
+          const width = parseFloat(job.format_visu.split('x')[0]);
+          const height = parseFloat(job.format_visu.split('x')[1]);
 
-        createDec(wPlate, hPlate, width, height);
-      } catch (error) {
-        console.log(error);
+          createDec(wPlate, hPlate, width, height);
+        } catch (error) {
+          console.log(error);
+        }
       }
 
       // Ajouter la tâche terminée à jobList.completed et la retirer de jobList.jobs
