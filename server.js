@@ -87,157 +87,6 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, './client/dist/index.html'));
 });
 
-app.post('/', async (req, res) => {
-  //Date
-  let time = new Date().toLocaleTimeString('fr-FR');
-  let date = new Date()
-    .toLocaleDateString('fr-FR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-    .replace('.', '')
-    .toLocaleUpperCase();
-
-  const data = {
-    allFormatTauro: req.body.allFormatTauro,
-    formatTauro: req.body.formatTauro,
-    prodBlanc: req.body.prodBlanc,
-    format: req.body.format,
-    visuel: req.body.visuel,
-    numCmd: req.body.numCmd,
-    ville: req.body.ville != null ? req.body.ville.toUpperCase() : '',
-    ex: req.body.ex != null ? req.body.ex : '',
-    perte: req.body.perte,
-    regmarks: req.body.regmarks,
-  };
-  let visuel = data.visuel.split('/').pop();
-  visuel = data.visuel.split('-').pop();
-  let visuPath = data.visuel;
-  let formatTauro = data.formatTauro;
-  let prodBlanc = data.prodBlanc;
-  let allFormatTauro = data.allFormatTauro;
-  let format = data.format;
-  let reg = data.regmarks;
-
-  //Lecture Ecriture format tauro
-  let arr = [];
-  if (fs.existsSync('./formatsTauro.conf')) {
-    const readFile = fs.readFileSync('./formatsTauro.conf', {
-      encoding: 'utf8',
-    });
-    arr.push(readFile.split(/\r?\n/g));
-    if (allFormatTauro.length > arr[0].length) {
-      fs.writeFileSync('./formatsTauro.conf', allFormatTauro.join('\n'));
-    }
-  }
-
-  //Chemin sortie fichiers
-  prodBlanc ? (writePath = saveFolder + '/Prod avec BLANC') : (writePath = saveFolder + '/' + formatTauro);
-
-  //Nom fichier
-  fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro.split('_').pop()} - ${visuel.replace(
-    /\.[^/.]+$/,
-    '',
-  )} ${data.ex}_EX`;
-
-  //Verifier si dossiers exist si pas le créer
-  if (fs.existsSync(writePath) && fs.existsSync(`${jpgPath}/PRINTSA#${date}`)) {
-    pdfName = writePath + '/' + fileName;
-    jpgName = `${jpgPath}/PRINTSA#${date}` + '/' + fileName;
-  } else {
-    fs.mkdirSync(writePath, { recursive: true });
-    fs.mkdirSync(`${jpgPath}/PRINTSA#${date}`, { recursive: true });
-    pdfName = writePath + '/' + fileName;
-    jpgName = `${jpgPath}/PRINTSA#${date}` + '/' + fileName;
-  }
-
-  // JOBS LIST STANDBY
-  const newJob = createJob(
-    date,
-    time,
-    data.numCmd,
-    data.ville,
-    format,
-    formatTauro,
-    visuel,
-    data.ex,
-    visuPath,
-    writePath,
-    jpgName,
-    reg,
-  );
-  jobList.jobs.push(newJob);
-
-  //Edition pdf
-  try {
-    start = performance.now();
-    await modifyPdf(visuPath, writePath, fileName, format, formatTauro, reg);
-    timeExec = parseFloat(((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2));
-    pdfTime = timeExec;
-    console.log(`Pdf: ✔️`);
-  } catch (error) {
-    console.log(error);
-  }
-
-  //Genererate img
-  try {
-    start = performance.now();
-    await _useWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
-    timeExec = parseFloat(((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2));
-    jpgTime = timeExec;
-    console.log(`Jpg: ✔️`);
-    console.log(`${date} ${time}:`, fileName + '✔️');
-  } catch (error) {
-    console.log('FAILED GENERATE IMAGE: ', error);
-  }
-
-  const dataFileExport = [
-    {
-      Date: date,
-      Heure: time,
-      numCmd: parseFloat(fileName.split(' - ')[0]),
-      Mag: fileName.split(' - ')[1],
-      Dibond: fileName.split(' - ')[2],
-      Deco: fileName.split(' - ').slice(2).pop(),
-      Temps: parseFloat(((jpgTime + pdfTime) / 1000).toFixed(2)),
-      Perte_m2: data.perte,
-      app_version: `v${version.version}`,
-      ip: req.hostname,
-    },
-  ];
-
-  //XLSX create file
-  try {
-    await createXlsx(dataFileExport);
-  } catch (error) {
-    console.log(error);
-  }
-
-  //Générer découpe
-  try {
-    const fTauro = formatTauro.split('_').pop();
-    const wPlate = parseFloat(fTauro.split('x')[0]);
-    const hPlate = parseFloat(fTauro.split('x')[1]);
-    const width = parseFloat(format.split('x')[0]);
-    const height = parseFloat(format.split('x')[1]);
-
-    createDec(wPlate, hPlate, width, height);
-  } catch (error) {
-    console.log(error);
-  }
-
-  //JOBS LIST completed
-  const findJob = jobList.jobs.find((x) => x._id === newJob._id);
-  const index = jobList.jobs.indexOf(findJob);
-  if (index > -1) {
-    jobList.jobs.splice(index, 1);
-  }
-  jobList.completed.push(findJob);
-
-  res.status(200).send();
-});
-
 app.patch('/edit_job', async (req, res) => {
   const updates = req.body;
   console.log('Reçu mise à jour:', updates);
@@ -251,6 +100,11 @@ app.patch('/edit_job', async (req, res) => {
 
   // Mettre à jour l'objet avec les nouvelles valeurs
   jobList.jobs[objIndex] = { ...jobList.jobs[objIndex], ...updates };
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ type: 'update' }));
+    }
+  });
 
   // Envoyer la réponse
   res.status(200).json({ message: 'Objet mis à jour avec succès', object: jobList.jobs[objIndex] });
@@ -454,9 +308,9 @@ app.post('/run_jobs', async (req, res) => {
           Deco: matchName ? job.visuel.substring(0, job.visuel.indexOf(matchName[0])) : '',
           Ref: matchRef ? matchRef[0] : 0,
           Format: job.format_visu,
-          Ex: job.ex,
+          Ex: parseInt(job.ex),
           Temps: parseFloat(((jpgTime + pdfTime) / 1000).toFixed(2)),
-          Perte_m2: job.perte,
+          Perte_m2: parseFloat(job.perte),
           app_version: `v${version.version}`,
           ip: req.hostname,
         },

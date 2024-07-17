@@ -48,6 +48,11 @@ function JobsList({ show, formatTauro }) {
 
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
+
+      if (message.type === 'update') {
+        setRefreshFlag((prev) => !prev);
+      }
+
       if (message.type === 'start') {
         setStartTime(message.startTime);
         setOnLoading(true);
