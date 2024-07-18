@@ -12,6 +12,8 @@ function FormatDropdown({ data, isLoading, onSelectFormat, selectedFormat, error
 
   return (
     <Dropdown
+      compact
+      fluid
       disabled={enabled}
       error={error}
       id="format"

@@ -14,7 +14,7 @@ const fs = require('fs');
 const { performance } = require('perf_hooks');
 const { Worker, workerData } = require('worker_threads');
 const WebSocket = require('ws');
-const http = require('http'); // Importer le module http
+const http = require('http');
 const PORT = process.env.PORT || 8000;
 const createXlsx = require('./src/xlsx');
 const mongoose = require('./src/mongoose');
@@ -25,7 +25,7 @@ const decoFolder = './public/deco/';
 
 //Path export
 const saveFolder = isDev ? './public/tmp' : './public/tauro';
-const jpgPath = saveFolder;
+const jpgPath = './public';
 
 app.use(cors());
 app.use(express.json());
@@ -89,7 +89,6 @@ app.get('/', (req, res) => {
 
 app.patch('/edit_job', async (req, res) => {
   const updates = req.body;
-  console.log('Reçu mise à jour:', updates);
 
   // Rechercher l'objet par `_id`
   const objIndex = jobList.jobs.findIndex((obj) => obj._id === updates._id);
@@ -226,8 +225,6 @@ app.post('/run_jobs', async (req, res) => {
     }
   }
 
-  let pdfTime;
-  let jpgTime;
   const status = req.body.run;
   if (!status) {
     return res.status(400).json({ error: 'Jobs not run' });

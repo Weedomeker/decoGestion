@@ -4,6 +4,7 @@ node_modules
 public/deco
 public/tmp
 public/tauro
+public/*/*.jpg
 *.csv
 *.log
 client/dist
