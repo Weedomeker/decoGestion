@@ -255,6 +255,11 @@ app.patch('/edit_job', async (req, res) => {
       client.send(JSON.stringify({ type: 'update' }));
     }
   });
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ type: 'update' }));
+    }
+  });
 
   // Envoyer la réponse
   res.status(200).json({ message: 'Objet mis à jour avec succès', object: jobList.jobs[objIndex] });
@@ -457,7 +462,9 @@ app.post('/run_jobs', async (req, res) => {
           Ref: matchRef ? matchRef[0] : 0,
           Format: job.format_visu,
           Ex: parseInt(job.ex),
+          Ex: parseInt(job.ex),
           Temps: parseFloat(((jpgTime + pdfTime) / 1000).toFixed(2)),
+          Perte_m2: parseFloat(job.perte),
           Perte_m2: parseFloat(job.perte),
           app_version: `v${version.version}`,
           ip: req.hostname,
