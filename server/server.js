@@ -1,6 +1,6 @@
 const isDev = require('isdev');
 const checkVersion = require('./src/checkVersion');
-const version = require('./package.json');
+const version = require('../package.json');
 const express = require('express');
 const app = express();
 const serveIndex = require('serve-index');
@@ -14,29 +14,29 @@ const fs = require('fs');
 const { performance } = require('perf_hooks');
 const { Worker, workerData } = require('worker_threads');
 const WebSocket = require('ws');
-const http = require('http'); // Importer le module http
+const http = require('http');
 const PORT = process.env.PORT || 8000;
 const createXlsx = require('./src/xlsx');
 const mongoose = require('./src/mongoose');
 const modelDeco = require('./src/models/Deco');
 
 //Path déco
-const decoFolder = './public/deco/';
+const decoFolder = './server/public/deco';
 
 //Path export
-const saveFolder = isDev ? './public/tmp' : './public/tauro';
-const jpgPath = saveFolder;
+const saveFolder = isDev ? path.join(__dirname, '/public/tmp') : path.join(__dirname, '/public/tauro');
+const jpgPath = './server/public';
 
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use('/public', express.static(path.join(__dirname, './public')));
-app.use('/download', express.static(path.join(__dirname, './public/tmp')));
-app.use(express.static(path.join(__dirname, './client/dist')));
+app.use('/public', express.static(path.join(__dirname)));
+app.use('/download', express.static(__dirname + '/public/tmp'));
+app.use(express.static(path.join(__dirname, '../client/dist')));
 app.use(
   '/louis',
   express.static(saveFolder),
-  serveIndex(saveFolder, { icons: true, stylesheet: './public/style.css' }),
+  serveIndex(saveFolder, { icons: true, stylesheet: path.join(__dirname, '/public/style.css') }),
 );
 
 let fileName = '',
@@ -72,7 +72,7 @@ const broadcastCompletedJob = (job) => {
 
 function _useWorker(data) {
   return new Promise((resolve, reject) => {
-    const worker = new Worker('./src/pdfToimg.js', { workerData: data });
+    const worker = new Worker(path.join(__dirname, './src/pdfToimg.js'), { workerData: data });
     worker.on('message', resolve);
     worker.on('error', reject);
     worker.on('exit', (code) => {
@@ -84,7 +84,7 @@ function _useWorker(data) {
 }
 
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, './client/dist/index.html'));
+  res.sendFile(path.join(__dirname, '../client/dist/index.html'));
 });
 
 app.post('/', async (req, res) => {
@@ -122,13 +122,13 @@ app.post('/', async (req, res) => {
 
   //Lecture Ecriture format tauro
   let arr = [];
-  if (fs.existsSync('./formatsTauro.conf')) {
-    const readFile = fs.readFileSync('./formatsTauro.conf', {
+  if (fs.existsSync(path.join(__dirname, './formatsTauro.conf'))) {
+    const readFile = fs.readFileSync(path.join(__dirname, './formatsTauro.conf'), {
       encoding: 'utf8',
     });
     arr.push(readFile.split(/\r?\n/g));
     if (allFormatTauro.length > arr[0].length) {
-      fs.writeFileSync('./formatsTauro.conf', allFormatTauro.join('\n'));
+      fs.writeFileSync(path.join(__dirname, './formatsTauro.conf'), allFormatTauro.join('\n'));
     }
   }
 
@@ -240,7 +240,6 @@ app.post('/', async (req, res) => {
 
 app.patch('/edit_job', async (req, res) => {
   const updates = req.body;
-  console.log('Reçu mise à jour:', updates);
 
   // Rechercher l'objet par `_id`
   const objIndex = jobList.jobs.findIndex((obj) => obj._id === updates._id);
@@ -251,6 +250,11 @@ app.patch('/edit_job', async (req, res) => {
 
   // Mettre à jour l'objet avec les nouvelles valeurs
   jobList.jobs[objIndex] = { ...jobList.jobs[objIndex], ...updates };
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ type: 'update' }));
+    }
+  });
 
   // Envoyer la réponse
   res.status(200).json({ message: 'Objet mis à jour avec succès', object: jobList.jobs[objIndex] });
@@ -372,8 +376,6 @@ app.post('/run_jobs', async (req, res) => {
     }
   }
 
-  let pdfTime;
-  let jpgTime;
   const status = req.body.run;
   if (!status) {
     return res.status(400).json({ error: 'Jobs not run' });
@@ -454,9 +456,9 @@ app.post('/run_jobs', async (req, res) => {
           Deco: matchName ? job.visuel.substring(0, job.visuel.indexOf(matchName[0])) : '',
           Ref: matchRef ? matchRef[0] : 0,
           Format: job.format_visu,
-          Ex: job.ex,
+          Ex: parseInt(job.ex),
           Temps: parseFloat(((jpgTime + pdfTime) / 1000).toFixed(2)),
-          Perte_m2: job.perte,
+          Perte_m2: parseFloat(job.perte),
           app_version: `v${version.version}`,
           ip: req.hostname,
         },
@@ -569,8 +571,8 @@ app.get('/path', async (req, res) => {
 
 app.get('/formatsTauro', (req, res) => {
   let arr = [];
-  if (fs.existsSync('./formatsTauro.conf')) {
-    const readFile = fs.readFileSync('./formatsTauro.conf', {
+  if (fs.existsSync(path.join(__dirname, './formatsTauro.conf'))) {
+    const readFile = fs.readFileSync(path.join(__dirname, './formatsTauro.conf'), {
       encoding: 'utf8',
     });
     arr.push(readFile.split(/\r?\n/g));
@@ -581,12 +583,12 @@ app.get('/formatsTauro', (req, res) => {
     }));
     res.json(json);
   } else {
-    fs.writeFileSync('./formatsTauro.conf', '');
+    fs.writeFileSync(path.join(__dirname, '/formatsTauro.conf'), '');
   }
 });
 
 app.get('/download', (req, res) => {
-  const files = fs.readdirSync(path.join(__dirname, './public/tmp/'));
+  const files = fs.readdirSync(path.join(__dirname, '/public/tmp/'));
   files.forEach((file) => {
     if (path.extname(file) == '.dxf') {
       fileDownload = file;
@@ -597,7 +599,7 @@ app.get('/download', (req, res) => {
     }
   });
 
-  res.download('./public/tmp/' + fileDownload, (err) => {
+  res.download(path.join(__dirname, '/public/tmp/' + fileDownload), (err) => {
     if (err) {
       console.log('Download error: ', err);
       res.redirect('/');

@@ -48,6 +48,11 @@ function JobsList({ show, formatTauro }) {
 
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
+
+      if (message.type === 'update') {
+        setRefreshFlag((prev) => !prev);
+      }
+
       if (message.type === 'start') {
         setStartTime(message.startTime);
         setOnLoading(true);
@@ -164,7 +169,6 @@ function JobsList({ show, formatTauro }) {
       const visuel = value.visuel ? value.visuel.split('/').pop().split('-').pop().split(' ')[0] : '';
       const title = value.jpgName.split('/').pop();
       const url = `http://${HOST}:${PORT}/public/` + value.jpgName.replace(/#/i, '%23');
-
       return (
         <TableRow key={i} disabled={status === 'jobs' ? onLoading : null} className="table-row">
           <TableCell className="table-cell">

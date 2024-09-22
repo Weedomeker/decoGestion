@@ -1,9 +1,10 @@
 node_modules
 .vscode/*
 !.vscode/extensions.json
-public/deco
-public/tmp
-public/tauro
+server/public/deco
+server/public/tmp
+server/public/tauro
+server/public/*/*.jpg
 *.csv
 *.log
 client/dist

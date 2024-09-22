@@ -1,30 +1,28 @@
 .jobs-table-container {
   overflow: auto;
   width: 100%;
-  max-height: max-content; /* Ajustez cette valeur en fonction de la hauteur du header et du footer */
-  min-height: 300px;
-  height: calc(300px - 40px);
+  height: 300px; /* Hauteur fixe du conteneur */
 }
 
 .jobs-table {
+  height: 300px;
   width: 100%;
   display: table;
   table-layout: fixed; /* Pour garder une largeur uniforme des colonnes */
   border-collapse: collapse; /* S'assure qu'il n'y a pas d'espace entre les bordures de cellules */
-  height: 100%;
 }
 
 .sticky-header,
 .sticky-footer {
   position: sticky;
   z-index: 1;
-  display: table-header-group; /* Garder la structure de table pour le header */
   width: 100%;
 }
 
 .sticky-header {
   background-color: #1c1c1c !important;
   top: 0;
+  display: table-header-group; /* Garder la structure de table pour le header */
 }
 
 .sticky-footer {
@@ -42,20 +40,23 @@
 
 .body-table-jobs {
   display: table-row-group; /* Utiliser table-row-group pour garder la structure de la table */
-  table-layout: fixed;
 }
 
 .table-row {
   display: table-row;
-  width: 100%;
+  height: 14px !important; /* Hauteur fixe pour les lignes */
+  max-height: 14px;
 }
 
 .table-cell {
+  height: 14px !important; /* Hauteur fixe pour les cellules */
+  max-height: 14px;
   font-size: 12px;
   overflow: hidden; /* Assurez que le contenu ne déborde pas */
   text-overflow: ellipsis; /* Ajoute des points de suspension pour le contenu débordant */
   white-space: nowrap; /* Empêche le texte de s'étendre sur plusieurs lignes */
   display: table-cell; /* Les cellules restent en table-cell */
+  vertical-align: top; /* Assure que le contenu est aligné en haut */
 }
 
 .progress {

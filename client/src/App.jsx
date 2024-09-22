@@ -3,7 +3,6 @@ const PORT = import.meta.env.VITE_PORT;
 import { useEffect, useState } from 'react';
 import { Button, ButtonContent, Checkbox, Form, Icon, Input } from 'semantic-ui-react';
 import CheckFormats from './CheckFormats';
-import DownloadFile from './components/DownloadFile';
 import Footer from './components/Footer';
 import FormatDropdown from './components/FormatDropdown';
 import FormatTauro from './components/FormatTauro';
@@ -11,7 +10,6 @@ import Header from './components/Header';
 import InfoMessage from './components/InfoMessage';
 import InfoModal from './components/InfoModal';
 import JobsList from './components/JobsList';
-import Loading from './components/Loading';
 import LouisPreview from './components/LouisPreview';
 import Place from './components/Place';
 import PreviewDeco from './components/PreviewDeco';
@@ -27,7 +25,6 @@ function App() {
     cut: false,
     reg: false,
   });
-  const [fileNameCut, setFileNameCut] = useState('');
   const [showAddFormat, setShowAddFormat] = useState(false);
   const [selectedFormatTauro, setSelectedFormatTauro] = useState('');
   const [version, setVersion] = useState(null);
@@ -36,13 +33,10 @@ function App() {
   const [isFile, setIsFile] = useState(false);
   const [selectedFile, setSelectedFile] = useState('');
   const [fileSize, setFileSize] = useState('');
-  const [isProcessLoading, setIsProcessLoading] = useState(false);
-  const [timeProcess, setTimeProcess] = useState({});
   const [isFooter, setIsFooter] = useState(false);
   const [isShowPdf, setIsShowPdf] = useState(false);
   const [isShowLouis, setIsShowLouis] = useState(false);
   const [isShowJobsList, setIsShowJobsList] = useState(true);
-  const [isShowDownloadCut, setIsShowDownloadCut] = useState(false);
   const [warnMsg, setWarnMsg] = useState({
     hidden: true,
     header: '',
@@ -133,39 +127,6 @@ function App() {
     });
   };
 
-  const handleGetProcess = async () => {
-    try {
-      const res = await fetch(`http://${HOST}:${PORT}/process`, {
-        method: 'GET',
-        headers: {
-          Accept: 'Application/json',
-          credentials: 'same-origin',
-          'Content-Type': 'application/json',
-        },
-      });
-      const data = await res.json();
-
-      if (res.status === 200) {
-        const update = {
-          pdf: data.pdfTime,
-          jpg: data.jpgTime,
-          jpgPath: data.jpgPath,
-          fileName: data.fileName,
-          time: data.time,
-          version: data.version,
-        };
-
-        setIsProcessLoading(false);
-        setIsFooter(true);
-        setTimeProcess((timeProcess) => Object.assign({}, timeProcess, update));
-        setIsShowJobsList(true);
-        checkGenerate.cut ? setIsShowDownloadCut(true) : setIsShowDownloadCut(false);
-      }
-    } catch (err) {
-      console.log(err);
-    }
-  };
-
   const handleJobSubmit = async (e) => {
     e.preventDefault();
     const form = document.querySelector('form');
@@ -216,61 +177,6 @@ function App() {
     }
   };
 
-  // Submit form
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    const form = e.target;
-    const formData = new FormData(form);
-    const data = {
-      allFormatTauro: formatTauro,
-      formatTauro: selectedFormatTauro,
-      prodBlanc: checkProdBlanc,
-      format: selectedFormat,
-      visuel: selectedFile,
-      numCmd: formData.get('numCmd'),
-      ville: formData.get('ville'),
-      ex: formData.get('ex'),
-      perte: perte,
-      regmarks: checkGenerate.reg,
-    };
-
-    //POST data
-    fetch(`http://${HOST}:${PORT}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-      .then((res) => {
-        if (res.status == 200) {
-          handleGetProcess();
-        }
-      })
-      .catch((err) => console.log(err));
-
-    // Reset form
-    form.reset();
-    setSelectedFormatTauro('');
-    setSelectedFile('');
-    setSelectedFormat('');
-    setPerte(0);
-    setEnabled({
-      format: true,
-      visu: true,
-      numCmd: true,
-      ville: true,
-      ex: true,
-      validate: true,
-    });
-
-    // Hide view
-    setIsShowPdf(false);
-    setIsShowLouis(false);
-
-    //Set Loading Process
-    setIsProcessLoading(true);
-  };
-
   // Ajout Format Plaque Tauro
   const handleToggleAddFormat = () => {
     showAddFormat ? setShowAddFormat(false) : setShowAddFormat(true);
@@ -284,15 +190,12 @@ function App() {
 
   return (
     <div className="container">
-      {/* LOADING */}
-      <Loading active={isProcessLoading} />
-
       {/* Header Logo */}
       <Header appVersion={version} />
 
       {/* Session Input */}
       <div className="main">
-        <Form onSubmit={handleSubmit} className="form">
+        <Form className="form">
           {/* Warning Message */}
           <InfoMessage
             isHidden={warnMsg.hidden}
@@ -391,7 +294,6 @@ function App() {
                 setCheckGenerate({ cut: data.checked, reg: data.checked });
               }}
             />
-            {isShowDownloadCut && <DownloadFile urlFile={`http://${HOST}:${PORT}/download`} fileName={fileNameCut} />}
           </Form.Field>
 
           {/* Format */}
@@ -410,7 +312,7 @@ function App() {
               onSelectFormat={(e, v) => {
                 const value = isLoading ? 'Loading..' : data.find((x) => x.path === v.value);
                 setSelectedFormat(value.name);
-                setFileNameCut(value.name);
+
                 setFiles(value.files);
                 setIsFile(true);
                 setSelectedFile(null);
@@ -603,7 +505,7 @@ function App() {
       />
 
       {/* FOOTER */}
-      <Footer active={!isFooter} timePdf={timeProcess.pdf} timeJpg={timeProcess.jpg} />
+      <Footer active={!isFooter} />
     </div>
   );
 }
