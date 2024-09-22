@@ -1,4 +1,5 @@
-const isDev = require('isdev');
+require('dotenv').config();
+const isDev = require('isDev');
 const checkVersion = require('./src/checkVersion');
 const version = require('../package.json');
 const express = require('express');
@@ -626,6 +627,7 @@ server.listen(PORT, async () => {
     .catch((error) => {
       console.error('Error:', error);
     });
+  console.log(process.env.NODE_ENV);
   console.log(`Server start on port ${PORT}`);
   await mongoose().catch((err) => console.log(err));
 });
