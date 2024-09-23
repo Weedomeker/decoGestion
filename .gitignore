@@ -1,6 +1,7 @@
 node_modules
 .vscode/*
 !.vscode/extensions.json
+dist/
 server/public/deco
 server/public/tmp
 server/public/tauro

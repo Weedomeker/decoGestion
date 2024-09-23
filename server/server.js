@@ -627,7 +627,7 @@ server.listen(PORT, async () => {
     .catch((error) => {
       console.error('Error:', error);
     });
-  console.log(process.env.NODE_ENV);
+
   console.log(`Server start on port ${PORT}`);
   await mongoose().catch((err) => console.log(err));
 });

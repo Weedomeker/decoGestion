@@ -1,18 +1,61 @@
 {
-  "name": "decogestion",
+  "name": "deco-gestion",
+  "productName": "Déco Gestion",
   "version": "2.2.1",
-  "description": "",
+  "description": "Permet de produire plus facilement l'imposition des visuels sur les plaques à imprimer.",
   "main": "main.js",
   "scripts": {
     "start": "set NODE_ENV=development && electron .",
-    "server": "set NODE_ENV=development && node ./server/server",
-    "dev": "set NODE_ENV=development && nodemon ./server/server.js -e ejs,js,css,html,scss",
+    "server": "set NODE_ENV=development && nodemon ./server/server.js -e ejs,js,css,html,scss",
     "client": "set NODE_ENV=development && cd client && npm run dev",
-    "client-build": "set NODE_ENV=production && cd client && npm run build"
+    "build-client": "set NODE_ENV=production && cd client && npm run build",
+    "rebuild": "electron-rebuild -f -w deco-gestion",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "productName": "Déco Gestion",
+    "appId": "com.electron.deco-gestion",
+    "artifactName": "${productName}-${version}-${os}.${ext}",
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "artifactName": "${productName}-Setup-${version}-${os}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}-${os}.${ext}"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "client/dist/**/*",
+      "server/**/*",
+      "node_modules/**/*"
+    ]
   },
   "keywords": [],
-  "author": "",
+  "author": "Weedomeker",
   "license": "ISC",
+  "bugs": "https://github.com/Weedomeker/decoGestion/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Weedomeker/decoGestion.git"
+  },
   "dependencies": {
     "@types/fs-extra": "^11.0.1",
     "check-update-github": "^0.0.4",
@@ -34,6 +77,8 @@
   "devDependencies": {
     "dotenv": "^16.4.5",
     "electron": "^32.1.2",
+    "electron-builder": "^25.0.5",
+    "electron-rebuild": "^3.2.9",
     "eslint": "^8.52.0",
     "isdev": "^1.0.1",
     "prettier": "^3.1.0",
