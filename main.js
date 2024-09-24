@@ -10,20 +10,34 @@ function createWindow() {
     width: 800,
     height: 600,
     webPreferences: {
-      preload: path.join(app.getAppPath(), 'preload.js'), // Si vous avez un fichier preload.js
       nodeIntegration: true,
       contextIsolation: false,
     },
   });
 
-  win.loadURL('http://localhost:8000'); // Chargez votre app React avec le serveur Express
+  // Chargez votre app React avec le serveur Express
+  if (process.env.NODE_ENV === 'development') {
+    win.loadURL('http://localhost:8000');
+    console.log('DEV ENV');
+  } else {
+    win.loadURL('http://localhost:8000');
+  }
   //win.setMenu(null);
   win.maximize();
 }
 
 // Démarrer le serveur Express avec spawn
 function startServer() {
-  const serverPath = path.join(app.getAppPath(), './server/server.js');
+  // Chemin pour localiser le fichier server.js
+  let serverPath;
+
+  if (process.env.NODE_ENV === 'development') {
+    // En mode développement, le fichier est directement accessible
+    serverPath = path.join(__dirname, 'server', 'server.js');
+  } else {
+    // En production, vérifier si le fichier est dans app.asar.unpacked
+    serverPath = path.join(process.resourcesPath, 'app.asar.unpacked', 'server', 'server.js');
+  }
 
   // Lancer le serveur avec spawn
   serverProcess = spawn('node', [serverPath], { stdio: 'inherit' });

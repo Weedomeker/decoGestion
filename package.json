@@ -5,12 +5,12 @@
   "description": "Permet de produire plus facilement l'imposition des visuels sur les plaques à imprimer.",
   "main": "main.js",
   "scripts": {
-    "start": "set NODE_ENV=development && electron .",
-    "server": "set NODE_ENV=development && nodemon ./server/server.js -e ejs,js,css,html,scss",
-    "client": "set NODE_ENV=development && cd client && npm run dev",
-    "build-client": "set NODE_ENV=production && cd client && npm run build",
+    "start": "set NODE_ENV=development&& electron .",
+    "server": "set NODE_ENV=development&& nodemon ./server/server.js -e ejs,js,css,html,scss",
+    "client": "set NODE_ENV=development&& cd client && npm run dev",
+    "build-client": "set NODE_ENV=production&& cd client && npm run build",
     "rebuild": "electron-rebuild -f -w deco-gestion",
-    "dist": "electron-builder"
+    "dist": "rm -rf dist && electron-builder"
   },
   "build": {
     "productName": "Déco Gestion",
@@ -42,10 +42,12 @@
     },
     "files": [
       "main.js",
-      "preload.js",
-      "client/dist/**/*",
       "server/**/*",
-      "node_modules/**/*"
+      "client/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "server/**/*"
     ]
   },
   "keywords": [],
