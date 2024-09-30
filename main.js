@@ -115,6 +115,7 @@ function updateServerMenu() {
           startServer();
         }
       },
+      icon: isServerRunning ? './build/server_online.png' : './build/server_offline.png',
     },
     { type: 'separator' },
     { label: 'Quitter', type: 'normal', role: 'quit' },
@@ -143,6 +144,7 @@ app.on('ready', () => {
           startServer();
         }
       },
+      icon: './build/server_offline.png',
     },
     { type: 'separator' },
     { label: 'Quitter', type: 'normal', role: 'quit' },
