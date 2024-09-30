@@ -6,26 +6,23 @@ const { spawn } = require('child_process');
 
 let serverProcess; // Variable pour stocker le processus du serveur
 let tray = null;
+let contextMenu; // Déclaration ici pour être accessible partout
 const iconPath = path.join(process.resourcesPath, 'icon.ico');
+let isServerRunning = true; // Indicateur pour suivre l'état du serveur
 
-log.initialize();
+log.initialize({ spyRendererConsole: true });
 log.transports.file.resolvePathFn = () => path.join(__dirname, 'main.log');
-log.info('Log from the main process');
 
 console.log = log.log;
 
 // Démarrer le serveur Express avec spawn
 function startServer() {
-  // Chemin pour localiser le fichier server.js
   let serverPath;
 
   if (process.env.NODE_ENV === 'development') {
-    // En mode développement, le fichier est directement accessible
     serverPath = path.join(__dirname, 'server', 'server.js');
   } else {
-    // En production, vérifier si le fichier est dans app.asar.unpacked
     serverPath = path.join(process.resourcesPath, 'server', 'server.js');
-    // serverPath = path.join(__dirname, 'server', 'server.js');
   }
 
   console.log(`Chemin du script serveur : ${serverPath}`);
@@ -34,10 +31,7 @@ function startServer() {
     return;
   }
 
-  const stdioConfig =
-    process.env.NODE_ENV === 'development'
-      ? 'inherit' // Affiche les logs du serveur dans la console en développement
-      : ['pipe', 'pipe', 'pipe']; // Capture stdout/stderr en production
+  const stdioConfig = process.env.NODE_ENV === 'development' ? 'inherit' : ['pipe', 'pipe', 'pipe'];
 
   const nodeExecPath = process.env.NODE_ENV === 'development' ? 'node' : process.execPath;
 
@@ -45,16 +39,17 @@ function startServer() {
   serverProcess = spawn(nodeExecPath, [serverPath], {
     env: { ...process.env, NODE_ENV: process.env.NODE_ENV || 'production' },
     stdio: stdioConfig,
-    detached: process.env.NODE_ENV === 'production',
   });
 
-  if (process.env.NODE_ENV === 'production') {
+  // Vérifie si serverProcess est défini avant d'accéder à stdout
+  if (serverProcess) {
+    // Capture de la sortie du serveur
     if (serverProcess.stdout) {
       serverProcess.stdout.on('data', (data) => {
         console.log(`stdout: ${data}`);
       });
     } else {
-      console.log('serverProcess.stdout est null');
+      console.log('Erreur : serverProcess.stdout est null');
     }
 
     if (serverProcess.stderr) {
@@ -62,16 +57,32 @@ function startServer() {
         console.log(`stderr: ${data}`);
       });
     } else {
-      console.log('serverProcess.stderr est null');
+      console.log('Erreur : serverProcess.stderr est null');
     }
+
+    serverProcess.on('error', (err) => {
+      console.log('Erreur lors du démarrage du serveur:', err);
+    });
+
+    serverProcess.on('close', (code) => {
+      console.log(`Serveur Express arrêté avec le code : ${code}`);
+      isServerRunning = false; // Met à jour l'indicateur d'état
+    });
+
+    isServerRunning = true; // Met à jour l'indicateur d'état
+    updateServerMenu();
+  } else {
+    console.log('Erreur : serverProcess est null après le spawn');
   }
-
-  serverProcess.on('error', (err) => {
-    console.log('Erreur lors du démarrage du serveur:', err);
+  tray.displayBalloon({
+    title: 'Server démarré',
+    content: `http://localhost:8000/`,
+    iconType: 'none',
+    respectQuietTime: true,
   });
-
-  serverProcess.on('close', (code) => {
-    console.log(`Serveur Express arrêté avec le code : ${code}`);
+  tray.on('balloon-click', (e) => {
+    e.preventDefault();
+    require('electron').shell.openExternal('http://localhost:8000');
   });
 }
 
@@ -80,17 +91,14 @@ function stopServer() {
   if (serverProcess) {
     serverProcess.kill('SIGTERM'); // Arrête le processus du serveur proprement
     console.log('Serveur Express arrêté.');
+    serverProcess = null; // Réinitialise le processus du serveur
+    isServerRunning = false; // Met à jour l'indicateur d'état
+    updateServerMenu();
   }
 }
 
-// Démarrer l'application Electron et le serveur Express
-app.on('ready', () => {
-  startServer();
-
-  const iconExists = fs.existsSync(iconPath);
-  tray = new Tray(iconExists ? iconPath : './build/icon.ico');
-
-  const contextMenu = Menu.buildFromTemplate([
+function updateServerMenu() {
+  const updateMenu = Menu.buildFromTemplate([
     {
       label: 'Ouvrir',
       click: () => {
@@ -98,27 +106,53 @@ app.on('ready', () => {
       },
     },
     {
-      type: 'separator',
+      id: 'server-control', // Ajoute un ID pour cet élément du menu
+      label: isServerRunning ? 'Arrêter le serveur' : 'Démarrer le serveur',
+      click: () => {
+        if (isServerRunning) {
+          stopServer();
+        } else {
+          startServer();
+        }
+      },
     },
+    { type: 'separator' },
+    { label: 'Quitter', type: 'normal', role: 'quit' },
+  ]);
+  tray.setContextMenu(updateMenu);
+}
+
+// Démarrer l'application Electron et le serveur Express
+app.on('ready', () => {
+  const iconExists = fs.existsSync(iconPath);
+  tray = new Tray(iconExists ? iconPath : path.join(__dirname, 'build', 'icon.ico'));
+  contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Ouvrir',
+      click: () => {
+        shell.openExternal('http://localhost:8000');
+      },
+    },
+    {
+      id: 'server-control', // Ajoute un ID pour cet élément du menu
+      label: 'Arrêter le serveur',
+      click: () => {
+        if (isServerRunning) {
+          stopServer();
+        } else {
+          startServer();
+        }
+      },
+    },
+    { type: 'separator' },
     { label: 'Quitter', type: 'normal', role: 'quit' },
   ]);
   tray.setToolTip('Déco Gestion');
   tray.setContextMenu(contextMenu);
-
-  tray.displayBalloon({
-    title: 'Server démarré',
-    content: `http://localhost:8000/`,
-    iconType: 'none',
-    respectQuietTime: true,
-  });
-
-  tray.on('balloon-click', (e) => {
-    e.preventDefault();
-    require('electron').shell.openExternal('http://localhost:8000');
-  });
+  startServer();
 });
 
 // Assurez-vous que le serveur est arrêté lors de la fermeture de l'application
-app.on('will-quit', () => {
-  stopServer(); // S'assurer que le serveur est bien arrêté
+app.on('before-quit', () => {
+  stopServer();
 });
