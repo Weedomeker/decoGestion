@@ -6,30 +6,30 @@
   "main": "main.js",
   "scripts": {
     "start": "set NODE_ENV=development&& electron .",
+    "prod": "set NODE_ENV=production&& electron .",
     "server": "set NODE_ENV=development&& nodemon ./server/server.js -e ejs,js,css,html,scss",
     "client": "set NODE_ENV=development&& cd client && npm run dev",
     "build-client": "set NODE_ENV=production&& cd client && npm run build",
     "rebuild": "electron-rebuild -f -w deco-gestion",
-    "dist": "rm -rf dist && electron-builder"
+    "dist": "set NODE_ENV=production&& rm -rf dist && electron-builder"
   },
   "build": {
     "productName": "Déco Gestion",
     "appId": "com.electron.deco-gestion",
     "artifactName": "${productName}-${version}-${os}.${ext}",
     "win": {
+      "icon": "build/icon.ico",
       "target": [
         {
           "target": "nsis",
           "arch": [
-            "x64",
-            "ia32"
+            "x64"
           ]
         },
         {
           "target": "portable",
           "arch": [
-            "x64",
-            "ia32"
+            "x64"
           ]
         }
       ]
@@ -42,13 +42,38 @@
     },
     "files": [
       "main.js",
+      ".env",
       "server/**/*",
-      "client/**/*",
+      "client/dist/**/*",
       "package.json"
     ],
-    "asarUnpack": [
-      "server/**/*"
-    ]
+    "extraResources": [
+      {
+        "from": "./server",
+        "to": "server",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "./client/dist",
+        "to": "client/dist",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": ".env",
+        "to": ".env"
+      }
+    ],
+    "extraFiles": [
+      {
+        "from": "build/icon.ico",
+        "to": "resources"
+      }
+    ],
+    "compression": "store"
   },
   "keywords": [],
   "author": "Weedomeker",
@@ -63,10 +88,12 @@
     "check-update-github": "^0.0.4",
     "cors": "^2.8.5",
     "electron-is-dev": "^3.0.1",
+    "electron-log": "^5.2.0",
     "express": "^4.18.2",
     "lightbox2": "^2.11.4",
     "makerjs": "^0.18.1",
     "mongoose": "^8.4.3",
+    "morgan": "^1.10.0",
     "node-fetch": "^2.7.0",
     "path": "^0.12.7",
     "pdf-lib": "^1.17.1",

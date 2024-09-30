@@ -1,11 +1,10 @@
-require('dotenv').config();
-const isDev = require('isDev');
+require('dotenv').config({});
 const checkVersion = require('./src/checkVersion');
-const version = require('../package.json');
 const express = require('express');
 const app = express();
 const serveIndex = require('serve-index');
 const cors = require('cors');
+const morgan = require('morgan');
 const modifyPdf = require('./src/app');
 const getFiles = require('./src/getFiles').getData;
 const createDec = require('./src/dec');
@@ -21,17 +20,34 @@ const createXlsx = require('./src/xlsx');
 const mongoose = require('./src/mongoose');
 const modelDeco = require('./src/models/Deco');
 
+const accessLogStream = fs.createWriteStream(path.join(__dirname, 'server.log'), { flags: 'a' });
+
 //Path déco
 const decoFolder = './server/public/deco';
 
 //Path export
-const saveFolder = isDev ? path.join(__dirname, '/public/tmp') : path.join(__dirname, '/public/tauro');
+const saveFolder =
+  process.env.NODE_ENV === 'development' ? path.join(__dirname, '/public/tmp') : path.join(__dirname, '/public/tauro');
 const jpgPath = './server/public';
+
+// Gestion du chemin en fonction de l'environnement
+const packageJsonPath = path.join(__dirname, '../package.json');
+
+// Lecture et parsing du fichier package.json
+let appVersion;
+try {
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+  appVersion = packageJson.version;
+  console.log("Version de l'application :", appVersion);
+} catch (err) {
+  console.error('Erreur lors de la lecture du fichier package.json :', err);
+}
 
 app.use(cors());
 app.use(express.json());
+app.use(morgan('combined', { stream: accessLogStream }));
 app.use(express.urlencoded({ extended: false }));
-app.use('/public', express.static(path.join(__dirname)));
+app.use('/public', express.static(__dirname));
 app.use('/download', express.static(__dirname + '/public/tmp'));
 app.use(express.static(path.join(__dirname, '../client/dist')));
 app.use(
@@ -203,7 +219,7 @@ app.post('/', async (req, res) => {
       Deco: fileName.split(' - ').slice(2).pop(),
       Temps: parseFloat(((jpgTime + pdfTime) / 1000).toFixed(2)),
       Perte_m2: data.perte,
-      app_version: `v${version.version}`,
+      app_version: `v${appVersion}`,
       ip: req.hostname,
     },
   ];
@@ -467,7 +483,7 @@ app.post('/run_jobs', async (req, res) => {
           Temps: parseFloat(((jpgTime + pdfTime) / 1000).toFixed(2)),
           Perte_m2: parseFloat(job.perte),
           Perte_m2: parseFloat(job.perte),
-          app_version: `v${version.version}`,
+          app_version: `v${appVersion}`,
           ip: req.hostname,
         },
       ];
@@ -630,4 +646,12 @@ server.listen(PORT, async () => {
 
   console.log(`Server start on port ${PORT}`);
   await mongoose().catch((err) => console.log(err));
+});
+
+process.on('SIGTERM', () => {
+  console.log('Received SIGTERM, shutting down server...');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
 });
