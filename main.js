@@ -1,113 +1,80 @@
-const { app, Tray, Menu, shell } = require('electron');
+const { app, Tray, Menu, shell, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const log = require('electron-log/main');
 const { spawn } = require('child_process');
 
-let serverProcess; // Variable pour stocker le processus du serveur
+let serverProcess;
 let tray = null;
-let contextMenu; // Déclaration ici pour être accessible partout
+let isServerRunning = false; // Indique l'état du serveur
+
 const iconPath = path.join(process.resourcesPath, 'icon.ico');
-let isServerRunning = true; // Indicateur pour suivre l'état du serveur
+const serverOnlineIconPath = path.join(__dirname, 'build', 'server_online.png');
+const serverOfflineIconPath = path.join(__dirname, 'build', 'server_offline.png');
 
-log.initialize({ spyRendererConsole: true });
-log.transports.file.resolvePathFn = () => path.join(__dirname, 'main.log');
-
-console.log = log.log;
-
-// Démarrer le serveur Express avec spawn
+// Fonction pour démarrer le serveur
 function startServer() {
-  let serverPath;
+  // Définir le chemin du serveur en fonction de l'environnement
+  const serverPath =
+    process.env.NODE_ENV === 'development'
+      ? path.join(__dirname, 'server', 'server.js')
+      : path.join(process.resourcesPath, 'server', 'server.js');
 
-  if (process.env.NODE_ENV === 'development') {
-    serverPath = path.join(__dirname, 'server', 'server.js');
-  } else {
-    serverPath = path.join(process.resourcesPath, 'server', 'server.js');
-  }
-
-  console.log(`Chemin du script serveur : ${serverPath}`);
   if (!fs.existsSync(serverPath)) {
     console.error(`Le chemin du serveur est introuvable : ${serverPath}`);
     return;
   }
 
-  const stdioConfig = process.env.NODE_ENV === 'development' ? 'inherit' : ['pipe', 'pipe', 'pipe'];
-
-  const nodeExecPath = process.env.NODE_ENV === 'development' ? 'node' : process.execPath;
-
-  // Lancer le serveur avec spawn
-  serverProcess = spawn(nodeExecPath, [serverPath], {
+  serverProcess = spawn('node', [serverPath], {
     env: { ...process.env, NODE_ENV: process.env.NODE_ENV || 'production' },
-    stdio: stdioConfig,
+    stdio: 'inherit',
   });
 
-  // Vérifie si serverProcess est défini avant d'accéder à stdout
-  if (serverProcess) {
-    // Capture de la sortie du serveur
-    if (serverProcess.stdout) {
-      serverProcess.stdout.on('data', (data) => {
-        console.log(`stdout: ${data}`);
-      });
-    } else {
-      console.log('Erreur : serverProcess.stdout est null');
-    }
-
-    if (serverProcess.stderr) {
-      serverProcess.stderr.on('data', (data) => {
-        console.log(`stderr: ${data}`);
-      });
-    } else {
-      console.log('Erreur : serverProcess.stderr est null');
-    }
-
-    serverProcess.on('error', (err) => {
-      console.log('Erreur lors du démarrage du serveur:', err);
-    });
-
-    serverProcess.on('close', (code) => {
-      console.log(`Serveur Express arrêté avec le code : ${code}`);
-      isServerRunning = false; // Met à jour l'indicateur d'état
-    });
-
-    isServerRunning = true; // Met à jour l'indicateur d'état
-    updateServerMenu();
-  } else {
-    console.log('Erreur : serverProcess est null après le spawn');
-  }
-  tray.displayBalloon({
-    title: 'Server démarré',
-    content: `http://localhost:8000/`,
-    iconType: 'none',
-    respectQuietTime: true,
+  serverProcess.on('error', (err) => console.error('Erreur lors du démarrage du serveur:', err));
+  serverProcess.on('close', (code, signal) => {
+    console.log(`Serveur Express arrêté avec le code : ${code} signal: ${signal}`);
+    isServerRunning = false;
+    updateServerMenu(); // Met à jour le menu automatiquement à l'arrêt du serveur
   });
-  tray.on('balloon-click', (e) => {
-    e.preventDefault();
-    require('electron').shell.openExternal('http://localhost:8000');
-  });
+
+  isServerRunning = true;
+  updateServerMenu(); // Met à jour le menu après le démarrage du serveur
+
+  // tray.displayBalloon({
+  //   title: 'Server démarré',
+  //   content: `http://localhost:8000/`,
+  //   iconType: 'none',
+  //   respectQuietTime: true,
+  // });
+  // tray.on('balloon-click', (e) => {
+  //   e.preventDefault();
+  //   require('electron').shell.openExternal('http://localhost:8000');
+  // });
 }
 
-// Arrêter le serveur Express
+// Fonction pour arrêter le serveur
 function stopServer() {
   if (serverProcess) {
-    serverProcess.kill('SIGTERM'); // Arrête le processus du serveur proprement
-    console.log('Serveur Express arrêté.');
-    serverProcess = null; // Réinitialise le processus du serveur
-    isServerRunning = false; // Met à jour l'indicateur d'état
-    updateServerMenu();
+    serverProcess.kill('SIGTERM'); // Arrête le serveur proprement
+    serverProcess = null;
+    isServerRunning = false;
+    updateServerMenu(); // Met à jour le menu après l'arrêt du serveur
   }
 }
 
+// Fonction pour mettre à jour le menu
 function updateServerMenu() {
-  const updateMenu = Menu.buildFromTemplate([
+  const menuTemplate = [
     {
-      label: 'Ouvrir',
-      click: () => {
-        shell.openExternal('http://localhost:8000');
-      },
+      label: 'Ouvrir le serveur',
+      click: () => shell.openExternal('http://localhost:8000'),
     },
     {
-      id: 'server-control', // Ajoute un ID pour cet élément du menu
+      id: 'server-control',
       label: isServerRunning ? 'Arrêter le serveur' : 'Démarrer le serveur',
+      icon: isServerRunning
+        ? nativeImage.createFromPath(serverOnlineIconPath)
+        : nativeImage.createFromPath(serverOfflineIconPath),
       click: () => {
         if (isServerRunning) {
           stopServer();
@@ -115,46 +82,30 @@ function updateServerMenu() {
           startServer();
         }
       },
-      icon: isServerRunning ? './build/server_online.png' : './build/server_offline.png',
     },
     { type: 'separator' },
-    { label: 'Quitter', type: 'normal', role: 'quit' },
-  ]);
-  tray.setContextMenu(updateMenu);
+    { label: 'Quitter', role: 'quit' },
+  ];
+
+  // Mise à jour du menu du Tray
+  const contextMenu = Menu.buildFromTemplate(menuTemplate);
+  tray.setContextMenu(contextMenu);
 }
 
-// Démarrer l'application Electron et le serveur Express
+// Démarrer l'application Electron
 app.on('ready', () => {
   const iconExists = fs.existsSync(iconPath);
-  tray = new Tray(iconExists ? iconPath : path.join(__dirname, 'build', 'icon.ico'));
-  contextMenu = Menu.buildFromTemplate([
-    {
-      label: 'Ouvrir',
-      click: () => {
-        shell.openExternal('http://localhost:8000');
-      },
-    },
-    {
-      id: 'server-control', // Ajoute un ID pour cet élément du menu
-      label: 'Arrêter le serveur',
-      click: () => {
-        if (isServerRunning) {
-          stopServer();
-        } else {
-          startServer();
-        }
-      },
-      icon: './build/server_offline.png',
-    },
-    { type: 'separator' },
-    { label: 'Quitter', type: 'normal', role: 'quit' },
-  ]);
+  const trayIcon = iconExists ? iconPath : path.join(__dirname, 'build', 'icon.ico');
+
+  tray = new Tray(trayIcon);
   tray.setToolTip('Déco Gestion');
-  tray.setContextMenu(contextMenu);
-  startServer();
+
+  updateServerMenu(); // Initialise le menu lors du démarrage de l'application
+  startServer(); // Démarre le serveur automatiquement au démarrage de l'application
 });
 
-// Assurez-vous que le serveur est arrêté lors de la fermeture de l'application
+// Arrêter le serveur proprement lors de la fermeture de l'application
 app.on('before-quit', () => {
   stopServer();
+  tray.destroy();
 });

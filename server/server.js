@@ -42,8 +42,11 @@ try {
 } catch (err) {
   console.error('Erreur lors de la lecture du fichier package.json :', err);
 }
-
-app.use(cors());
+const corsOptions = {
+  origin: ['http://localhost:8000', 'http://localhost:5173', 'file'], // Ajoutez 'file://' pour accepter les requêtes locales d'Electron
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(morgan('combined', { stream: accessLogStream }));
 app.use(express.urlencoded({ extended: false }));
@@ -649,9 +652,9 @@ server.listen(PORT, async () => {
 });
 
 process.on('SIGTERM', () => {
-  console.log('Received SIGTERM, shutting down server...');
+  console.log('SIGTERM signal received: closing HTTP server');
   server.close(() => {
-    console.log('Server closed');
+    console.log('HTTP server closed');
     process.exit(0);
   });
 });
