@@ -4,14 +4,9 @@ const path = require('path');
 const Wastecut = require('./wastecut');
 let exportPath = [];
 
-const createDec = (
-  widthPlate = Number,
-  heightPlate = Number,
-  decWidth = Number,
-  decHeight = Number,
-) => {
+const createDec = (widthPlate = Number, heightPlate = Number, decWidth = Number, decHeight = Number) => {
   const regSize = 0.3;
-  const regPosition = 1.5;
+  const regPosition = regSize + 1.5;
 
   const model = {
     models: {
@@ -24,27 +19,12 @@ const createDec = (
       regmarks: {
         paths: {
           //BAS
-          reg1: new makerjs.paths.Circle(
-            [-decHeight / 2 - regPosition, decWidth / 2 - regPosition],
-            regSize,
-          ),
-          reg2: new makerjs.paths.Circle(
-            [-decHeight / 2 - regPosition, decWidth / 2 - (regPosition + 10)],
-            regSize,
-          ),
-          reg3: new makerjs.paths.Circle(
-            [-decHeight / 2 - regPosition, -decWidth / 2 + regPosition],
-            regSize,
-          ),
+          reg1: new makerjs.paths.Circle([-decHeight / 2 - regPosition, decWidth / 2 - regPosition], regSize),
+          reg2: new makerjs.paths.Circle([-decHeight / 2 - regPosition, decWidth / 2 - (regPosition + 10)], regSize),
+          reg3: new makerjs.paths.Circle([-decHeight / 2 - regPosition, -decWidth / 2 + regPosition], regSize),
           //HAUT
-          reg4: new makerjs.paths.Circle(
-            [decHeight / 2 + regPosition, decWidth / 2 - regPosition],
-            regSize,
-          ),
-          reg5: new makerjs.paths.Circle(
-            [decHeight / 2 + regPosition, -decWidth / 2 + regPosition],
-            regSize,
-          ),
+          reg4: new makerjs.paths.Circle([decHeight / 2 + regPosition, decWidth / 2 - regPosition], regSize),
+          reg5: new makerjs.paths.Circle([decHeight / 2 + regPosition, -decWidth / 2 + regPosition], regSize),
         },
       },
 
@@ -64,6 +44,12 @@ const createDec = (
   model.models.regmarks.paths.reg4.layer = 'black';
   model.models.regmarks.paths.reg5.layer = 'black';
 
+  console.log(`Regmark DXF Position: Reg1 X: ${-decHeight / 2 - regPosition}, Y: ${decWidth / 2 - regPosition} cm`);
+  console.log(
+    `Regmark DXF Position: Reg2 X: ${-decHeight / 2 - regPosition}, Y: ${decWidth / 2 - (regPosition + 10)} cm`,
+  );
+  console.log(`Regmark DXF Position: Reg3 X: ${-decHeight / 2 - regPosition}, Y: ${-decWidth / 2 + regPosition} cm`);
+
   const { paths } = Wastecut(widthPlate, heightPlate, decWidth, decHeight);
   Object.keys(paths).map((el) => {
     model.models.wasteCut.paths[el].layer = 'maroon';
@@ -75,7 +61,7 @@ const createDec = (
     const dxf = makerjs.exporter.toDXF(model, {
       units: 'cm',
     });
-    const svg = makerjs.exporter.toSVG(model, { units: 'mm' });
+    const svg = makerjs.exporter.toSVG(model, { units: 'cm' });
     try {
       if (fs.existsSync(pathFile)) {
         fs.writeFileSync(pathFile + fileName + '.dxf', dxf);

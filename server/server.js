@@ -501,7 +501,7 @@ app.post('/run_jobs', async (req, res) => {
       //SAVE DB
       try {
         const newDeco = new modelDeco(dataFileExport[0]);
-        console.log(newDeco);
+
         await newDeco.save();
       } catch (error) {
         console.log(error);

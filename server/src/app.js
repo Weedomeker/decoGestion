@@ -1,76 +1,79 @@
-const { degrees, PDFDocument, rgb, StandardFonts, grayscale } = require('pdf-lib');
+const { degrees, PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fs = require('fs');
-const { performance } = require('perf_hooks');
-const { cmToPxl, pxlToCm } = require('./convertPxlCm');
+const { cmToPoints, pointsToCm } = require('./convertUnits').default;
 
 async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg) {
-  const readPdf = await fs.promises.readFile(filePath);
-  const pdfDoc = await PDFDocument.load(readPdf);
-  const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const wSize = format.split('x')[0];
-  const hSize = format.split('x')[1];
-
-  const pages = pdfDoc.getPages();
-  const firstPage = pages[0];
-  const { width, height } = firstPage.getSize();
-  const fTauro = formatTauro.split('_').pop();
-  const largeurPlaque = cmToPxl(parseInt(fTauro.split('x')[0]));
-  const longueurPlaque = cmToPxl(parseInt(fTauro.split('x')[1]));
-
-  let xPosition = 35;
-  let textSize = 35;
-
-  // ADD REGMARKS
-  if (reg == true) {
-    xPosition = -25;
-    firstPage.setSize(longueurPlaque, largeurPlaque);
-    const drawRegmarks = (xReg, yReg, sizeReg) => {
-      if (sizeReg == null || sizeReg == '' || sizeReg == undefined) {
-        sizeReg = 0.6;
-      }
-      firstPage.drawCircle({
-        x: xReg,
-        y: yReg,
-        size: cmToPxl(sizeReg / 2),
-        color: rgb(0, 0, 0),
-      });
-    };
-    drawRegmarks(-cmToPxl(1), cmToPxl(2));
-    drawRegmarks(-cmToPxl(1), height - cmToPxl(2));
-    drawRegmarks(-cmToPxl(1), height - cmToPxl(12));
-    drawRegmarks(width + cmToPxl(1), cmToPxl(2));
-    drawRegmarks(width + cmToPxl(1), height - cmToPxl(2));
-
-    firstPage.translateContent((longueurPlaque - width) / 2, (largeurPlaque - height) / 2);
-  }
-
-  const getFormat = () => {
-    if (wSize == 150 && hSize == 255) {
-      xPosition = xPosition;
-      textSize = 70;
-    } else {
-      return;
-    }
-  };
-  getFormat();
-
-  const text = fileName;
-  const textWitdth = helveticaFont.widthOfTextAtSize(text, textSize);
-  firstPage.drawText(text, {
-    x: xPosition,
-    y: height / 2 - textWitdth / 2,
-    size: textSize,
-    font: helveticaFont,
-    color: rgb(0, 0, 0),
-    rotate: degrees(90),
-  });
-
-  const pdfBytes = await pdfDoc.save();
-
   try {
+    const readPdf = await fs.promises.readFile(filePath);
+    const pdfDoc = await PDFDocument.load(readPdf);
+    const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+    const [wSize, hSize] = format.split('x').map(Number);
+    const pages = pdfDoc.getPages();
+    const firstPage = pages[0];
+    const { width, height } = firstPage.getSize();
+
+    const fTauro = formatTauro.split('_').pop();
+    const [largeurPlaqueCm, longueurPlaqueCm] = fTauro.split('x').map(Number);
+
+    // Utiliser cmToPoints pour avoir des coordonnées cohérentes
+    const largeurPlaque = cmToPoints(largeurPlaqueCm);
+    const longueurPlaque = cmToPoints(longueurPlaqueCm);
+
+    let xPosition = 35;
+    let textSize = 35;
+    const text = fileName;
+    const textWidth = helveticaFont.widthOfTextAtSize(text, textSize);
+
+    // Ajout de repères
+    if (reg) {
+      xPosition = -15;
+      firstPage.setSize(longueurPlaque, largeurPlaque);
+
+      const drawRegmarks = (xReg, yReg, sizeReg = 0.6) => {
+        firstPage.drawCircle({
+          x: xReg,
+          y: yReg,
+          size: cmToPoints(sizeReg / 2), // Conversion de cm à points pour la taille du cercle
+          color: rgb(0, 0, 0),
+        });
+        console.log(`Regmark PDF Position: X: ${pointsToCm(xReg)} cm, Y: ${pointsToCm(yReg)} cm`);
+      };
+
+      // Calcul de la position des repères en points (en utilisant cmToPoints)
+      let regPosition = cmToPoints(1.5);
+      let regSize = cmToPoints(0.3);
+
+      drawRegmarks(-regPosition, height - regPosition); // Haut gauche
+      drawRegmarks(-regPosition, height - regPosition - cmToPoints(10)); // Bas gauche
+      drawRegmarks(-regPosition, regPosition); // Bas gauche (autre position)
+      drawRegmarks(width + regPosition, regPosition); // Bas droite
+      drawRegmarks(width + regPosition, height - regPosition); // Haut droite
+
+      firstPage.translateContent((longueurPlaque - width) / 2, (largeurPlaque - height) / 2);
+    }
+
+    const getFormat = () => {
+      if (wSize === 150 && hSize === 255) {
+        xPosition = xPosition;
+        textSize = 70;
+      }
+    };
+    getFormat();
+
+    firstPage.drawText(text, {
+      x: xPosition,
+      y: height / 2 - textWidth / 2,
+      size: textSize,
+      font: helveticaFont,
+      color: rgb(0, 0, 0),
+      rotate: degrees(90),
+    });
+
+    const pdfBytes = await pdfDoc.save();
     await fs.promises.writeFile(`${writePath}/${text}.pdf`, pdfBytes);
   } catch (error) {
-    console.log(error);
+    console.error("Une erreur s'est produite lors de la modification du PDF :", error);
   }
 }
 
