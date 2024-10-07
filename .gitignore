@@ -13,3 +13,5 @@ client/dist
 *.log
 *.csv
 *.xlsx
+notes.txt
+test.js
