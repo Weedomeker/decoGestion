@@ -7,7 +7,7 @@
   "scripts": {
     "start": "set NODE_ENV=development&& electron .",
     "prod": "set NODE_ENV=production&& electron .",
-    "server": "set NODE_ENV=development&& nodemon ./server/server.js -e ejs,js,css,html,scss",
+    "server": "set NODE_ENV=development&& nodemon ./server/server.js -e js,css,html",
     "client": "set NODE_ENV=development&& cd client && npm run dev",
     "build-client": "set NODE_ENV=production&& cd client && npm run build",
     "rebuild": "electron-rebuild -f -w deco-gestion",
@@ -85,6 +85,7 @@
   },
   "dependencies": {
     "@types/fs-extra": "^11.0.1",
+    "chalk": "^4.1.2",
     "check-update-github": "^0.0.4",
     "cors": "^2.8.5",
     "electron-is-dev": "^3.0.1",

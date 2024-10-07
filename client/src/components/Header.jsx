@@ -1,6 +1,6 @@
-import { Image } from 'semantic-ui-react';
 import PropTypes from 'prop-types';
-import logo from '../images/logo_deco_noir.svg'
+import { Image } from 'semantic-ui-react';
+import logo from '../images/logo_deco_noir.svg';
 const Header = ({ appVersion }) => {
   const app = appVersion && appVersion.replace(/(\d)/g, '$1');
   return (

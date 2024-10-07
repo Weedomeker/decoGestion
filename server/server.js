@@ -1,14 +1,7 @@
-require('dotenv').config({});
-const checkVersion = require('./src/checkVersion');
+require('dotenv').config();
+const chalk = require('chalk');
 const express = require('express');
 const app = express();
-const serveIndex = require('serve-index');
-const cors = require('cors');
-const morgan = require('morgan');
-const modifyPdf = require('./src/app');
-const getFiles = require('./src/getFiles').getData;
-const createDec = require('./src/dec');
-const createJob = require('./src/jobsList');
 const path = require('path');
 const fs = require('fs');
 const { performance } = require('perf_hooks');
@@ -16,13 +9,26 @@ const { Worker, workerData } = require('worker_threads');
 const WebSocket = require('ws');
 const http = require('http');
 const PORT = process.env.PORT || 8000;
+const serveIndex = require('serve-index');
+const cors = require('cors');
+const morgan = require('morgan');
+const checkVersion = require('./src/checkVersion');
+const modifyPdf = require('./src/app');
+const getFiles = require('./src/getFiles').getData;
+const createDec = require('./src/dec');
+const createJob = require('./src/jobsList');
 const createXlsx = require('./src/xlsx');
 const mongoose = require('./src/mongoose');
 const modelDeco = require('./src/models/Deco');
+const symlink = require('./src/symlink');
+
+const log = console.log;
 
 const accessLogStream = fs.createWriteStream(path.join(__dirname, 'server.log'), { flags: 'a' });
 
-//Path déco
+//Path déco et FormatTauro
+symlink(process.env.LINK_DECO, path.join(__dirname, './public/deco'));
+symlink(process.env.LINK_TAURO, path.join(__dirname, './public/tauro'));
 const decoFolder = './server/public/deco';
 
 //Path export
@@ -38,9 +44,9 @@ let appVersion;
 try {
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
   appVersion = packageJson.version;
-  console.log("Version de l'application :", appVersion);
+  log("Version de l'application: " + chalk.blue(appVersion));
 } catch (err) {
-  console.error('Erreur lors de la lecture du fichier package.json :', err);
+  log(chalk.red('Erreur lors de la lecture du fichier package.json: '), err);
 }
 const corsOptions = {
   origin: ['http://localhost:8000', 'http://localhost:5173', 'file'], // Ajoutez 'file://' pour accepter les requêtes locales d'Electron
@@ -195,9 +201,9 @@ app.post('/', async (req, res) => {
     await modifyPdf(visuPath, writePath, fileName, format, formatTauro, reg);
     timeExec = parseFloat(((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2));
     pdfTime = timeExec;
-    console.log(`Pdf: ✔️`);
+    log(chalk.green(`Pdf: ✔️`));
   } catch (error) {
-    console.log(error);
+    log(chalk.red(error));
   }
 
   //Genererate img
@@ -206,10 +212,10 @@ app.post('/', async (req, res) => {
     await _useWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
     timeExec = parseFloat(((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2));
     jpgTime = timeExec;
-    console.log(`Jpg: ✔️`);
-    console.log(`${date} ${time}:`, fileName + '✔️');
+    log(chalk.green(`Jpg: ✔️`));
+    log(chalk.green(`${date} ${time}:`), chalk.blue(fileName) + '✔️');
   } catch (error) {
-    console.log('FAILED GENERATE IMAGE: ', error);
+    log(chalk.red('FAILED GENERATE IMAGE: '), error);
   }
 
   const dataFileExport = [
@@ -231,7 +237,7 @@ app.post('/', async (req, res) => {
   try {
     await createXlsx(dataFileExport);
   } catch (error) {
-    console.log(error);
+    log(chalk.red(error));
   }
 
   //Générer découpe
@@ -244,7 +250,7 @@ app.post('/', async (req, res) => {
 
     createDec(wPlate, hPlate, width, height);
   } catch (error) {
-    console.log(error);
+    log(chalk.red(error));
   }
 
   //JOBS LIST completed
@@ -641,7 +647,8 @@ app.get('/jobs', async (req, res) => {
 server.listen(PORT, async () => {
   checkVersion()
     .then((result) => {
-      console.log(result.message);
+      console.log(v);
+      log(result.message);
     })
     .catch((error) => {
       console.error('Error:', error);

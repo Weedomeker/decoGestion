@@ -1,5 +1,8 @@
 const fetch = require('node-fetch');
 const fs = require('fs');
+const chalk = require('chalk');
+
+const log = console.log;
 
 async function fetchDataFromURL(url) {
   try {
