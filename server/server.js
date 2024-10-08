@@ -522,7 +522,7 @@ app.post('/run_jobs', async (req, res) => {
           const width = parseFloat(job.format_visu.split('x')[0]);
           const height = parseFloat(job.format_visu.split('x')[1]);
 
-          createDec(wPlate, hPlate, width, height);
+          createDec(wPlate, hPlate, width, height, './public/tmp/Cut');
         } catch (error) {
           console.log(error);
         }

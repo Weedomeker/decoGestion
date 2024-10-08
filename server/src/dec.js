@@ -4,9 +4,10 @@ const path = require('path');
 const Wastecut = require('./wastecut');
 let exportPath = [];
 
-const createDec = (widthPlate = Number, heightPlate = Number, decWidth = Number, decHeight = Number) => {
+const createDec = (widthPlate = Number, heightPlate = Number, decWidth = Number, decHeight = Number, writePath) => {
   const regSize = 0.3;
-  const regPosition = regSize + 1.5;
+  const fondPerdu = 0.5;
+  const regPosition = fondPerdu + regSize;
 
   const model = {
     models: {
@@ -31,7 +32,7 @@ const createDec = (widthPlate = Number, heightPlate = Number, decWidth = Number,
       wasteCut: {},
     },
   };
-
+  console.log(-decHeight / 2, -decWidth / 2);
   const dec = model.models.plate.models.dec;
   makerjs.model.center(dec);
   const waste = Wastecut(widthPlate, heightPlate, decWidth, decHeight).paths;
@@ -44,24 +45,18 @@ const createDec = (widthPlate = Number, heightPlate = Number, decWidth = Number,
   model.models.regmarks.paths.reg4.layer = 'black';
   model.models.regmarks.paths.reg5.layer = 'black';
 
-  console.log(`Regmark DXF Position: Reg1 X: ${-decHeight / 2 - regPosition}, Y: ${decWidth / 2 - regPosition} cm`);
-  console.log(
-    `Regmark DXF Position: Reg2 X: ${-decHeight / 2 - regPosition}, Y: ${decWidth / 2 - (regPosition + 10)} cm`,
-  );
-  console.log(`Regmark DXF Position: Reg3 X: ${-decHeight / 2 - regPosition}, Y: ${-decWidth / 2 + regPosition} cm`);
-
   const { paths } = Wastecut(widthPlate, heightPlate, decWidth, decHeight);
   Object.keys(paths).map((el) => {
     model.models.wasteCut.paths[el].layer = 'maroon';
   });
 
   try {
-    let pathFile = path.join(__dirname, '../public/tmp/');
+    let pathFile = writePath;
     let fileName = `${decWidth}x${decHeight}`;
     const dxf = makerjs.exporter.toDXF(model, {
       units: 'cm',
     });
-    const svg = makerjs.exporter.toSVG(model, { units: 'cm' });
+    const svg = makerjs.exporter.toSVG(model, { units: 'cm', strokeWidth: 1 / 28.3464567 });
     try {
       if (fs.existsSync(pathFile)) {
         fs.writeFileSync(pathFile + fileName + '.dxf', dxf);

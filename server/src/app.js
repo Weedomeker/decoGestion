@@ -37,18 +37,17 @@ async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg
           size: cmToPoints(sizeReg / 2), // Conversion de cm à points pour la taille du cercle
           color: rgb(0, 0, 0),
         });
-        console.log(`Regmark PDF Position: X: ${pointsToCm(xReg)} cm, Y: ${pointsToCm(yReg)} cm`);
       };
 
       // Calcul de la position des repères en points (en utilisant cmToPoints)
-      let regPosition = cmToPoints(1.5);
       let regSize = cmToPoints(0.3);
+      let regPosition = regSize;
 
-      drawRegmarks(-regPosition, height - regPosition); // Haut gauche
-      drawRegmarks(-regPosition, height - regPosition - cmToPoints(10)); // Bas gauche
-      drawRegmarks(-regPosition, regPosition); // Bas gauche (autre position)
-      drawRegmarks(width + regPosition, regPosition); // Bas droite
-      drawRegmarks(width + regPosition, height - regPosition); // Haut droite
+      drawRegmarks(-regPosition, height - regPosition - cmToPoints(0.5 * 2));
+      drawRegmarks(-regPosition, height - regPosition - cmToPoints(10) - cmToPoints(0.5 * 2));
+      drawRegmarks(-regPosition, regPosition + cmToPoints(0.5 * 2));
+      drawRegmarks(width + regPosition, regPosition + cmToPoints(0.5 * 2));
+      drawRegmarks(width + regPosition, height - regPosition - cmToPoints(0.5 * 2));
 
       firstPage.translateContent((longueurPlaque - width) / 2, (largeurPlaque - height) / 2);
     }
