@@ -2,12 +2,36 @@ const makerjs = require('makerjs');
 const fs = require('fs');
 const path = require('path');
 const Wastecut = require('./wastecut');
+const { error } = require('console');
 let exportPath = [];
 
-const createDec = (widthPlate = Number, heightPlate = Number, decWidth = Number, decHeight = Number, writePath) => {
+function convertParamsToNumbers(...params) {
+  return params.map((param) => {
+    const num = Number(param);
+    if (isNaN(num)) {
+      throw new Error(`Le paramètre "${param}" n'est pas un nombre valide`);
+    }
+    return num;
+  });
+}
+
+const createDec = (widthPlate, heightPlate, decWidth, decHeight, writePath) => {
+  [widthPlate, heightPlate, decWidth, decHeight] = convertParamsToNumbers(widthPlate, heightPlate, decWidth, decHeight);
+
   const regSize = 0.3;
   const fondPerdu = 0.5;
-  const regPosition = fondPerdu + regSize;
+  const marge = 1;
+  const regPosition = regSize + marge - fondPerdu;
+
+  /*
+     reg1 --------------------------------------------- reg4
+     reg2 -                                           -
+          -                                           -
+          -                                           -
+          -                                           -
+          -                                           -
+     reg3 --------------------------------------------- reg5
+  */
 
   const model = {
     models: {
@@ -32,7 +56,6 @@ const createDec = (widthPlate = Number, heightPlate = Number, decWidth = Number,
       wasteCut: {},
     },
   };
-  console.log(-decHeight / 2, -decWidth / 2);
   const dec = model.models.plate.models.dec;
   makerjs.model.center(dec);
   const waste = Wastecut(widthPlate, heightPlate, decWidth, decHeight).paths;

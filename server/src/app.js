@@ -41,13 +41,13 @@ async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg
 
       // Calcul de la position des repères en points (en utilisant cmToPoints)
       let regSize = cmToPoints(0.3);
-      let regPosition = regSize;
+      let regPosition = regSize + cmToPoints(1);
 
-      drawRegmarks(-regPosition, height - regPosition - cmToPoints(0.5 * 2));
-      drawRegmarks(-regPosition, height - regPosition - cmToPoints(10) - cmToPoints(0.5 * 2));
-      drawRegmarks(-regPosition, regPosition + cmToPoints(0.5 * 2));
-      drawRegmarks(width + regPosition, regPosition + cmToPoints(0.5 * 2));
-      drawRegmarks(width + regPosition, height - regPosition - cmToPoints(0.5 * 2));
+      drawRegmarks(-regPosition, height - regPosition);
+      drawRegmarks(-regPosition, height - regPosition - cmToPoints(10));
+      drawRegmarks(-regPosition, regPosition);
+      drawRegmarks(width + regPosition, regPosition);
+      drawRegmarks(width + regPosition, height - regPosition);
 
       firstPage.translateContent((longueurPlaque - width) / 2, (largeurPlaque - height) / 2);
     }
