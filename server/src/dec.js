@@ -21,7 +21,7 @@ const createDec = (widthPlate, heightPlate, decWidth, decHeight, writePath) => {
   const regSize = 0.3;
   const fondPerdu = 0.5;
   const marge = 1;
-  const regPosition = regSize + marge - fondPerdu;
+  const regPosition = regSize + fondPerdu;
 
   /*
      reg1 --------------------------------------------- reg4
@@ -44,12 +44,18 @@ const createDec = (widthPlate, heightPlate, decWidth, decHeight, writePath) => {
       regmarks: {
         paths: {
           //BAS
-          reg1: new makerjs.paths.Circle([-decHeight / 2 - regPosition, decWidth / 2 - regPosition], regSize),
-          reg2: new makerjs.paths.Circle([-decHeight / 2 - regPosition, decWidth / 2 - (regPosition + 10)], regSize),
-          reg3: new makerjs.paths.Circle([-decHeight / 2 - regPosition, -decWidth / 2 + regPosition], regSize),
+          reg1: new makerjs.paths.Circle([-decHeight / 2 - (regPosition + marge), decWidth / 2 - regPosition], regSize),
+          reg2: new makerjs.paths.Circle(
+            [-decHeight / 2 - (regPosition + marge), decWidth / 2 - (regPosition + 10)],
+            regSize,
+          ),
+          reg3: new makerjs.paths.Circle(
+            [-decHeight / 2 - (regPosition + marge), -decWidth / 2 + regPosition],
+            regSize,
+          ),
           //HAUT
-          reg4: new makerjs.paths.Circle([decHeight / 2 + regPosition, decWidth / 2 - regPosition], regSize),
-          reg5: new makerjs.paths.Circle([decHeight / 2 + regPosition, -decWidth / 2 + regPosition], regSize),
+          reg4: new makerjs.paths.Circle([decHeight / 2 + (regPosition + marge), decWidth / 2 - regPosition], regSize),
+          reg5: new makerjs.paths.Circle([decHeight / 2 + (regPosition + marge), -decWidth / 2 + regPosition], regSize),
         },
       },
 

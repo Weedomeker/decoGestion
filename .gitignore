@@ -17,3 +17,5 @@ notes.txt
 test/*.svg
 test/*.dxf
 test/*.pdf
+test/previews
+test/visu
