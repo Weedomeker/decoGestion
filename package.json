@@ -101,8 +101,10 @@
     "pdfkit": "^0.15.0",
     "pdftopic": "^0.2.0",
     "serve-index": "^1.9.1",
+    "svg-to-pdfkit": "^0.1.8",
     "ws": "^8.17.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "xml2js": "^0.6.2"
   },
   "devDependencies": {
     "dotenv": "^16.4.5",
