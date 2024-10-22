@@ -608,10 +608,10 @@ app.get('/public', async (req, res) => {
 });
 
 app.get('/path', async (req, res) => {
-  const dirDeco = getFiles(decoFolder);
-  const dirDecoSurMesures = getFiles(decoSurMesuresFolder);
-  const dirDecoRaccordables = getFiles(decoRaccordablesFolder);
-  const dirDecoEcom = getFiles(decoEcomFolder);
+  const dirDeco = await getFiles(decoFolder);
+  const dirDecoSurMesures = await getFiles(decoSurMesuresFolder);
+  const dirDecoRaccordables = await getFiles(decoRaccordablesFolder);
+  const dirDecoEcom = await getFiles(decoEcomFolder);
   res.json([
     { Standards: dirDeco, SurMesures: dirDecoSurMesures, Raccordables: dirDecoRaccordables, Ecom: dirDecoEcom },
   ]);
