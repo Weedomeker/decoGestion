@@ -25,6 +25,7 @@ function App() {
     cut: false,
     reg: false,
   });
+  const [checkFolder, setCheckFolder] = useState('');
   const [showAddFormat, setShowAddFormat] = useState(false);
   const [selectedFormatTauro, setSelectedFormatTauro] = useState('');
   const [version, setVersion] = useState(null);
@@ -111,12 +112,16 @@ function App() {
     })
       .then((res) => res.json())
       .then((res) => {
-        setData(res.map((res) => res));
+        setData(
+          res.map((res) => {
+            return res;
+          }),
+        );
         setIsLoading(false);
         setIsFooter(false);
       })
       .catch((err) => console.log(err));
-  }, [formatTauro]);
+  }, [formatTauro, checkFolder]);
 
   const handleClose = () => {
     setModalData({
@@ -204,7 +209,6 @@ function App() {
             icon={warnMsg.icon}
             color={warnMsg.color}
           />
-
           {/* Format Tauro */}
           <Form.Field className="format-tauro" required error={error.formatTauro}>
             <label>Répertoires Tauro</label>
@@ -215,7 +219,6 @@ function App() {
               formatTauro={formatTauro}
               onValue={(e, data) => {
                 setSelectedFormatTauro(data.value);
-                //info
                 if (CheckFormats(data.value, selectedFormat) && CheckFormats(data.value, selectedFormat).gap == true) {
                   setWarnMsg({
                     ...warnMsg,
@@ -263,7 +266,6 @@ function App() {
 
             {showAddFormat && <Input id="addFormatTauro" size="small" label="Add format" placeholder="ex: 101x215" />}
           </Form.Field>
-
           {/* PROD AVEC BLANC */}
           <Form.Field inline>
             <Checkbox
@@ -273,7 +275,6 @@ function App() {
               onChange={(e, data) => setCheckProdBlanc(data.checked)}
             />
           </Form.Field>
-
           {/* GENERATE REGMARKS */}
           <Form.Field inline>
             <Checkbox
@@ -298,27 +299,69 @@ function App() {
 
           {/* Format */}
           <Form.Field required error={error.format}>
-            <label>Format</label>
+            <Form.Group grouped widths={2}>
+              <Form.Field inline>
+                <Checkbox
+                  name="folders"
+                  label="Standards"
+                  value="Standards"
+                  checked={checkFolder === 'Standards'}
+                  onChange={(e, data) => {
+                    setCheckFolder(data.value);
+                  }}
+                />
+                <Checkbox
+                  name="folders"
+                  label="Raccordables"
+                  value="Raccordables"
+                  checked={checkFolder === 'Raccordables'}
+                  onChange={(e, data) => {
+                    setCheckFolder(data.value);
+                  }}
+                />
+
+                <Checkbox
+                  name="folders"
+                  label="Sur Mesures"
+                  value="SurMesures"
+                  checked={checkFolder === 'SurMesures'}
+                  onChange={(e, data) => {
+                    setCheckFolder(data.value);
+                  }}
+                />
+                <Checkbox
+                  name="folders"
+                  label="Ecom"
+                  value="Ecom"
+                  checked={checkFolder === 'Ecom'}
+                  onChange={(e, data) => {
+                    setCheckFolder(data.value);
+                  }}
+                />
+              </Form.Field>
+            </Form.Group>
+
+            <label>Formats {checkFolder}</label>
             <FormatDropdown
               enabled={enabled.format}
               error={error.format}
               id="format"
               className="format"
               isLoading={isLoading}
-              data={data}
+              data={data[0][checkFolder] || []}
               value={selectedFormat}
               text={selectedFormat}
               selectedFormat={selectedFormat}
               onSelectFormat={(e, v) => {
-                const value = isLoading ? 'Loading..' : data.find((x) => x.path === v.value);
+                const value = isLoading ? 'Loading..' : data[0][checkFolder].find((x) => x.path === v.value);
                 setSelectedFormat(value.name);
-
                 setFiles(value.files);
                 setIsFile(true);
                 setSelectedFile(null);
                 setIsFooter(false);
                 setEnabled({ ...enabled, visu: false });
 
+                // Regex /\d{0,}[x]\d{0,}/g
                 if (
                   CheckFormats(selectedFormatTauro, value.name) &&
                   CheckFormats(selectedFormatTauro, value.name).gap == true
@@ -391,7 +434,6 @@ function App() {
               {fileSize}
             </p>
           </Form.Field>
-
           {/* Infos commande */}
           <Form.Field required error={error.numCmd}>
             <label>N° commande</label>
@@ -416,7 +458,6 @@ function App() {
               }}
             />
           </Form.Field>
-
           {/* Ville / Mag */}
           <Form.Field required error={error.ville}>
             <label>Ville / Mag</label>
@@ -433,7 +474,6 @@ function App() {
               }}
             />
           </Form.Field>
-
           {/* Exemplaires */}
           <Form.Field>
             <label htmlFor="ex">Ex</label>

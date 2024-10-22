@@ -1,14 +1,19 @@
 const fs = require('fs');
 const chalk = require('chalk');
+const path = require('path');
 
 const log = console.log;
 
-function createSymlink(target, dir) {
+async function createSymlink(target, dir) {
   fs.access(target, (err) => {
     if (!err) {
       fs.symlink(target, dir, (err) => {
         if (err) {
-          log(chalk.yellow('Symlink déjà existant: '), err.dest);
+          if (err.code === 'EEXIST') {
+            log('✔️ ', chalk.yellow('Symlink: '), err.dest);
+          } else {
+            log(chalk.red(err));
+          }
         } else {
           log(chalk.green('Symlink Successfull: '), dir);
         }

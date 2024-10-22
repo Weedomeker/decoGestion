@@ -26,7 +26,13 @@ function bytesToSize(bytes) {
 const getData = (dir) => {
   const arr = [];
   getFiles(dir).directories.map((path) => {
-    const nameFolder = path.split('\\').pop().slice(2, -2);
+    // const nameFolder = path.split('\\').pop().slice(2, -2);
+    let nameFolder = path.split('\\').pop();
+    // if (path.match('_')) {
+    //   nameFolder = path.split('\\').pop().slice(2, -2);
+    // } else {
+    //   nameFolder = path.split('\\').pop();
+    // }
     const listFiles = getFiles(path).files.map((file) => {
       const fileSize = fs.statSync(file).size;
       return {
@@ -36,7 +42,7 @@ const getData = (dir) => {
     });
 
     arr.push({
-      name: nameFolder.toLowerCase(),
+      name: nameFolder,
       path: path.replace(/\\/g, '/') + '/',
       files: listFiles,
     });

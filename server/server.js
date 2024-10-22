@@ -27,9 +27,19 @@ const log = console.log;
 const accessLogStream = fs.createWriteStream(path.join(__dirname, 'server.log'), { flags: 'a' });
 
 //Path déco et FormatTauro
-symlink(process.env.LINK_DECO, path.join(__dirname, './public/deco'));
-symlink(process.env.LINK_TAURO, path.join(__dirname, './public/tauro'));
-const decoFolder = './server/public/deco';
+(async function () {
+  await symlink(process.env.LINK_TAURO, path.join(__dirname, './public/TAURO'));
+  await symlink(process.env.LINK_DECO, path.join(__dirname, './public/DECO'));
+  await symlink(process.env.LINK_DECO_RACCORDABLES, path.join(__dirname, './public/RACCORDABLES'));
+  await symlink(process.env.LINK_DECO_SUR_MESURE, path.join(__dirname, './public/SUR_MESURES'));
+  await symlink(process.env.LINK_DECO_ECOM, path.join(__dirname, './public/ECOM'));
+})();
+
+// Path Sources Deco
+const decoFolder = './server/public/DECO';
+const decoRaccordablesFolder = './server/public/RACCORDABLES';
+const decoSurMesuresFolder = './server/public/SUR_MESURES';
+const decoEcomFolder = './server/public/ECOM';
 
 //Path export
 const saveFolder =
@@ -522,7 +532,7 @@ app.post('/run_jobs', async (req, res) => {
           const width = parseFloat(job.format_visu.split('x')[0]);
           const height = parseFloat(job.format_visu.split('x')[1]);
 
-          createDec(wPlate, hPlate, width, height, './public/tmp/Cut');
+          createDec(wPlate, hPlate, width, height, path.join(__dirname, '/public/tmp/Cut'));
         } catch (error) {
           console.log(error);
         }
@@ -599,7 +609,12 @@ app.get('/public', async (req, res) => {
 
 app.get('/path', async (req, res) => {
   const dirDeco = getFiles(decoFolder);
-  res.json(dirDeco);
+  const dirDecoSurMesures = getFiles(decoSurMesuresFolder);
+  const dirDecoRaccordables = getFiles(decoRaccordablesFolder);
+  const dirDecoEcom = getFiles(decoEcomFolder);
+  res.json([
+    { Standards: dirDeco, SurMesures: dirDecoSurMesures, Raccordables: dirDecoRaccordables, Ecom: dirDecoEcom },
+  ]);
 });
 
 app.get('/formatsTauro', (req, res) => {
@@ -647,7 +662,6 @@ app.get('/jobs', async (req, res) => {
 server.listen(PORT, async () => {
   checkVersion()
     .then((result) => {
-      console.log(v);
       log(result.message);
     })
     .catch((error) => {

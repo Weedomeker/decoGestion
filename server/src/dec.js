@@ -88,12 +88,12 @@ const createDec = (widthPlate, heightPlate, decWidth, decHeight, writePath) => {
     const svg = makerjs.exporter.toSVG(model, { units: 'cm', strokeWidth: 1 / 28.3464567 });
     try {
       if (fs.existsSync(pathFile)) {
-        fs.writeFileSync(pathFile + fileName + '.dxf', dxf);
-        fs.writeFileSync(pathFile + fileName + '.svg', svg);
+        fs.writeFileSync(pathFile + '/' + fileName + '.dxf', dxf);
+        fs.writeFileSync(pathFile + '/' + fileName + '.svg', svg);
       } else {
         fs.mkdirSync(pathFile, { recursive: true });
-        fs.writeFileSync(pathFile + fileName + '.dxf', dxf);
-        fs.writeFileSync(pathFile + fileName + '.svg', svg);
+        fs.writeFileSync(pathFile + '/' + fileName + '.dxf', dxf);
+        fs.writeFileSync(pathFile + '/' + fileName + '.svg', svg);
       }
     } catch (error) {
       console.log(error);

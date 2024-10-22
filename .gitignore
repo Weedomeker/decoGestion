@@ -2,7 +2,10 @@ node_modules
 .vscode/*
 !.vscode/extensions.json
 dist/
+server/public/raccordables
 server/public/deco
+server/public/ecom
+server/public/sur_mesures
 server/public/tmp
 server/public/tauro
 server/public/*/*.jpg
