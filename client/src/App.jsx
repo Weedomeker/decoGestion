@@ -361,32 +361,6 @@ function App() {
                 setIsFooter(false);
                 setEnabled({ ...enabled, visu: false });
 
-                // Regex /\d{0,}[x]\d{0,}/g
-                if (
-                  CheckFormats(selectedFormatTauro, value.name) &&
-                  CheckFormats(selectedFormatTauro, value.name).gap == true
-                ) {
-                  setPerte(CheckFormats(selectedFormatTauro, value.name).surface);
-                  setWarnMsg({
-                    ...warnMsg,
-                    hidden: false,
-                    header: 'Attention au format',
-                    msg: `Perte matière: ${perte}/m2`,
-                    icon: 'info circle',
-                    color: 'yellow',
-                  });
-                } else if (CheckFormats(selectedFormatTauro, value.name).isChecked == false) {
-                  setWarnMsg({
-                    ...warnMsg,
-                    hidden: false,
-                    header: 'Problème format',
-                    msg: 'Le format du visuel est plus grand que celui de la plaque.',
-                    icon: 'warning sign',
-                    color: 'red',
-                  });
-                } else {
-                  setWarnMsg({ ...warnMsg, hidden: true });
-                }
                 if (value.name == '' || value.name == undefined) {
                   setError({ ...error, format: true });
                 } else {
@@ -420,6 +394,33 @@ function App() {
                 } else {
                   setEnabled({ ...enabled, numCmd: false });
                   setError({ ...error, visuel: false });
+                }
+
+                //Check checkFormats
+                if (
+                  CheckFormats(selectedFormatTauro, value.name.split('/').pop()) &&
+                  CheckFormats(selectedFormatTauro, value.name.split('/').pop()).gap == true
+                ) {
+                  setPerte(CheckFormats(selectedFormatTauro, value.name.split('/').pop()).surface);
+                  setWarnMsg({
+                    ...warnMsg,
+                    hidden: false,
+                    header: 'Attention au format',
+                    msg: `Perte matière: ${CheckFormats(selectedFormatTauro, value.name.split('/').pop()).surface}/m2`,
+                    icon: 'info circle',
+                    color: 'yellow',
+                  });
+                } else if (CheckFormats(selectedFormatTauro, value.name.split('/').pop()).isChecked == false) {
+                  setWarnMsg({
+                    ...warnMsg,
+                    hidden: false,
+                    header: 'Problème format',
+                    msg: 'Le format du visuel est plus grand que celui de la plaque.',
+                    icon: 'warning sign',
+                    color: 'red',
+                  });
+                } else {
+                  setWarnMsg({ ...warnMsg, hidden: true });
                 }
               }}
             />

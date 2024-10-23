@@ -17,20 +17,20 @@ const getFiles = (dir, files = [], directories = []) => {
   return { directories, files };
 };
 
-async function getFormat(file) {
-  const format = [];
-  try {
-    const readPdf = await fs.promises.readFile(file);
-    const pdfDoc = await PDFDocument.load(readPdf);
-    const pages = pdfDoc.getPages();
-    const firstPage = pages[0];
-    const { width, height } = firstPage.getSize();
-    format.push(parseInt(pointsToCm(width).toFixed(0)), parseInt(pointsToCm(height).toFixed(0)));
-  } catch (error) {
-    console.log(error);
-  }
-  return format;
-}
+// async function getFormat(file) {
+//   const format = [];
+//   try {
+//     const readPdf = await fs.promises.readFile(file);
+//     const pdfDoc = await PDFDocument.load(readPdf);
+//     const pages = pdfDoc.getPages();
+//     const firstPage = pages[0];
+//     const { width, height } = firstPage.getSize();
+//     format.push(parseInt(pointsToCm(width).toFixed(0)), parseInt(pointsToCm(height).toFixed(0)));
+//   } catch (error) {
+//     console.log(error);
+//   }
+//   return format;
+// }
 
 function bytesToSize(bytes) {
   const sizes = ['Octets', 'Ko', 'Mo', 'Go', 'To'];
@@ -50,11 +50,11 @@ const getData = async (dir) => {
     const listFiles = await Promise.all(
       getFiles(folderPath).files.map(async (file) => {
         const fileSize = fs.statSync(file).size;
-        const format = await getFormat(file);
+        // const format = await getFormat(file);
         return {
           name: file.replace(/\\/g, '/'),
           size: bytesToSize(fileSize),
-          format: format,
+          // format: format,
         };
       }),
     );

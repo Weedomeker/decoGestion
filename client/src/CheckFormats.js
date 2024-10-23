@@ -14,8 +14,18 @@ function checkFormats(formatTauro, formatVisu) {
   if (!formatTauro || !formatVisu) return;
 
   const parseDimensions = (format) => {
-    const [width, height] = format.split('_').pop().split('x');
-    return [parseFloat(width), parseFloat(height)];
+    let [width, height] = [];
+    const regex = format.match(/\d{0,}[x]\d{0,}/gi);
+    if (regex) {
+      if (regex.length > 1) {
+        [width, height] = regex[regex.length - 1].split(/x/i);
+      } else {
+        [width, height] = regex[0].split(/x/i);
+      }
+      return [parseFloat(width), parseFloat(height)];
+    } else {
+      return [];
+    }
   };
 
   const [widthTauro, heightTauro] = parseDimensions(formatTauro);
