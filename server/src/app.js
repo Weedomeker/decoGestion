@@ -1,6 +1,6 @@
 const { degrees, PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fs = require('fs');
-const { cmToPoints, pointsToCm } = require('./convertUnits').default;
+const { cmToPoints, pointsToCm } = require('./convertUnits');
 
 async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg) {
   try {

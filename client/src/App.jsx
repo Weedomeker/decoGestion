@@ -25,7 +25,7 @@ function App() {
     cut: false,
     reg: false,
   });
-  const [checkFolder, setCheckFolder] = useState('');
+  const [checkFolder, setCheckFolder] = useState('Standards');
   const [showAddFormat, setShowAddFormat] = useState(false);
   const [selectedFormatTauro, setSelectedFormatTauro] = useState('');
   const [version, setVersion] = useState(null);
@@ -409,6 +409,15 @@ function App() {
                     msg: `Perte matière: ${CheckFormats(selectedFormatTauro, value.name.split('/').pop()).surface}/m2`,
                     icon: 'info circle',
                     color: 'yellow',
+                  });
+                } else if (CheckFormats(selectedFormatTauro, value.name.split('/').pop()) == undefined) {
+                  setWarnMsg({
+                    ...warnMsg,
+                    hidden: false,
+                    header: 'Problème format',
+                    msg: 'Format du visuel introuvable. Attention au format de plaque choisit.',
+                    icon: 'warning sign',
+                    color: 'orange',
                   });
                 } else if (CheckFormats(selectedFormatTauro, value.name.split('/').pop()).isChecked == false) {
                   setWarnMsg({

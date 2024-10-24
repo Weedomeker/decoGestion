@@ -1,7 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const { PDFDocument } = require('pdf-lib');
-const { cmToPoints, pointsToCm } = require('./convertUnits').default;
+const { cmToPoints, pointsToCm } = require('./convertUnits');
 
 const getFiles = (dir, files = [], directories = []) => {
   const fileList = fs.readdirSync(dir);

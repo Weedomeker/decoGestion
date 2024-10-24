@@ -20,4 +20,4 @@ function pointsToInch(points) {
   return points / 72;
 }
 
-export default { cmToPoints, pointsToCm, inchToPoints, pointsToInch };
+module.exports = { cmToPoints, pointsToCm, inchToPoints, pointsToInch };

@@ -1,9 +1,23 @@
 import PropTypes from 'prop-types';
 import { Dropdown } from 'semantic-ui-react';
 
+function filterName(name) {
+  let newName = name;
+
+  if (name.match(/\//g) && name.match(/DIBOND \d{1,}x\d{1,}-/gi)) {
+    let splitDibondName = name.match(/DIBOND \d{1,}x\d{1,}-/gi);
+    newName = name.split(splitDibondName).pop();
+  } else if (name.match(/\//g)) {
+    newName = name.split('/').pop();
+  } else {
+    return;
+  }
+  return newName;
+}
+
 function VisuelDropdown({ files, isFile, onSelectedFile, selectedFile, error, enabled }) {
   const filesOptions = files.map((file, index) => ({
-    text: file.name.split('-').pop(),
+    text: filterName(file.name),
     value: file.name,
     key: index,
   }));
@@ -27,7 +41,7 @@ function VisuelDropdown({ files, isFile, onSelectedFile, selectedFile, error, en
       search
       selection
       value={selectedFile || ''}
-      text={selectedFile ? selectedFile.split('-').pop() : ''}
+      text={selectedFile ? filterName(selectedFile) : selectedFile}
       options={filesOptions}
       onChange={handleChange}
     />
