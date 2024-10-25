@@ -98,7 +98,6 @@ input {
 }
 
 .ui.button.compact {
-  min-width: 100px;
   width: 100px;
 }
 
@@ -114,6 +113,22 @@ input {
   padding-top: 14px;
   padding-left: 15%;
   margin-bottom: 24px;
+  display: flex;
+  flex-direction: row;
+}
+
+.container-buttons .ui.button.compact {
+  font-size: 0.9em;
+  font-weight: lighter;
+  letter-spacing: 2px;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.config-button .ui.button {
+  width: 50px;
+  height: 30px;
+  margin-right: 0;
+  margin-left: 100%;
 }
 
 .format-tauro {
