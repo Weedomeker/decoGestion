@@ -28,10 +28,20 @@ const accessLogStream = fs.createWriteStream(path.join(__dirname, 'server.log'),
 
 //Path déco et FormatTauro
 (async function () {
-  await symlink(process.env.LINK_TAURO, path.join(__dirname, './public/TAURO'));
-  await symlink(process.env.LINK_DECO, path.join(__dirname, './public/DECO'));
-  await symlink(process.env.LINK_DECO_RACCORDABLES, path.join(__dirname, './public/RACCORDABLES'));
-  await symlink(process.env.LINK_DECO_SUR_MESURE, path.join(__dirname, './public/SUR_MESURES'));
+  const configPath = path.join('./config.conf');
+  let config = {};
+  // Lire le fichier s'il existe
+  if (fs.existsSync(configPath)) {
+    const readFile = fs.readFileSync(configPath, 'utf8');
+    config = JSON.parse(readFile);
+  }
+  await symlink(config.tauro || process.env.LINK_TAURO, path.join(__dirname, './public/TAURO'));
+  await symlink(config.standards || process.env.LINK_DECO, path.join(__dirname, './public/DECO'));
+  await symlink(
+    config.raccordables || process.env.LINK_DECO_RACCORDABLES,
+    path.join(__dirname, './public/RACCORDABLES'),
+  );
+  await symlink(config.surMesures || process.env.LINK_DECO_SUR_MESURE, path.join(__dirname, './public/SUR_MESURES'));
   await symlink(process.env.LINK_DECO_ECOM, path.join(__dirname, './public/ECOM'));
 })();
 
@@ -635,6 +645,36 @@ app.get('/formatsTauro', (req, res) => {
   }
 });
 
+app.post('/config', (req, res) => {
+  const configPath = path.join('./config.conf');
+  let previousConfig = {};
+
+  // Lire le fichier s'il existe
+  if (fs.existsSync(configPath)) {
+    const readFile = fs.readFileSync(configPath, 'utf8');
+    previousConfig = JSON.parse(readFile);
+  }
+
+  // Écrire les nouvelles données reçues
+  fs.writeFileSync(configPath, JSON.stringify(req.body));
+
+  // Renvoyer l'ancien contenu du fichier ou un objet vide si le fichier n'existait pas
+  res.json(previousConfig);
+});
+
+app.get('/config', (req, res) => {
+  const configPath = path.join('./config.conf');
+
+  // Vérifier si le fichier existe
+  if (fs.existsSync(configPath)) {
+    const readFile = fs.readFileSync(configPath, 'utf8');
+
+    res.json(JSON.parse(readFile)); // Envoyer le contenu du fichier en tant que JSON
+  } else {
+    res.status(404).json({ error: 'Fichier de configuration introuvable' });
+  }
+});
+
 app.get('/download', (req, res) => {
   const files = fs.readdirSync(path.join(__dirname, '/public/tmp/'));
   files.forEach((file) => {
@@ -670,12 +710,4 @@ server.listen(PORT, async () => {
 
   console.log(`Server start on port ${PORT}`);
   await mongoose().catch((err) => console.log(err));
-});
-
-process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received: closing HTTP server');
-  server.close(() => {
-    console.log('HTTP server closed');
-    process.exit(0);
-  });
 });

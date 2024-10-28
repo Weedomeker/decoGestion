@@ -1,9 +1,9 @@
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { Button, ButtonContent, Checkbox, Form, Icon, Input } from 'semantic-ui-react';
 import CheckFormats from './CheckFormats';
+import Config from './components/Config';
 import Footer from './components/Footer';
 import FormatDropdown from './components/FormatDropdown';
 import FormatTauro from './components/FormatTauro';
@@ -536,17 +536,7 @@ function App() {
           </Button>
 
           {/* Config */}
-          <div className="config-button">
-            <Link to={'/Config'}>
-              {' '}
-              <Button animated="fade" compact color="black" type="button">
-                <ButtonContent visible>
-                  <Icon name="cogs" fitted />
-                </ButtonContent>
-                <ButtonContent hidden>Config</ButtonContent>
-              </Button>
-            </Link>
-          </div>
+          <Config />
         </div>
       </div>
 

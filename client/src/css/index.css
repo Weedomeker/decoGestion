@@ -154,3 +154,18 @@ ul {
   margin: 0;
   text-align: left;
 }
+
+.config {
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+}
+
+.config .input {
+  margin-bottom: 10px;
+}
+
+.config .ui.modal .scrolling.content {
+  border: 1 solid red;
+  width: 100vh;
+}
