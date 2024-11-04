@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, ButtonContent, Header, Icon, Input, Modal, ModalActions, ModalContent } from 'semantic-ui-react';
 
 const HOST = import.meta.env.VITE_HOST;
@@ -88,38 +88,40 @@ function Config() {
       </Header>
       <div className="config">
         <ModalContent scrolling>
-          <Input
-            fluid
-            label="Standards:"
-            value={data.standards || ''}
-            onChange={(e, v) => {
-              setData((prevData) => ({ ...prevData, standards: v.value }));
-            }}
-          />
-          <Input
-            fluid
-            label="Raccordables:"
-            value={data.raccordables || ''}
-            onChange={(e, v) => {
-              setData((prevData) => ({ ...prevData, raccordables: v.value }));
-            }}
-          />
-          <Input
-            fluid
-            label="Sur Mesures:"
-            value={data.surMesures || ''}
-            onChange={(e, v) => {
-              setData((prevData) => ({ ...prevData, surMesures: v.value }));
-            }}
-          />
-          <Input
-            fluid
-            label="Ecom:"
-            value={data.ecom || ''}
-            onChange={(e, v) => {
-              setData((prevData) => ({ ...prevData, ecom: v.value }));
-            }}
-          />
+          <div className="input-folders">
+            <Input
+              fluid
+              label="Standards:"
+              value={data.standards || ''}
+              onChange={(e, v) => {
+                setData((prevData) => ({ ...prevData, standards: v.value }));
+              }}
+            />
+            <Input
+              fluid
+              label="Raccordables:"
+              value={data.raccordables || ''}
+              onChange={(e, v) => {
+                setData((prevData) => ({ ...prevData, raccordables: v.value }));
+              }}
+            />
+            <Input
+              fluid
+              label="Sur Mesures:"
+              value={data.surMesures || ''}
+              onChange={(e, v) => {
+                setData((prevData) => ({ ...prevData, surMesures: v.value }));
+              }}
+            />
+            <Input
+              fluid
+              label="Ecom:"
+              value={data.ecom || ''}
+              onChange={(e, v) => {
+                setData((prevData) => ({ ...prevData, ecom: v.value }));
+              }}
+            />
+          </div>
         </ModalContent>
       </div>
       <ModalActions>
