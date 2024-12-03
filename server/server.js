@@ -36,7 +36,7 @@ let decoSessionFolder;
 let jpgPath = './server/public';
 //Lecture fichier config
 (async function () {
-  const configPath = path.join('./config.conf');
+  const configPath = path.join('./config.json');
   let config = {};
   // Lire le fichier s'il existe
   if (fs.existsSync(configPath)) {
@@ -536,7 +536,7 @@ app.get('/formatsTauro', (req, res) => {
 });
 
 app.post('/config', (req, res) => {
-  const configPath = path.join('./config.conf');
+  const configPath = path.join('./config.json');
   let previousConfig = {};
 
   // Lire le fichier s'il existe
@@ -553,15 +553,18 @@ app.post('/config', (req, res) => {
 });
 
 app.get('/config', (req, res) => {
-  const configPath = path.join('./config.conf');
+  const configPath = path.join('./config.json');
 
   // Vérifier si le fichier existe
   if (fs.existsSync(configPath)) {
     const readFile = fs.readFileSync(configPath, 'utf8');
-
-    res.json(JSON.parse(readFile)); // Envoyer le contenu du fichier en tant que JSON
+    if (Object.keys(readFile).length !== 0) {
+      res.json(JSON.parse(readFile)); // Envoyer le contenu du fichier en tant que JSON
+    } else {
+      res.status(404).send('<center><h4>Fichier de configuration non valide.</h4></center>');
+    }
   } else {
-    res.status(404).json({ error: 'Fichier de configuration introuvable' });
+    res.status(404).send('<center><h4>Fichier de configuration introuvable.</h4></center>');
   }
 });
 

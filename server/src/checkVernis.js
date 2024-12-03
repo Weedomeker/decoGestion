@@ -3,7 +3,7 @@ const path = require('path');
 
 function filterVerni(name) {
   let filtered = [];
-  const configPath = path.join('./config.conf');
+  const configPath = path.join('./config.json');
 
   // Lire le fichier s'il existe
   if (fs.existsSync(configPath)) {
