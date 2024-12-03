@@ -91,6 +91,14 @@ function Config() {
           <div className="input-folders">
             <Input
               fluid
+              label="Tauro:"
+              value={data.tauro || ''}
+              onChange={(e, v) => {
+                setData((prevData) => ({ ...prevData, tauro: v.value }));
+              }}
+            />
+            <Input
+              fluid
               label="Standards:"
               value={data.standards || ''}
               onChange={(e, v) => {

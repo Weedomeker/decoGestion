@@ -113,11 +113,21 @@ function App() {
     })
       .then((res) => res.json())
       .then((res) => {
-        setData(
-          res.map((res) => {
-            return res;
-          }),
-        );
+        if (Array.isArray(res)) {
+          setData(
+            res.map((res) => {
+              return res;
+            }),
+          );
+        } else {
+          setWarnMsg({
+            hidden: false,
+            header: 'Erreure',
+            msg: res.message,
+            icon: 'warning sign',
+            color: 'red',
+          });
+        }
         setIsLoading(false);
         setIsFooter(false);
       })
@@ -230,6 +240,7 @@ function App() {
                     color: 'yellow',
                   });
                 } else if (
+                  selectedFormat &&
                   CheckFormats(data.value, selectedFormat) &&
                   CheckFormats(data.value, selectedFormat).isChecked == false
                 ) {
@@ -354,7 +365,7 @@ function App() {
               text={selectedFormat}
               selectedFormat={selectedFormat}
               onSelectFormat={(e, v) => {
-                const value = isLoading ? 'Loading..' : data[0][checkFolder].find((x) => x.path === v.value);
+                const value = isLoading ? 'Loading..' : data && data[0][checkFolder].find((x) => x.path === v.value);
                 setSelectedFormat(value.name);
                 setFiles(value.files);
                 setIsFile(true);

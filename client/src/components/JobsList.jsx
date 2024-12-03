@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   Button,
   ButtonContent,
+  Checkbox,
   Icon,
   Table,
   TableBody,
@@ -15,6 +16,8 @@ import {
 import '../css/JobsList.css';
 import './InfoModal';
 
+import checkVernis from '../checkVernis';
+
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
 
@@ -26,6 +29,7 @@ function JobsList({ show, formatTauro }) {
   const [endTime, setEndTime] = useState(null);
   const [onLoading, setOnLoading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [sortFolder, setSortFolder] = useState(true);
 
   useEffect(() => {
     const dataFetch = async () => {
@@ -92,7 +96,7 @@ function JobsList({ show, formatTauro }) {
       const response = await fetch(`http://${HOST}:${PORT}/run_jobs`, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ run: true, formatTauro: formatTauro }),
+        body: JSON.stringify({ run: true, formatTauro: formatTauro, sortFolder: sortFolder }),
       });
 
       if (!response.ok) {
@@ -168,7 +172,23 @@ function JobsList({ show, formatTauro }) {
 
       const visuel = value.visuel ? value.visuel.split('/').pop().split('-').pop().split(' ')[0] : '';
       const title = value.jpgName.split('/').pop();
-      const url = `http://${HOST}:${PORT}/public/` + value.jpgName.replace(/#/i, '%23');
+      let url = '';
+      const ifSatin = checkVernis(value.jpgName) === '_S';
+      if (checkVernis(value.jpgName) !== undefined && sortFolder) {
+        url =
+          `http://${HOST}:${PORT}/public/` +
+          value.jpgName.split('/')[0] +
+          '/' +
+          value.jpgName.split('/')[1].replace(/#/i, '%23') +
+          '/' +
+          checkVernis(value.jpgName) +
+          '/' +
+          value.jpgName.split('/')[2];
+
+        if (ifSatin) url = url.replace('_S', 'Satin');
+      } else {
+        url = `http://${HOST}:${PORT}/public/` + value.jpgName.replace(/#/i, '%23');
+      }
       return (
         <TableRow key={i} disabled={status === 'jobs' ? onLoading : null} className="table-row">
           <TableCell className="table-cell">
@@ -176,7 +196,7 @@ function JobsList({ show, formatTauro }) {
           </TableCell>
           <TableCell className="table-cell">{value.cmd}</TableCell>
           <TableCell className="table-cell">{value.ville}</TableCell>
-          <TableCell className="table-cell">
+          <TableCell className="table-cell ">
             {status === 'completed' ? (
               <a href={url} data-lightbox={title} data-title={title}>
                 {visuel}
@@ -251,6 +271,14 @@ function JobsList({ show, formatTauro }) {
                       </ButtonContent>
                       <ButtonContent hidden content="Traiter la file" />
                     </Button>
+                    <Checkbox
+                      label="Trier sortie jpg"
+                      style={{ paddingLeft: '10px', marginRight: 'auto' }}
+                      checked={sortFolder}
+                      onChange={(e, data) => {
+                        setSortFolder(data.checked);
+                      }}
+                    />
 
                     {onLoading && <progress value={progress} max={100} className="progress" />}
                   </div>
@@ -272,12 +300,12 @@ function JobsList({ show, formatTauro }) {
                     {executionTime && (
                       <div>
                         {data[0].jobs.length === 0 ? (
-                          <p>
-                            Temps d&apos;exécution total:
+                          <pre>
+                            Temps d&apos;exécution total:{' '}
                             {executionTime / 1000 > 60
                               ? (executionTime / 1000 / 60).toFixed(2) + ' min(s)'
                               : (executionTime / 1000).toFixed(2) + ' sec(s)'}
-                          </p>
+                          </pre>
                         ) : null}
                       </div>
                     )}

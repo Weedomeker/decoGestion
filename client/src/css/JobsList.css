@@ -34,8 +34,8 @@
 .sticky-footer-content {
   display: flex;
   align-items: center;
-  justify-content: space-between; /* Ajoute de l'espace entre le bouton et la barre de progression */
   width: 100%;
+  justify-content: space-between;
 }
 
 .body-table-jobs {
@@ -60,5 +60,7 @@
 }
 
 .progress {
+  margin-left: 24px;
+  margin-right: auto;
   width: 100%;
 }

@@ -1,17 +1,6 @@
-/**
- * The function `checkFormats` compares two formats and calculates the surface area difference in
- * square meters.
- * @param formatTauro - The `formatTauro` parameter represents the format of a Tauro object, typically
- * in the format "width_height". For example, it could be "10x20" representing a Tauro object with a
- * width of 10 units and a height of 20 units.
- * @param formatVisu - The `formatVisu` parameter represents the dimensions of a visual element. It is
- * expected to be in the format "width_height" where width and height are in centimeters.
- * @returns The function `checkFormats` is returning an object with three properties: `isChecked`,
- * `gap`, and `surface`.
- */
-
 function checkFormats(formatTauro, formatVisu) {
-  if (!formatTauro || !formatVisu) return;
+  // Si l'un des paramètres est manquant, retourner des valeurs par défaut
+  if (!formatTauro || !formatVisu) return { isChecked: false, gap: false, surface: 0 };
 
   const parseDimensions = (format) => {
     let [width, height] = [];
@@ -31,26 +20,30 @@ function checkFormats(formatTauro, formatVisu) {
   let [widthTauro, heightTauro] = parseDimensions(formatTauro);
   let [widthVisu, heightVisu] = parseDimensions(formatVisu);
 
-  //Check if visu is mm unit
+  // Vérification des unités (conversion mm en cm si nécessaire)
   if (heightVisu && heightVisu.toString().length > 3) {
     heightVisu = heightVisu / 10;
     widthVisu = widthVisu / 10;
   }
 
-  let surface, isChecked, gap;
-  if (!isNaN(widthVisu) && !isNaN(heightVisu)) {
+  // Initialisation des variables avec des valeurs par défaut
+  let surface = 0; // Toujours un nombre
+  let isChecked = false;
+  let gap = false;
+
+  // Calculs si les dimensions sont valides
+  if (!isNaN(widthVisu) && !isNaN(heightVisu) && !isNaN(widthTauro) && !isNaN(heightTauro)) {
     isChecked = widthVisu <= widthTauro && heightVisu <= heightTauro;
-    const surfaceAreaTauro = widthTauro * heightTauro; // in cm²
-    const surfaceAreaVisu = widthVisu * heightVisu; // in cm²
-    surface = (surfaceAreaTauro - surfaceAreaVisu) / 10000; // convert cm² to m²
-    if (surface < 1) {
-      surface = Math.round(surface * 100) / 100; // round to two decimal places
-    }
-    gap = surface > 1;
-  } else {
-    return undefined;
+    const surfaceAreaTauro = widthTauro * heightTauro; // Surface de formatTauro en cm²
+    const surfaceAreaVisu = widthVisu * heightVisu; // Surface de formatVisu en cm²
+    surface = (surfaceAreaTauro - surfaceAreaVisu) / 10000; // Conversion cm² → m²
+
+    // Arrondi à deux décimales
+    surface = parseFloat(surface.toFixed(2)); // Toujours un nombre, même si négatif
+    gap = surface > 1; // Écart supérieur à 1 m²
   }
 
+  // Retour des valeurs calculées ou par défaut
   return { isChecked, gap, surface };
 }
 

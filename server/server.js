@@ -21,40 +21,52 @@ const createXlsx = require('./src/xlsx');
 const mongoose = require('./src/mongoose');
 const modelDeco = require('./src/models/Deco');
 const symlink = require('./src/symlink');
+const checkVernis = require('./src/checkVernis');
 
 const log = console.log;
 
 const accessLogStream = fs.createWriteStream(path.join(__dirname, 'server.log'), { flags: 'a' });
 
-//Path déco et FormatTauro
+// Path Sources Deco
+let decoFolder;
+let decoRaccordablesFolder;
+let decoSurMesuresFolder;
+let decoEcomFolder;
+let decoSessionFolder;
+let jpgPath = './server/public';
+//Lecture fichier config
 (async function () {
   const configPath = path.join('./config.conf');
   let config = {};
   // Lire le fichier s'il existe
   if (fs.existsSync(configPath)) {
     const readFile = fs.readFileSync(configPath, 'utf8');
-    config = JSON.parse(readFile);
+    try {
+      config = JSON.parse(readFile);
+    } catch (error) {
+      return console.error(error);
+    }
   }
-  await symlink(config.tauro || process.env.LINK_TAURO, path.join(__dirname, './public/TAURO'));
-  await symlink(config.standards || process.env.LINK_DECO, path.join(__dirname, './public/DECO'));
-  await symlink(
-    config.raccordables || process.env.LINK_DECO_RACCORDABLES,
-    path.join(__dirname, './public/RACCORDABLES'),
-  );
-  await symlink(config.surMesures || process.env.LINK_DECO_SUR_MESURE, path.join(__dirname, './public/SUR_MESURES'));
-  await symlink(process.env.LINK_DECO_ECOM, path.join(__dirname, './public/ECOM'));
+
+  for (const key in config) {
+    await symlink(config[key], path.join(__dirname, `./public/${key.toUpperCase()}`));
+
+    if (key === 'standards') {
+      decoFolder = `./server/public/${key}`;
+    } else if (key === 'raccordables') {
+      decoRaccordablesFolder = `./server/public/${key}`;
+    } else if (key === 'surMesures') {
+      decoSurMesuresFolder = `./server/public/${key}`;
+    } else if (key === 'ecom') {
+      decoEcomFolder = `./server/public/${key}`;
+    } else {
+      return;
+    }
+  }
 })();
-
-// Path Sources Deco
-const decoFolder = './server/public/DECO';
-const decoRaccordablesFolder = './server/public/RACCORDABLES';
-const decoSurMesuresFolder = './server/public/SUR_MESURES';
-const decoEcomFolder = './server/public/ECOM';
-
 //Path export
 const saveFolder =
-  process.env.NODE_ENV === 'development' ? path.join(__dirname, '/public/tmp') : path.join(__dirname, '/public/tauro');
-const jpgPath = './server/public';
+  process.env.NODE_ENV === 'development' ? path.join(__dirname, '/public/tmp') : path.join(__dirname, '/public/TAURO');
 
 // Gestion du chemin en fonction de l'environnement
 const packageJsonPath = path.join(__dirname, '../package.json');
@@ -133,157 +145,6 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../client/dist/index.html'));
 });
 
-app.post('/', async (req, res) => {
-  //Date
-  let time = new Date().toLocaleTimeString('fr-FR');
-  let date = new Date()
-    .toLocaleDateString('fr-FR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-    .replace('.', '')
-    .toLocaleUpperCase();
-
-  const data = {
-    allFormatTauro: req.body.allFormatTauro,
-    formatTauro: req.body.formatTauro,
-    prodBlanc: req.body.prodBlanc,
-    format: req.body.format,
-    visuel: req.body.visuel,
-    numCmd: req.body.numCmd,
-    ville: req.body.ville != null ? req.body.ville.toUpperCase() : '',
-    ex: req.body.ex != null ? req.body.ex : '',
-    perte: req.body.perte,
-    regmarks: req.body.regmarks,
-  };
-  let visuel = data.visuel.split('/').pop();
-  visuel = data.visuel.split('-').pop();
-  let visuPath = data.visuel;
-  let formatTauro = data.formatTauro;
-  let prodBlanc = data.prodBlanc;
-  let allFormatTauro = data.allFormatTauro;
-  let format = data.format;
-  let reg = data.regmarks;
-
-  //Lecture Ecriture format tauro
-  let arr = [];
-  if (fs.existsSync(path.join(__dirname, './formatsTauro.conf'))) {
-    const readFile = fs.readFileSync(path.join(__dirname, './formatsTauro.conf'), {
-      encoding: 'utf8',
-    });
-    arr.push(readFile.split(/\r?\n/g));
-    if (allFormatTauro.length > arr[0].length) {
-      fs.writeFileSync(path.join(__dirname, './formatsTauro.conf'), allFormatTauro.join('\n'));
-    }
-  }
-
-  //Chemin sortie fichiers
-  prodBlanc ? (writePath = saveFolder + '/Prod avec BLANC') : (writePath = saveFolder + '/' + formatTauro);
-
-  //Nom fichier
-  fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro.split('_').pop()} - ${visuel.replace(
-    /\.[^/.]+$/,
-    '',
-  )} ${data.ex}_EX`;
-
-  //Verifier si dossiers exist si pas le créer
-  if (fs.existsSync(writePath) && fs.existsSync(`${jpgPath}/PRINTSA#${date}`)) {
-    pdfName = writePath + '/' + fileName;
-    jpgName = `${jpgPath}/PRINTSA#${date}` + '/' + fileName;
-  } else {
-    fs.mkdirSync(writePath, { recursive: true });
-    fs.mkdirSync(`${jpgPath}/PRINTSA#${date}`, { recursive: true });
-    pdfName = writePath + '/' + fileName;
-    jpgName = `${jpgPath}/PRINTSA#${date}` + '/' + fileName;
-  }
-
-  // JOBS LIST STANDBY
-  const newJob = createJob(
-    date,
-    time,
-    data.numCmd,
-    data.ville,
-    format,
-    formatTauro,
-    visuel,
-    data.ex,
-    visuPath,
-    writePath,
-    jpgName,
-    reg,
-  );
-  jobList.jobs.push(newJob);
-
-  //Edition pdf
-  try {
-    start = performance.now();
-    await modifyPdf(visuPath, writePath, fileName, format, formatTauro, reg);
-    timeExec = parseFloat(((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2));
-    pdfTime = timeExec;
-    log(chalk.green(`Pdf: ✔️`));
-  } catch (error) {
-    log(chalk.red(error));
-  }
-
-  //Genererate img
-  try {
-    start = performance.now();
-    await _useWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
-    timeExec = parseFloat(((((performance.now() - start) % 360000) % 60000) / 1000).toFixed(2));
-    jpgTime = timeExec;
-    log(chalk.green(`Jpg: ✔️`));
-    log(chalk.green(`${date} ${time}:`), chalk.blue(fileName) + '✔️');
-  } catch (error) {
-    log(chalk.red('FAILED GENERATE IMAGE: '), error);
-  }
-
-  const dataFileExport = [
-    {
-      Date: date,
-      Heure: time,
-      numCmd: parseFloat(fileName.split(' - ')[0]),
-      Mag: fileName.split(' - ')[1],
-      Dibond: fileName.split(' - ')[2],
-      Deco: fileName.split(' - ').slice(2).pop(),
-      Temps: parseFloat(((jpgTime + pdfTime) / 1000).toFixed(2)),
-      Perte_m2: data.perte,
-      app_version: `v${appVersion}`,
-      ip: req.hostname,
-    },
-  ];
-
-  //XLSX create file
-  try {
-    await createXlsx(dataFileExport);
-  } catch (error) {
-    log(chalk.red(error));
-  }
-
-  //Générer découpe
-  try {
-    const fTauro = formatTauro.split('_').pop();
-    const wPlate = parseFloat(fTauro.split('x')[0]);
-    const hPlate = parseFloat(fTauro.split('x')[1]);
-    const width = parseFloat(format.split('x')[0]);
-    const height = parseFloat(format.split('x')[1]);
-
-    createDec(wPlate, hPlate, width, height);
-  } catch (error) {
-    log(chalk.red(error));
-  }
-
-  //JOBS LIST completed
-  const findJob = jobList.jobs.find((x) => x._id === newJob._id);
-  const index = jobList.jobs.indexOf(findJob);
-  if (index > -1) {
-    jobList.jobs.splice(index, 1);
-  }
-  jobList.completed.push(findJob);
-
-  res.status(200).send();
-});
-
 app.patch('/edit_job', async (req, res) => {
   const updates = req.body;
 
@@ -347,7 +208,7 @@ app.post('/add_job', (req, res) => {
   let reg = data.regmarks;
 
   //Chemin sortie fichiers
-  prodBlanc ? (writePath = saveFolder + '/Prod avec BLANC') : (writePath = saveFolder + '/' + formatTauro);
+  prodBlanc ? (writePath = saveFolder + '/Prod avec BLANC') : (writePath = path.join(saveFolder + '/' + formatTauro));
 
   //Nom fichier
   fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro} - ${visuel.replace(
@@ -458,15 +319,33 @@ app.post('/run_jobs', async (req, res) => {
         .pop()} - ${job.visuel.replace(/\.[^/.]+$/, '')} ${job.ex}_EX`;
 
       // Vérifier si dossiers existent, sinon les créer
+      const sortFolder = req.body.sortFolder;
+
       if (!fs.existsSync(job.writePath)) {
         fs.mkdirSync(job.writePath, { recursive: true });
       }
       const jpgPathExists = fs.existsSync(`${jpgPath}/PRINTSA#${date}`);
+
       if (!jpgPathExists) {
         fs.mkdirSync(`${jpgPath}/PRINTSA#${date}`, { recursive: true });
       }
+
+      if (sortFolder) {
+        if (
+          !fs.existsSync(
+            `${jpgPath}/PRINTSA#${date}/${checkVernis(fileName) === '_S' ? 'Satin' : checkVernis(fileName)}`,
+          )
+        )
+          fs.mkdirSync(
+            `${jpgPath}/PRINTSA#${date}/${checkVernis(fileName) === '_S' ? 'Satin' : checkVernis(fileName)}`,
+            { recursive: true },
+          );
+      }
+
       const pdfName = `${job.writePath}/${fileName}`;
-      const jpgName = `${jpgPath}/PRINTSA#${date}/${fileName}`;
+      const jpgName = sortFolder
+        ? `${jpgPath}/PRINTSA#${date}/${checkVernis(fileName) === '_S' ? 'Satin' : checkVernis(fileName)}/${fileName}`
+        : `${jpgPath}/PRINTSA#${date}/${fileName}`;
 
       try {
         // Edition pdf
@@ -475,7 +354,7 @@ app.post('/run_jobs', async (req, res) => {
         let endPdf = performance.now();
         pdfTime = endPdf - startPdf;
         console.log(
-          `✔️ ${date} ${time}:`,
+          `✔️   ${date} ${time}:`,
           `${fileName}.pdf (${pdfTime < 1000 ? pdfTime.toFixed(2) + 'ms' : (pdfTime / 1000).toFixed(2) + 's'})`,
         );
       } catch (error) {
@@ -489,7 +368,7 @@ app.post('/run_jobs', async (req, res) => {
         let endJpg = performance.now();
         jpgTime = endJpg - startJpg;
         console.log(
-          `✔️ ${date} ${time}:`,
+          `✔️   ${date} ${time}:`,
           `${fileName}.jpg (${jpgTime < 1000 ? jpgTime.toFixed(2) + 'ms' : (jpgTime / 1000).toFixed(2) + 's'})`,
         );
       } catch (error) {
@@ -508,10 +387,8 @@ app.post('/run_jobs', async (req, res) => {
           Ref: matchRef ? matchRef[0] : 0,
           Format: job.format_visu,
           Ex: parseInt(job.ex),
-          Ex: parseInt(job.ex),
           Temps: parseFloat(((jpgTime + pdfTime) / 1000).toFixed(2)),
-          Perte_m2: parseFloat(job.perte),
-          Perte_m2: parseFloat(job.perte),
+          Perte_m2: job.perte,
           app_version: `v${appVersion}`,
           ip: req.hostname,
         },
@@ -527,7 +404,6 @@ app.post('/run_jobs', async (req, res) => {
       //SAVE DB
       try {
         const newDeco = new modelDeco(dataFileExport[0]);
-
         await newDeco.save();
       } catch (error) {
         console.log(error);
@@ -618,13 +494,27 @@ app.get('/public', async (req, res) => {
 });
 
 app.get('/path', async (req, res) => {
-  const dirDeco = await getFiles(decoFolder);
-  const dirDecoSurMesures = await getFiles(decoSurMesuresFolder);
-  const dirDecoRaccordables = await getFiles(decoRaccordablesFolder);
-  const dirDecoEcom = await getFiles(decoEcomFolder);
-  res.json([
-    { Standards: dirDeco, SurMesures: dirDecoSurMesures, Raccordables: dirDecoRaccordables, Ecom: dirDecoEcom },
-  ]);
+  if (
+    typeof decoFolder === 'string' ||
+    typeof decoSurMesuresFolder === 'string' ||
+    typeof decoRaccordablesFolder === 'string' ||
+    typeof decoEcomFolder === 'string'
+  ) {
+    const dirDeco = await getFiles(decoFolder);
+    const dirDecoSurMesures = await getFiles(decoSurMesuresFolder);
+    const dirDecoRaccordables = await getFiles(decoRaccordablesFolder);
+    const dirDecoEcom = await getFiles(decoEcomFolder);
+    res.json([
+      {
+        Standards: dirDeco,
+        SurMesures: dirDecoSurMesures,
+        Raccordables: dirDecoRaccordables,
+        Ecom: dirDecoEcom,
+      },
+    ]);
+  } else {
+    res.json({ message: 'Aucun répertoire valide !' });
+  }
 });
 
 app.get('/formatsTauro', (req, res) => {

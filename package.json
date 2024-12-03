@@ -3,77 +3,10 @@
   "productName": "Déco Gestion",
   "version": "2.2.1",
   "description": "Permet de produire plus facilement l'imposition des visuels sur les plaques à imprimer.",
-  "main": "main.js",
   "scripts": {
-    "start": "set NODE_ENV=development&& electron .",
-    "prod": "set NODE_ENV=production&& electron .",
     "server": "set NODE_ENV=development&& nodemon ./server/server.js -e js,css,html",
     "client": "set NODE_ENV=development&& cd client && npm run dev",
-    "build-client": "set NODE_ENV=production&& cd client && npm run build",
-    "rebuild": "electron-rebuild -f -w deco-gestion",
-    "dist": "set NODE_ENV=production&& rm -rf dist && electron-builder"
-  },
-  "build": {
-    "productName": "Déco Gestion",
-    "appId": "com.electron.deco-gestion",
-    "artifactName": "${productName}-${version}-${os}.${ext}",
-    "win": {
-      "icon": "build/icon.ico",
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
-        }
-      ]
-    },
-    "nsis": {
-      "artifactName": "${productName}-Setup-${version}-${os}.${ext}"
-    },
-    "portable": {
-      "artifactName": "${productName}-Portable-${version}-${os}.${ext}"
-    },
-    "files": [
-      "main.js",
-      ".env",
-      "server/**/*",
-      "client/dist/**/*",
-      "package.json"
-    ],
-    "extraResources": [
-      {
-        "from": "./server",
-        "to": "server",
-        "filter": [
-          "**/*"
-        ]
-      },
-      {
-        "from": "./client/dist",
-        "to": "client/dist",
-        "filter": [
-          "**/*"
-        ]
-      },
-      {
-        "from": ".env",
-        "to": ".env"
-      }
-    ],
-    "extraFiles": [
-      {
-        "from": "build/icon.ico",
-        "to": "resources"
-      }
-    ],
-    "compression": "store"
+    "build": "set NODE_ENV=production&& cd client && npm run build"
   },
   "keywords": [],
   "author": "Weedomeker",
@@ -88,8 +21,6 @@
     "chalk": "^4.1.2",
     "check-update-github": "^0.0.4",
     "cors": "^2.8.5",
-    "electron-is-dev": "^3.0.1",
-    "electron-log": "^5.2.0",
     "express": "^4.18.2",
     "lightbox2": "^2.11.4",
     "makerjs": "^0.18.1",
@@ -108,9 +39,6 @@
   },
   "devDependencies": {
     "dotenv": "^16.4.5",
-    "electron": "^32.1.2",
-    "electron-builder": "^25.0.5",
-    "electron-rebuild": "^3.2.9",
     "eslint": "^8.52.0",
     "isdev": "^1.0.1",
     "prettier": "^3.1.0",

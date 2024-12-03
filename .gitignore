@@ -3,9 +3,9 @@ node_modules
 !.vscode/extensions.json
 dist/
 server/public/raccordables
-server/public/deco
-server/public/ecom
-server/public/sur_mesures
+server/public/standards
+server/public/ECOM
+server/public/SURMESURES
 server/public/tmp
 server/public/tauro
 server/public/*/*.jpg
@@ -22,3 +22,4 @@ test/*.dxf
 test/*.pdf
 test/previews
 test/visu
+main.bak

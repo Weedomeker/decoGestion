@@ -10,7 +10,7 @@ const Deco = mongoose.model('lm_commandes', {
   Format: String,
   Ex: Number,
   Temps: Number,
-  Perte_m2: Number,
+  Perte_m2: mongoose.Decimal128,
   app_version: String,
   ip: String,
 });
