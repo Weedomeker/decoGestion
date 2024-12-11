@@ -1,8 +1,9 @@
 const { degrees, PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fs = require('fs');
-const { cmToPoints, pointsToCm } = require('./convertUnits');
+const { cmToPoints, pointsToCm, cmToPxl } = require('./convertUnits');
+const generateQRCode = require('./qrcode');
 
-async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg) {
+async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg, data) {
   try {
     const readPdf = await fs.promises.readFile(filePath);
     const pdfDoc = await PDFDocument.load(readPdf);
@@ -52,14 +53,6 @@ async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg
       firstPage.translateContent((longueurPlaque - width) / 2, (largeurPlaque - height) / 2);
     }
 
-    const getFormat = () => {
-      if (wSize === 150 && hSize === 255) {
-        xPosition = xPosition;
-        textSize = 70;
-      }
-    };
-    getFormat();
-
     firstPage.drawText(text, {
       x: xPosition,
       y: height / 2 - textWidth / 2,
@@ -68,6 +61,44 @@ async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg
       color: rgb(0, 0, 0),
       rotate: degrees(90),
     });
+    const newDate = new Date(data.date).toLocaleString('fr-FR', { timeZone: 'EUROPE/PARIS' });
+    const dayDate = new Date()
+      .toLocaleDateString('fr-FR', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })
+      .replace('.', '')
+      .toLocaleUpperCase();
+    try {
+      const newData = `Date: ${newDate}
+      cmd: ${data.cmd}
+      ville: ${data.ville}
+      visuel: ${data.visuel}
+      ref: ${data.ref}
+      ex: ${data.ex}
+     `;
+
+      const pathQRCodes = `./server/public/PRINTSA#${dayDate}/QRCodes/`;
+      if (!fs.existsSync(pathQRCodes)) {
+        fs.mkdirSync(pathQRCodes, { recursive: true });
+      }
+      await generateQRCode(newData, pathQRCodes + `QRCode_${fileName}.png`, {
+        scale: 1,
+        margin: 1,
+        color: { dark: '#060075' },
+      });
+      const pngURL = `http://localhost:8000/qrcode/QRCode_${fileName}.png`;
+      const pngImageBytes = await fetch(pngURL).then((res) => res.arrayBuffer());
+      const pngImage = await pdfDoc.embedPng(pngImageBytes);
+
+      firstPage.drawImage(pngImage, {
+        x: 0,
+        y: 0,
+      });
+    } catch (error) {
+      console.error(error);
+    }
 
     const pdfBytes = await pdfDoc.save();
     await fs.promises.writeFile(`${writePath}/${text}.pdf`, pdfBytes);

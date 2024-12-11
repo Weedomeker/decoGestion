@@ -1,7 +1,7 @@
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
 import { useEffect, useState } from 'react';
-import { Button, ButtonContent, Checkbox, Form, Icon, Input } from 'semantic-ui-react';
+import { Button, ButtonContent, Checkbox, Form, Icon, Input, Label, Segment } from 'semantic-ui-react';
 import CheckFormats from './CheckFormats';
 import Config from './components/Config';
 import Footer from './components/Footer';
@@ -308,50 +308,56 @@ function App() {
               }}
             />
           </Form.Field>
-
           {/* Format */}
           <Form.Field required error={error.format}>
-            <Form.Group grouped widths={2}>
-              <Form.Field inline>
-                <Checkbox
-                  name="folders"
-                  label="Standards"
-                  value="Standards"
-                  checked={checkFolder === 'Standards'}
-                  onChange={(e, data) => {
-                    setCheckFolder(data.value);
-                  }}
-                />
-                <Checkbox
-                  name="folders"
-                  label="Raccordables"
-                  value="Raccordables"
-                  checked={checkFolder === 'Raccordables'}
-                  onChange={(e, data) => {
-                    setCheckFolder(data.value);
-                  }}
-                />
+            <Segment style={{ marginTop: 10 }}>
+              <Label as="a" color="blue" ribbon style={{ position: 'absolute', top: -10, left: -15 }}>
+                Deco
+              </Label>
 
-                <Checkbox
-                  name="folders"
-                  label="Sur Mesures"
-                  value="SurMesures"
-                  checked={checkFolder === 'SurMesures'}
-                  onChange={(e, data) => {
-                    setCheckFolder(data.value);
-                  }}
-                />
-                <Checkbox
-                  name="folders"
-                  label="Ecom"
-                  value="Ecom"
-                  checked={checkFolder === 'Ecom'}
-                  onChange={(e, data) => {
-                    setCheckFolder(data.value);
-                  }}
-                />
-              </Form.Field>
-            </Form.Group>
+              <Form.Group inline>
+                <Form.Field>
+                  <Checkbox
+                    name="folders"
+                    label="Standards"
+                    value="Standards"
+                    checked={checkFolder === 'Standards'}
+                    onChange={(e, data) => {
+                      setCheckFolder(data.value);
+                    }}
+                  />
+                  <Checkbox
+                    name="folders"
+                    label="Raccordables"
+                    value="Raccordables"
+                    checked={checkFolder === 'Raccordables'}
+                    onChange={(e, data) => {
+                      setCheckFolder(data.value);
+                    }}
+                  />
+                </Form.Field>
+                <Form.Field>
+                  <Checkbox
+                    name="folders"
+                    label="Sur Mesures"
+                    value="SurMesures"
+                    checked={checkFolder === 'SurMesures'}
+                    onChange={(e, data) => {
+                      setCheckFolder(data.value);
+                    }}
+                  />
+                  <Checkbox
+                    name="folders"
+                    label="Ecom"
+                    value="Ecom"
+                    checked={checkFolder === 'Ecom'}
+                    onChange={(e, data) => {
+                      setCheckFolder(data.value);
+                    }}
+                  />
+                </Form.Field>
+              </Form.Group>
+            </Segment>
 
             <label>Formats {checkFolder}</label>
             <FormatDropdown

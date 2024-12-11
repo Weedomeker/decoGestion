@@ -1,9 +1,8 @@
 .jobs-table-container {
   overflow: auto;
   width: 100%;
-  height: 300px; /* Hauteur fixe du conteneur */
+  height: 300px;
 }
-
 .jobs-table {
   height: 300px;
   width: 100%;
@@ -60,7 +59,7 @@
 }
 
 .progress {
-  margin-left: 24px;
+  margin-left: 40px;
   margin-right: auto;
   width: 100%;
 }

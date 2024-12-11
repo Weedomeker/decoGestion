@@ -31,6 +31,7 @@
     "pdf-lib": "^1.17.1",
     "pdfkit": "^0.15.0",
     "pdftopic": "^0.2.0",
+    "qrcode": "^1.5.4",
     "serve-index": "^1.9.1",
     "svg-to-pdfkit": "^0.1.8",
     "ws": "^8.17.0",

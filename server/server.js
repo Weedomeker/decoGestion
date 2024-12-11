@@ -26,6 +26,14 @@ const checkVernis = require('./src/checkVernis');
 const log = console.log;
 
 const accessLogStream = fs.createWriteStream(path.join(__dirname, 'server.log'), { flags: 'a' });
+const dayDate = new Date()
+  .toLocaleDateString('fr-FR', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+  .replace('.', '')
+  .toLocaleUpperCase();
 
 // Path Sources Deco
 let decoFolder;
@@ -34,6 +42,8 @@ let decoSurMesuresFolder;
 let decoEcomFolder;
 let decoSessionFolder;
 let jpgPath = './server/public';
+let sessionPRINTSA = `PRINTSA#${dayDate}`;
+
 //Lecture fichier config
 (async function () {
   const configPath = path.join('./config.json');
@@ -95,6 +105,14 @@ app.use(
   '/louis',
   express.static(saveFolder),
   serveIndex(saveFolder, { icons: true, stylesheet: path.join(__dirname, '/public/style.css') }),
+);
+app.use(
+  '/qrcode',
+  express.static(__dirname + `/public/${sessionPRINTSA}/QRCodes/`),
+  serveIndex(path.join(__dirname, `/public/${sessionPRINTSA}/QRCodes/`), {
+    icons: true,
+    stylesheet: path.join(__dirname, '/public/style.css'),
+  }),
 );
 
 let fileName = '',
@@ -173,17 +191,6 @@ app.patch('/edit_job', async (req, res) => {
 });
 
 app.post('/add_job', (req, res) => {
-  //Date
-  let time = new Date().toLocaleTimeString('fr-FR');
-  let date = new Date()
-    .toLocaleDateString('fr-FR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-    .replace('.', '')
-    .toLocaleUpperCase();
-
   const data = {
     allFormatTauro: req.body.allFormatTauro,
     formatTauro: req.body.formatTauro,
@@ -217,18 +224,19 @@ app.post('/add_job', (req, res) => {
   )} ${data.ex}_EX`;
 
   //Verifier si dossiers exist si pas le créer
-  if (fs.existsSync(writePath) && fs.existsSync(`${jpgPath}/PRINTSA#${date}`)) {
+  if (fs.existsSync(writePath) && fs.existsSync(`${jpgPath}/${sessionPRINTSA}`)) {
     pdfName = writePath + '/' + fileName;
-    jpgName = `${jpgPath}/PRINTSA#${date}` + '/' + fileName;
+    jpgName = `${jpgPath}/${sessionPRINTSA}` + '/' + fileName;
   } else {
     fs.mkdirSync(writePath, { recursive: true });
-    fs.mkdirSync(`${jpgPath}/PRINTSA#${date}`, { recursive: true });
+    fs.mkdirSync(`${jpgPath}/${sessionPRINTSA}`, { recursive: true });
     pdfName = writePath + '/' + fileName;
-    jpgName = `${jpgPath}/PRINTSA#${date}` + '/' + fileName;
+    jpgName = `${jpgPath}/${sessionPRINTSA}` + '/' + fileName;
   }
 
   const parseDimensions = (format) => {
-    const [width, height] = format.split('_').pop().split('x');
+    const [width, height] = format.toLowerCase().split('_').pop().split('x');
+
     return [parseFloat(width), parseFloat(height)];
   };
 
@@ -324,33 +332,33 @@ app.post('/run_jobs', async (req, res) => {
       if (!fs.existsSync(job.writePath)) {
         fs.mkdirSync(job.writePath, { recursive: true });
       }
-      const jpgPathExists = fs.existsSync(`${jpgPath}/PRINTSA#${date}`);
+      const jpgPathExists = fs.existsSync(`${jpgPath}/${sessionPRINTSA}`);
 
       if (!jpgPathExists) {
-        fs.mkdirSync(`${jpgPath}/PRINTSA#${date}`, { recursive: true });
+        fs.mkdirSync(`${jpgPath}/${sessionPRINTSA}`, { recursive: true });
       }
 
       if (sortFolder) {
         if (
           !fs.existsSync(
-            `${jpgPath}/PRINTSA#${date}/${checkVernis(fileName) === '_S' ? 'Satin' : checkVernis(fileName)}`,
+            `${jpgPath}/${sessionPRINTSA}/${checkVernis(fileName) === '_S' ? 'Satin' : checkVernis(fileName)}`,
           )
         )
           fs.mkdirSync(
-            `${jpgPath}/PRINTSA#${date}/${checkVernis(fileName) === '_S' ? 'Satin' : checkVernis(fileName)}`,
+            `${jpgPath}/${sessionPRINTSA}/${checkVernis(fileName) === '_S' ? 'Satin' : checkVernis(fileName)}`,
             { recursive: true },
           );
       }
 
       const pdfName = `${job.writePath}/${fileName}`;
       const jpgName = sortFolder
-        ? `${jpgPath}/PRINTSA#${date}/${checkVernis(fileName) === '_S' ? 'Satin' : checkVernis(fileName)}/${fileName}`
-        : `${jpgPath}/PRINTSA#${date}/${fileName}`;
+        ? `${jpgPath}/${sessionPRINTSA}/${checkVernis(fileName) === '_S' ? 'Satin' : checkVernis(fileName)}/${fileName}`
+        : `${jpgPath}/${sessionPRINTSA}/${fileName}`;
 
+      // Edition pdf
       try {
-        // Edition pdf
         let startPdf = performance.now();
-        await modifyPdf(job.visuPath, job.writePath, fileName, job.format_visu, job.format_Plaque, job.reg);
+        await modifyPdf(job.visuPath, job.writePath, fileName, job.format_visu, job.format_Plaque, job.reg, job);
         let endPdf = performance.now();
         pdfTime = endPdf - startPdf;
         console.log(
@@ -361,8 +369,8 @@ app.post('/run_jobs', async (req, res) => {
         console.error(`Error modifying PDF for job ${job.cmd}:`, error);
       }
 
+      // Générer image
       try {
-        // Générer image
         let startJpg = performance.now();
         await _useWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
         let endJpg = performance.now();
@@ -375,6 +383,7 @@ app.post('/run_jobs', async (req, res) => {
         console.error(`Error generating JPG for job ${job.cmd}:`, error);
       }
 
+      //Get all data
       let matchName = job.visuel.match(/ \d{3}x\d{3}/);
       let matchRef = job.visuel.match(/\d{8}/);
       const dataFileExport = [
@@ -388,7 +397,7 @@ app.post('/run_jobs', async (req, res) => {
           Format: job.format_visu,
           Ex: parseInt(job.ex),
           Temps: parseFloat(((jpgTime + pdfTime) / 1000).toFixed(2)),
-          Perte_m2: job.perte,
+          Perte_m2: parseFloat(job.perte),
           app_version: `v${appVersion}`,
           ip: req.hostname,
         },
@@ -402,12 +411,12 @@ app.post('/run_jobs', async (req, res) => {
       }
 
       //SAVE DB
-      try {
-        const newDeco = new modelDeco(dataFileExport[0]);
-        await newDeco.save();
-      } catch (error) {
-        console.log(error);
-      }
+      // try {
+      //   const newDeco = new modelDeco(dataFileExport[0]);
+      //   await newDeco.save();
+      // } catch (error) {
+      //   console.log(error);
+      // }
 
       //Générer découpe
       if (job.cut) {
@@ -566,6 +575,10 @@ app.get('/config', (req, res) => {
   } else {
     res.status(404).send('<center><h4>Fichier de configuration introuvable.</h4></center>');
   }
+});
+
+app.get('/qrcode', (req, res) => {
+  res.status(200).send();
 });
 
 app.get('/download', (req, res) => {

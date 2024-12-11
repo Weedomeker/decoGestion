@@ -20,4 +20,8 @@ function pointsToInch(points) {
   return points / 72;
 }
 
-module.exports = { cmToPoints, pointsToCm, inchToPoints, pointsToInch };
+function cmToPxl(cm) {
+  return (96 * cm) / 2.54;
+}
+
+module.exports = { cmToPoints, pointsToCm, inchToPoints, pointsToInch, cmToPxl };

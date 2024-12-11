@@ -18,6 +18,7 @@ function createJob(cmd, ville, format, formatPlaque, visuel, ref, ex, visuPath, 
     cut: cut,
     perte: perte,
   };
+
   return newJob;
 }
 

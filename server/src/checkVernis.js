@@ -25,7 +25,6 @@ function filterVerni(name) {
   const find = filtered.find((el) => name.includes(el));
 
   if (find) {
-    console.log('Vernis:', find);
     return find;
   } else {
     return;

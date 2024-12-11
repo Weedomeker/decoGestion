@@ -16,8 +16,6 @@ import {
 import '../css/JobsList.css';
 import './InfoModal';
 
-import checkVernis from '../checkVernis';
-
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
 
@@ -30,6 +28,7 @@ function JobsList({ show, formatTauro }) {
   const [onLoading, setOnLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [sortFolder, setSortFolder] = useState(true);
+  const [filter, setFilter] = useState([]);
 
   useEffect(() => {
     const dataFetch = async () => {
@@ -90,6 +89,35 @@ function JobsList({ show, formatTauro }) {
       ws.close();
     };
   }, [show, refreshFlag]);
+
+  useEffect(() => {
+    const dataFetch = async () => {
+      try {
+        const response = await fetch(`http://${HOST}:${PORT}/config/`, { method: 'GET' });
+        const res = await response.json();
+        setFilter(res.vernis);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+    dataFetch();
+  }, []);
+
+  const checkVernis = (value) => {
+    // S'assurer que value est une chaîne
+    if (typeof value !== 'string') {
+      console.error('Le paramètre "value" doit être une chaîne de caractères.');
+      return;
+    }
+    // Vérifie si le nom contient un des éléments filtrés
+    const find = filter.find((el) => value.includes(el));
+
+    if (find) {
+      return find;
+    } else {
+      return;
+    }
+  };
 
   const runJobsList = async () => {
     try {
@@ -185,7 +213,9 @@ function JobsList({ show, formatTauro }) {
           '/' +
           value.jpgName.split('/')[2];
 
-        if (ifSatin) url = url.replace('_S', 'Satin');
+        if (ifSatin) {
+          url = url.replace('_S', 'Satin');
+        }
       } else {
         url = `http://${HOST}:${PORT}/public/` + value.jpgName.replace(/#/i, '%23');
       }
@@ -272,7 +302,7 @@ function JobsList({ show, formatTauro }) {
                       <ButtonContent hidden content="Traiter la file" />
                     </Button>
                     <Checkbox
-                      label="Trier sortie jpg"
+                      label="Trier les jpg dans des dossiers par vernis."
                       style={{ paddingLeft: '10px', marginRight: 'auto' }}
                       checked={sortFolder}
                       onChange={(e, data) => {
