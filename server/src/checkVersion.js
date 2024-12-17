@@ -25,7 +25,7 @@ async function getVersionFromGitHub(options) {
   try {
     const response = await fetchDataFromURL(url);
     if (response.status === 404) {
-      throw new Error("Package or version doesn't exist on GitHub.");
+      throw new Error("Le package ou la version n'existe pas sur GitHub.");
     }
     return response.version;
   } catch (error) {
@@ -36,9 +36,9 @@ async function getVersionFromGitHub(options) {
 function getDefaultMessage(options) {
   const { latestVersion, currentVersion, name } = options;
   if (latestVersion === currentVersion) {
-    return `You have the latest version of ${name} (current: ${currentVersion})`;
+    return `Vous avez la dernière version de ${name} (actuelle: ${currentVersion})`;
   } else {
-    return `Update available: ${latestVersion} (current: ${currentVersion})`;
+    return `Mise à jour disponible: ${latestVersion} (actuelle: ${currentVersion})`;
   }
 }
 
@@ -47,7 +47,7 @@ async function getGitHubPackageInfo(options) {
   const pkg = JSON.parse(file);
   const defaultOptions = {
     user: 'Weedomeker',
-    name: 'decogestion',
+    name: 'Decogestion',
     currentVersion: pkg.version,
     branch: 'main',
   };

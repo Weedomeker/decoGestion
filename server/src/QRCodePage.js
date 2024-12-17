@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const sizeOf = require('image-size'); // Pour obtenir les dimensions des images
 
-function createPDFWithImagesInLines(directory, outputFile) {
+function createQRCodePage(directory, outputFile) {
   const files = fs.readdirSync(directory);
 
   // Filtrer uniquement les fichiers d'image supportés
@@ -38,7 +38,7 @@ function createPDFWithImagesInLines(directory, outputFile) {
   doc.addPage({ size: [pageWidth, pageHeight] }); // Ajouter la première page
 
   images.forEach((imagePath) => {
-    console.log(`Traitement de l'image : ${imagePath}`);
+    //console.log(`Traitement de l'image : ${imagePath}`);
 
     if (!fs.existsSync(imagePath)) {
       console.error(`Le fichier ${imagePath} n'existe pas. Ignoré.`);
@@ -49,7 +49,7 @@ function createPDFWithImagesInLines(directory, outputFile) {
     let dimensions;
     try {
       dimensions = sizeOf(imagePath);
-      console.log(`Dimensions de l'image : ${dimensions.width}x${dimensions.height}`);
+      //console.log(`Dimensions de l'image : ${dimensions.width}x${dimensions.height}`);
     } catch (error) {
       console.error(`Impossible de lire les dimensions de l'image ${imagePath}:`, error.message);
       return;
@@ -83,9 +83,14 @@ function createPDFWithImagesInLines(directory, outputFile) {
 
     // Ajouter le texte sous l'image
     const fileName = path.basename(imagePath); // Nom du fichier
+    const sliceName = fileName.split('_').slice(1, fileName.length).join(' ');
     const textY = currentY + imgHeight + 5; // Position Y pour le texte
     try {
-      doc.fontSize(4).text(fileName, currentX, textY, { width: imgWidth, height: imgHeight, align: 'center' });
+      doc.fontSize(4).text(sliceName, currentX, textY, {
+        width: imgWidth,
+        height: imgHeight,
+        align: 'center',
+      });
     } catch (error) {
       console.error(`Erreur lors de l'ajout du texte sous l'image ${imagePath}:`, error.message);
     }
@@ -104,8 +109,10 @@ function createPDFWithImagesInLines(directory, outputFile) {
   });
 }
 
-// Exemple d'utilisation
-const directoryPath = path.join(__dirname, '../public/PRINTSA#13 DÉC 2024/QRCodes'); // Remplacez par le chemin réel de votre répertoire
-const outputPDF = 'output.pdf'; // Nom du fichier PDF généré
+// // Exemple d'utilisation
+// const directoryPath = path.join(__dirname, '../public/PRINTSA#16 DÉC 2024/QRCodes'); // Remplacez par le chemin réel de votre répertoire
+// const outputPDF = path.dirname(directoryPath).split('\\').pop() + '.pdf'; // Nom du fichier PDF généré
 
-createPDFWithImagesInLines(directoryPath, outputPDF);
+// createQRCodePage(directoryPath, directoryPath + '\\' + outputPDF);
+
+module.exports = createQRCodePage;

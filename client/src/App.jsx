@@ -311,11 +311,10 @@ function App() {
           {/* Format */}
           <Form.Field required error={error.format}>
             <Segment style={{ marginTop: 10 }}>
-              <Label as="a" color="blue" ribbon style={{ position: 'absolute', top: -10, left: -15 }}>
+              <Label color="blue" ribbon style={{ position: 'absolute', top: -8, left: -15 }}>
                 Deco
               </Label>
-
-              <Form.Group inline>
+              <Form.Group inline style={{ marginTop: 10 }}>
                 <Form.Field>
                   <Checkbox
                     name="folders"

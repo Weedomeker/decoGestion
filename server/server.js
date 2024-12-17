@@ -22,6 +22,7 @@ const mongoose = require('./src/mongoose');
 const modelDeco = require('./src/models/Deco');
 const symlink = require('./src/symlink');
 const checkVernis = require('./src/checkVernis');
+const createQRCodePage = require('./src/QRCodePage');
 
 const log = console.log;
 
@@ -410,13 +411,13 @@ app.post('/run_jobs', async (req, res) => {
         console.error(error);
       }
 
-      //SAVE DB
-      // try {
-      //   const newDeco = new modelDeco(dataFileExport[0]);
-      //   await newDeco.save();
-      // } catch (error) {
-      //   console.log(error);
-      // }
+      // SAVE DB
+      try {
+        const newDeco = new modelDeco(dataFileExport[0]);
+        await newDeco.save();
+      } catch (error) {
+        console.log(error);
+      }
 
       //Générer découpe
       if (job.cut) {
@@ -446,6 +447,11 @@ app.post('/run_jobs', async (req, res) => {
         client.send(JSON.stringify({ type: 'end', endTime }));
       }
     });
+
+    //Generer QRCode page
+    const pathQRCodePage = path.join(__dirname, `./public/${sessionPRINTSA}/QRCodes`);
+    createQRCodePage(pathQRCodePage, pathQRCodePage + '\\' + sessionPRINTSA + '.pdf');
+
     res.status(200).json({ message: 'Jobs completed successfully' });
   } catch (error) {
     console.error('Error running jobs:', error);
