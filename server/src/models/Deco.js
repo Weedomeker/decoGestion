@@ -1,16 +1,16 @@
 const mongoose = require('mongoose');
 
 const Deco = mongoose.model('lm_commandes', {
-  Date: Date,
+  date: Date,
   numCmd: Number,
-  Mag: String,
-  Dibond: String,
-  Deco: String,
-  Ref: Number,
-  Format: String,
-  Ex: Number,
-  Temps: Number,
-  Perte_m2: mongoose.Decimal128,
+  mag: String,
+  dibond: String,
+  deco: String,
+  ref: Number,
+  format: String,
+  ex: Number,
+  temps: Number,
+  perte: mongoose.Decimal128,
   app_version: String,
   ip: String,
 });

@@ -1,4 +1,7 @@
 const { degrees, PDFDocument, rgb, StandardFonts } = require('pdf-lib');
+require('dotenv').config();
+const HOST = process.env.HOST || 'localhost';
+const PORT = process.env.PORT || 8000;
 const fs = require('fs');
 const { cmToPoints, pointsToCm, cmToPxl } = require('./convertUnits');
 const generateQRCode = require('./qrcode');
@@ -83,11 +86,27 @@ async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg
       if (!fs.existsSync(pathQRCodes)) {
         fs.mkdirSync(pathQRCodes, { recursive: true });
       }
-      await generateQRCode(newData, pathQRCodes + `QRCode_${fileName}.png`, {
-        scale: 1,
-        margin: 1,
-        color: { dark: '#060075' },
-      });
+
+      const url = `http://${HOST}:${PORT}/api/commandes/${data.cmd}`;
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          console.error(`Response status: ${response.status}`);
+          await generateQRCode(newData, pathQRCodes + `QRCode_${fileName}.png`, {
+            scale: 1,
+            margin: 1,
+            color: { dark: '#060075' },
+          });
+        }
+        await generateQRCode(url, pathQRCodes + `QRCode_${fileName}.png`, {
+          scale: 1,
+          margin: 1,
+          color: { dark: '#060075' },
+        });
+      } catch (error) {
+        console.error(error.message);
+      }
+
       const pngURL = `http://localhost:8000/qrcode/QRCode_${fileName}.png`;
       const pngImageBytes = await fetch(pngURL).then((res) => res.arrayBuffer());
       const pngImage = await pdfDoc.embedPng(pngImageBytes);

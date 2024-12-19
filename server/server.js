@@ -389,16 +389,16 @@ app.post('/run_jobs', async (req, res) => {
       let matchRef = job.visuel.match(/\d{8}/);
       const dataFileExport = [
         {
-          Date: job.date,
+          date: job.date,
           numCmd: job.cmd,
-          Mag: job.ville,
-          Dibond: job.format_Plaque,
-          Deco: matchName ? job.visuel.substring(0, job.visuel.indexOf(matchName[0])) : '',
-          Ref: matchRef ? matchRef[0] : 0,
-          Format: job.format_visu,
-          Ex: parseInt(job.ex),
-          Temps: parseFloat(((jpgTime + pdfTime) / 1000).toFixed(2)),
-          Perte_m2: parseFloat(job.perte),
+          mag: job.ville,
+          dibond: job.format_Plaque,
+          deco: matchName ? job.visuel.substring(0, job.visuel.indexOf(matchName[0])) : '',
+          ref: matchRef ? matchRef[0] : 0,
+          format: job.format_visu.split('_').pop(),
+          ex: parseInt(job.ex),
+          temps: parseFloat(((jpgTime + pdfTime) / 1000).toFixed(2)),
+          perte: parseFloat(job.perte),
           app_version: `v${appVersion}`,
           ip: req.hostname,
         },
@@ -609,6 +609,361 @@ app.get('/download', (req, res) => {
 
 app.get('/jobs', async (req, res) => {
   res.json(jobList);
+});
+
+app.get('/api/commandes', async (req, res) => {
+  try {
+    const commandes = await modelDeco.find({}); // Récupère toutes les commandes depuis MongoDB
+    const countTotalCommandes = await modelDeco.countDocuments();
+    const html = `
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Liste des Commandes</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 20px;
+          padding: 0;
+          background-color: #f7f7f7;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 20px 0;
+          background: white;
+        }
+        th, td {
+          padding: 10px;
+          text-align: left;
+          border: 1px solid #ddd;
+        }
+        th {
+          background-color: #4CAF50;
+          color: white;
+          cursor: pointer;
+        }
+        td {
+          background-color: #f2f2f2;
+        }
+        .pagination {
+          display: flex;
+          justify-content: center;
+          margin-top: 20px;
+        }
+        .pagination button {
+          margin: 0 5px;
+          padding: 8px 12px;
+          background-color: #4CAF50;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+        }
+        .pagination button.disabled {
+          background-color: #ccc;
+          cursor: not-allowed;
+        }
+        .pagination input {
+          width: 50px;
+          padding: 5px;
+          text-align: center;
+          margin-left: 10px;
+        }
+        .search-container {
+          margin-bottom: 20px;
+          display: flex;
+          justify-content: flex-start;
+        }
+        .search-container input {
+          padding: 8px;
+          width: 200px;
+          margin-right: 10px;
+        }
+      </style>
+    </head>
+    <body>
+     <div><img width='140px' src="https://entreprise.leroymerlin.fr/images/logo.svg" alt="Logo Leroy Merlin" />
+    <h2>Liste des Commandes</h2></div>
+     
+      <!-- Zone de recherche -->
+      <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Rechercher par Numéro de Commande (cmd)" />
+        <button id="searchButton">Rechercher</button>
+      </div>
+
+      <table id="commandesTable">
+        <thead>
+          <tr>
+            <th data-column="Date">Date</th>
+            <th data-column="numCmd">Numéro de Commandes</th>
+            <th data-column="Mag">Magasins</th>
+            <th data-column="Dibond">Dibonds</th>
+            <th data-column="Deco">Déco</th>
+            <th data-column="Ref">Référence</th>
+            <th data-column="Formats">Formats</th>
+            <th data-column="Ex">Ex(s)</th>
+            <th data-column="Temps">Temps</th>
+            <th data-column="Perte_m2">Perte (m²)</th>
+          </tr>
+        </thead>
+        <tbody id="commandesBody">
+          ${commandes
+            .map(
+              (commande) => `
+            <tr data-cmd="${commande.numCmd}">
+              <td>${new Date(commande.date).toLocaleDateString('fr-FR')}</td>
+              <td>${commande.numCmd}</td>
+              <td>${commande.mag}</td>
+              <td>${commande.dibond}</td>
+              <td>${commande.deco}</td>
+              <td>${commande.ref}</td>
+              <td>${commande.format}</td>
+              <td>${commande.ex}</td>
+              <td>${commande.temps}</td>
+              <td>${commande.perte}</td>
+            </tr>
+          `,
+            )
+            .join('')}
+        </tbody>
+      </table>
+
+      <div class="pagination" id="pagination"></div>
+      <div class="pagination">Total documents: ${countTotalCommandes}</div>
+
+      <script>
+        document.addEventListener('DOMContentLoaded', () => {
+          const rowsPerPage = 10; // Nombre de lignes par page
+          const table = document.getElementById('commandesTable');
+          const tbody = document.getElementById('commandesBody');
+          const pagination = document.getElementById('pagination');
+          const searchInput = document.getElementById('searchInput');
+          const searchButton = document.getElementById('searchButton');
+          const rows = Array.from(tbody.rows);
+          let currentPage = 1;
+          let sortedColumn = null;
+          let sortOrder = 1; // 1 = ascendant, -1 = descendant
+          
+         // Fonction pour trier les lignes
+function sortTable(column, order) {
+  return rows.sort((a, b) => {
+    // On sélectionne la cellule correspondante à la colonne
+    const cellA = a.cells[column].textContent.trim(); 
+    const cellB = b.cells[column].textContent.trim(); 
+
+    // Si les cellules contiennent des nombres, on les convertit et on les compare
+    if (!isNaN(cellA) && !isNaN(cellB)) {
+      return (parseFloat(cellA) - parseFloat(cellB)) * order;
+    } else {
+      // Si ce sont des chaînes, on les compare lexicographiquement
+      return cellA.localeCompare(cellB) * order;
+    }
+  });
+}
+
+
+          // Fonction pour afficher le tableau avec pagination
+          function renderTable(page, filteredRows) {
+            tbody.innerHTML = '';
+            const rowsToDisplay = filteredRows.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+            rowsToDisplay.forEach(row => tbody.appendChild(row));
+          }
+
+          // Fonction pour afficher la pagination
+          function renderPagination(filteredRows) {
+            pagination.innerHTML = '';
+            const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
+
+            // Créer les boutons de pagination
+            const createButton = (text, page, disabled = false) => {
+              const button = document.createElement('button');
+              button.textContent = text;
+              if (disabled) {
+                button.classList.add('disabled');
+                button.disabled = true;
+              }
+              button.addEventListener('click', () => {
+                if (page) {
+                  currentPage = page;
+                  renderTable(currentPage, filteredRows);
+                  renderPagination(filteredRows);
+                }
+              });
+              return button;
+            };
+
+            pagination.appendChild(createButton('Premier', 1, currentPage === 1));
+            pagination.appendChild(createButton('Précédent', currentPage > 1 ? currentPage - 1 : null, currentPage === 1));
+
+            const totalPagesToShow = 5;
+            const startPage = Math.max(1, currentPage - Math.floor(totalPagesToShow / 2));
+            const endPage = Math.min(totalPages, startPage + totalPagesToShow - 1);
+
+            for (let i = startPage; i <= endPage; i++) {
+              pagination.appendChild(createButton(i, i));
+            }
+
+            pagination.appendChild(createButton('Suivant', currentPage < totalPages ? currentPage + 1 : null, currentPage === totalPages));
+            pagination.appendChild(createButton('Dernier', totalPages, currentPage === totalPages));
+
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.min = 1;
+            input.max = totalPages;
+            input.value = currentPage;
+            input.addEventListener('change', (e) => {
+              const page = Math.max(1, Math.min(totalPages, parseInt(e.target.value)));
+              currentPage = page;
+              renderTable(currentPage, filteredRows);
+              renderPagination(filteredRows);
+            });
+            pagination.appendChild(input);
+          }
+
+          // Fonction de recherche
+          function searchByCmd() {
+            const searchTerm = searchInput.value.trim();
+            const filteredRows = rows.filter(row => {
+              const cmd = row.dataset.cmd;
+              return cmd && cmd.toString().includes(searchTerm);
+            });
+
+            renderTable(currentPage, filteredRows);
+            renderPagination(filteredRows);
+          }
+
+          // Ajouter l'événement de recherche
+          searchButton.addEventListener('click', searchByCmd);
+          searchInput.addEventListener('input', searchByCmd);
+
+          // Ajouter les événements de tri sur les en-têtes de colonnes
+          table.querySelectorAll('th').forEach((th, index) => {
+            th.addEventListener('click', () => {
+              // Trier par la colonne cliquée
+              if (sortedColumn === index) {
+                sortOrder = -sortOrder; // Inverser l'ordre du tri
+              } else {
+                sortedColumn = index;
+                sortOrder = 1; // Par défaut, tri croissant
+              }
+              const sortedRows = sortTable(sortedColumn + 1, sortOrder); // +1 car les index commencent à 0
+              renderTable(currentPage, sortedRows);
+              renderPagination(sortedRows);
+            });
+          });
+
+          renderTable(currentPage, rows);
+          renderPagination(rows);
+        });
+      </script>
+    </body>
+    </html>
+    `;
+    res.send(html);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des commandes :', error);
+    res.status(500).send('<h1>Erreur interne du serveur</h1>');
+  }
+});
+
+app.get('/api/commandes/:cmd', async (req, res) => {
+  const cmd = Number(req.params.cmd); // Convertir en nombre
+  if (isNaN(cmd)) {
+    return res.status(400).send("<h1>Erreur : Le paramètre 'cmd' doit être un nombre valide.</h1>");
+  }
+
+  // Recherche de toutes les commandes qui correspondent à 'numCmd'
+  const commandes = await modelDeco.find({ numCmd: cmd });
+
+  if (commandes.length === 0) {
+    return res.status(404).send('<h1>Erreur : Aucune commande trouvée.</h1>');
+  }
+
+  // Générer le tableau HTML avec les données de toutes les commandes
+  let rows = '';
+  commandes.forEach((commande) => {
+    rows += `
+      <tr>
+        <td>${new Date(commande.date).toLocaleDateString('fr-FR')}</td>
+        <td>${commande.numCmd}</td>
+        <td>${commande.mag}</td>
+        <td>${commande.dibond}</td>
+        <td>${commande.deco}</td>
+        <td>${commande.ref}</td>
+        <td>${commande.format}</td>
+        <td>${commande.ex}</td>
+        <td>${commande.temps}</td>
+        <td>${commande.perte}</td>
+      </tr>
+    `;
+  });
+
+  // Générer la page HTML
+  const html = `
+  <!DOCTYPE html>
+  <html lang="fr">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Commandes ${cmd}</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        padding: 0;
+        background-color: #f7f7f7;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background: white;
+      }
+      th, td {
+        padding: 10px;
+        text-align: left;
+        border: 1px solid #ddd;
+      }
+      th {
+        background-color: #4CAF50;
+        color: white;
+      }
+      td {
+        background-color: #f2f2f2;
+      }
+    </style>
+  </head>
+  <body>
+  <div><img width='140px' src="https://entreprise.leroymerlin.fr/images/logo.svg" alt="Logo Leroy Merlin" />
+    <h2>Détails commande(s) ${cmd}</h2></div>
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Commande</th>
+          <th>Magasin</th>
+          <th>Dibond</th>
+          <th>Déco</th>
+          <th>Référence</th>
+          <th>Format</th>
+          <th>Ex(s)</th>
+          <th>Temps</th>
+          <th>Perte (m²)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows} <!-- Ici, on insère toutes les lignes générées dynamiquement -->
+      </tbody>
+    </table>
+  </body>
+  </html>
+  `;
+
+  // Envoyer la page HTML au client
+  res.send(html);
 });
 
 server.listen(PORT, async () => {
