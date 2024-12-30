@@ -2,10 +2,13 @@ node_modules
 .vscode/*
 !.vscode/extensions.json
 dist/
-server/public/
 !server/public/*.html
 !server/public/icons
 !server/public/images
+server/public/DECO
+server/public/ECOM
+server/public/STANDARDS
+server/public/SURMESURES
 *.csv
 *.log
 client/dist

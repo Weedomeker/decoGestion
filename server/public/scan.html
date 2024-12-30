@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Code Scanner</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"
+    integrity="sha512-r6rDA7W6ZeQhvl8S7yRVQUKVHdexq+GAlNkNNqVC7YyIV+NwqCTJe2hDWCiffTyRNOeGEzRRJ9ifvRm/HCzGYg=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    #reader {
+      width: 250px;
+      margin: 20px 0;
+    }
+
+    #output {
+      font-size: 12px;
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      background: #f9f9f9;
+      border-radius: 5px;
+      min-width: 300px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>QR Code Scanner</h1>
+  <div id="reader"></div>
+  <button id="start-button">Start Scanner</button><br>
+  <button id="stop-button">Stop Scanner</button>
+  <div id="output">
+    <strong>Scanned Result:</strong>
+    <p id="result"></p>
+  </div>
+
+  <script>
+    let html5QrcodeScanner;
+    const outputElement = document.getElementById("result");
+    // This method will trigger user permissions
+
+
+    function onScanSuccess(decodedText, decodedResult) {
+
+      // Parse URL to extract parameters (cmd and ref)
+      try {
+        const url = new URL(decodedText);
+        const cmd = url.searchParams.get("cmd");
+        const ref = url.searchParams.get("ref");
+        console.log(`Command: ${cmd}, Reference: ${ref}`);
+        outputElement.innerHTML += "<br>✔️ Commande: " + cmd + " Ref: " + ref;
+
+        // Send data to your Node.js backend
+        fetch('/scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cmd, ref })
+        }).then(response => {
+          if (response.ok) {
+            console.log("Data sent to backend successfully");
+          } else {
+            console.error("Failed to send data to backend");
+          }
+        });
+      } catch (error) {
+        console.error("Invalid QR Code format", error);
+        outputElement.textContent = "Invalid QR Code format";
+      }
+    }
+
+    function onScanError(errorMessage) {
+      // Optional: log errors
+      //console.warn(`Scan error: ${errorMessage}`);
+    }
+
+
+    // Fonction pour démarrer le scanner
+    function startScanner() {
+
+      const qrReaderElement = document.getElementById("reader");
+
+      if (!html5QrcodeScanner) {
+        // Créer un nouvel instance si elle n'existe pas
+        html5QrcodeScanner = new Html5Qrcode("reader");
+      }
+
+      // Start scanning
+      html5QrcodeScanner.start(
+        { facingMode: "environment" }, // Use rear camera
+        { fps: 2, qrbox: { width: 200, height: 200 } },
+        onScanSuccess,
+        onScanError
+      ).catch(err => {
+        console.error("Unable to start scanning", err);
+      });
+
+    }
+
+    // Fonction pour arrêter le scanner
+    function stopScanner() {
+      if (html5QrcodeScanner) {
+        html5QrcodeScanner.stop().then(() => {
+          console.log("Scanner arrêté.");
+        }).catch(err => {
+          console.error(`Erreur lors de l'arrêt du scanner : ${err}`);
+        });
+      }
+    }
+
+    // Ajouter des écouteurs d'événements sur les boutons
+    document.getElementById("start-button").addEventListener("click", startScanner);
+    document.getElementById("stop-button").addEventListener("click", stopScanner);
+  </script>
+
+</body>
+
+</html>
