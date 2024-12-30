@@ -3,6 +3,7 @@ node_modules
 !.vscode/extensions.json
 dist/
 server/public/
+!server/public/*.html
 !server/public/icons
 !server/public/images
 *.csv
