@@ -74,31 +74,26 @@ async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg
       .replace('.', '')
       .toLocaleUpperCase();
     try {
-      const newData = `Date: ${newDate}
-      cmd: ${data.cmd}
-      ville: ${data.ville}
-      visuel: ${data.visuel}
-      ref: ${data.ref}
-      ex: ${data.ex}
-     `;
-
+      const newData = {
+        Date: newDate,
+        cmd: data.cmd,
+        ville: data.ville,
+        visuel: data.visuel,
+        ref: data.ref,
+        ex: data.ex,
+      };
       const pathQRCodes = `./server/public/PRINTSA#${dayDate}/QRCodes/`;
       if (!fs.existsSync(pathQRCodes)) {
         fs.mkdirSync(pathQRCodes, { recursive: true });
       }
 
-      const url = `http://${HOST}:${PORT}/api/commandes/${data.cmd}`;
+      const url = `http://${HOST}:${PORT}/api/commandes/`;
       try {
         const response = await fetch(url);
         if (!response.ok) {
           console.error(`Response status: ${response.status}`);
-          await generateQRCode(newData, pathQRCodes + `QRCode_${fileName}.png`, {
-            scale: 1,
-            margin: 1,
-            color: { dark: '#060075' },
-          });
         }
-        await generateQRCode(url, pathQRCodes + `QRCode_${fileName}.png`, {
+        await generateQRCode(url + `?cmd=${data.cmd}&ref=${data.ref}`, pathQRCodes + `QRCode_${fileName}.png`, {
           scale: 1,
           margin: 1,
           color: { dark: '#060075' },

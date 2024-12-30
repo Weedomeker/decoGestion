@@ -1,6 +1,8 @@
 require('dotenv').config();
+const { v4: uuidv4 } = require('uuid');
 const chalk = require('chalk');
 const express = require('express');
+const cookieParser = require('cookie-parser');
 const app = express();
 const path = require('path');
 const fs = require('fs');
@@ -8,7 +10,9 @@ const { performance } = require('perf_hooks');
 const { Worker, workerData } = require('worker_threads');
 const WebSocket = require('ws');
 const http = require('http');
-const PORT = process.env.PORT || 8000;
+const https = require('https');
+const PORT_HTTP = process.env.PORT_HTTP || 8000;
+const PORT_HTTPS = process.env.PORT_HTTPS || 8043;
 const serveIndex = require('serve-index');
 const cors = require('cors');
 const morgan = require('morgan');
@@ -20,6 +24,7 @@ const createJob = require('./src/jobsList');
 const createXlsx = require('./src/xlsx');
 const mongoose = require('./src/mongoose');
 const modelDeco = require('./src/models/Deco');
+const User = require('./src/models/User');
 const symlink = require('./src/symlink');
 const checkVernis = require('./src/checkVernis');
 const createQRCodePage = require('./src/QRCodePage');
@@ -41,7 +46,6 @@ let decoFolder;
 let decoRaccordablesFolder;
 let decoSurMesuresFolder;
 let decoEcomFolder;
-let decoSessionFolder;
 let jpgPath = './server/public';
 let sessionPRINTSA = `PRINTSA#${dayDate}`;
 
@@ -95,10 +99,13 @@ const corsOptions = {
   origin: ['http://localhost:8000', 'http://localhost:5173', 'file'], // Ajoutez 'file://' pour accepter les requêtes locales d'Electron
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
 };
-app.use(cors(corsOptions));
+
+app.use(cors());
 app.use(express.json());
+app.use(cookieParser());
 app.use(morgan('combined', { stream: accessLogStream }));
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: true }));
+
 app.use('/public', express.static(__dirname));
 app.use('/download', express.static(__dirname + '/public/tmp'));
 app.use(express.static(path.join(__dirname, '../client/dist')));
@@ -118,10 +125,7 @@ app.use(
 
 let fileName = '',
   writePath = '',
-  pdfName = '',
   jpgName = '',
-  start,
-  timeExec,
   pdfTime,
   jpgTime,
   fileDownload;
@@ -131,9 +135,43 @@ let jobList = {
   completed: [],
 };
 
-// WebSocket setup
-const server = http.createServer(app); // Créer le serveur HTTP
-const wss = new WebSocket.Server({ server });
+app.use('/api/commandes', async (req, res, next) => {
+  const { cmd, ref } = req.query;
+  if (cmd && ref) {
+    const { uid } = req.cookies;
+    if (uid) {
+      req.user = await User.findOne({ uid });
+    } else if (req.body.deviceFingerprint) {
+      req.user = await User.findOne({ deviceFingerprint: req.body.deviceFingerprint });
+      if (req.user) {
+        // Réattribuer l'identifiant via un cookie
+        res.cookie('uid', req.user.uid, { httpOnly: true, secure: false });
+      }
+    }
+  }
+
+  next();
+});
+
+// Middleware pour rediriger une route vers HTTPS avec un port spécifique
+function enforceHttps(req, res, next) {
+  if (req.secure || req.headers['x-forwarded-proto'] === 'https') {
+    next(); // Si déjà en HTTPS, continuer
+  } else {
+    const httpsUrl = `https://${req.hostname}:${PORT_HTTPS}${req.url}`;
+    console.log(httpsUrl);
+    res.redirect(301, httpsUrl); // Redirection permanente vers HTTPS avec le bon port
+  }
+}
+
+// WebSocket and server setup
+const options = {
+  key: fs.readFileSync(path.join(__dirname, './ssl_keys/selfsigned.key')),
+  cert: fs.readFileSync(path.join(__dirname, './ssl_keys/selfsigned.crt')),
+};
+const server_http = http.createServer(app); // Créer le serveur HTTP
+const server_https = https.createServer(options, app); // Créer le serveur HTTP
+const wss = new WebSocket.Server({ server: server_http });
 
 wss.on('connection', (ws) => {
   ws.on('close', () => {});
@@ -246,14 +284,14 @@ app.post('/add_job', (req, res) => {
   const perteCalc = parseFloat(widthPlaque * heightPlaque - widthVisu * heightVisu) / 10000;
 
   // JOBS LIST STANDBY
-  const matchRef = visuel.match(/\d{8}/);
+  const matchRef = visuel.match(/\d{8}/); // Recherche une séquence de 8 chiffres
   const newJob = createJob(
     data.numCmd,
     data.ville,
     format,
     formatTauro,
     visuel,
-    matchRef !== null ? matchRef[0] : 0,
+    matchRef ? matchRef[0] : 0,
     data.ex,
     visuPath,
     writePath,
@@ -393,14 +431,15 @@ app.post('/run_jobs', async (req, res) => {
           numCmd: job.cmd,
           mag: job.ville,
           dibond: job.format_Plaque,
-          deco: matchName ? job.visuel.substring(0, job.visuel.indexOf(matchName[0])) : '',
+          deco: matchName ? job.visuel.substring(0, job.visuel.indexOf(matchName[0])) : job.visuel,
           ref: matchRef ? matchRef[0] : 0,
           format: job.format_visu.split('_').pop(),
           ex: parseInt(job.ex),
           temps: parseFloat(((jpgTime + pdfTime) / 1000).toFixed(2)),
           perte: parseFloat(job.perte),
+          status: '',
           app_version: `v${appVersion}`,
-          ip: req.hostname,
+          ip: req.ip.split(':').pop(),
         },
       ];
 
@@ -611,18 +650,9 @@ app.get('/jobs', async (req, res) => {
   res.json(jobList);
 });
 
-app.get('/api/commandes', async (req, res) => {
-  try {
-    const commandes = await modelDeco.find({}); // Récupère toutes les commandes depuis MongoDB
-    const countTotalCommandes = await modelDeco.countDocuments();
-    const html = `
-    <!DOCTYPE html>
-    <html lang="fr">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Liste des Commandes</title>
-      <style>
+// Génération des styles CSS communs
+const generateStyles = () => `
+     <style>
         body {
           font-family: Arial, sans-serif;
           margin: 20px;
@@ -683,185 +713,277 @@ app.get('/api/commandes', async (req, res) => {
           margin-right: 10px;
         }
       </style>
-    </head>
-    <body>
-     <div><img width='140px' src="https://entreprise.leroymerlin.fr/images/logo.svg" alt="Logo Leroy Merlin" />
-    <h2>Liste des Commandes</h2></div>
-     
-      <!-- Zone de recherche -->
-      <div class="search-container">
-        <input type="text" id="searchInput" placeholder="Rechercher par Numéro de Commande (cmd)" />
-        <button id="searchButton">Rechercher</button>
-      </div>
+`;
 
-      <table id="commandesTable">
-        <thead>
-          <tr>
-            <th data-column="Date">Date</th>
-            <th data-column="numCmd">Numéro de Commandes</th>
-            <th data-column="Mag">Magasins</th>
-            <th data-column="Dibond">Dibonds</th>
-            <th data-column="Deco">Déco</th>
-            <th data-column="Ref">Référence</th>
-            <th data-column="Formats">Formats</th>
-            <th data-column="Ex">Ex(s)</th>
-            <th data-column="Temps">Temps</th>
-            <th data-column="Perte_m2">Perte (m²)</th>
+// Génération du tableau HTML
+const generateTable = (commandes) => `
+  <table id="commandesTable">
+    <thead>
+        <tr>
+        <th data-column="Date">Date</th>
+        <th data-column="numCmd">N° Cmds</th>
+        <th data-column="Mag">Magasins</th>
+        <th data-column="Dibond">Dibonds</th>
+        <th data-column="Deco">Déco</th>
+        <th data-column="Ref">Référence</th>
+        <th data-column="Formats">Formats</th>
+        <th data-column="Ex">Ex(s)</th>
+        <th data-column="Status">Status</th>
+      </tr>
+    </thead>
+    <tbody id="commandesBody">
+      ${commandes
+        .map(
+          (commande) => `
+          <tr data-cmd="${commande.numCmd}">
+            <td>${new Date(commande.date).toLocaleDateString('fr-FR')}</td>
+            <td>${commande.numCmd}</td>
+            <td>${commande.mag}</td>
+            <td>${commande.dibond}</td>
+            <td>${commande.deco.split(commande.deco.match(/\d{8}/)).shift().replace('_', '')}</td>
+            <td>${commande.ref}</td>
+            <td>${commande.format}</td>
+            <td>${commande.ex}</td>
+            <td id="status">${commande.status}</td>
           </tr>
-        </thead>
-        <tbody id="commandesBody">
-          ${commandes
-            .map(
-              (commande) => `
-            <tr data-cmd="${commande.numCmd}">
-              <td>${new Date(commande.date).toLocaleDateString('fr-FR')}</td>
-              <td>${commande.numCmd}</td>
-              <td>${commande.mag}</td>
-              <td>${commande.dibond}</td>
-              <td>${commande.deco}</td>
-              <td>${commande.ref}</td>
-              <td>${commande.format}</td>
-              <td>${commande.ex}</td>
-              <td>${commande.temps}</td>
-              <td>${commande.perte}</td>
-            </tr>
-          `,
-            )
-            .join('')}
-        </tbody>
-      </table>
+        `,
+        )
+        .join('')}
+    </tbody>
+  </table>
+`;
 
-      <div class="pagination" id="pagination"></div>
-      <div class="pagination">Total documents: ${countTotalCommandes}</div>
+// Route pour afficher toutes les commandes
+app.get('/api/commandes', async (req, res) => {
+  try {
+    const { cmd, ref } = req.query;
 
-      <script>
-        document.addEventListener('DOMContentLoaded', () => {
-          const rowsPerPage = 10; // Nombre de lignes par page
-          const table = document.getElementById('commandesTable');
-          const tbody = document.getElementById('commandesBody');
-          const pagination = document.getElementById('pagination');
-          const searchInput = document.getElementById('searchInput');
-          const searchButton = document.getElementById('searchButton');
-          const rows = Array.from(tbody.rows);
-          let currentPage = 1;
-          let sortedColumn = null;
-          let sortOrder = 1; // 1 = ascendant, -1 = descendant
-          
-         // Fonction pour trier les lignes
-function sortTable(column, order) {
-  return rows.sort((a, b) => {
-    // On sélectionne la cellule correspondante à la colonne
-    const cellA = a.cells[column].textContent.trim(); 
-    const cellB = b.cells[column].textContent.trim(); 
+    let commandes;
 
-    // Si les cellules contiennent des nombres, on les convertit et on les compare
-    if (!isNaN(cellA) && !isNaN(cellB)) {
-      return (parseFloat(cellA) - parseFloat(cellB)) * order;
+    // Si cmd est présent, on fait une recherche filtrée
+    if (cmd) {
+      const filter = { numCmd: Number(cmd) };
+      if (ref && !isNaN(ref)) {
+        filter.ref = Number(ref);
+      }
+      commandes = await modelDeco.find(filter);
     } else {
-      // Si ce sont des chaînes, on les compare lexicographiquement
-      return cellA.localeCompare(cellB) * order;
+      // Sinon, on récupère toutes les commandes
+      commandes = await modelDeco.find({});
     }
+
+    const countTotalCommandes = await modelDeco.countDocuments();
+
+    if (commandes.length === 0) {
+      return res.status(404).send('<h1>Aucune commande trouvée</h1>');
+    }
+    // Génération du HTML
+    const html = `
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Liste des Commandes</title>
+  ${generateStyles()}
+</head>
+
+<body>
+
+
+
+  <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3.3.0/dist/fp.min.js"></script>
+<script>
+  const fetchFingerprint = async () => {
+    const fp = await FingerprintJS.load();  
+    const result = await fp.get();          
+    return result.visitorId;               
+  };
+
+  fetchFingerprint().then((deviceFingerprint) => {
+    // Récupérer l'URL actuelle
+    const currentUrl = new URL(window.location.href);
+
+    // Obtenir les valeurs de 'cmd' et 'ref' depuis l'URL
+    const cmd = currentUrl.searchParams.get('cmd');
+    const ref = currentUrl.searchParams.get('ref');
+
+    // Vérifier si les paramètres sont présents
+    if (!cmd || !ref) {
+      console.error('Les paramètres cmd et ref sont requis dans URL.');
+      return;
+    }
+
+    // Construire dynamiquement l'URL de l'API
+const apiUrl = '/api/commandes?cmd=' + encodeURIComponent(cmd) + '&ref=' + encodeURIComponent(ref);
+
+    fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ deviceFingerprint }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+         if (data.redirect) {
+      // Effectuez la redirection côté client
+      window.location.href = data.redirect;
+    } else {
+      console.log('Données du serveur:', data);
+    }
+      })
+      .catch((error) => {
+        console.error("Erreur send:", error);
+      });
   });
-}
+</script>
 
+  <div>
+    <img width="140px" src="https://entreprise.leroymerlin.fr/images/logo.svg" alt="Logo Leroy Merlin" />
+    <h2>${cmd ? `Détails commande(s) ${cmd}` : 'Liste des Commandes'}</h2>
+    <!-- Zone de recherche -->
+    <div class="search-container">
+      <input type="text" id="searchInput" placeholder="Rechercher par Numéro de Commande (cmd)" />
+      <button id="searchButton">Rechercher</button>
+    </div>
+  </div>
+  ${generateTable(commandes)}
 
-          // Fonction pour afficher le tableau avec pagination
-          function renderTable(page, filteredRows) {
-            tbody.innerHTML = '';
-            const rowsToDisplay = filteredRows.slice((page - 1) * rowsPerPage, page * rowsPerPage);
-            rowsToDisplay.forEach(row => tbody.appendChild(row));
+  <div class="pagination" id="pagination"></div>
+  <div class="pagination">Total documents: ${countTotalCommandes}</div>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const rowsPerPage = 5; // Nombre de lignes par page
+      const table = document.getElementById('commandesTable');
+      const tbody = document.getElementById('commandesBody');
+      const pagination = document.getElementById('pagination');
+      const searchInput = document.getElementById('searchInput');
+      const searchButton = document.getElementById('searchButton');
+      const rows = Array.from(tbody.rows);
+      
+      let currentPage = 1;
+      let sortedColumn = null;
+      let sortOrder = 1; // 1 = ascendant, -1 = descendant
+     
+
+      // Fonction pour trier les lignes
+      function sortTable(column, order) {
+        return rows.sort((a, b) => {
+          // On sélectionne la cellule correspondante à la colonne
+          const cellA = a.cells[column].textContent.trim();
+          const cellB = b.cells[column].textContent.trim();
+
+          // Si les cellules contiennent des nombres, on les convertit et on les compare
+          if (!isNaN(cellA) && !isNaN(cellB)) {
+            return (parseFloat(cellA) - parseFloat(cellB)) * order;
+          } else {
+            // Si ce sont des chaînes, on les compare lexicographiquement
+            return cellA.localeCompare(cellB) * order;
           }
+        });
+      }
 
-          // Fonction pour afficher la pagination
-          function renderPagination(filteredRows) {
-            pagination.innerHTML = '';
-            const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
 
-            // Créer les boutons de pagination
-            const createButton = (text, page, disabled = false) => {
-              const button = document.createElement('button');
-              button.textContent = text;
-              if (disabled) {
-                button.classList.add('disabled');
-                button.disabled = true;
-              }
-              button.addEventListener('click', () => {
-                if (page) {
-                  currentPage = page;
-                  renderTable(currentPage, filteredRows);
-                  renderPagination(filteredRows);
-                }
-              });
-              return button;
-            };
+      // Fonction pour afficher le tableau avec pagination
+      function renderTable(page, filteredRows) {
+        tbody.innerHTML = '';
+        const rowsToDisplay = filteredRows.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+        rowsToDisplay.forEach(row => tbody.appendChild(row));
+      }
 
-            pagination.appendChild(createButton('Premier', 1, currentPage === 1));
-            pagination.appendChild(createButton('Précédent', currentPage > 1 ? currentPage - 1 : null, currentPage === 1));
+      // Fonction pour afficher la pagination
+      function renderPagination(filteredRows) {
+        pagination.innerHTML = '';
+        const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
 
-            const totalPagesToShow = 5;
-            const startPage = Math.max(1, currentPage - Math.floor(totalPagesToShow / 2));
-            const endPage = Math.min(totalPages, startPage + totalPagesToShow - 1);
-
-            for (let i = startPage; i <= endPage; i++) {
-              pagination.appendChild(createButton(i, i));
-            }
-
-            pagination.appendChild(createButton('Suivant', currentPage < totalPages ? currentPage + 1 : null, currentPage === totalPages));
-            pagination.appendChild(createButton('Dernier', totalPages, currentPage === totalPages));
-
-            const input = document.createElement('input');
-            input.type = 'number';
-            input.min = 1;
-            input.max = totalPages;
-            input.value = currentPage;
-            input.addEventListener('change', (e) => {
-              const page = Math.max(1, Math.min(totalPages, parseInt(e.target.value)));
+        // Créer les boutons de pagination
+        const createButton = (text, page, disabled = false) => {
+          const button = document.createElement('button');
+          button.textContent = text;
+          if (disabled) {
+            button.classList.add('disabled');
+            button.disabled = true;
+          }
+          button.addEventListener('click', () => {
+            if (page) {
               currentPage = page;
               renderTable(currentPage, filteredRows);
               renderPagination(filteredRows);
-            });
-            pagination.appendChild(input);
-          }
-
-          // Fonction de recherche
-          function searchByCmd() {
-            const searchTerm = searchInput.value.trim();
-            const filteredRows = rows.filter(row => {
-              const cmd = row.dataset.cmd;
-              return cmd && cmd.toString().includes(searchTerm);
-            });
-
-            renderTable(currentPage, filteredRows);
-            renderPagination(filteredRows);
-          }
-
-          // Ajouter l'événement de recherche
-          searchButton.addEventListener('click', searchByCmd);
-          searchInput.addEventListener('input', searchByCmd);
-
-          // Ajouter les événements de tri sur les en-têtes de colonnes
-          table.querySelectorAll('th').forEach((th, index) => {
-            th.addEventListener('click', () => {
-              // Trier par la colonne cliquée
-              if (sortedColumn === index) {
-                sortOrder = -sortOrder; // Inverser l'ordre du tri
-              } else {
-                sortedColumn = index;
-                sortOrder = 1; // Par défaut, tri croissant
-              }
-              const sortedRows = sortTable(sortedColumn + 1, sortOrder); // +1 car les index commencent à 0
-              renderTable(currentPage, sortedRows);
-              renderPagination(sortedRows);
-            });
+            }
           });
+          return button;
+        };
 
-          renderTable(currentPage, rows);
-          renderPagination(rows);
+        pagination.appendChild(createButton('Premier', 1, currentPage === 1));
+        pagination.appendChild(createButton('Précédent', currentPage > 1 ? currentPage - 1 : null, currentPage === 1));
+
+        const totalPagesToShow = 5;
+        const startPage = Math.max(1, currentPage - Math.floor(totalPagesToShow / 2));
+        const endPage = Math.min(totalPages, startPage + totalPagesToShow - 1);
+
+        for (let i = startPage; i <= endPage; i++) {
+          pagination.appendChild(createButton(i, i));
+        }
+
+        pagination.appendChild(createButton('Suivant', currentPage < totalPages ? currentPage + 1 : null, currentPage === totalPages));
+        pagination.appendChild(createButton('Dernier', totalPages, currentPage === totalPages));
+
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = 1;
+        input.max = totalPages;
+        input.value = currentPage;
+        input.addEventListener('change', (e) => {
+          const page = Math.max(1, Math.min(totalPages, parseInt(e.target.value)));
+          currentPage = page;
+          renderTable(currentPage, filteredRows);
+          renderPagination(filteredRows);
         });
-      </script>
-    </body>
-    </html>
-    `;
+        pagination.appendChild(input);
+      }
+
+      // Fonction de recherche
+      function searchByCmd() {
+        const searchTerm = searchInput.value.trim();
+        const filteredRows = rows.filter(row => {
+          const cmd = row.dataset.cmd;
+          return cmd && cmd.toString().includes(searchTerm);
+        });
+
+        renderTable(currentPage, filteredRows);
+        renderPagination(filteredRows);
+      }
+
+      // Ajouter l'événement de recherche
+      searchButton.addEventListener('click', searchByCmd);
+      searchInput.addEventListener('input', searchByCmd);
+
+      // Ajouter les événements de tri sur les en-têtes de colonnes
+      table.querySelectorAll('th').forEach((th, index) => {
+        th.addEventListener('click', () => {
+          // Trier par la colonne cliquée
+          if (sortedColumn === index) {
+            sortOrder = -sortOrder; // Inverser l'ordre du tri
+          } else {
+            sortedColumn = index;
+            sortOrder = 1; // Par défaut, tri croissant
+          }
+          const sortedRows = sortTable(sortedColumn + 1, sortOrder); // +1 car les index commencent à 0
+          renderTable(currentPage, sortedRows);
+          renderPagination(sortedRows);
+        });
+      });
+
+      renderTable(currentPage, rows);
+      renderPagination(rows);
+    });
+  </script>
+</body>
+
+</html>
+`;
     res.send(html);
   } catch (error) {
     console.error('Erreur lors de la récupération des commandes :', error);
@@ -869,104 +991,107 @@ function sortTable(column, order) {
   }
 });
 
-app.get('/api/commandes/:cmd', async (req, res) => {
-  const cmd = Number(req.params.cmd); // Convertir en nombre
-  if (isNaN(cmd)) {
-    return res.status(400).send("<h1>Erreur : Le paramètre 'cmd' doit être un nombre valide.</h1>");
+app.post('/api/commandes', async (req, res) => {
+  const { cmd, ref } = req.query;
+  const { deviceFingerprint } = req.body;
+  const { uid } = req.cookies;
+  let devices;
+
+  try {
+    const data = await fs.promises.readFile(path.join(__dirname, './devices_settings.json'), 'utf8');
+    devices = JSON.parse(data);
+  } catch (err) {
+    console.error('Erreur lors de la lecture du fichier :', err);
+    return res.status(500).json({ message: 'Erreur interne du serveur.' });
   }
 
-  // Recherche de toutes les commandes qui correspondent à 'numCmd'
-  const commandes = await modelDeco.find({ numCmd: cmd });
-
-  if (commandes.length === 0) {
-    return res.status(404).send('<h1>Erreur : Aucune commande trouvée.</h1>');
+  if (!deviceFingerprint) {
+    return res.status(400).json({ message: 'Empreinte numérique manquante.' });
   }
 
-  // Générer le tableau HTML avec les données de toutes les commandes
-  let rows = '';
-  commandes.forEach((commande) => {
-    rows += `
-      <tr>
-        <td>${new Date(commande.date).toLocaleDateString('fr-FR')}</td>
-        <td>${commande.numCmd}</td>
-        <td>${commande.mag}</td>
-        <td>${commande.dibond}</td>
-        <td>${commande.deco}</td>
-        <td>${commande.ref}</td>
-        <td>${commande.format}</td>
-        <td>${commande.ex}</td>
-        <td>${commande.temps}</td>
-        <td>${commande.perte}</td>
-      </tr>
-    `;
-  });
+  try {
+    let user = await User.findOne({ uid, deviceFingerprint });
 
-  // Générer la page HTML
-  const html = `
-  <!DOCTYPE html>
-  <html lang="fr">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Commandes ${cmd}</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        margin: 20px;
-        padding: 0;
-        background-color: #f7f7f7;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 20px 0;
-        background: white;
-      }
-      th, td {
-        padding: 10px;
-        text-align: left;
-        border: 1px solid #ddd;
-      }
-      th {
-        background-color: #4CAF50;
-        color: white;
-      }
-      td {
-        background-color: #f2f2f2;
-      }
-    </style>
-  </head>
-  <body>
-  <div><img width='140px' src="https://entreprise.leroymerlin.fr/images/logo.svg" alt="Logo Leroy Merlin" />
-    <h2>Détails commande(s) ${cmd}</h2></div>
-    <table>
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Commande</th>
-          <th>Magasin</th>
-          <th>Dibond</th>
-          <th>Déco</th>
-          <th>Référence</th>
-          <th>Format</th>
-          <th>Ex(s)</th>
-          <th>Temps</th>
-          <th>Perte (m²)</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rows} <!-- Ici, on insère toutes les lignes générées dynamiquement -->
-      </tbody>
-    </table>
-  </body>
-  </html>
-  `;
+    if (!user) {
+      const newUid = uuidv4();
+      const adressIp = req.ip || req.socket.remoteAddress.split(':').pop();
+      user = new User({ uid: newUid, deviceFingerprint, adressIp, createdAt: new Date() });
+      await user.save();
+    }
 
-  // Envoyer la page HTML au client
-  res.send(html);
+    res.cookie('uid', user.uid, { httpOnly: true, secure: false, maxAge: 30 * 24 * 60 * 60 * 1000 });
+
+    let { decoupe, expe } = devices;
+    const currentStatus = await modelDeco.findOne({ numCmd: cmd, ref });
+
+    // Vérifiez si le statut est déjà "Expe"
+    if (currentStatus?.status === 'Expe') {
+      return res.json({ message: 'Aucune mise à jour : le statut est déjà "Expe".' });
+    }
+
+    try {
+      if (user.uid === decoupe.uid && user.deviceFingerprint === decoupe.deviceFingerprint) {
+        console.log('Mise à jour pour Découpe...');
+        await modelDeco.findOneAndUpdate({ numCmd: cmd, ref }, { status: 'Découpe' }, { new: true });
+      } else if (user.uid === expe.uid && user.deviceFingerprint === expe.deviceFingerprint) {
+        console.log('Mise à jour pour Expe...');
+        await modelDeco.findOneAndUpdate({ numCmd: cmd, ref }, { status: 'Expe' }, { new: true });
+      } else {
+        console.error('Accès refusé : utilisateur non autorisé.', {
+          userUid: user.uid,
+          userFingerprint: user.deviceFingerprint,
+          decoupeUid: decoupe.uid,
+          decoupeFingerprint: decoupe.deviceFingerprint,
+          expeUid: expe.uid,
+          expeFingerprint: expe.deviceFingerprint,
+        });
+        return res.status(403).json({ message: 'Accès refusé : utilisateur non autorisé.' });
+      }
+    } catch (error) {
+      console.error('Erreur interne lors de la mise à jour du statut:', error);
+      return res.status(500).json({ message: 'Erreur lors de la mise à jour du statut.' });
+    }
+
+    // On compare les status (decoupe / expe) et si changement on refresh la page.
+    const newStatus = await modelDeco.findOne({ numCmd: cmd, ref });
+    if (currentStatus?.status !== newStatus?.status) {
+      return res.json({ redirect: `/api/commandes/?cmd=${cmd}&ref=${ref}` });
+    } else {
+      res.json({
+        message: 'Identifiant enregistré/restauré.',
+        uid: user.uid,
+        cmd: cmd || 'Aucune commande spécifiée',
+        ref: ref || 'Aucun ref spécifié',
+      });
+    }
+  } catch (error) {
+    console.error('Erreur interne :', error);
+    res.status(500).json({ message: 'Erreur interne du serveur.' });
+  }
 });
 
-server.listen(PORT, async () => {
+app.get('/scan', enforceHttps, async (req, res) => {
+  res.sendFile(path.join(__dirname, './public/scan.html'), (err) => {
+    if (err) {
+      console.error(err);
+      res.status(404).send(`<h2>Error ${err.status} page not found.</h2><span>${err.path}</span>`);
+    }
+  });
+});
+
+// Route pour traiter les données scannées
+app.post('/scan', (req, res) => {
+  const { cmd, ref } = req.body;
+
+  if (cmd && ref) {
+    console.log(cmd, ref);
+    res.status(200).send({ message: 'Data received successfully' });
+  } else {
+    res.status(400).send({ message: 'Invalid data format' });
+  }
+});
+
+server_http.listen(PORT_HTTP, async () => {
   checkVersion()
     .then((result) => {
       log(result.message);
@@ -975,6 +1100,9 @@ server.listen(PORT, async () => {
       console.error('Error:', error);
     });
 
-  console.log(`Server start on port ${PORT}`);
+  console.log(`Server start on port ${PORT_HTTP}`);
   await mongoose().catch((err) => console.log(err));
+});
+server_https.listen(PORT_HTTPS, async () => {
+  console.log(`Server start on port ${PORT_HTTPS}`);
 });

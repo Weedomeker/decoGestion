@@ -20,6 +20,7 @@
     "@types/fs-extra": "^11.0.1",
     "chalk": "^4.1.2",
     "check-update-github": "^0.0.4",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "express": "^4.18.2",
     "image-size": "^1.1.1",
@@ -35,6 +36,7 @@
     "qrcode": "^1.5.4",
     "serve-index": "^1.9.1",
     "svg-to-pdfkit": "^0.1.8",
+    "uuid": "^11.0.3",
     "ws": "^8.17.0",
     "xlsx": "^0.18.5",
     "xml2js": "^0.6.2"
