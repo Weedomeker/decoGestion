@@ -5,116 +5,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QR Code Scanner</title>
+  <link rel="stylesheet" type="text/css" href="css/styles.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"
     integrity="sha512-r6rDA7W6ZeQhvl8S7yRVQUKVHdexq+GAlNkNNqVC7YyIV+NwqCTJe2hDWCiffTyRNOeGEzRRJ9ifvRm/HCzGYg=="
     crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-      background-color: #ffffff;
-      color: #000000;
-    }
 
-    #reader {
-      width: 250px;
-      margin: 20px 0;
-    }
-
-    #output {
-      position: relative;
-      font-size: 12px;
-      margin-top: 20px;
-      padding: 10px;
-      border: 1px solid #ddd;
-      background: #f9f9f9;
-      border-radius: 5px;
-      min-width: 350px;
-      max-width: 450px;
-      min-height: 200px;
-    }
-
-    #response-server {
-      text-align: center;
-      width: 100%;
-      margin: 14px 0 10px;
-    }
-
-    button {
-      padding: 10px 20px;
-      margin: 5px;
-      border: none;
-      color: white;
-      font-size: 16px;
-      border-radius: 5px;
-      cursor: pointer;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    }
-
-    .btn-primary {
-      background-color: #007bff;
-    }
-
-    .btn-primary:hover {
-      background-color: #0056b3;
-    }
-
-    .btn-secondary {
-      background-color: #6c757d;
-    }
-
-    .btn-secondary:hover {
-      background-color: #5a6268;
-    }
-
-    .btn-success {
-      position: absolute;
-      left: 0;
-      bottom: 0;
-      background-color: #28a745;
-    }
-
-    .btn-success:hover {
-      background-color: #218838;
-    }
-
-    .btn-danger {
-      background-color: #dc3545;
-    }
-
-    .btn-danger:hover {
-      background-color: #c82333;
-    }
-
-    .dark-theme {
-      background-color: #121212;
-      color: #ffffff;
-    }
-
-    .dark-theme #output {
-      background: #333333;
-      border-color: #555555;
-    }
-
-    #theme-toggle-button {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 24px;
-      padding: 0;
-    }
-  </style>
 </head>
 
 <body>
@@ -126,7 +21,6 @@
       const result = await fp.get();
       return result.visitorId;
     };
-
     fetchFingerprint().then((deviceFingerprint) => {
 
       fetch('/auth', {
@@ -138,14 +32,13 @@
       })
         .then((response) => response.json())
         .then((data) => {
-
           console.log('Données du serveur:', data);
-
         })
         .catch((error) => {
           console.error("Erreur send:", error);
         });
     });
+
   </script>
 
   <h1>QR Code Scanner</h1>
@@ -166,18 +59,39 @@
     const outputElement = document.getElementById("result");
     const responseServer = document.getElementById("response-server");
     let scannedData = [];
+    // let scannedData = [{
+    //   date
+    //     :
+    //     "02/01/2025",
+    //   deco:
+    //     "5GaletsUnis",
+    //   ex
+    //     :
+    //     1,
+    //   format
+    //     :
+    //     "100X200",
+    //   mag
+    //     :
+    //     "LILLE",
+    //   numCmd
+    //     :
+    //     25257,
+    //   ref
+    //     :
+    //     "73800993"
+    // }];
 
     function onScanSuccess(decodedText, decodedResult) {
       try {
-        const url = new URL(decodedText);
-        const cmd = url.searchParams.get("cmd");
-        const ref = url.searchParams.get("ref");
-        const newData = { cmd, ref };
 
-        if (!scannedData.some(data => data.cmd === cmd && data.ref === ref)) {
+        const newData = JSON.parse(decodedText);
+        const { numCmd, ref } = newData;
+
+        if (!scannedData.some(data => data.numCmd === numCmd && data.ref === ref)) {
           responseServer.textContent = "";
           scannedData.push(newData);
-          outputElement.innerHTML += `<br>✔️ Commande: ${cmd} Ref: ${ref}`;
+          outputElement.innerHTML += `<br>✔️ Commande: ${numCmd} Ref: ${ref}`;
           console.log(scannedData);
         } else {
           console.log("Duplicate data, not adding to scannedData array");
@@ -202,7 +116,7 @@
 
       html5QrcodeScanner.start(
         { facingMode: "environment" },
-        { fps: 5, qrbox: { width: 200, height: 200 } },
+        { fps: 5, qrbox: { width: 250, height: 250 } },
         onScanSuccess,
         onScanError
       ).catch(err => {
@@ -220,21 +134,23 @@
       }
     }
 
-    function sendData() {
+    async function sendData() {
       if (scannedData.length > 0) {
-        fetch('/scan', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(scannedData)
-        }).then(response => response.json()).then(data => {
-          console.log("Data sent to backend", data);
-          scannedData = [];
-          outputElement.textContent = "";
-          responseServer.textContent = "Commandes mises à jour avec succès.";
-        }).catch(error => {
-          console.error("Error sending data to backend", error);
-          responseServer.textContent = "Une erreur s'est produite lors de l'envoi des commandes...";
-        });
+        fetchFingerprint().then((deviceFingerprint) =>
+          fetch('/scan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ scannedData, deviceFingerprint })
+          }).then(response => response.json()).then(data => {
+            console.log("Data sent to backend", data);
+            scannedData = [];
+            outputElement.textContent = "";
+            responseServer.textContent = "Commandes mises à jour avec succès.";
+          }).catch(error => {
+            console.error("Error sending data to backend", error);
+            responseServer.textContent = "Une erreur s'est produite lors de l'envoi des commandes...";
+          }));
+
       } else {
         console.error("No scanned data to send");
         responseServer.textContent = "Pas de commandes à envoyer...";
