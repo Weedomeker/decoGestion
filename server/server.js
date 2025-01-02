@@ -134,9 +134,18 @@ let jobList = {
   jobs: [],
   completed: [],
 };
+function enforceHttps(req, res, next) {
+  if (req.secure || req.headers['x-forwarded-proto'] === 'https') {
+    next(); // Si déjà en HTTPS, continuer
+  } else {
+    const httpsUrl = `https://${req.hostname}:${PORT_HTTPS}${req.url}`;
+    console.log(httpsUrl);
+    res.redirect(301, httpsUrl); // Redirection permanente vers HTTPS avec le bon port
+  }
+}
 
-app.use('/api/commandes', async (req, res, next) => {
-  const { cmd, ref } = req.query;
+app.use('/scan', enforceHttps, async (req, res, next) => {
+  const { cmd, ref } = req.body;
   if (cmd && ref) {
     const { uid } = req.cookies;
     if (uid) {
@@ -154,15 +163,6 @@ app.use('/api/commandes', async (req, res, next) => {
 });
 
 // Middleware pour rediriger une route vers HTTPS avec un port spécifique
-function enforceHttps(req, res, next) {
-  if (req.secure || req.headers['x-forwarded-proto'] === 'https') {
-    next(); // Si déjà en HTTPS, continuer
-  } else {
-    const httpsUrl = `https://${req.hostname}:${PORT_HTTPS}${req.url}`;
-    console.log(httpsUrl);
-    res.redirect(301, httpsUrl); // Redirection permanente vers HTTPS avec le bon port
-  }
-}
 
 // WebSocket and server setup
 const options = {
@@ -790,56 +790,6 @@ app.get('/api/commandes', async (req, res) => {
 </head>
 
 <body>
-
-
-
-  <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3.3.0/dist/fp.min.js"></script>
-<script>
-  const fetchFingerprint = async () => {
-    const fp = await FingerprintJS.load();  
-    const result = await fp.get();          
-    return result.visitorId;               
-  };
-
-  fetchFingerprint().then((deviceFingerprint) => {
-    // Récupérer l'URL actuelle
-    const currentUrl = new URL(window.location.href);
-
-    // Obtenir les valeurs de 'cmd' et 'ref' depuis l'URL
-    const cmd = currentUrl.searchParams.get('cmd');
-    const ref = currentUrl.searchParams.get('ref');
-
-    // Vérifier si les paramètres sont présents
-    if (!cmd || !ref) {
-      console.error('Les paramètres cmd et ref sont requis dans URL.');
-      return;
-    }
-
-    // Construire dynamiquement l'URL de l'API
-const apiUrl = '/api/commandes?cmd=' + encodeURIComponent(cmd) + '&ref=' + encodeURIComponent(ref);
-
-    fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ deviceFingerprint }),
-    })
-      .then((response) => response.json())
-      .then((data) => {
-         if (data.redirect) {
-      // Effectuez la redirection côté client
-      window.location.href = data.redirect;
-    } else {
-      console.log('Données du serveur:', data);
-    }
-      })
-      .catch((error) => {
-        console.error("Erreur send:", error);
-      });
-  });
-</script>
-
   <div>
     <img width="140px" src="https://entreprise.leroymerlin.fr/images/logo.svg" alt="Logo Leroy Merlin" />
     <h2>${cmd ? `Détails commande(s) ${cmd}` : 'Liste des Commandes'}</h2>
@@ -1080,15 +1030,65 @@ app.get('/scan', enforceHttps, async (req, res) => {
 });
 
 // Route pour traiter les données scannées
-app.post('/scan', (req, res) => {
-  const { cmd, ref } = req.body;
+app.post('/scan', enforceHttps, async (req, res) => {
+  const scannedData = req.body;
+  const { deviceFingerprint } = req.body;
+  const { uid } = req.cookies;
+  let devices;
 
-  if (cmd && ref) {
-    console.log(cmd, ref);
-    res.status(200).send({ message: 'Data received successfully' });
-  } else {
-    res.status(400).send({ message: 'Invalid data format' });
+    // Lire les données des appareils autorisés
+    try {
+      const data = await fs.promises.readFile(path.join(__dirname, './devices_settings.json'), 'utf8');
+      devices = JSON.parse(data);
+    } catch (err) {
+      console.error('Erreur lors de la lecture du fichier :', err);
+      return res.status(500).json({ message: 'Erreur interne du serveur.' });
+    }
+
+  if (!Array.isArray(scannedData) || scannedData.length === 0) {
+    return res.status(400).json({ message: 'Invalid or empty scanned data.' });
   }
+
+  try {
+    for (const { cmd, ref } of scannedData) {
+      const currentStatus = await modelDeco.findOne({ numCmd: cmd, ref });
+
+      if (currentStatus) {
+        if (currentStatus.status !== 'Expe') {
+          await modelDeco.findOneAndUpdate({ numCmd: cmd, ref }, { status: 'Expe' }, { new: true });
+        }
+      } else {
+        console.error(`Commande not found for cmd: ${cmd}, ref: ${ref}`);
+      }
+    }
+
+    res.status(200).json({ message: 'Commandes validées avec succès !' });
+  } catch (error) {
+    console.error('Error updating database:', error);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+app.post('/auth', enforceHttps, async (req, res) => {
+  const { deviceFingerprint } = req.body;
+  const { uid } = req.cookies;
+
+  // Vérifier si l'empreinte numérique est présente
+  if (!deviceFingerprint) {
+    return res.status(400).json({ message: 'Empreinte numérique manquante.' });
+  }
+
+  let user = await User.findOne({ uid, deviceFingerprint });
+
+  if (!user) {
+    const newUid = uuidv4();
+    const adressIp = req.ip || req.socket.remoteAddress.split(':').pop();
+    user = new User({ uid: newUid, deviceFingerprint, adressIp, createdAt: new Date() });
+    await user.save();
+  }
+
+  res.cookie('uid', user.uid, { httpOnly: true, secure: false, maxAge: 30 * 24 * 60 * 60 * 1000 });
+  res.status(200).json({ redirect: '/scan', uid: user.uid, deviceFingerprint });
 });
 
 server_http.listen(PORT_HTTP, async () => {
