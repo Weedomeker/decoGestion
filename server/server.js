@@ -28,6 +28,7 @@ const User = require('./src/models/User');
 const symlink = require('./src/symlink');
 const checkVernis = require('./src/checkVernis');
 const createQRCodePage = require('./src/QRCodePage');
+const generateStickers = require('./src/generateStickers');
 
 const log = console.log;
 
@@ -486,6 +487,9 @@ app.post('/run_jobs', async (req, res) => {
         client.send(JSON.stringify({ type: 'end', endTime }));
       }
     });
+
+    //Generer Etiquettes
+    generateStickers(jobList.completed, path.join(__dirname, `./public/${sessionPRINTSA}/Etiquettes`));
 
     //Generer QRCode page
     const pathQRCodePage = path.join(__dirname, `./public/${sessionPRINTSA}/QRCodes`);
@@ -1036,14 +1040,14 @@ app.post('/scan', enforceHttps, async (req, res) => {
   const { uid } = req.cookies;
   let devices;
 
-    // Lire les données des appareils autorisés
-    try {
-      const data = await fs.promises.readFile(path.join(__dirname, './devices_settings.json'), 'utf8');
-      devices = JSON.parse(data);
-    } catch (err) {
-      console.error('Erreur lors de la lecture du fichier :', err);
-      return res.status(500).json({ message: 'Erreur interne du serveur.' });
-    }
+  // Lire les données des appareils autorisés
+  try {
+    const data = await fs.promises.readFile(path.join(__dirname, './devices_settings.json'), 'utf8');
+    devices = JSON.parse(data);
+  } catch (err) {
+    console.error('Erreur lors de la lecture du fichier :', err);
+    return res.status(500).json({ message: 'Erreur interne du serveur.' });
+  }
 
   if (!Array.isArray(scannedData) || scannedData.length === 0) {
     return res.status(400).json({ message: 'Invalid or empty scanned data.' });
