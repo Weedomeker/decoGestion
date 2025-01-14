@@ -27,6 +27,7 @@ const modelDeco = require('./src/models/Deco');
 const User = require('./src/models/User');
 const symlink = require('./src/symlink');
 const checkVernis = require('./src/checkVernis');
+const generateQRCode = require('./src/qrcode');
 const createQRCodePage = require('./src/QRCodePage');
 const generateStickers = require('./src/generateStickers');
 
@@ -108,7 +109,8 @@ app.use(morgan('combined', { stream: accessLogStream }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use('/public', express.static(__dirname));
-app.use('/download', express.static(__dirname + '/public/tmp'));
+app.use(express.static(__dirname + '/public'));
+// app.use('/download', express.static(__dirname + '/public/tmp'));
 app.use(express.static(path.join(__dirname, '../client/dist')));
 app.use(
   '/louis',
@@ -444,6 +446,29 @@ app.post('/run_jobs', async (req, res) => {
         },
       ];
 
+      // Generer QRCodes
+      const pathQRCodes = `./server/public/${sessionPRINTSA}/QRCodes/`;
+      try {
+        let shortData = {
+          date: new Date(job.date).toLocaleDateString('fr-FR'),
+          numCmd: job.cmd,
+          mag: job.ville,
+          deco: matchName ? job.visuel.substring(0, job.visuel.indexOf(matchName[0])) : job.visuel,
+          ref: matchRef ? matchRef[0] : 0,
+          format: job.format_visu.split('_').pop(),
+          ex: parseInt(job.ex),
+        };
+        if (!fs.existsSync(pathQRCodes)) {
+          fs.mkdirSync(pathQRCodes, { recursive: true });
+        }
+        await generateQRCode(JSON.stringify(shortData), pathQRCodes + `QRCode_${fileName}.png`, {
+          scale: 1,
+          margin: 1,
+        });
+      } catch (error) {
+        console.error(error);
+      }
+
       //XLSX LOG
       try {
         await createXlsx(dataFileExport);
@@ -492,8 +517,8 @@ app.post('/run_jobs', async (req, res) => {
     generateStickers(jobList.completed, path.join(__dirname, `./public/${sessionPRINTSA}/Etiquettes`));
 
     //Generer QRCode page
-    const pathQRCodePage = path.join(__dirname, `./public/${sessionPRINTSA}/QRCodes`);
-    createQRCodePage(pathQRCodePage, pathQRCodePage + '\\' + sessionPRINTSA + '.pdf');
+    const pathQRCodes = `./server/public/${sessionPRINTSA}/QRCodes/`;
+    createQRCodePage(pathQRCodes, pathQRCodes + '\\' + sessionPRINTSA + '.pdf');
 
     res.status(200).json({ message: 'Jobs completed successfully' });
   } catch (error) {
@@ -628,26 +653,6 @@ app.get('/config', (req, res) => {
 
 app.get('/qrcode', (req, res) => {
   res.status(200).send();
-});
-
-app.get('/download', (req, res) => {
-  const files = fs.readdirSync(path.join(__dirname, '/public/tmp/'));
-  files.forEach((file) => {
-    if (path.extname(file) == '.dxf') {
-      fileDownload = file;
-      console.log('✔️ ', file);
-    } else if (path.extname(file) == '.svg') {
-      fileDownload = file;
-      console.log('✔️ ', file);
-    }
-  });
-
-  res.download(path.join(__dirname, '/public/tmp/' + fileDownload), (err) => {
-    if (err) {
-      console.log('Download error: ', err);
-      res.redirect('/');
-    }
-  });
 });
 
 app.get('/jobs', async (req, res) => {
@@ -809,7 +814,7 @@ app.get('/api/commandes', async (req, res) => {
   <div class="pagination">Total documents: ${countTotalCommandes}</div>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      const rowsPerPage = 5; // Nombre de lignes par page
+      const rowsPerPage = 10; // Nombre de lignes par page
       const table = document.getElementById('commandesTable');
       const tbody = document.getElementById('commandesBody');
       const pagination = document.getElementById('pagination');
@@ -945,85 +950,6 @@ app.get('/api/commandes', async (req, res) => {
   }
 });
 
-app.post('/api/commandes', async (req, res) => {
-  const { cmd, ref } = req.query;
-  const { deviceFingerprint } = req.body;
-  const { uid } = req.cookies;
-  let devices;
-
-  try {
-    const data = await fs.promises.readFile(path.join(__dirname, './devices_settings.json'), 'utf8');
-    devices = JSON.parse(data);
-  } catch (err) {
-    console.error('Erreur lors de la lecture du fichier :', err);
-    return res.status(500).json({ message: 'Erreur interne du serveur.' });
-  }
-
-  if (!deviceFingerprint) {
-    return res.status(400).json({ message: 'Empreinte numérique manquante.' });
-  }
-
-  try {
-    let user = await User.findOne({ uid, deviceFingerprint });
-
-    if (!user) {
-      const newUid = uuidv4();
-      const adressIp = req.ip || req.socket.remoteAddress.split(':').pop();
-      user = new User({ uid: newUid, deviceFingerprint, adressIp, createdAt: new Date() });
-      await user.save();
-    }
-
-    res.cookie('uid', user.uid, { httpOnly: true, secure: false, maxAge: 30 * 24 * 60 * 60 * 1000 });
-
-    let { decoupe, expe } = devices;
-    const currentStatus = await modelDeco.findOne({ numCmd: cmd, ref });
-
-    // Vérifiez si le statut est déjà "Expe"
-    if (currentStatus?.status === 'Expe') {
-      return res.json({ message: 'Aucune mise à jour : le statut est déjà "Expe".' });
-    }
-
-    try {
-      if (user.uid === decoupe.uid && user.deviceFingerprint === decoupe.deviceFingerprint) {
-        console.log('Mise à jour pour Découpe...');
-        await modelDeco.findOneAndUpdate({ numCmd: cmd, ref }, { status: 'Découpe' }, { new: true });
-      } else if (user.uid === expe.uid && user.deviceFingerprint === expe.deviceFingerprint) {
-        console.log('Mise à jour pour Expe...');
-        await modelDeco.findOneAndUpdate({ numCmd: cmd, ref }, { status: 'Expe' }, { new: true });
-      } else {
-        console.error('Accès refusé : utilisateur non autorisé.', {
-          userUid: user.uid,
-          userFingerprint: user.deviceFingerprint,
-          decoupeUid: decoupe.uid,
-          decoupeFingerprint: decoupe.deviceFingerprint,
-          expeUid: expe.uid,
-          expeFingerprint: expe.deviceFingerprint,
-        });
-        return res.status(403).json({ message: 'Accès refusé : utilisateur non autorisé.' });
-      }
-    } catch (error) {
-      console.error('Erreur interne lors de la mise à jour du statut:', error);
-      return res.status(500).json({ message: 'Erreur lors de la mise à jour du statut.' });
-    }
-
-    // On compare les status (decoupe / expe) et si changement on refresh la page.
-    const newStatus = await modelDeco.findOne({ numCmd: cmd, ref });
-    if (currentStatus?.status !== newStatus?.status) {
-      return res.json({ redirect: `/api/commandes/?cmd=${cmd}&ref=${ref}` });
-    } else {
-      res.json({
-        message: 'Identifiant enregistré/restauré.',
-        uid: user.uid,
-        cmd: cmd || 'Aucune commande spécifiée',
-        ref: ref || 'Aucun ref spécifié',
-      });
-    }
-  } catch (error) {
-    console.error('Erreur interne :', error);
-    res.status(500).json({ message: 'Erreur interne du serveur.' });
-  }
-});
-
 app.get('/scan', enforceHttps, async (req, res) => {
   res.sendFile(path.join(__dirname, './public/scan.html'), (err) => {
     if (err) {
@@ -1035,18 +961,20 @@ app.get('/scan', enforceHttps, async (req, res) => {
 
 // Route pour traiter les données scannées
 app.post('/scan', enforceHttps, async (req, res) => {
-  const scannedData = req.body;
+  const { scannedData } = req.body;
   const { deviceFingerprint } = req.body;
   const { uid } = req.cookies;
   let devices;
 
   // Lire les données des appareils autorisés
   try {
-    const data = await fs.promises.readFile(path.join(__dirname, './devices_settings.json'), 'utf8');
+    const data = await fs.promises.readFile(path.join(__dirname, 'devices_settings.json'), 'utf8');
     devices = JSON.parse(data);
   } catch (err) {
-    console.error('Erreur lors de la lecture du fichier :', err);
-    return res.status(500).json({ message: 'Erreur interne du serveur.' });
+    console.error('Erreur lors de la lecture du fichier devices_settings.json :', err);
+    return res
+      .status(500)
+      .json({ message: 'Erreur interne du serveur lors de la lecture du fichier devices_settings.json.' });
   }
 
   if (!Array.isArray(scannedData) || scannedData.length === 0) {
@@ -1054,15 +982,42 @@ app.post('/scan', enforceHttps, async (req, res) => {
   }
 
   try {
-    for (const { cmd, ref } of scannedData) {
-      const currentStatus = await modelDeco.findOne({ numCmd: cmd, ref });
+    const { decoupe, expe } = devices;
+    let user = await User.findOne({ uid, deviceFingerprint });
+    if (!user) {
+      return res.status(403).json({ message: 'Utilisateur non autorisé.' });
+    }
+
+    for (const { numCmd, ref } of scannedData) {
+      const currentStatus = await modelDeco.findOne({ numCmd: numCmd, ref });
 
       if (currentStatus) {
-        if (currentStatus.status !== 'Expe') {
-          await modelDeco.findOneAndUpdate({ numCmd: cmd, ref }, { status: 'Expe' }, { new: true });
+        const isDecoupeUser = decoupe.some(
+          (device) => device.uid === user.uid && device.deviceFingerprint === user.deviceFingerprint,
+        );
+        const isExpeUser = expe.some(
+          (device) => device.uid === user.uid && device.deviceFingerprint === user.deviceFingerprint,
+        );
+
+        if (isDecoupeUser) {
+          if (currentStatus.status !== 'Découpe') {
+            await modelDeco.findOneAndUpdate({ numCmd: numCmd, ref }, { status: 'Découpe' }, { new: true });
+          }
+        } else if (isExpeUser) {
+          if (currentStatus.status !== 'Expe') {
+            await modelDeco.findOneAndUpdate({ numCmd: numCmd, ref }, { status: 'Expe' }, { new: true });
+          }
+        } else {
+          console.error('Accès refusé : utilisateur non autorisé.', {
+            userUid: user.uid,
+            userFingerprint: user.deviceFingerprint,
+            decoupe,
+            expe,
+          });
+          return res.status(403).json({ message: 'Accès refusé : utilisateur non autorisé.' });
         }
       } else {
-        console.error(`Commande not found for cmd: ${cmd}, ref: ${ref}`);
+        console.error(`Commande not found for cmd: ${numCmd}, ref: ${ref}`);
       }
     }
 
@@ -1086,7 +1041,7 @@ app.post('/auth', enforceHttps, async (req, res) => {
 
   if (!user) {
     const newUid = uuidv4();
-    const adressIp = req.ip || req.socket.remoteAddress.split(':').pop();
+    const adressIp = req.ip;
     user = new User({ uid: newUid, deviceFingerprint, adressIp, createdAt: new Date() });
     await user.save();
   }

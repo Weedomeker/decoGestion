@@ -1,0 +1,105 @@
+body {
+  font-family: Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  margin: 0;
+  background-color: #ffffff;
+  color: #000000;
+}
+
+#reader {
+  width: 250px;
+  margin: 20px 0;
+}
+
+#output {
+  position: relative;
+  font-size: 12px;
+  margin-top: 20px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  background: #f9f9f9;
+  border-radius: 5px;
+  min-width: 350px;
+  max-width: 450px;
+  min-height: 200px;
+}
+
+#response-server {
+  text-align: center;
+  width: 100%;
+  margin: 14px 0 10px;
+}
+
+button {
+  padding: 10px 20px;
+  margin: 5px;
+  border: none;
+  color: white;
+  font-size: 16px;
+  border-radius: 5px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.btn-primary {
+  background-color: #007bff;
+}
+
+.btn-primary:hover {
+  background-color: #0056b3;
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6268;
+}
+
+.btn-success {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  background-color: #28a745;
+}
+
+.btn-success:hover {
+  background-color: #218838;
+}
+
+.btn-danger {
+  background-color: #dc3545;
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
+}
+
+.dark-theme {
+  background-color: #121212;
+  color: #ffffff;
+}
+
+.dark-theme #output {
+  background: #333333;
+  border-color: #555555;
+}
+
+#theme-toggle-button {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  padding: 0;
+}

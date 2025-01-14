@@ -1,4 +1,5 @@
 const QRCode = require('qrcode');
+const fs = require('fs');
 
 /**
  * La fonction `generateQrCode` génère un code QR à partir des données et des options spécifiées.
@@ -8,12 +9,8 @@ const QRCode = require('qrcode');
  */
 const generateQrCode = async (data, path, options) => {
   try {
-    // Affiche le QR code dans le terminal pour un aperçu
-    // const qrString = await QRCode.toString(data, { type: 'terminal' });
-    // const qrURL = await QRCode.toDataURL(data, { type: 'terminal' });
-
     // Génère et sauvegarde le QR code dans un fichier avec les options fournies
-    return await QRCode.toFile(path, data, options);
+    await QRCode.toFile(path, data, options);
   } catch (error) {
     console.error('Erreur lors de la génération du QR Code :', error);
   }

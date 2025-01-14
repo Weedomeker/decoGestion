@@ -9,6 +9,9 @@ server/public/DECO
 server/public/ECOM
 server/public/STANDARDS
 server/public/SURMESURES
+server/public/RACCORDABLES
+server/public/TAURO
+server/public/tmp
 *.csv
 *.log
 client/dist
