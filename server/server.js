@@ -29,7 +29,7 @@ const symlink = require('./src/symlink');
 const checkVernis = require('./src/checkVernis');
 const generateQRCode = require('./src/qrcode');
 const createQRCodePage = require('./src/QRCodePage');
-const generateStickers = require('./src/generateStickers');
+const { generateStickers, createStickersPage } = require('./src/generateStickers');
 
 const log = console.log;
 
@@ -404,7 +404,7 @@ app.post('/run_jobs', async (req, res) => {
         let endPdf = performance.now();
         pdfTime = endPdf - startPdf;
         console.log(
-          `✔️   ${date} ${time}:`,
+          `📁 ${date} ${time}:`,
           `${fileName}.pdf (${pdfTime < 1000 ? pdfTime.toFixed(2) + 'ms' : (pdfTime / 1000).toFixed(2) + 's'})`,
         );
       } catch (error) {
@@ -418,7 +418,7 @@ app.post('/run_jobs', async (req, res) => {
         let endJpg = performance.now();
         jpgTime = endJpg - startJpg;
         console.log(
-          `✔️   ${date} ${time}:`,
+          `🖼️  ${date} ${time}:`,
           `${fileName}.jpg (${jpgTime < 1000 ? jpgTime.toFixed(2) + 'ms' : (jpgTime / 1000).toFixed(2) + 's'})`,
         );
       } catch (error) {
@@ -514,11 +514,16 @@ app.post('/run_jobs', async (req, res) => {
     });
 
     //Generer Etiquettes
-    generateStickers(jobList.completed, path.join(__dirname, `./public/${sessionPRINTSA}/Etiquettes`));
+    await generateStickers(jobList.completed, path.join(__dirname, `./public/${sessionPRINTSA}/Etiquettes`));
+    await createStickersPage(
+      path.join(__dirname, `./public/${sessionPRINTSA}/Etiquettes`),
+      path.join(__dirname, `./public/${sessionPRINTSA}/Etiquettes/${sessionPRINTSA}.pdf`),
+      'A3',
+    );
 
     //Generer QRCode page
     const pathQRCodes = `./server/public/${sessionPRINTSA}/QRCodes/`;
-    createQRCodePage(pathQRCodes, pathQRCodes + '\\' + sessionPRINTSA + '.pdf');
+    createQRCodePage(pathQRCodes, pathQRCodes + '/' + sessionPRINTSA + '.pdf');
 
     res.status(200).json({ message: 'Jobs completed successfully' });
   } catch (error) {
