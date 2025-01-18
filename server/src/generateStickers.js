@@ -10,8 +10,8 @@ const path = require('path');
 
 const arr = [
   { cmd: 54542, ex: 1 },
-
   { cmd: 54542, ex: 4 },
+  { cmd: 54540, ex: 1 },
 ];
 async function generateStickers(commande, outPath) {
   if (commande[0].length > 0) return;
@@ -35,10 +35,10 @@ async function generateStickers(commande, outPath) {
     let ex = cmd.ex;
     if (ex > 1) {
       for (let i = 0; i < ex; i++) {
-        await createStickers(numCmd, i + 1, outPath);
+        await createStickers(numCmd, (i + 1).toString().padStart(2, '0'), outPath);
       }
     } else {
-      await createStickers(numCmd, ex, outPath);
+      await createStickers(numCmd, ex.toString().padStart(2, '0'), outPath);
     }
   });
 
@@ -55,7 +55,7 @@ async function createStickers(numCmd, ex, outPath) {
     const pages = pdfDoc.getPages();
     const firstPage = pages[0];
     const { width, height } = firstPage.getSize();
-    const text = `${numCmd.toString()}_${ex}`;
+    const text = `${numCmd.toString()} ${ex}ex`;
     const textWidth = font.widthOfTextAtSize(text, 35);
     const textHeight = font.heightAtSize(35);
 
@@ -79,14 +79,17 @@ async function createStickers(numCmd, ex, outPath) {
 }
 
 async function createStickersPage(directory, outputPath, pageSize = 'A4') {
-  const dimensions =
+  const format =
     pageSize === 'A3'
       ? { width: 842, height: 1191 } // Dimensions pour A3
       : { width: 595, height: 842 }; // Dimensions pour A4
 
   const margin = 0; // Marge entre les pages
   const outputPdf = await PDFDocument.create();
-  const files = fs.readdirSync(directory).filter((file) => file.endsWith('.pdf'));
+  const files = fs
+    .readdirSync(directory)
+    .filter((file) => file.endsWith('.pdf'))
+    .filter((file) => file.match(/\d/g) !== null);
 
   if (files.length === 0) {
     console.error('Aucun fichier PDF trouvé dans le répertoire.');
@@ -108,12 +111,12 @@ async function createStickersPage(directory, outputPath, pageSize = 'A4') {
 
       const scaledWidth = isLandscape ? 595 : 420;
       const scaledHeight = isLandscape ? 420 : 595;
-      let rotation = isLandscape ? degrees(0) : degrees(90);
+      let rotation = isLandscape && pageSize === 'A4' ? degrees(0) : degrees(90);
 
       const embeddedPage = await outputPdf.embedPage(inputPage);
 
       if (itemCount % (pageSize === 'A3' ? 4 : 2) === 0) {
-        currentPage = outputPdf.addPage([dimensions.width, dimensions.height]);
+        currentPage = outputPdf.addPage([format.width, format.height]);
       }
 
       const positionIndex = itemCount % (pageSize === 'A3' ? 4 : 2);
@@ -121,35 +124,34 @@ async function createStickersPage(directory, outputPath, pageSize = 'A4') {
       let y = 0;
 
       if (pageSize === 'A3') {
-        // A3 -> 4 A5 par page
+        // Haut Gauche
         if (positionIndex === 0) {
-          // En haut à gauche
-          x = (dimensions.width / 2 - scaledWidth) / 2;
-          y = dimensions.height - scaledHeight - margin;
-          rotation = isLandscape ? degrees(0) : degrees(90); // Orientation dynamique
+          x = format.width / 2;
+          y = format.height / 2;
+          // Bas Gauche
         } else if (positionIndex === 1) {
-          // En haut à droite
-          x = (dimensions.width / 2 - scaledWidth) / 2 + dimensions.width / 2;
-          y = dimensions.height - scaledHeight - margin;
-          rotation = isLandscape ? degrees(0) : degrees(90); // Orientation dynamique
+          x = format.width / 2;
+          y = 0;
+          // Haut Droite
         } else if (positionIndex === 2) {
-          // En bas à gauche
-          x = (dimensions.width / 2 - scaledWidth) / 2;
-          y = dimensions.height / 2 - scaledHeight - margin;
-          rotation = isLandscape ? degrees(0) : degrees(90); // Orientation dynamique
+          x = format.width;
+          y = (format.height - scaledHeight) / 2 + scaledHeight / 2;
+          // Bas Droite
         } else if (positionIndex === 3) {
-          // En bas à droite
-          x = (dimensions.width / 2 - scaledWidth) / 2 + dimensions.width / 2;
-          y = dimensions.height / 2 - scaledHeight - margin;
-          rotation = isLandscape ? degrees(0) : degrees(90); // Orientation dynamique
+          x = format.width;
+          y = 0;
         }
       } else {
         if (positionIndex === 0) {
-          x = (dimensions.width - scaledWidth) / 2;
-          y = dimensions.height - scaledHeight - margin;
+          //Rotation tête à tête
+          // rotation = degrees(180);
+          // x = (format.width + scaledWidth) / 2;
+          // y = format.height - margin;
+          x = (format.width - scaledWidth) / 2;
+          y = format.height - scaledHeight - margin;
         } else if (positionIndex === 1) {
-          x = (dimensions.width - scaledWidth) / 2;
-          y = dimensions.height / 2 - scaledHeight - margin;
+          x = (format.width - scaledWidth) / 2;
+          y = format.height / 2 - scaledHeight - margin;
         }
       }
 
@@ -170,7 +172,7 @@ async function createStickersPage(directory, outputPath, pageSize = 'A4') {
   try {
     const pdfBytes = await outputPdf.save();
     fs.writeFileSync(outputPath, pdfBytes);
-    console.log(`Etiquettes mis en page enregistré sous : ${outputPath}`);
+    console.log(`Etiquettes mis en page enregistré sous:`, outputPath);
   } catch (error) {
     console.error('Erreur lors de la sauvegarde du fichier PDF :', error.message);
   }
@@ -181,7 +183,7 @@ const outputFilePath = directoryPath + '/Etiquettes' + '/Etiquettes.pdf'; // Nom
 (async function () {
   try {
     await generateStickers(arr, directoryPath + '/' + 'Etiquettes');
-    await createStickersPage(directoryPath + '/Etiquettes', outputFilePath, 'A3').catch((error) => console.log(error));
+    await createStickersPage(directoryPath + '/Etiquettes', outputFilePath, 'A4').catch((error) => console.log(error));
   } catch (error) {
     console.log(error);
   }
