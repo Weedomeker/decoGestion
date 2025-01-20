@@ -8,11 +8,11 @@ const fs = require('fs');
 const { cmToPoints } = require('./convertUnits');
 const path = require('path');
 
-const arr = [
-  { cmd: 54542, ex: 1 },
-  { cmd: 54542, ex: 4 },
-  { cmd: 54540, ex: 1 },
-];
+// const arr = [
+//   { cmd: 54542, ex: 1 },
+//   { cmd: 54542, ex: 4 },
+//   { cmd: 54540, ex: 1 },
+// ];
 async function generateStickers(commande, outPath) {
   if (commande[0].length > 0) return;
   if (!fs.existsSync(outPath)) {
@@ -33,31 +33,41 @@ async function generateStickers(commande, outPath) {
   const promises = summedByCmd.map(async (cmd) => {
     let numCmd = cmd.cmd;
     let ex = cmd.ex;
+
     if (ex > 1) {
       for (let i = 0; i < ex; i++) {
-        await createStickers(numCmd, (i + 1).toString().padStart(2, '0'), outPath);
+        await createStickers(numCmd, (i + 1).toString().padStart(2, '0'), outPath, commande[i]);
       }
     } else {
-      await createStickers(numCmd, ex.toString().padStart(2, '0'), outPath);
+      await createStickers(numCmd, ex.toString().padStart(2, '0'), outPath, commande[i]);
     }
   });
 
   await Promise.all(promises);
 }
 
-async function createStickers(numCmd, ex, outPath) {
+async function createStickers(numCmd, ex, outPath, cmd) {
   const originalNotice = path.join(__dirname, '../public/images/notice_deco.pdf');
 
   try {
     const readPdf = await fs.promises.readFile(originalNotice);
     const pdfDoc = await PDFDocument.load(readPdf);
     const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const font2 = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const pages = pdfDoc.getPages();
     const firstPage = pages[0];
     const { width, height } = firstPage.getSize();
     const text = `${numCmd.toString()} ${ex}ex`;
-    const textWidth = font.widthOfTextAtSize(text, 35);
-    const textHeight = font.heightAtSize(35);
+    const infoCommande = [
+      cmd.ville,
+      cmd.visuel.split(/\d{3}x\d{3}/i).shift(),
+      cmd.ref.toString(),
+      cmd.format_visu.split('_').pop(),
+    ];
+
+    const textWidth = font.widthOfTextAtSize(text, 30);
+    const textHeight = font.heightAtSize(30);
+    const textHeight2 = font.heightAtSize(14);
 
     firstPage.drawText(text, {
       x: width / 2 - textWidth / 2,
@@ -65,6 +75,19 @@ async function createStickers(numCmd, ex, outPath) {
       size: 30,
       font: font,
       color: rgb(0, 0, 0),
+    });
+    let interLine = textHeight * 3;
+    infoCommande.map((text, i) => {
+      const textWidth = font2.widthOfTextAtSize(text, 14);
+      const textHeight = font.heightAtSize(14);
+      interLine += textHeight2;
+      firstPage.drawText(text, {
+        x: width / 2 - textWidth / 2,
+        y: height - interLine - textHeight2 * 2,
+        size: 14,
+        font: font2,
+        color: rgb(0, 0, 0),
+      });
     });
 
     const pdfBytes = await pdfDoc.save();
@@ -178,15 +201,15 @@ async function createStickersPage(directory, outputPath, pageSize = 'A4') {
   }
 }
 
-const directoryPath = path.join(__dirname, '../public/PRINTSA#16 JANV 2025'); // Répertoire contenant les PDF A5
-const outputFilePath = directoryPath + '/Etiquettes' + '/Etiquettes.pdf'; // Nom du fichier PDF généré
-(async function () {
-  try {
-    await generateStickers(arr, directoryPath + '/' + 'Etiquettes');
-    await createStickersPage(directoryPath + '/Etiquettes', outputFilePath, 'A4').catch((error) => console.log(error));
-  } catch (error) {
-    console.log(error);
-  }
-})();
+// const directoryPath = path.join(__dirname, '../public/PRINTSA#16 JANV 2025'); // Répertoire contenant les PDF A5
+// const outputFilePath = directoryPath + '/Etiquettes' + '/Etiquettes.pdf'; // Nom du fichier PDF généré
+// (async function () {
+//   try {
+//     await generateStickers(arr, directoryPath + '/' + 'Etiquettes');
+//     await createStickersPage(directoryPath + '/Etiquettes', outputFilePath, 'A4').catch((error) => console.log(error));
+//   } catch (error) {
+//     console.log(error);
+//   }
+// })();
 
-// module.exports = { generateStickers, createStickersPage };
+module.exports = { generateStickers, createStickersPage };
