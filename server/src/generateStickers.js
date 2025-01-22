@@ -5,51 +5,102 @@
  */
 const { degrees, PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fs = require('fs');
-const { cmToPoints } = require('./convertUnits');
 const path = require('path');
 
 // const arr = [
-//   { cmd: 54542, ex: 1 },
-//   { cmd: 54542, ex: 4 },
-//   { cmd: 54540, ex: 1 },
+//   {
+//     cmd: 54540,
+//     ville: 'Lille',
+//     visuel: '5Galets 100x200_73800972_S_.pdf',
+//     format_visu: '1_100x200',
+//     ref: 73800972,
+//     ex: 1,
+//   },
+//   {
+//     cmd: 54540,
+//     ville: 'Lille',
+//     visuel: '5GaletsUnis 100x200_73800993_S_.pdf',
+//     format_visu: '1_100x200',
+//     ref: 73800993,
+//     ex: 2,
+//   },
+//   {
+//     cmd: 54541,
+//     ville: 'Tourcoing',
+//     visuel: 'Acier 100x200_73801511_S_.pdf',
+//     format_visu: '1_100x200',
+//     ref: 73801511,
+//     ex: 1,
+//   },
 // ];
-async function generateStickers(commande, outPath) {
-  if (commande[0].length > 0) return;
+
+async function generateStickers(commande, outPath, showDataCmd = false) {
+  if (!Array.isArray(commande) || commande.length === 0) {
+    console.error('La commande est vide ou non valide.');
+    return;
+  }
   if (!fs.existsSync(outPath)) {
     fs.mkdirSync(outPath, { recursive: true });
   }
 
-  const summedByCmd = commande.reduce((acc, curr) => {
+  // Grouper les commandes par `cmd` et accumuler les exemplaires
+  const groupedCommands = commande.reduce((acc, curr) => {
     const { cmd, ex } = curr;
-    const existing = acc.find((item) => item.cmd === cmd);
-    if (existing) {
-      existing.ex += ex;
-    } else {
-      acc.push({ cmd, ex });
+    if (!acc[cmd]) {
+      acc[cmd] = { items: [], maxEx: 0 };
     }
+    acc[cmd].items.push(curr);
+    acc[cmd].maxEx += ex; // Ajouter les exemplaires à ce `cmd`
     return acc;
-  }, []);
+  }, {});
 
-  const promises = summedByCmd.map(async (cmd) => {
-    let numCmd = cmd.cmd;
-    let ex = cmd.ex;
+  // Générer les stickers pour chaque commande
+  const promises = Object.values(groupedCommands).flatMap(({ items, maxEx }) => {
+    // Créer un compteur pour chaque exemplaire dans la commande
+    let currentEx = 0;
 
-    if (ex > 1) {
-      for (let i = 0; i < ex; i++) {
-        await createStickers(numCmd, (i + 1).toString().padStart(2, '0'), outPath, commande[i]);
-      }
-    } else {
-      await createStickers(numCmd, ex.toString().padStart(2, '0'), outPath, commande[i]);
-    }
+    return items.flatMap((cmdInfo) => {
+      const { cmd, ex } = cmdInfo;
+
+      // Générer un sticker pour chaque exemplaire
+      return Array.from({ length: ex }, () => {
+        currentEx++; // Incrémenter le numéro d'exemplaire
+        return createStickers(
+          cmd,
+          `${currentEx.toString().padStart(2, '0')}/${maxEx.toString().padStart(2, '0')}`, // Ex : 01/03
+          outPath,
+          cmdInfo,
+          showDataCmd,
+          maxEx,
+        );
+      });
+    });
   });
 
   await Promise.all(promises);
 }
 
-async function createStickers(numCmd, ex, outPath, cmd) {
+async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
   const originalNotice = path.join(__dirname, '../public/images/notice_deco.pdf');
 
+  let infoCommande = [];
+  if (showDataCmd) {
+    if (cmd) {
+      // Extraction des informations spécifiques pour chaque commande
+      infoCommande = [
+        cmd.ville || 'Ville inconnue',
+        cmd.visuel
+          ?.split(/\d{3}x\d{3}/i)
+          .shift()
+          .trim() || 'Visuel inconnu',
+        cmd.ref?.toString() || 'Réf inconnue',
+        cmd.format_visu?.split('_').pop().trim() || 'Format inconnu',
+      ];
+    }
+  }
+
   try {
+    // Lire le modèle de PDF
     const readPdf = await fs.promises.readFile(originalNotice);
     const pdfDoc = await PDFDocument.load(readPdf);
     const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -57,47 +108,50 @@ async function createStickers(numCmd, ex, outPath, cmd) {
     const pages = pdfDoc.getPages();
     const firstPage = pages[0];
     const { width, height } = firstPage.getSize();
-    const text = `${numCmd.toString()} ${ex}ex`;
-    const infoCommande = [
-      cmd.ville,
-      cmd.visuel.split(/\d{3}x\d{3}/i).shift(),
-      cmd.ref.toString(),
-      cmd.format_visu.split('_').pop(),
-    ];
 
+    // Afficher la numérotation des exemplaires (par ex. : 01/03)
+    const text = `${numCmd} ${ex}`;
     const textWidth = font.widthOfTextAtSize(text, 30);
     const textHeight = font.heightAtSize(30);
-    const textHeight2 = font.heightAtSize(14);
 
     firstPage.drawText(text, {
       x: width / 2 - textWidth / 2,
-      y: height - textHeight * 3,
+      y: height - textHeight * 3.5,
       size: 30,
       font: font,
       color: rgb(0, 0, 0),
     });
-    let interLine = textHeight * 3;
-    infoCommande.map((text, i) => {
-      const textWidth = font2.widthOfTextAtSize(text, 14);
-      const textHeight = font.heightAtSize(14);
-      interLine += textHeight2;
-      firstPage.drawText(text, {
-        x: width / 2 - textWidth / 2,
-        y: height - interLine - textHeight2 * 2,
-        size: 14,
-        font: font2,
-        color: rgb(0, 0, 0),
-      });
-    });
 
+    // Ajouter les informations de la commande (si demandé)
+    if (showDataCmd) {
+      let interLine = textHeight * 3.5; // Position initiale des lignes de texte
+      infoCommande.forEach((text) => {
+        const textWidth = font2.widthOfTextAtSize(text, 14);
+        const textHeight = font2.heightAtSize(14);
+        interLine += textHeight * 1.5; // Ajouter un interligne
+        firstPage.drawText(text, {
+          x: width / 2 - textWidth / 2,
+          y: height - interLine,
+          size: 14,
+          font: font2,
+          color: rgb(0, 0, 0),
+        });
+      });
+    }
+
+    // Enregistrer le PDF généré
     const pdfBytes = await pdfDoc.save();
 
+    // Créer le dossier de sortie si nécessaire
     if (!fs.existsSync(outPath)) {
       fs.mkdirSync(outPath, { recursive: true });
     }
-    await fs.promises.writeFile(`${outPath}/${text}.pdf`, pdfBytes);
+
+    // Nom du fichier basé sur le numéro de commande et l'exemplaire
+    const fileName = `${numCmd}_${ex.split('/')[0]}.pdf`;
+    await fs.promises.writeFile(`${outPath}/${fileName}`, pdfBytes);
   } catch (error) {
-    console.error('La génération des étiquettes a echoué: ', error);
+    console.error('La génération des étiquettes a échoué : ', error);
   }
 }
 
@@ -205,7 +259,7 @@ async function createStickersPage(directory, outputPath, pageSize = 'A4') {
 // const outputFilePath = directoryPath + '/Etiquettes' + '/Etiquettes.pdf'; // Nom du fichier PDF généré
 // (async function () {
 //   try {
-//     await generateStickers(arr, directoryPath + '/' + 'Etiquettes');
+//     await generateStickers(arr, directoryPath + '/' + 'Etiquettes', true);
 //     await createStickersPage(directoryPath + '/Etiquettes', outputFilePath, 'A4').catch((error) => console.log(error));
 //   } catch (error) {
 //     console.log(error);
