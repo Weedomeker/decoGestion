@@ -114,15 +114,14 @@ app.use(express.static(__dirname + '/public'));
 app.use(express.static(path.join(__dirname, '../client/dist')));
 app.use(
   '/louis',
-  express.static(saveFolder),
-  serveIndex(saveFolder, { icons: true, stylesheet: path.join(__dirname, '/public/style.css') }),
+  express.static(__dirname + `/public/${sessionPRINTSA}/`),
+  serveIndex(path.join(__dirname, `/public/${sessionPRINTSA}/`), { icons: true }),
 );
 app.use(
   '/qrcode',
   express.static(__dirname + `/public/${sessionPRINTSA}/QRCodes/`),
   serveIndex(path.join(__dirname, `/public/${sessionPRINTSA}/QRCodes/`), {
     icons: true,
-    stylesheet: path.join(__dirname, '/public/style.css'),
   }),
 );
 
@@ -514,7 +513,12 @@ app.post('/run_jobs', async (req, res) => {
     });
 
     //Generer Etiquettes
-    await generateStickers(jobList.completed, path.join(__dirname, `./public/${sessionPRINTSA}/Etiquettes`));
+    const stickersData = req.body.stickersData;
+    await generateStickers(
+      jobList.completed,
+      path.join(__dirname, `./public/${sessionPRINTSA}/Etiquettes`),
+      stickersData,
+    );
     await createStickersPage(
       path.join(__dirname, `./public/${sessionPRINTSA}/Etiquettes`),
       path.join(__dirname, `./public/${sessionPRINTSA}/Etiquettes/${sessionPRINTSA}.pdf`),

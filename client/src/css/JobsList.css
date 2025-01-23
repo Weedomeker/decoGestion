@@ -34,7 +34,18 @@
   display: flex;
   align-items: center;
   width: 100%;
-  justify-content: space-between;
+}
+
+.sticky-footer-content .ui.button {
+  margin-right: 10px;
+}
+
+.sticky-header-content .checkbox-footer {
+  display: flex;
+  min-width: 350px;
+  vertical-align: middle;
+  padding-left: 10px;
+  padding-right: auto;
 }
 
 .body-table-jobs {
@@ -59,7 +70,7 @@
 }
 
 .progress {
-  margin-left: 40px;
-  margin-right: auto;
+  overflow: hidden;
   width: 100%;
+  margin-left: 14px;
 }

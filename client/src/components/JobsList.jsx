@@ -27,7 +27,8 @@ function JobsList({ show, formatTauro }) {
   const [endTime, setEndTime] = useState(null);
   const [onLoading, setOnLoading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [sortFolder, setSortFolder] = useState(true);
+  const [sortFolder, setSortFolder] = useState(false);
+  const [stickersData, setStickersData] = useState(false);
   const [filter, setFilter] = useState([]);
 
   useEffect(() => {
@@ -124,7 +125,12 @@ function JobsList({ show, formatTauro }) {
       const response = await fetch(`http://${HOST}:${PORT}/run_jobs`, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ run: true, formatTauro: formatTauro, sortFolder: sortFolder }),
+        body: JSON.stringify({
+          run: true,
+          formatTauro: formatTauro,
+          sortFolder: sortFolder,
+          stickersData: stickersData,
+        }),
       });
 
       if (!response.ok) {
@@ -301,14 +307,28 @@ function JobsList({ show, formatTauro }) {
                       </ButtonContent>
                       <ButtonContent hidden content="Traiter la file" />
                     </Button>
-                    <Checkbox
-                      label="Trier les jpg dans des dossiers par vernis."
-                      style={{ paddingLeft: '10px', marginRight: 'auto' }}
-                      checked={sortFolder}
-                      onChange={(e, data) => {
-                        setSortFolder(data.checked);
-                      }}
-                    />
+                    <div className="checkbox-footer">
+                      {!onLoading && (
+                        <Checkbox
+                          label="Trier lasers texturé"
+                          style={{ paddingLeft: '10px', marginRight: 'auto' }}
+                          checked={sortFolder}
+                          onChange={(e, data) => {
+                            setSortFolder(data.checked);
+                          }}
+                        />
+                      )}
+                      {!onLoading && (
+                        <Checkbox
+                          label="Étiquettes avec infos"
+                          style={{ paddingLeft: '10px', marginRight: 'auto' }}
+                          checked={stickersData}
+                          onChange={(e, data) => {
+                            setStickersData(data.checked);
+                          }}
+                        />
+                      )}
+                    </div>
 
                     {onLoading && <progress value={progress} max={100} className="progress" />}
                   </div>
