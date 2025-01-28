@@ -7,32 +7,32 @@ const { degrees, PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fs = require('fs');
 const path = require('path');
 
-// const arr = [
-//   {
-//     cmd: 54540,
-//     ville: 'Lille',
-//     visuel: '5Galets 100x200_73800972_S_.pdf',
-//     format_visu: '1_100x200',
-//     ref: 73800972,
-//     ex: 1,
-//   },
-//   {
-//     cmd: 54540,
-//     ville: 'Lille',
-//     visuel: '5GaletsUnis 100x200_73800993_S_.pdf',
-//     format_visu: '1_100x200',
-//     ref: 73800993,
-//     ex: 2,
-//   },
-//   {
-//     cmd: 54541,
-//     ville: 'Tourcoing',
-//     visuel: 'Acier 100x200_73801511_S_.pdf',
-//     format_visu: '1_100x200',
-//     ref: 73801511,
-//     ex: 1,
-//   },
-// ];
+const arr = [
+  {
+    cmd: 54540,
+    ville: 'Lille',
+    visuel: '5Galets 100x200_73800972_S_.pdf',
+    format_visu: '1_100x200',
+    ref: 73800972,
+    ex: 1,
+  },
+  {
+    cmd: 54540,
+    ville: 'Lille',
+    visuel: '5GaletsUnis 100x200_73800993_S_.pdf',
+    format_visu: '1_100x200',
+    ref: 73800993,
+    ex: 2,
+  },
+  {
+    cmd: 54541,
+    ville: 'Tourcoing',
+    visuel: 'Acier 100x200_73801511_S_.pdf',
+    format_visu: '1_100x200',
+    ref: 73801511,
+    ex: 1,
+  },
+];
 
 async function generateStickers(commande, outPath, showDataCmd = false) {
   if (!Array.isArray(commande) || commande.length === 0) {
@@ -116,7 +116,7 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
 
     firstPage.drawText(text, {
       x: width / 2 - textWidth / 2,
-      y: height - textHeight * 3.5,
+      y: height - textHeight,
       size: 30,
       font: font,
       color: rgb(0, 0, 0),
@@ -155,10 +155,10 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
   }
 }
 
-async function createStickersPage(directory, outputPath, pageSize = 'A4') {
+async function createStickersPage(directory, outputPath, pageSize = 'A5') {
   const format =
-    pageSize === 'A3'
-      ? { width: 842, height: 1191 } // Dimensions pour A3
+    pageSize === 'A5'
+      ? { width: 420, height: 595 } // Dimensions pour A5
       : { width: 595, height: 842 }; // Dimensions pour A4
 
   const margin = 0; // Marge entre les pages
@@ -184,23 +184,21 @@ async function createStickersPage(directory, outputPath, pageSize = 'A4') {
 
       const inputPage = inputPdf.getPage(0); // Charger la première page
       const { width, height } = inputPage.getSize();
-      const isLandscape = width > height;
+      console.log(width, height);
 
-      const scaledWidth = isLandscape ? 595 : 420;
-      const scaledHeight = isLandscape ? 420 : 595;
-      let rotation = isLandscape && pageSize === 'A4' ? degrees(0) : degrees(90);
+      let rotation = pageSize === 'A4' ? degrees(0) : degrees(90);
 
       const embeddedPage = await outputPdf.embedPage(inputPage);
 
-      if (itemCount % (pageSize === 'A3' ? 4 : 2) === 0) {
+      if (itemCount % (pageSize === 'A5' ? 2 : 4) === 0) {
         currentPage = outputPdf.addPage([format.width, format.height]);
       }
 
-      const positionIndex = itemCount % (pageSize === 'A3' ? 4 : 2);
+      const positionIndex = itemCount % (pageSize === 'A5' ? 2 : 4);
       let x = 0;
       let y = 0;
 
-      if (pageSize === 'A3') {
+      if (pageSize === 'A4') {
         // Haut Gauche
         if (positionIndex === 0) {
           x = format.width / 2;
@@ -212,7 +210,7 @@ async function createStickersPage(directory, outputPath, pageSize = 'A4') {
           // Haut Droite
         } else if (positionIndex === 2) {
           x = format.width;
-          y = (format.height - scaledHeight) / 2 + scaledHeight / 2;
+          y = (format.height - height) / 2 + height / 2;
           // Bas Droite
         } else if (positionIndex === 3) {
           x = format.width;
@@ -220,23 +218,19 @@ async function createStickersPage(directory, outputPath, pageSize = 'A4') {
         }
       } else {
         if (positionIndex === 0) {
-          //Rotation tête à tête
-          // rotation = degrees(180);
-          // x = (format.width + scaledWidth) / 2;
-          // y = format.height - margin;
-          x = (format.width - scaledWidth) / 2;
-          y = format.height - scaledHeight - margin;
+          x = (format.width - width) / 2;
+          y = format.height - height - margin;
         } else if (positionIndex === 1) {
-          x = (format.width - scaledWidth) / 2;
-          y = format.height / 2 - scaledHeight - margin;
+          x = (format.width - width) / 2;
+          y = format.height / 2 - height - margin;
         }
       }
 
       currentPage.drawPage(embeddedPage, {
         x,
         y,
-        width: scaledWidth,
-        height: scaledHeight,
+        width: width,
+        height: height,
         rotate: rotation,
       });
 
@@ -255,15 +249,15 @@ async function createStickersPage(directory, outputPath, pageSize = 'A4') {
   }
 }
 
-// const directoryPath = path.join(__dirname, '../public/PRINTSA#16 JANV 2025'); // Répertoire contenant les PDF A5
-// const outputFilePath = directoryPath + '/Etiquettes' + '/Etiquettes.pdf'; // Nom du fichier PDF généré
-// (async function () {
-//   try {
-//     await generateStickers(arr, directoryPath + '/' + 'Etiquettes', true);
-//     await createStickersPage(directoryPath + '/Etiquettes', outputFilePath, 'A4').catch((error) => console.log(error));
-//   } catch (error) {
-//     console.log(error);
-//   }
-// })();
+const directoryPath = path.join(__dirname, '../public/PRINTSA#28 JANV 2025'); // Répertoire contenant les PDF A5
+const outputFilePath = directoryPath + '/Etiquettes' + '/Etiquettes.pdf'; // Nom du fichier PDF généré
+(async function () {
+  try {
+    await generateStickers(arr, directoryPath + '/' + 'Etiquettes');
+    await createStickersPage(directoryPath + '/Etiquettes', outputFilePath, 'A5').catch((error) => console.log(error));
+  } catch (error) {
+    console.log(error);
+  }
+})();
 
-module.exports = { generateStickers, createStickersPage };
+// module.exports = { generateStickers, createStickersPage };
