@@ -169,7 +169,7 @@ async function createStickersPage(directory, outputPath, pageSize = 'A5') {
   const files = fs
     .readdirSync(directory)
     .filter((file) => file.endsWith('.pdf'))
-    .filter((file) => file.match(/\d/g) !== null);
+    .filter((file) => /^[\d]/.test(file));
 
   if (files.length === 0) {
     console.error('Aucun fichier PDF trouvé dans le répertoire.');
