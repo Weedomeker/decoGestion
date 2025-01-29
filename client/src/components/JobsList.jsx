@@ -4,7 +4,9 @@ import {
   Button,
   ButtonContent,
   Checkbox,
+  Dropdown,
   Icon,
+  Label,
   Table,
   TableBody,
   TableCell,
@@ -29,6 +31,7 @@ function JobsList({ show, formatTauro }) {
   const [progress, setProgress] = useState(0);
   const [sortFolder, setSortFolder] = useState(false);
   const [stickersData, setStickersData] = useState(false);
+  const [paperSticker, setPaperSticker] = useState('A5');
   const [filter, setFilter] = useState([]);
 
   useEffect(() => {
@@ -130,6 +133,7 @@ function JobsList({ show, formatTauro }) {
           formatTauro: formatTauro,
           sortFolder: sortFolder,
           stickersData: stickersData,
+          paperSticker: paperSticker,
         }),
       });
 
@@ -293,35 +297,52 @@ function JobsList({ show, formatTauro }) {
               <TableRow className="table-row">
                 <TableHeaderCell colSpan="9" collapsing>
                   <div className="sticky-footer-content">
-                    <Button
-                      type="button"
-                      color="red"
-                      animated="fade"
-                      size="small"
-                      compact
-                      onClick={() => runJobsList()}
-                      disabled={onLoading}
-                    >
-                      <ButtonContent visible>
-                        <Icon name="send" inverted />
-                      </ButtonContent>
-                      <ButtonContent hidden content="Traiter la file" />
-                    </Button>
+                    <div>
+                      <Button
+                        type="button"
+                        color="red"
+                        animated="fade"
+                        size="small"
+                        compact
+                        onClick={() => runJobsList()}
+                        disabled={onLoading}
+                      >
+                        <ButtonContent visible>
+                          <Icon name="send" inverted />
+                        </ButtonContent>
+                        <ButtonContent hidden content="Traiter la file" />
+                      </Button>
+                    </div>
+
                     <div className="checkbox-footer">
                       {!onLoading && (
                         <Checkbox
                           label="Trier lasers texturé"
-                          style={{ paddingLeft: '10px', marginRight: 'auto' }}
                           checked={sortFolder}
                           onChange={(e, data) => {
                             setSortFolder(data.checked);
                           }}
                         />
                       )}
+                      {!onLoading && <Label>Papier stickers:</Label>}
+                      {!onLoading && (
+                        <Dropdown
+                          value={paperSticker}
+                          onChange={(e, data) => {
+                            setPaperSticker(data.value);
+                          }}
+                          upward
+                          compact
+                          selection
+                          options={[
+                            { key: 'A5', text: 'A5', value: 'A5' },
+                            { key: 'A4', text: 'A4', value: 'A4' },
+                          ]}
+                        />
+                      )}
                       {!onLoading && (
                         <Checkbox
                           label="Étiquettes avec infos"
-                          style={{ paddingLeft: '10px', marginRight: 'auto' }}
                           checked={stickersData}
                           onChange={(e, data) => {
                             setStickersData(data.checked);

@@ -111,31 +111,34 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
 
     // Afficher la numérotation des exemplaires (par ex. : 01/03)
     const text = `${numCmd} ${ex}`;
-    const textWidth = font.widthOfTextAtSize(text, 30);
-    const textHeight = font.heightAtSize(30);
+    const textWidth = font.widthOfTextAtSize(text, 20);
+    const textHeight = font.heightAtSize(20);
 
     firstPage.drawText(text, {
       x: width / 2 - textWidth / 2,
       y: height - textHeight,
-      size: 30,
+      size: 20,
       font: font,
       color: rgb(0, 0, 0),
     });
 
     // Ajouter les informations de la commande (si demandé)
     if (showDataCmd) {
-      let interLine = textHeight * 3.5; // Position initiale des lignes de texte
-      infoCommande.forEach((text) => {
-        const textWidth = font2.widthOfTextAtSize(text, 14);
-        const textHeight = font2.heightAtSize(14);
-        interLine += textHeight * 1.5; // Ajouter un interligne
-        firstPage.drawText(text, {
-          x: width / 2 - textWidth / 2,
-          y: height - interLine,
-          size: 14,
-          font: font2,
-          color: rgb(0, 0, 0),
-        });
+      let fontSize = 10;
+      const textData = 'LM_' + infoCommande.join(' - ').toLocaleUpperCase();
+      let textDataWidth = font.widthOfTextAtSize(textData, fontSize);
+      const textDataHeight = font.heightAtSize(fontSize);
+      if (textDataWidth > width) {
+        fontSize = 8;
+        textDataWidth = font.widthOfTextAtSize(textData, fontSize);
+      }
+
+      firstPage.drawText(textData, {
+        x: width / 2 - textDataWidth / 2,
+        y: height - textDataHeight - textHeight * 1.5,
+        size: fontSize,
+        font: font2,
+        color: rgb(0, 0, 0),
       });
     }
 
@@ -184,7 +187,6 @@ async function createStickersPage(directory, outputPath, pageSize = 'A5') {
 
       const inputPage = inputPdf.getPage(0); // Charger la première page
       const { width, height } = inputPage.getSize();
-      console.log(width, height);
 
       let rotation = pageSize === 'A4' ? degrees(0) : degrees(90);
 
@@ -201,28 +203,33 @@ async function createStickersPage(directory, outputPath, pageSize = 'A5') {
       if (pageSize === 'A4') {
         // Haut Gauche
         if (positionIndex === 0) {
-          x = format.width / 2;
+          x = format.width / 2 - width;
           y = format.height / 2;
+
           // Bas Gauche
         } else if (positionIndex === 1) {
           x = format.width / 2;
-          y = 0;
+          y = format.height / 2;
+          rotation = degrees(180);
+
           // Haut Droite
         } else if (positionIndex === 2) {
-          x = format.width;
-          y = (format.height - height) / 2 + height / 2;
+          x = format.width / 2;
+          y = format.height / 2;
+
           // Bas Droite
         } else if (positionIndex === 3) {
           x = format.width;
-          y = 0;
+          y = format.height / 2;
+          rotation = degrees(180);
         }
       } else {
         if (positionIndex === 0) {
-          x = (format.width - width) / 2;
-          y = format.height - height - margin;
+          x = format.width;
+          y = format.height / 2;
         } else if (positionIndex === 1) {
-          x = (format.width - width) / 2;
-          y = format.height / 2 - height - margin;
+          x = format.width;
+          y = 0;
         }
       }
 
@@ -249,15 +256,15 @@ async function createStickersPage(directory, outputPath, pageSize = 'A5') {
   }
 }
 
-const directoryPath = path.join(__dirname, '../public/PRINTSA#28 JANV 2025'); // Répertoire contenant les PDF A5
-const outputFilePath = directoryPath + '/Etiquettes' + '/Etiquettes.pdf'; // Nom du fichier PDF généré
-(async function () {
-  try {
-    await generateStickers(arr, directoryPath + '/' + 'Etiquettes');
-    await createStickersPage(directoryPath + '/Etiquettes', outputFilePath, 'A5').catch((error) => console.log(error));
-  } catch (error) {
-    console.log(error);
-  }
-})();
+// const directoryPath = path.join(__dirname, '../public/PRINTSA#28 JANV 2025'); // Répertoire contenant les PDF A5
+// const outputFilePath = directoryPath + '/Etiquettes' + '/Etiquettes.pdf'; // Nom du fichier PDF généré
+// (async function () {
+//   try {
+//     await generateStickers(arr, directoryPath + '/' + 'Etiquettes', true);
+//     await createStickersPage(directoryPath + '/Etiquettes', outputFilePath, 'A5').catch((error) => console.log(error));
+//   } catch (error) {
+//     console.log(error);
+//   }
+// })();
 
-// module.exports = { generateStickers, createStickersPage };
+module.exports = { generateStickers, createStickersPage };

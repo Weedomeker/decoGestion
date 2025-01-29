@@ -32,7 +32,8 @@
 
 .sticky-footer-content {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: space-between;
   width: 100%;
 }
 
@@ -73,4 +74,18 @@
   overflow: hidden;
   width: 100%;
   margin-left: 14px;
+}
+
+.checkbox-footer {
+  display: flex;
+  align-content: space-between;
+  align-items: center;
+}
+
+.checkbox-footer .ui.checkbox {
+  margin: 0 8px;
+}
+
+.checkbox-footer .ui.dropdown {
+  z-index: 35;
 }

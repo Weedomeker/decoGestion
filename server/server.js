@@ -514,6 +514,7 @@ app.post('/run_jobs', async (req, res) => {
 
     //Generer Etiquettes
     const stickersData = req.body.stickersData;
+    const paperSticker = req.body.paperSticker;
     await generateStickers(
       jobList.completed,
       path.join(__dirname, `./public/${sessionPRINTSA}/Etiquettes`),
@@ -522,7 +523,7 @@ app.post('/run_jobs', async (req, res) => {
     await createStickersPage(
       path.join(__dirname, `./public/${sessionPRINTSA}/Etiquettes`),
       path.join(__dirname, `./public/${sessionPRINTSA}/Etiquettes/${sessionPRINTSA}.pdf`),
-      'A3',
+      paperSticker,
     );
 
     //Generer QRCode page
