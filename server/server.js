@@ -516,28 +516,41 @@ app.post('/run_jobs', async (req, res) => {
       }
     });
 
-    //Generer Etiquettes
-    const stickersData = req.body.stickersData;
-    const paperSticker = req.body.paperSticker;
-    const tempFolder = path.join(__dirname, `./public/${sessionPRINTSA}/_tmp`);
-    if (!fs.existsSync(tempFolder)) {
-      fs.mkdirSync(tempFolder, { recursive: true });
+    try {
+      // Récupérer les données du corps de la requête
+      const { stickersData, paperSticker } = req.body;
+      const baseFolder = path.join(__dirname, `./public/${sessionPRINTSA}`);
+      const tempFolder = path.join(baseFolder, '_tmp');
+      const etiquettesFolder = path.join(baseFolder, 'Etiquettes');
+
+      // Vérifier et créer les dossiers si nécessaires
+      await fs.promises.mkdir(tempFolder, { recursive: true });
+      await fs.promises.mkdir(etiquettesFolder, { recursive: true });
+
+      // Générer les étiquettes
+      await generateStickers(jobList.completed, tempFolder, stickersData);
+
+      // Chemin du fichier PDF
+      const pdfPath = path.join(etiquettesFolder, `${sessionPRINTSA}.pdf`);
+
+      // Générer le PDF
+      await createStickersPage(tempFolder, pdfPath, paperSticker);
+
+      // Lire et déplacer les fichiers
+      const files = await fs.promises.readdir(tempFolder);
+      await Promise.all(
+        files.map(async (file) => {
+          const oldPath = path.join(tempFolder, file);
+          const newPath = path.join(etiquettesFolder, file);
+          await fs.promises.rename(oldPath, newPath);
+        }),
+      );
+
+      // Supprimer le dossier temporaire
+      await fs.promises.rm(tempFolder, { recursive: true, force: true });
+    } catch (error) {
+      console.error('❌ Erreur lors de la génération des étiquettes :', error);
     }
-    await generateStickers(jobList.completed, tempFolder, stickersData);
-    await createStickersPage(
-      tempFolder,
-      path.join(__dirname, `./public/${sessionPRINTSA}/Etiquettes/${sessionPRINTSA}.pdf`),
-      paperSticker,
-    );
-    //Copier les fichiers de temp dans Etiquettes
-    const files = fs.readdirSync(tempFolder);
-    files.forEach((file) => {
-      const source = path.join(tempFolder, file);
-      const destination = path.join(__dirname, `./public/${sessionPRINTSA}/Etiquettes`, file);
-      fs.copyFileSync(source, destination, { recursive: true });
-    });
-    //Supprimer le repertoire temporaire
-    fs.rmSync(tempFolder, { recursive: true, force: true });
 
     //Generer QRCode page
     const pathQRCodes = `./server/public/${sessionPRINTSA}/QRCodes/`;
