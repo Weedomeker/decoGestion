@@ -7,6 +7,7 @@ import {
   Dropdown,
   Icon,
   Label,
+  Progress,
   Table,
   TableBody,
   TableCell,
@@ -33,6 +34,15 @@ function JobsList({ show, formatTauro }) {
   const [stickersData, setStickersData] = useState(false);
   const [paperSticker, setPaperSticker] = useState('A5');
   const [filter, setFilter] = useState([]);
+
+  useEffect(() => {
+    if (data.length > 0) {
+      const totalJobs = data[0].jobs.length + data[0].completed.length;
+      if (totalJobs > 0) {
+        setProgress((data[0].completed.length / totalJobs) * 100);
+      }
+    }
+  }, [data]);
 
   useEffect(() => {
     const dataFetch = async () => {
@@ -78,6 +88,7 @@ function JobsList({ show, formatTauro }) {
       if (message.type === 'end') {
         setEndTime(message.endTime);
         setOnLoading(false);
+        setProgress(100); // S'assurer que la barre affiche bien 100% à la fin
       }
     };
 
@@ -245,7 +256,7 @@ function JobsList({ show, formatTauro }) {
               visuel
             )}
           </TableCell>
-          <TableCell className="table-cell">{value.format_visu}</TableCell>
+          <TableCell className="table-cell">{value.format_visu.split('_').pop()}</TableCell>
           <TableCell className="table-cell">{value.format_Plaque.split('_').pop()}</TableCell>
           <TableCell className="table-cell">{value.ex}</TableCell>
           <TableCell className="table-cell">{value.cut ? <Icon name="cut" /> : null}</TableCell>
@@ -297,24 +308,24 @@ function JobsList({ show, formatTauro }) {
               <TableRow className="table-row">
                 <TableHeaderCell colSpan="9" collapsing>
                   <div className="sticky-footer-content">
-                    <div>
-                      <Button
-                        type="button"
-                        color="red"
-                        animated="fade"
-                        size="small"
-                        compact
-                        onClick={() => runJobsList()}
-                        disabled={onLoading}
-                      >
-                        <ButtonContent visible>
-                          <Icon name="send" inverted />
-                        </ButtonContent>
-                        <ButtonContent hidden content="Traiter la file" />
-                      </Button>
-                    </div>
-
                     <div className="checkbox-footer">
+                      {!onLoading && (
+                        <Button
+                          type="button"
+                          color="red"
+                          animated="fade"
+                          size="small"
+                          compact
+                          onClick={() => runJobsList()}
+                          disabled={onLoading}
+                        >
+                          <ButtonContent visible>
+                            <Icon name="send" inverted />
+                          </ButtonContent>
+                          <ButtonContent hidden content="Traiter la file" />
+                        </Button>
+                      )}
+
                       {!onLoading && (
                         <Checkbox
                           label="Trier lasers texturé"
@@ -324,7 +335,9 @@ function JobsList({ show, formatTauro }) {
                           }}
                         />
                       )}
+
                       {!onLoading && <Label>Papier stickers:</Label>}
+
                       {!onLoading && (
                         <Dropdown
                           value={paperSticker}
@@ -340,6 +353,7 @@ function JobsList({ show, formatTauro }) {
                           ]}
                         />
                       )}
+
                       {!onLoading && (
                         <Checkbox
                           label="Étiquettes avec infos"
@@ -349,9 +363,18 @@ function JobsList({ show, formatTauro }) {
                           }}
                         />
                       )}
-                    </div>
 
-                    {onLoading && <progress value={progress} max={100} className="progress" />}
+                      {onLoading && (
+                        <Progress
+                          value={Number.isNaN(progress) ? 0 : Math.round(progress)}
+                          total={100}
+                          color="blue"
+                          size="medium"
+                          progress
+                          indicating
+                        />
+                      )}
+                    </div>
                   </div>
                 </TableHeaderCell>
               </TableRow>

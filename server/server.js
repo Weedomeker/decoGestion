@@ -343,6 +343,8 @@ app.post('/run_jobs', async (req, res) => {
   }
 
   try {
+    //Reset Jobs completed
+    jobList.completed = [];
     const jobsToRun = [...jobList.jobs]; // Créer une copie pour éviter de modifier l'original pendant l'itération
     const startTime = performance.now();
     wss.clients.forEach((client) => {
@@ -504,7 +506,9 @@ app.post('/run_jobs', async (req, res) => {
     }
 
     // Supprimer tous les jobs traités de jobList.jobs
-    jobList.jobs = jobList.jobs.filter((job) => !jobList.completed.includes(job));
+    jobList.jobs = jobList.jobs.filter(
+      (job) => !jobList.completed.some((completedJob) => completedJob._id === job._id),
+    );
     const endTime = performance.now();
     wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
@@ -515,16 +519,25 @@ app.post('/run_jobs', async (req, res) => {
     //Generer Etiquettes
     const stickersData = req.body.stickersData;
     const paperSticker = req.body.paperSticker;
-    await generateStickers(
-      jobList.completed,
-      path.join(__dirname, `./public/${sessionPRINTSA}/Etiquettes`),
-      stickersData,
-    );
+    const tempFolder = path.join(__dirname, `./public/${sessionPRINTSA}/_tmp`);
+    if (!fs.existsSync(tempFolder)) {
+      fs.mkdirSync(tempFolder, { recursive: true });
+    }
+    await generateStickers(jobList.completed, tempFolder, stickersData);
     await createStickersPage(
-      path.join(__dirname, `./public/${sessionPRINTSA}/Etiquettes`),
+      tempFolder,
       path.join(__dirname, `./public/${sessionPRINTSA}/Etiquettes/${sessionPRINTSA}.pdf`),
       paperSticker,
     );
+    //Copier les fichiers de temp dans Etiquettes
+    const files = fs.readdirSync(tempFolder);
+    files.forEach((file) => {
+      const source = path.join(tempFolder, file);
+      const destination = path.join(__dirname, `./public/${sessionPRINTSA}/Etiquettes`, file);
+      fs.copyFileSync(source, destination, { recursive: true });
+    });
+    //Supprimer le repertoire temporaire
+    fs.rmSync(tempFolder, { recursive: true, force: true });
 
     //Generer QRCode page
     const pathQRCodes = `./server/public/${sessionPRINTSA}/QRCodes/`;

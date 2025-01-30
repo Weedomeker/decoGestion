@@ -15,14 +15,14 @@ const Header = ({ appVersion }) => {
       }}
     >
       {textSliced}
-      <text
+      <span
         style={{
           color: 'green',
           fontSize: '11px',
         }}
       >
         {numVersion}
-      </text>
+      </span>
       {')'}
     </p>
   );
