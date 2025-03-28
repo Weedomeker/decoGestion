@@ -250,7 +250,7 @@ async function createStickersPage(directory, outputPath, pageSize = 'A5') {
   try {
     const pdfBytes = await outputPdf.save();
     fs.writeFileSync(outputPath, pdfBytes);
-    console.log(`Etiquettes mis en page enregistré sous:`, outputPath);
+    console.log(`Etiquette enregistrées sous:`, outputPath);
   } catch (error) {
     console.error('Erreur lors de la sauvegarde du fichier PDF :', error.message);
   }

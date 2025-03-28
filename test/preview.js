@@ -4,7 +4,7 @@ const SVGtoPDF = require('svg-to-pdfkit');
 const fs = require('fs');
 const chalk = require('chalk');
 const { parseStringPromise } = require('xml2js'); // Importer xml2js
-const { cmToPoints, pointsToCm } = require('../server/src/convertUnits').default;
+const { cmToPoints, pointsToCm } = require('../server/src/convertUnits');
 
 async function addSvgToPdf(pdfPath, svgContent, outputPath) {
   try {

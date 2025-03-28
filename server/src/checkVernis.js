@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 function filterVerni(name) {
+  name = name.toLowerCase();
   let filtered = [];
   const configPath = path.join('./config.json');
 
@@ -22,10 +23,10 @@ function filterVerni(name) {
   }
 
   // Vérifie si le nom contient un des éléments filtrés
-  const find = filtered.find((el) => name.includes(el));
+  const find = filtered.find((el) => name.includes(el.toLowerCase()));
 
   if (find) {
-    return find;
+    return find.toUpperCase();
   } else {
     return;
   }

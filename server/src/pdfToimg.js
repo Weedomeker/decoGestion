@@ -3,15 +3,18 @@ const fs = require('fs');
 const { parentPort, workerData } = require('worker_threads');
 
 const pdfToimg = async (readFile, writeFile) => {
-  const pdf = fs.readFileSync(readFile, null);
-  await pdftobuffer(pdf, 0).then((buffer) => {
-    fs.writeFileSync(writeFile, buffer, null);
-  });
-  const fileExist = fs.existsSync(writeFile);
-  if (fileExist) {
-    parentPort.postMessage('ok');
-  } else {
-    return;
+  try {
+    const pdf = fs.readFileSync(readFile);
+    const buffer = await pdftobuffer(pdf, 0);
+    fs.writeFileSync(writeFile, buffer);
+    if (fs.existsSync(writeFile)) {
+      parentPort.postMessage('ok');
+    } else {
+      parentPort.postMessage('error');
+    }
+  } catch (error) {
+    parentPort.postMessage('error');
   }
 };
+
 pdfToimg(workerData.pdf, workerData.jpg);

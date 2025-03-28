@@ -90,10 +90,14 @@ const createDec = (widthPlate, heightPlate, decWidth, decHeight, writePath) => {
       if (fs.existsSync(pathFile)) {
         fs.writeFileSync(pathFile + '/' + fileName + '.dxf', dxf);
         fs.writeFileSync(pathFile + '/' + fileName + '.svg', svg);
+        console.log('Fichier dxf ✅');
+        console.log('Fichier svg ✅');
       } else {
         fs.mkdirSync(pathFile, { recursive: true });
         fs.writeFileSync(pathFile + '/' + fileName + '.dxf', dxf);
         fs.writeFileSync(pathFile + '/' + fileName + '.svg', svg);
+        console.log('Fichier dxf ✅');
+        console.log('Fichier svg ✅');
       }
     } catch (error) {
       console.log(error);

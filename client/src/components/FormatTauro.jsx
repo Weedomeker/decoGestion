@@ -11,7 +11,7 @@ function FormatTauro({ value, onValue, formatTauro, isLoading, error }) {
       value={value}
       error={error}
       loading={isLoading}
-      placeholder="Select folder"
+      placeholder="Format Tauro"
       fluid
       selection
       options={formatOptions}

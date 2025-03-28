@@ -222,7 +222,6 @@ function App() {
           />
           {/* Format Tauro */}
           <Form.Field className="format-tauro" required error={error.formatTauro}>
-            <label>Répertoires Tauro</label>
             <FormatTauro
               error={error.formatTauro}
               isLoading={isloadingFormatTauro}
@@ -310,7 +309,7 @@ function App() {
           </Form.Field>
           {/* Format */}
           <Form.Field required error={error.format}>
-            <Segment style={{ marginTop: 10 }}>
+            <Segment style={{ marginTop: 0 }}>
               <Label color="blue" ribbon style={{ position: 'absolute', top: -8, left: -15 }}>
                 Deco
               </Label>
@@ -358,8 +357,8 @@ function App() {
               </Form.Group>
             </Segment>
 
-            <label>Formats {checkFolder}</label>
             <FormatDropdown
+              placeholder={checkFolder}
               enabled={enabled.format}
               error={error.format}
               id="format"
@@ -389,7 +388,6 @@ function App() {
 
           {/* Visu */}
           <Form.Field required error={error.visuel}>
-            <label>Visuel</label>
             <VisuelDropdown
               enabled={enabled.visu}
               error={error.visuel}
@@ -401,6 +399,12 @@ function App() {
               text={selectedFile}
               selectedFile={selectedFile}
               onSelectedFile={(value) => {
+                const name = value.name.split('/').pop().toLowerCase();
+                if (name.includes('+blanc' || '+ blanc')) {
+                  setCheckProdBlanc(true);
+                } else {
+                  setCheckProdBlanc(false);
+                }
                 setSelectedFile(value.name);
                 setFileSize(value.size);
                 setIsShowPdf(true);
@@ -463,7 +467,6 @@ function App() {
           </Form.Field>
           {/* Infos commande */}
           <Form.Field required error={error.numCmd}>
-            <label>N° commande</label>
             <Input
               disabled={enabled.numCmd}
               error={error.numCmd}
@@ -483,11 +486,19 @@ function App() {
                   setError({ ...error, numCmd: false });
                 }
               }}
+              onFocus={(e) =>
+                e.target.addEventListener(
+                  'wheel',
+                  function (e) {
+                    e.preventDefault();
+                  },
+                  { passive: false },
+                )
+              }
             />
           </Form.Field>
           {/* Ville / Mag */}
           <Form.Field required error={error.ville}>
-            <label>Ville / Mag</label>
             <Place
               enabled={enabled.ville}
               onValue={(value) => {
@@ -503,8 +514,7 @@ function App() {
           </Form.Field>
           {/* Exemplaires */}
           <Form.Field>
-            <label htmlFor="ex">Ex</label>
-            <Input disabled={enabled.ex} id="ex" name="ex" type="number" defaultValue={1} />
+            <Input placeholder="Exemplaire(s)" disabled={enabled.ex} id="ex" name="ex" type="number" defaultValue={1} />
           </Form.Field>
         </Form>
         <div className="container-buttons">
@@ -555,7 +565,6 @@ function App() {
           <Config />
         </div>
       </div>
-
       {/* Preview visu */}
       <PreviewDeco fileSelected={selectedFile} show={isShowPdf} />
 

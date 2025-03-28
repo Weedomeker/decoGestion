@@ -30,88 +30,49 @@ async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg
 
     // Ajout de repères
     if (reg) {
-      xPosition = -15;
-      firstPage.setSize(longueurPlaque, largeurPlaque);
+      xPosition = 15;
 
-      const drawRegmarks = (xReg, yReg, sizeReg = 0.6) => {
-        firstPage.drawCircle({
-          x: xReg,
-          y: yReg,
-          size: cmToPoints(sizeReg / 2), // Conversion de cm à points pour la taille du cercle
-          color: rgb(0, 0, 0),
-        });
-      };
+      firstPage.setSize(largeurPlaque, longueurPlaque);
 
-      // Calcul de la position des repères en points (en utilisant cmToPoints)
-      let regSize = cmToPoints(0.3);
-      let regPosition = regSize + cmToPoints(1);
+      // const drawRegmarks = (xReg, yReg, sizeReg = 0.6) => {
+      //   firstPage.drawCircle({
+      //     x: xReg,
+      //     y: yReg,
+      //     size: cmToPoints(sizeReg / 2), // Conversion de cm à points pour la taille du cercle
+      //     color: rgb(0, 0, 0),
+      //   });
+      // };
 
-      drawRegmarks(-regPosition, height - regPosition);
-      drawRegmarks(-regPosition, height - regPosition - cmToPoints(10));
-      drawRegmarks(-regPosition, regPosition);
-      drawRegmarks(width + regPosition, regPosition);
-      drawRegmarks(width + regPosition, height - regPosition);
+      // // Calcul de la position des repères en points (en utilisant cmToPoints)
+      // let regSize = cmToPoints(0.3);
+      // let regPosition = regSize + cmToPoints(1);
 
-      firstPage.translateContent((longueurPlaque - width) / 2, (largeurPlaque - height) / 2);
+      // drawRegmarks(-regPosition, height - regPosition);
+      // drawRegmarks(-regPosition, height - regPosition - cmToPoints(10));
+      // drawRegmarks(-regPosition, regPosition);
+      // drawRegmarks(width + regPosition, regPosition);
+      // drawRegmarks(width + regPosition, height - regPosition);
+
+      firstPage.translateContent((longueurPlaque - height) / 2, (largeurPlaque - width) / 2);
     }
 
     firstPage.drawText(text, {
-      x: xPosition,
-      y: height / 2 - textWidth / 2,
+      x: width / 2 - textWidth / 2,
+      y: height - xPosition,
       size: textSize,
       font: helveticaFont,
       color: rgb(0, 0, 0),
-      rotate: degrees(90),
+      rotate: degrees(0),
     });
-    // const newDate = new Date(data.date).toLocaleString('fr-FR', { timeZone: 'EUROPE/PARIS' });
-    // const dayDate = new Date()
-    //   .toLocaleDateString('fr-FR', {
-    //     year: 'numeric',
-    //     month: 'short',
-    //     day: 'numeric',
-    //   })
-    //   .replace('.', '')
-    //   .toLocaleUpperCase();
-    // try {
-    //   const newData = {
-    //     Date: newDate,
-    //     cmd: data.cmd,
-    //     ville: data.ville,
-    //     visuel: data.visuel,
-    //     ref: data.ref,
-    //     ex: data.ex,
-    //   };
-    //   const pathQRCodes = `./server/public/PRINTSA#${dayDate}/QRCodes/`;
-    //   if (!fs.existsSync(pathQRCodes)) {
-    //     fs.mkdirSync(pathQRCodes, { recursive: true });
-    //   }
 
-    //   const url = `http://${HOST}:${PORT}/api/commandes/`;
-    //   try {
-    //     const response = await fetch(url);
-    //     if (!response.ok) {
-    //       console.error(`Response status: ${response.status}`);
-    //     }
-    //     await generateQRCode(url + `?cmd=${data.cmd}&ref=${data.ref}`, pathQRCodes + `QRCode_${fileName}.png`, {
-    //       scale: 1,
-    //       margin: 1,
-    //       color: { dark: '#060075' },
-    //     });
-    //   } catch (error) {
-    //     console.error(error.message);
-    //   }
-
-    //   const pngURL = `http://localhost:8000/qrcode/QRCode_${fileName}.png`;
-    //   const pngImageBytes = await fetch(pngURL).then((res) => res.arrayBuffer());
-    //   const pngImage = await pdfDoc.embedPng(pngImageBytes);
-
-    //   firstPage.drawImage(pngImage, {
-    //     x: 0,
-    //     y: 0,
-    //   });
-    // } catch (error) {
-    //   console.error(error);
-    // }
+    console.log(firstPage.getSize());
+    if (width < height) {
+      // Si le PDF est en portrait, on le passe en paysage
+      console.log('ROTATION');
+      firstPage.setRotation(degrees(-90)); // Appliquer une rotation de 90°
+    }
+    firstPage.setSize(largeurPlaque, longueurPlaque);
+    firstPage.translateContent((longueurPlaque - width) / 2, (largeurPlaque - height) / 2);
 
     const pdfBytes = await pdfDoc.save();
     await fs.promises.writeFile(`${writePath}/${text}.pdf`, pdfBytes);

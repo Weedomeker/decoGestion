@@ -119,13 +119,14 @@ function JobsList({ show, formatTauro }) {
   }, []);
 
   const checkVernis = (value) => {
+    value = value.toLowerCase();
     // S'assurer que value est une chaîne
     if (typeof value !== 'string') {
       console.error('Le paramètre "value" doit être une chaîne de caractères.');
       return;
     }
     // Vérifie si le nom contient un des éléments filtrés
-    const find = filter.find((el) => value.includes(el));
+    const find = filter.find((el) => value.includes(el.toLowerCase()));
 
     if (find) {
       return find;
@@ -256,6 +257,7 @@ function JobsList({ show, formatTauro }) {
               visuel
             )}
           </TableCell>
+          <TableCell className="table-cell">{checkVernis(value?.visuel)?.slice(0, 1)?.toUpperCase()}</TableCell>
           <TableCell className="table-cell">{value.format_visu.split('_').pop()}</TableCell>
           <TableCell className="table-cell">{value.format_Plaque.split('_').pop()}</TableCell>
           <TableCell className="table-cell">{value.ex}</TableCell>
@@ -283,14 +285,14 @@ function JobsList({ show, formatTauro }) {
 
     const newTable = !isLoading && (
       <div className="jobs-table-container">
-        <Table size="small" compact columns={'9'} className="jobs-table" striped>
+        <Table size="small" compact columns={'10'} className="jobs-table" striped>
           <TableHeader className="sticky-header">
             <TableRow className="table-row">
               <TableHeaderCell className="table-cell">Dates</TableHeaderCell>
-              {/* <TableHeaderCell className="table-cell">Heures</TableHeaderCell> */}
               <TableHeaderCell className="table-cell">Commandes</TableHeaderCell>
               <TableHeaderCell className="table-cell">Villes</TableHeaderCell>
               <TableHeaderCell className="table-cell">Visuels</TableHeaderCell>
+              <TableHeaderCell className="table-cell">Vernis</TableHeaderCell>
               <TableHeaderCell className="table-cell">Formats</TableHeaderCell>
               <TableHeaderCell className="table-cell">Plaques</TableHeaderCell>
               <TableHeaderCell className="table-cell">Ex</TableHeaderCell>
@@ -306,7 +308,7 @@ function JobsList({ show, formatTauro }) {
           {status === 'jobs' && (
             <TableFooter className="sticky-footer">
               <TableRow className="table-row">
-                <TableHeaderCell colSpan="9" collapsing>
+                <TableHeaderCell colSpan="10" collapsing>
                   <div className="sticky-footer-content">
                     <div className="checkbox-footer">
                       {!onLoading && (
@@ -383,7 +385,7 @@ function JobsList({ show, formatTauro }) {
           {status === 'completed' && (
             <TableFooter className="sticky-footer">
               <TableRow className="table-row">
-                <TableHeaderCell colSpan="9" collapsing>
+                <TableHeaderCell colSpan="10" collapsing>
                   <div className="sticky-footer-content">
                     <Button animated="fade" color="red" size="small" compact onClick={() => handleDeleteJobComplete()}>
                       <ButtonContent hidden content="Clear" />

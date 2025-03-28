@@ -10,9 +10,8 @@ const { performance } = require('perf_hooks');
 const { Worker, workerData } = require('worker_threads');
 const WebSocket = require('ws');
 const http = require('http');
-const https = require('https');
-const PORT_HTTP = process.env.PORT_HTTP || 8000;
-const PORT_HTTPS = process.env.PORT_HTTPS || 8043;
+const PORT = process.env.PORT_HTTP || 8000;
+
 const serveIndex = require('serve-index');
 const cors = require('cors');
 const morgan = require('morgan');
@@ -20,6 +19,7 @@ const checkVersion = require('./src/checkVersion');
 const modifyPdf = require('./src/app');
 const getFiles = require('./src/getFiles').getData;
 const createDec = require('./src/dec');
+const createEskoCut = require('./src/generateCutFile');
 const createJob = require('./src/jobsList');
 const createXlsx = require('./src/xlsx');
 const mongoose = require('./src/mongoose');
@@ -81,14 +81,13 @@ let sessionPRINTSA = `PRINTSA#${dayDate}`;
     }
   }
 })();
+
 //Path export
 const saveFolder =
   process.env.NODE_ENV === 'development' ? path.join(__dirname, '/public/tmp') : path.join(__dirname, '/public/TAURO');
 
-// Gestion du chemin en fonction de l'environnement
-const packageJsonPath = path.join(__dirname, '../package.json');
-
 // Lecture et parsing du fichier package.json
+const packageJsonPath = path.join(__dirname, '../package.json');
 let appVersion;
 try {
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
@@ -98,7 +97,7 @@ try {
   log(chalk.red('Erreur lors de la lecture du fichier package.json: '), err);
 }
 const corsOptions = {
-  origin: ['http://localhost:8000', 'http://localhost:5173', 'file'], // Ajoutez 'file://' pour accepter les requêtes locales d'Electron
+  origin: ['http://localhost:8000', 'http://localhost:5173'],
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
 };
 
@@ -136,44 +135,9 @@ let jobList = {
   jobs: [],
   completed: [],
 };
-function enforceHttps(req, res, next) {
-  if (req.secure || req.headers['x-forwarded-proto'] === 'https') {
-    next(); // Si déjà en HTTPS, continuer
-  } else {
-    const httpsUrl = `https://${req.hostname}:${PORT_HTTPS}${req.url}`;
-    console.log(httpsUrl);
-    res.redirect(301, httpsUrl); // Redirection permanente vers HTTPS avec le bon port
-  }
-}
 
-app.use('/scan', enforceHttps, async (req, res, next) => {
-  const { cmd, ref } = req.body;
-  if (cmd && ref) {
-    const { uid } = req.cookies;
-    if (uid) {
-      req.user = await User.findOne({ uid });
-    } else if (req.body.deviceFingerprint) {
-      req.user = await User.findOne({ deviceFingerprint: req.body.deviceFingerprint });
-      if (req.user) {
-        // Réattribuer l'identifiant via un cookie
-        res.cookie('uid', req.user.uid, { httpOnly: true, secure: false });
-      }
-    }
-  }
-
-  next();
-});
-
-// Middleware pour rediriger une route vers HTTPS avec un port spécifique
-
-// WebSocket and server setup
-const options = {
-  key: fs.readFileSync(path.join(__dirname, './ssl_keys/selfsigned.key')),
-  cert: fs.readFileSync(path.join(__dirname, './ssl_keys/selfsigned.crt')),
-};
-const server_http = http.createServer(app); // Créer le serveur HTTP
-const server_https = https.createServer(options, app); // Créer le serveur HTTP
-const wss = new WebSocket.Server({ server: server_http });
+const server = http.createServer(app); // Créer le serveur HTTP
+const wss = new WebSocket.Server({ server: server });
 
 wss.on('connection', (ws) => {
   ws.on('close', () => {});
@@ -245,7 +209,7 @@ app.post('/add_job', (req, res) => {
     cut: req.body.cut,
   };
   let visuel = data.visuel.split('/').pop();
-  visuel = data.visuel.split('-').pop();
+  visuel = visuel.includes('-') ? visuel.split('-').pop() : visuel;
 
   let visuPath = data.visuel;
   let formatTauro = data.formatTauro;
@@ -256,14 +220,15 @@ app.post('/add_job', (req, res) => {
   let reg = data.regmarks;
 
   //Chemin sortie fichiers
-  prodBlanc ? (writePath = saveFolder + '/Prod avec BLANC') : (writePath = path.join(saveFolder + '/' + formatTauro));
+  prodBlanc
+    ? (writePath = path.join(saveFolder + '/Prod avec BLANC'))
+    : (writePath = path.join(saveFolder + '/' + formatTauro));
 
   //Nom fichier
   fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro} - ${visuel.replace(
     /\.[^/.]+$/,
     '',
   )} ${data.ex}_EX`;
-
   //Verifier si dossiers exist si pas le créer
   if (fs.existsSync(writePath) && fs.existsSync(`${jpgPath}/${sessionPRINTSA}`)) {
     pdfName = writePath + '/' + fileName;
@@ -305,7 +270,9 @@ app.post('/add_job', (req, res) => {
 
   // Fonction pour comparer et mettre à jour les tableaux
   function compareAndAddObject(originalArray, newObject) {
-    const jobExist = originalArray.find((item) => item.cmd === newObject.cmd && item.ref === newObject.ref);
+    const jobExist = originalArray.find(
+      (item) => item.cmd === newObject.cmd && item.ref === newObject.ref && item.visuel === newObject.visuel,
+    );
 
     if (jobExist) {
       return { exist: true, object: jobExist };
@@ -325,16 +292,18 @@ app.post('/add_job', (req, res) => {
 });
 
 app.post('/run_jobs', async (req, res) => {
-  //Lecture Ecriture format tauro
+  // Lecture Ecriture format tauro
+  const filePath = path.join(__dirname, './formatsTauro.conf');
   let arr = [];
-  if (fs.existsSync('./formatsTauro.conf')) {
-    const readFile = fs.readFileSync('./formatsTauro.conf', {
+  if (fs.existsSync(filePath)) {
+    const readFile = fs.readFileSync(filePath, {
       encoding: 'utf8',
     });
     arr.push(readFile.split(/\r?\n/g));
-    if (req.body.formatTauro.length > arr[0].length) {
-      fs.writeFileSync('./formatsTauro.conf', req.body.formatTauro.join('\n'));
-    }
+  }
+
+  if (req.body.formatTauro.length > arr.length) {
+    fs.writeFileSync(filePath, req.body.formatTauro.join('\n'));
   }
 
   const status = req.body.run;
@@ -427,7 +396,7 @@ app.post('/run_jobs', async (req, res) => {
       }
 
       //Get all data
-      let matchName = job.visuel.match(/ \d{3}x\d{3}/);
+      let matchName = job.visuel.match(/ \d{3}x\d{3}/i);
       let matchRef = job.visuel.match(/\d{8}/);
       const dataFileExport = [
         {
@@ -447,7 +416,7 @@ app.post('/run_jobs', async (req, res) => {
         },
       ];
 
-      // Generer QRCodes
+      //Generer QRCodes
       const pathQRCodes = `./server/public/${sessionPRINTSA}/QRCodes/`;
       try {
         let shortData = {
@@ -487,14 +456,19 @@ app.post('/run_jobs', async (req, res) => {
 
       //Générer découpe
       if (job.cut) {
+        const pathCutFiles = `./server/public/${sessionPRINTSA}/Cut/`;
+        if (!fs.existsSync(pathCutFiles)) {
+          fs.mkdirSync(pathCutFiles, { recursive: true });
+        }
         try {
           const fTauro = job.format_Plaque.split('_').pop();
-          const wPlate = parseFloat(fTauro.split('x')[0]);
-          const hPlate = parseFloat(fTauro.split('x')[1]);
-          const width = parseFloat(job.format_visu.split('x')[0]);
-          const height = parseFloat(job.format_visu.split('x')[1]);
-
-          createDec(wPlate, hPlate, width, height, path.join(__dirname, '/public/tmp/Cut'));
+          const fVisu = job.format_visu.split('_').pop();
+          const wPlate = parseFloat(fTauro.toLowerCase().split('x')[0]);
+          const hPlate = parseFloat(fTauro.toLowerCase().split('x')[1]);
+          const width = parseFloat(fVisu.toLowerCase().split('x')[0]);
+          const height = parseFloat(fVisu.toLowerCase().split('x')[1]);
+          createDec(wPlate, hPlate, width, height, pathCutFiles);
+          createEskoCut(hPlate * 10, wPlate * 10, height * 10, width * 10, 6, pathCutFiles);
         } catch (error) {
           console.log(error);
         }
@@ -637,20 +611,22 @@ app.get('/path', async (req, res) => {
 });
 
 app.get('/formatsTauro', (req, res) => {
-  let arr = [];
-  if (fs.existsSync(path.join(__dirname, './formatsTauro.conf'))) {
-    const readFile = fs.readFileSync(path.join(__dirname, './formatsTauro.conf'), {
-      encoding: 'utf8',
-    });
-    arr.push(readFile.split(/\r?\n/g));
+  const filePath = path.join(__dirname, './formatsTauro.conf');
 
-    const json = arr[0].map((v, i) => ({
+  if (fs.existsSync(filePath)) {
+    const readFile = fs.readFileSync(filePath, { encoding: 'utf8' });
+    const lines = readFile.split(/\r?\n/g).filter((line) => line.trim() !== ''); // filtre les lignes vides
+
+    const json = lines.map((v, i) => ({
       id: i,
       value: v,
     }));
+
     res.json(json);
   } else {
-    fs.writeFileSync(path.join(__dirname, '/formatsTauro.conf'), '');
+    // Crée le fichier vide si inexistant
+    fs.writeFileSync(filePath, '');
+    res.json([]); // renvoie un tableau vide
   }
 });
 
@@ -695,398 +671,7 @@ app.get('/jobs', async (req, res) => {
   res.json(jobList);
 });
 
-// Génération des styles CSS communs
-const generateStyles = () => `
-     <style>
-        body {
-          font-family: Arial, sans-serif;
-          margin: 20px;
-          padding: 0;
-          background-color: #f7f7f7;
-        }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          margin: 20px 0;
-          background: white;
-        }
-        th, td {
-          padding: 10px;
-          text-align: left;
-          border: 1px solid #ddd;
-        }
-        th {
-          background-color: #4CAF50;
-          color: white;
-          cursor: pointer;
-        }
-        td {
-          background-color: #f2f2f2;
-        }
-        .pagination {
-          display: flex;
-          justify-content: center;
-          margin-top: 20px;
-        }
-        .pagination button {
-          margin: 0 5px;
-          padding: 8px 12px;
-          background-color: #4CAF50;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-        }
-        .pagination button.disabled {
-          background-color: #ccc;
-          cursor: not-allowed;
-        }
-        .pagination input {
-          width: 50px;
-          padding: 5px;
-          text-align: center;
-          margin-left: 10px;
-        }
-        .search-container {
-          margin-bottom: 20px;
-          display: flex;
-          justify-content: flex-start;
-        }
-        .search-container input {
-          padding: 8px;
-          width: 200px;
-          margin-right: 10px;
-        }
-      </style>
-`;
-
-// Génération du tableau HTML
-const generateTable = (commandes) => `
-  <table id="commandesTable">
-    <thead>
-        <tr>
-        <th data-column="Date">Date</th>
-        <th data-column="numCmd">N° Cmds</th>
-        <th data-column="Mag">Magasins</th>
-        <th data-column="Dibond">Dibonds</th>
-        <th data-column="Deco">Déco</th>
-        <th data-column="Ref">Référence</th>
-        <th data-column="Formats">Formats</th>
-        <th data-column="Ex">Ex(s)</th>
-        <th data-column="Status">Status</th>
-      </tr>
-    </thead>
-    <tbody id="commandesBody">
-      ${commandes
-        .map(
-          (commande) => `
-          <tr data-cmd="${commande.numCmd}">
-            <td>${new Date(commande.date).toLocaleDateString('fr-FR')}</td>
-            <td>${commande.numCmd}</td>
-            <td>${commande.mag}</td>
-            <td>${commande.dibond}</td>
-            <td>${commande.deco.split(commande.deco.match(/\d{8}/)).shift().replace('_', '')}</td>
-            <td>${commande.ref}</td>
-            <td>${commande.format}</td>
-            <td>${commande.ex}</td>
-            <td id="status">${commande.status}</td>
-          </tr>
-        `,
-        )
-        .join('')}
-    </tbody>
-  </table>
-`;
-
-// Route pour afficher toutes les commandes
-app.get('/api/commandes', async (req, res) => {
-  try {
-    const { cmd, ref } = req.query;
-
-    let commandes;
-
-    // Si cmd est présent, on fait une recherche filtrée
-    if (cmd) {
-      const filter = { numCmd: Number(cmd) };
-      if (ref && !isNaN(ref)) {
-        filter.ref = Number(ref);
-      }
-      commandes = await modelDeco.find(filter);
-    } else {
-      // Sinon, on récupère toutes les commandes
-      commandes = await modelDeco.find({});
-    }
-
-    const countTotalCommandes = await modelDeco.countDocuments();
-
-    if (commandes.length === 0) {
-      return res.status(404).send('<h1>Aucune commande trouvée</h1>');
-    }
-    // Génération du HTML
-    const html = `
-<!DOCTYPE html>
-<html lang="fr">
-
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Liste des Commandes</title>
-  ${generateStyles()}
-</head>
-
-<body>
-  <div>
-    <img width="140px" src="https://entreprise.leroymerlin.fr/images/logo.svg" alt="Logo Leroy Merlin" />
-    <h2>${cmd ? `Détails commande(s) ${cmd}` : 'Liste des Commandes'}</h2>
-    <!-- Zone de recherche -->
-    <div class="search-container">
-      <input type="text" id="searchInput" placeholder="Rechercher par Numéro de Commande (cmd)" />
-      <button id="searchButton">Rechercher</button>
-    </div>
-  </div>
-  ${generateTable(commandes)}
-
-  <div class="pagination" id="pagination"></div>
-  <div class="pagination">Total documents: ${countTotalCommandes}</div>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const rowsPerPage = 10; // Nombre de lignes par page
-      const table = document.getElementById('commandesTable');
-      const tbody = document.getElementById('commandesBody');
-      const pagination = document.getElementById('pagination');
-      const searchInput = document.getElementById('searchInput');
-      const searchButton = document.getElementById('searchButton');
-      const rows = Array.from(tbody.rows);
-      
-      let currentPage = 1;
-      let sortedColumn = null;
-      let sortOrder = 1; // 1 = ascendant, -1 = descendant
-     
-
-      // Fonction pour trier les lignes
-      function sortTable(column, order) {
-        return rows.sort((a, b) => {
-          // On sélectionne la cellule correspondante à la colonne
-          const cellA = a.cells[column].textContent.trim();
-          const cellB = b.cells[column].textContent.trim();
-
-          // Si les cellules contiennent des nombres, on les convertit et on les compare
-          if (!isNaN(cellA) && !isNaN(cellB)) {
-            return (parseFloat(cellA) - parseFloat(cellB)) * order;
-          } else {
-            // Si ce sont des chaînes, on les compare lexicographiquement
-            return cellA.localeCompare(cellB) * order;
-          }
-        });
-      }
-
-
-      // Fonction pour afficher le tableau avec pagination
-      function renderTable(page, filteredRows) {
-        tbody.innerHTML = '';
-        const rowsToDisplay = filteredRows.slice((page - 1) * rowsPerPage, page * rowsPerPage);
-        rowsToDisplay.forEach(row => tbody.appendChild(row));
-      }
-
-      // Fonction pour afficher la pagination
-      function renderPagination(filteredRows) {
-        pagination.innerHTML = '';
-        const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
-
-        // Créer les boutons de pagination
-        const createButton = (text, page, disabled = false) => {
-          const button = document.createElement('button');
-          button.textContent = text;
-          if (disabled) {
-            button.classList.add('disabled');
-            button.disabled = true;
-          }
-          button.addEventListener('click', () => {
-            if (page) {
-              currentPage = page;
-              renderTable(currentPage, filteredRows);
-              renderPagination(filteredRows);
-            }
-          });
-          return button;
-        };
-
-        pagination.appendChild(createButton('Premier', 1, currentPage === 1));
-        pagination.appendChild(createButton('Précédent', currentPage > 1 ? currentPage - 1 : null, currentPage === 1));
-
-        const totalPagesToShow = 5;
-        const startPage = Math.max(1, currentPage - Math.floor(totalPagesToShow / 2));
-        const endPage = Math.min(totalPages, startPage + totalPagesToShow - 1);
-
-        for (let i = startPage; i <= endPage; i++) {
-          pagination.appendChild(createButton(i, i));
-        }
-
-        pagination.appendChild(createButton('Suivant', currentPage < totalPages ? currentPage + 1 : null, currentPage === totalPages));
-        pagination.appendChild(createButton('Dernier', totalPages, currentPage === totalPages));
-
-        const input = document.createElement('input');
-        input.type = 'number';
-        input.min = 1;
-        input.max = totalPages;
-        input.value = currentPage;
-        input.addEventListener('change', (e) => {
-          const page = Math.max(1, Math.min(totalPages, parseInt(e.target.value)));
-          currentPage = page;
-          renderTable(currentPage, filteredRows);
-          renderPagination(filteredRows);
-        });
-        pagination.appendChild(input);
-      }
-
-      // Fonction de recherche
-      function searchByCmd() {
-        const searchTerm = searchInput.value.trim();
-        const filteredRows = rows.filter(row => {
-          const cmd = row.dataset.cmd;
-          return cmd && cmd.toString().includes(searchTerm);
-        });
-
-        renderTable(currentPage, filteredRows);
-        renderPagination(filteredRows);
-      }
-
-      // Ajouter l'événement de recherche
-      searchButton.addEventListener('click', searchByCmd);
-      searchInput.addEventListener('input', searchByCmd);
-
-      // Ajouter les événements de tri sur les en-têtes de colonnes
-      table.querySelectorAll('th').forEach((th, index) => {
-        th.addEventListener('click', () => {
-          // Trier par la colonne cliquée
-          if (sortedColumn === index) {
-            sortOrder = -sortOrder; // Inverser l'ordre du tri
-          } else {
-            sortedColumn = index;
-            sortOrder = 1; // Par défaut, tri croissant
-          }
-          const sortedRows = sortTable(sortedColumn + 1, sortOrder); // +1 car les index commencent à 0
-          renderTable(currentPage, sortedRows);
-          renderPagination(sortedRows);
-        });
-      });
-
-      renderTable(currentPage, rows);
-      renderPagination(rows);
-    });
-  </script>
-</body>
-
-</html>
-`;
-    res.send(html);
-  } catch (error) {
-    console.error('Erreur lors de la récupération des commandes :', error);
-    res.status(500).send('<h1>Erreur interne du serveur</h1>');
-  }
-});
-
-app.get('/scan', enforceHttps, async (req, res) => {
-  res.sendFile(path.join(__dirname, './public/scan.html'), (err) => {
-    if (err) {
-      console.error(err);
-      res.status(404).send(`<h2>Error ${err.status} page not found.</h2><span>${err.path}</span>`);
-    }
-  });
-});
-
-// Route pour traiter les données scannées
-app.post('/scan', enforceHttps, async (req, res) => {
-  const { scannedData } = req.body;
-  const { deviceFingerprint } = req.body;
-  const { uid } = req.cookies;
-  let devices;
-
-  // Lire les données des appareils autorisés
-  try {
-    const data = await fs.promises.readFile(path.join(__dirname, 'devices_settings.json'), 'utf8');
-    devices = JSON.parse(data);
-  } catch (err) {
-    console.error('Erreur lors de la lecture du fichier devices_settings.json :', err);
-    return res
-      .status(500)
-      .json({ message: 'Erreur interne du serveur lors de la lecture du fichier devices_settings.json.' });
-  }
-
-  if (!Array.isArray(scannedData) || scannedData.length === 0) {
-    return res.status(400).json({ message: 'Invalid or empty scanned data.' });
-  }
-
-  try {
-    const { decoupe, expe } = devices;
-    let user = await User.findOne({ uid, deviceFingerprint });
-    if (!user) {
-      return res.status(403).json({ message: 'Utilisateur non autorisé.' });
-    }
-
-    for (const { numCmd, ref } of scannedData) {
-      const currentStatus = await modelDeco.findOne({ numCmd: numCmd, ref });
-
-      if (currentStatus) {
-        const isDecoupeUser = decoupe.some(
-          (device) => device.uid === user.uid && device.deviceFingerprint === user.deviceFingerprint,
-        );
-        const isExpeUser = expe.some(
-          (device) => device.uid === user.uid && device.deviceFingerprint === user.deviceFingerprint,
-        );
-
-        if (isDecoupeUser) {
-          if (currentStatus.status !== 'Découpe') {
-            await modelDeco.findOneAndUpdate({ numCmd: numCmd, ref }, { status: 'Découpe' }, { new: true });
-          }
-        } else if (isExpeUser) {
-          if (currentStatus.status !== 'Expe') {
-            await modelDeco.findOneAndUpdate({ numCmd: numCmd, ref }, { status: 'Expe' }, { new: true });
-          }
-        } else {
-          console.error('Accès refusé : utilisateur non autorisé.', {
-            userUid: user.uid,
-            userFingerprint: user.deviceFingerprint,
-            decoupe,
-            expe,
-          });
-          return res.status(403).json({ message: 'Accès refusé : utilisateur non autorisé.' });
-        }
-      } else {
-        console.error(`Commande not found for cmd: ${numCmd}, ref: ${ref}`);
-      }
-    }
-
-    res.status(200).json({ message: 'Commandes validées avec succès !' });
-  } catch (error) {
-    console.error('Error updating database:', error);
-    res.status(500).json({ message: 'Internal server error.' });
-  }
-});
-
-app.post('/auth', enforceHttps, async (req, res) => {
-  const { deviceFingerprint } = req.body;
-  const { uid } = req.cookies;
-
-  // Vérifier si l'empreinte numérique est présente
-  if (!deviceFingerprint) {
-    return res.status(400).json({ message: 'Empreinte numérique manquante.' });
-  }
-
-  let user = await User.findOne({ uid, deviceFingerprint });
-
-  if (!user) {
-    const newUid = uuidv4();
-    const adressIp = req.ip;
-    user = new User({ uid: newUid, deviceFingerprint, adressIp, createdAt: new Date() });
-    await user.save();
-  }
-
-  res.cookie('uid', user.uid, { httpOnly: true, secure: false, maxAge: 30 * 24 * 60 * 60 * 1000 });
-  res.status(200).json({ redirect: '/scan', uid: user.uid, deviceFingerprint });
-});
-
-server_http.listen(PORT_HTTP, async () => {
+server.listen(PORT, async () => {
   checkVersion()
     .then((result) => {
       log(result.message);
@@ -1095,9 +680,6 @@ server_http.listen(PORT_HTTP, async () => {
       console.error('Error:', error);
     });
 
-  console.log(`Server start on port ${PORT_HTTP}`);
+  console.log(`Server start on port ${PORT}`);
   await mongoose().catch((err) => console.log(err));
-});
-server_https.listen(PORT_HTTPS, async () => {
-  console.log(`Server start on port ${PORT_HTTPS}`);
 });
