@@ -20,6 +20,8 @@ client/dist
 *.csv
 *.xlsx
 notes.txt
+test/STANDARDS
+test/*.js
 test/*.svg
 test/*.dxf
 test/*.pdf

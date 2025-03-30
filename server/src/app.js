@@ -23,56 +23,55 @@ async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg
     const largeurPlaque = cmToPoints(largeurPlaqueCm);
     const longueurPlaque = cmToPoints(longueurPlaqueCm);
 
-    let xPosition = 35;
+    let xPosition = cmToPoints(0.5);
     let textSize = 35;
     const text = fileName;
     const textWidth = helveticaFont.widthOfTextAtSize(text, textSize);
 
     // Ajout de repères
     if (reg) {
-      xPosition = 15;
-
-      firstPage.setSize(largeurPlaque, longueurPlaque);
-
-      // const drawRegmarks = (xReg, yReg, sizeReg = 0.6) => {
-      //   firstPage.drawCircle({
-      //     x: xReg,
-      //     y: yReg,
-      //     size: cmToPoints(sizeReg / 2), // Conversion de cm à points pour la taille du cercle
-      //     color: rgb(0, 0, 0),
-      //   });
-      // };
-
-      // // Calcul de la position des repères en points (en utilisant cmToPoints)
-      // let regSize = cmToPoints(0.3);
-      // let regPosition = regSize + cmToPoints(1);
-
+      console.log('Create Regmarks.......');
+      const drawRegmarks = (xReg, yReg, sizeReg = 0.6) => {
+        firstPage.drawCircle({
+          x: xReg, // haut - bas
+          y: yReg, // gauche - droite
+          size: cmToPoints(sizeReg / 2), // Conversion de cm à points pour la taille du cercle
+          color: rgb(0, 0, 0),
+        });
+      };
+      // Calcul de la position des repères en points (en utilisant cmToPoints)
+      let regSize = cmToPoints(0.3);
+      let regPosition = regSize + cmToPoints(1);
       // drawRegmarks(-regPosition, height - regPosition);
       // drawRegmarks(-regPosition, height - regPosition - cmToPoints(10));
       // drawRegmarks(-regPosition, regPosition);
       // drawRegmarks(width + regPosition, regPosition);
       // drawRegmarks(width + regPosition, height - regPosition);
+      // 1 --------------------- 4
+      // 2                       |
+      //                         |
+      //                         |
+      // 3 --------------------- 5
+      drawRegmarks(width - regPosition, height + regPosition); //1
+      drawRegmarks(width - regPosition - cmToPoints(10), height + regPosition); //2
+      drawRegmarks(regPosition, height + regPosition); // 3
 
-      firstPage.translateContent((longueurPlaque - height) / 2, (largeurPlaque - width) / 2);
+      drawRegmarks(width - regPosition, -regPosition); // 4
+      drawRegmarks(regPosition, -regPosition); // 5
     }
 
     firstPage.drawText(text, {
       x: width / 2 - textWidth / 2,
-      y: height - xPosition,
+      y: height + xPosition,
       size: textSize,
       font: helveticaFont,
       color: rgb(0, 0, 0),
       rotate: degrees(0),
     });
 
-    console.log(firstPage.getSize());
-    if (width < height) {
-      // Si le PDF est en portrait, on le passe en paysage
-      console.log('ROTATION');
-      firstPage.setRotation(degrees(-90)); // Appliquer une rotation de 90°
-    }
+    firstPage.setRotation(degrees(-90)); // Appliquer une rotation de 90°
     firstPage.setSize(largeurPlaque, longueurPlaque);
-    firstPage.translateContent((longueurPlaque - width) / 2, (largeurPlaque - height) / 2);
+    firstPage.translateContent((largeurPlaque - width) / 2, (longueurPlaque - height) / 2);
 
     const pdfBytes = await pdfDoc.save();
     await fs.promises.writeFile(`${writePath}/${text}.pdf`, pdfBytes);
