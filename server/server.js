@@ -3,8 +3,10 @@ const { v4: uuidv4 } = require('uuid');
 const chalk = require('chalk');
 const express = require('express');
 const cookieParser = require('cookie-parser');
+const compression = require('compression');
 const app = express();
 const path = require('path');
+const os = require('os');
 const fs = require('fs');
 const { performance } = require('perf_hooks');
 const { Worker, workerData } = require('worker_threads');
@@ -48,11 +50,12 @@ let decoFolder;
 let decoRaccordablesFolder;
 let decoSurMesuresFolder;
 let decoEcomFolder;
+let previewDeco;
 let jpgPath = './server/public';
 let sessionPRINTSA = `PRINTSA#${dayDate}`;
 
 //Lecture fichier config
-(async function () {
+async function LinkFolders(pathUpdate) {
   const configPath = path.join('./config.json');
   let config = {};
   // Lire le fichier s'il existe
@@ -66,21 +69,31 @@ let sessionPRINTSA = `PRINTSA#${dayDate}`;
   }
 
   for (const key in config) {
-    await symlink(config[key], path.join(__dirname, `./public/${key.toUpperCase()}`));
+    if (key !== 'vernis') await symlink(config[key], path.join(__dirname, `./public/${key.toUpperCase()}`), pathUpdate);
 
-    if (key === 'standards') {
-      decoFolder = `./server/public/${key}`;
-    } else if (key === 'raccordables') {
-      decoRaccordablesFolder = `./server/public/${key}`;
-    } else if (key === 'surMesures') {
-      decoSurMesuresFolder = `./server/public/${key}`;
-    } else if (key === 'ecom') {
-      decoEcomFolder = `./server/public/${key}`;
-    } else {
-      return;
+    switch (key) {
+      case 'standards':
+        decoFolder = `./server/public/${key}`;
+        break;
+      case 'raccordables':
+        decoRaccordablesFolder = `./server/public/${key}`;
+        break;
+      case 'surMesures':
+        decoSurMesuresFolder = `./server/public/${key}`;
+        break;
+      case 'ecom':
+        decoEcomFolder = `./server/public/${key}`;
+        break;
+      case 'preview':
+        previewDeco = `./server/public/${key}`;
+        break;
+      default:
+        break;
     }
   }
-})();
+}
+
+LinkFolders(false);
 
 //Path export
 const saveFolder =
@@ -106,10 +119,11 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(morgan('combined', { stream: accessLogStream }));
 app.use(express.urlencoded({ extended: true }));
+app.use(compression());
 
 app.use('/public', express.static(__dirname));
 app.use(express.static(__dirname + '/public'));
-// app.use('/download', express.static(__dirname + '/public/tmp'));
+app.use('/public/PREVIEW', express.static(__dirname + '/public/PREVIEW'));
 app.use(express.static(path.join(__dirname, '../client/dist')));
 app.use(
   '/louis',
@@ -222,7 +236,7 @@ app.post('/add_job', (req, res) => {
   //Chemin sortie fichiers
   prodBlanc
     ? (writePath = path.join(saveFolder + '/Prod avec BLANC'))
-    : (writePath = path.join(saveFolder + '/' + formatTauro));
+    : (writePath = path.join(saveFolder + '/Deco_Std_' + formatTauro));
 
   //Nom fichier
   fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro} - ${visuel.replace(
@@ -412,32 +426,31 @@ app.post('/run_jobs', async (req, res) => {
           perte: parseFloat(job.perte),
           status: '',
           app_version: `v${appVersion}`,
-          ip: req.ip.split(':').pop(),
+          ip: req.ip.split(':').pop() === '1' || req.hostname === 'localhost' ? os.hostname() : req.ip.split(':').pop(),
         },
       ];
-
       //Generer QRCodes
-      const pathQRCodes = `./server/public/${sessionPRINTSA}/QRCodes/`;
-      try {
-        let shortData = {
-          date: new Date(job.date).toLocaleDateString('fr-FR'),
-          numCmd: job.cmd,
-          mag: job.ville,
-          deco: matchName ? job.visuel.substring(0, job.visuel.indexOf(matchName[0])) : job.visuel,
-          ref: matchRef ? matchRef[0] : 0,
-          format: job.format_visu.split('_').pop(),
-          ex: parseInt(job.ex),
-        };
-        if (!fs.existsSync(pathQRCodes)) {
-          fs.mkdirSync(pathQRCodes, { recursive: true });
-        }
-        await generateQRCode(JSON.stringify(shortData), pathQRCodes + `QRCode_${fileName}.png`, {
-          scale: 1,
-          margin: 1,
-        });
-      } catch (error) {
-        console.error(error);
-      }
+      // const pathQRCodes = `./server/public/${sessionPRINTSA}/QRCodes/`;
+      // try {
+      //   let shortData = {
+      //     date: new Date(job.date).toLocaleDateString('fr-FR'),
+      //     numCmd: job.cmd,
+      //     mag: job.ville,
+      //     deco: matchName ? job.visuel.substring(0, job.visuel.indexOf(matchName[0])) : job.visuel,
+      //     ref: matchRef ? matchRef[0] : 0,
+      //     format: job.format_visu.split('_').pop(),
+      //     ex: parseInt(job.ex),
+      //   };
+      //   if (!fs.existsSync(pathQRCodes)) {
+      //     fs.mkdirSync(pathQRCodes, { recursive: true });
+      //   }
+      //   await generateQRCode(JSON.stringify(shortData), pathQRCodes + `QRCode_${fileName}.png`, {
+      //     scale: 1,
+      //     margin: 1,
+      //   });
+      // } catch (error) {
+      //   console.error(error);
+      // }
 
       //XLSX LOG
       try {
@@ -527,8 +540,8 @@ app.post('/run_jobs', async (req, res) => {
     }
 
     //Generer QRCode page
-    const pathQRCodes = `./server/public/${sessionPRINTSA}/QRCodes/`;
-    createQRCodePage(pathQRCodes, pathQRCodes + '/' + sessionPRINTSA + '.pdf');
+    // const pathQRCodes = `./server/public/${sessionPRINTSA}/QRCodes/`;
+    // createQRCodePage(pathQRCodes, pathQRCodes + '/' + sessionPRINTSA + '.pdf');
 
     res.status(200).json({ message: 'Jobs completed successfully' });
   } catch (error) {
@@ -591,18 +604,31 @@ app.get('/path', async (req, res) => {
     typeof decoFolder === 'string' ||
     typeof decoSurMesuresFolder === 'string' ||
     typeof decoRaccordablesFolder === 'string' ||
-    typeof decoEcomFolder === 'string'
+    typeof decoEcomFolder === 'string' ||
+    typeof previewDeco === 'string'
   ) {
+    let jpgFiles = [];
+    if (fs.existsSync(previewDeco)) {
+      const files = fs.readdirSync(previewDeco, { withFileTypes: true });
+      jpgFiles = files.filter((file) => file.isFile() && file.name.endsWith('.jpg'));
+    }
+
     const dirDeco = await getFiles(decoFolder);
     const dirDecoSurMesures = await getFiles(decoSurMesuresFolder);
     const dirDecoRaccordables = await getFiles(decoRaccordablesFolder);
     const dirDecoEcom = await getFiles(decoEcomFolder);
+    const dirDecoPreview = jpgFiles.map((file) => ({
+      name: file.name,
+      path: path.join(previewDeco, file.name),
+    }));
+
     res.json([
       {
         Standards: dirDeco,
         SurMesures: dirDecoSurMesures,
         Raccordables: dirDecoRaccordables,
         Ecom: dirDecoEcom,
+        Preview: dirDecoPreview,
       },
     ]);
   } else {
@@ -642,7 +668,7 @@ app.post('/config', (req, res) => {
 
   // Écrire les nouvelles données reçues
   fs.writeFileSync(configPath, JSON.stringify(req.body));
-
+  LinkFolders(true);
   // Renvoyer l'ancien contenu du fichier ou un objet vide si le fichier n'existait pas
   res.json(previousConfig);
 });

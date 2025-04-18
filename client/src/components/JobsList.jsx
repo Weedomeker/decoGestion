@@ -32,7 +32,7 @@ function JobsList({ show, formatTauro }) {
   const [progress, setProgress] = useState(0);
   const [sortFolder, setSortFolder] = useState(false);
   const [stickersData, setStickersData] = useState(false);
-  const [paperSticker, setPaperSticker] = useState('A5');
+  const [paperSticker, setPaperSticker] = useState('A4');
   const [filter, setFilter] = useState([]);
 
   useEffect(() => {
@@ -220,7 +220,9 @@ function JobsList({ show, formatTauro }) {
     const newTableEntries = data[0][status].map((value, i) => {
       if (!value) return null;
 
-      const visuel = value.visuel ? value.visuel.split('/').pop().split('-').pop().split(' ')[0] : '';
+      let visuel = value.visuel ? value.visuel.split('/').pop() : '';
+      const regexFormat = visuel.match(/\d{3}x\d{3}/i);
+      visuel = visuel.split(regexFormat[0])[0].toUpperCase();
       const title = value.jpgName.split('/').pop();
       let url = '';
       const ifSatin = checkVernis(value.jpgName) === '_S';

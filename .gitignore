@@ -12,6 +12,7 @@ server/public/SURMESURES
 server/public/RACCORDABLES
 server/public/TAURO
 server/public/tmp
+server/public/PREVIEW
 *.csv
 *.log
 client/dist

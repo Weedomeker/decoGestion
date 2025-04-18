@@ -13,8 +13,8 @@ const __dirname = path.dirname(__filename);
 const OUTPUT_FINAL_DIR = path.join(__dirname, './output_final');
 const logFilePath = path.join(__dirname, 'log_conversion.log'); // Chemin du fichier de log
 
-let WORKER = 'poppler';
-const MAX_THREADS = 4;
+let WORKER = 'pdfTopic';
+const MAX_THREADS = 12;
 
 // Crée le pool de workers
 const pool = new Piscina({
@@ -148,21 +148,14 @@ describe('Tests de conversion PDF -> JPG', function () {
     const totalExecutionTimeSec = totalElapsedTime[0] + totalElapsedTime[1] / 1e9;
 
     console.log(chalk.blue('\n\n========== Résumé de la conversion PDF → JPG ==========\n'));
-    console.log(
-      chalk.red('WORKER: '),
-      WORKER === 'poppler' ? 'Poppler' + ` || ${MAX_THREADS} threads` : 'pdfTopic' + ` || ${MAX_THREADS} threads`,
-    );
+    console.log(chalk.red('WORKER: '), WORKER === 'poppler' ? 'Poppler' + ` || ${MAX_THREADS} threads` : 'pdfTopic');
     console.log(chalk.blue(`Total des fichiers convertis : ${totalFilesConverted}`));
     console.log(chalk.green(`Fichiers générés dans : ${OUTPUT_FINAL_DIR}`));
     console.log(chalk.magenta(`Temps total d'exécution : ${totalExecutionTimeSec.toFixed(2)} s`));
     console.log(chalk.blue('=======================================================\n'));
 
     writeLog('\n\n========== Résumé de la conversion PDF → JPG ==========\n');
-    writeLog(
-      'WORKER: ' + WORKER === 'poppler'
-        ? 'Poppler' + ` || ${MAX_THREADS} threads`
-        : 'pdfTopic' + ` || ${MAX_THREADS} threads`,
-    );
+    writeLog(`WORKER:  ${WORKER === 'poppler'}` ? 'Poppler' + ` || ${MAX_THREADS} threads` : 'pdfTopic');
     writeLog(`Total des fichiers convertis : ${totalFilesConverted}`);
     writeLog(`Fichiers générés dans : ${OUTPUT_FINAL_DIR}`);
     writeLog(`Temps total d'exécution : ${totalExecutionTimeSec.toFixed(2)} s`);

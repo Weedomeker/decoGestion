@@ -24,7 +24,7 @@ function App() {
   const [checkProdBlanc, setCheckProdBlanc] = useState(false);
   const [checkGenerate, setCheckGenerate] = useState({
     cut: false,
-    reg: false,
+    reg: true,
   });
   const [checkFolder, setCheckFolder] = useState('Standards');
   const [showAddFormat, setShowAddFormat] = useState(false);
@@ -277,6 +277,7 @@ function App() {
 
             {showAddFormat && <Input id="addFormatTauro" size="small" label="Add format" placeholder="ex: 101x215" />}
           </Form.Field>
+
           {/* PROD AVEC BLANC */}
           <Form.Field inline>
             <Checkbox
@@ -286,6 +287,7 @@ function App() {
               onChange={(e, data) => setCheckProdBlanc(data.checked)}
             />
           </Form.Field>
+
           {/* GENERATE REGMARKS */}
           <Form.Field inline>
             <Checkbox
@@ -296,6 +298,7 @@ function App() {
                 setCheckGenerate({ ...checkGenerate, reg: data.checked });
               }}
             />
+
             {/* GENERATE CUT */}
             <Checkbox
               className="decoupe"
@@ -307,9 +310,9 @@ function App() {
               }}
             />
           </Form.Field>
-          {/* Format */}
-          <Form.Field required error={error.format}>
-            <Segment style={{ marginTop: 0 }}>
+
+          <Form.Field>
+            <Segment color="blue" style={{ marginTop: 0 }}>
               <Label color="blue" ribbon style={{ position: 'absolute', top: -8, left: -15 }}>
                 Deco
               </Label>
@@ -356,7 +359,10 @@ function App() {
                 </Form.Field>
               </Form.Group>
             </Segment>
+          </Form.Field>
 
+          {/* Format */}
+          <Form.Field required error={error.format}>
             <FormatDropdown
               placeholder={checkFolder}
               enabled={enabled.format}
@@ -565,8 +571,11 @@ function App() {
           <Config />
         </div>
       </div>
+
       {/* Preview visu */}
-      <PreviewDeco fileSelected={selectedFile} show={isShowPdf} />
+      <div className="preview-deco">
+        <PreviewDeco fileSelected={selectedFile} show={isShowPdf} />
+      </div>
 
       {/*  FolderFiles Files */}
       <LouisPreview show={isShowLouis} />

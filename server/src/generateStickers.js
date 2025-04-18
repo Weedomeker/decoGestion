@@ -32,6 +32,30 @@ const arr = [
     ref: 73801511,
     ex: 1,
   },
+  {
+    cmd: 54541,
+    ville: 'Tourcoing',
+    visuel: 'Bois 100x200_73801511_S_.pdf',
+    format_visu: '1_100x200',
+    ref: 738015116,
+    ex: 1,
+  },
+  {
+    cmd: 54542,
+    ville: 'Perpignan',
+    visuel: 'Marbre 100x200_73801511_S_.pdf',
+    format_visu: '1_100x200',
+    ref: 738015113,
+    ex: 1,
+  },
+  {
+    cmd: 54543,
+    ville: 'Langueux',
+    visuel: 'Caroline 100x200_73801511_S_.pdf',
+    format_visu: '1_100x200',
+    ref: 738015119,
+    ex: 1,
+  },
 ];
 
 async function generateStickers(commande, outPath, showDataCmd = false) {
@@ -84,6 +108,8 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
   const originalNotice = path.join(__dirname, '../public/images/notice_deco.pdf');
 
   let infoCommande = [];
+  const match = cmd.visuel.match(/(gauche|droit)/i);
+
   if (showDataCmd) {
     if (cmd) {
       // Extraction des informations spécifiques pour chaque commande
@@ -93,6 +119,7 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
           ?.split(/\d{3}x\d{3}/i)
           .shift()
           .trim() || 'Visuel inconnu',
+        match ? match[0] : '',
         cmd.ref?.toString() || 'Réf inconnue',
         cmd.format_visu?.split('_').pop().trim() || 'Format inconnu',
       ];
@@ -121,6 +148,19 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
       font: font,
       color: rgb(0, 0, 0),
     });
+
+    // Afficher Gauche Droite
+    if (!showDataCmd) {
+      if (match) {
+        firstPage.drawText(match[0], {
+          x: width / 2 - font.widthOfTextAtSize(match[0], 16) / 2,
+          y: height - textHeight - textHeight * 1.2,
+          size: 16,
+          font: font,
+          color: rgb(0, 0, 0),
+        });
+      }
+    }
 
     // Ajouter les informations de la commande (si demandé)
     if (showDataCmd) {
@@ -158,6 +198,116 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
   }
 }
 
+// async function createStickersPage(directory, outputPath, pageSize = 'A5') {
+//   const format =
+//     pageSize === 'A5'
+//       ? { width: 420, height: 595 } // Dimensions pour A5
+//       : { width: 595, height: 842 }; // Dimensions pour A4
+
+//   const margin = 0; // Marge entre les pages
+//   const outputPdf = await PDFDocument.create();
+//   const files = fs
+//     .readdirSync(directory)
+//     .filter((file) => file.endsWith('.pdf'))
+//     .filter((file) => /^[\d]/.test(file));
+
+//   if (files.length === 0) {
+//     console.error('Aucun fichier PDF trouvé dans le répertoire.');
+//     return;
+//   }
+
+//   let currentPage = null;
+//   let itemCount = 0; // Compteur global pour savoir où placer chaque page A5
+
+//   for (const file of files) {
+//     try {
+//       const filePath = path.join(directory, file);
+//       const pdfBytes = fs.readFileSync(filePath);
+//       const inputPdf = await PDFDocument.load(pdfBytes);
+
+//       const inputPage = inputPdf.getPage(0); // Charger la première page
+//       const { width, height } = inputPage.getSize();
+
+//       let rotation = pageSize === 'A4' ? degrees(0) : degrees(90);
+
+//       const embeddedPage = await outputPdf.embedPage(inputPage);
+
+//       if (itemCount % (pageSize === 'A5' ? 2 : 4) === 0) {
+//         currentPage = outputPdf.addPage([format.width, format.height]);
+//       }
+
+//       const positionIndex = itemCount % (pageSize === 'A5' ? 2 : 4);
+//       let x = 0;
+//       let y = 0;
+
+//       if (pageSize === 'A4') {
+//         // Haut Gauche
+//         if (positionIndex === 0) {
+//           x = format.width / 2 - width;
+//           y = format.height / 2;
+
+//           // Bas Gauche
+//         } else if (positionIndex === 1) {
+//           x = format.width / 2;
+//           y = format.height / 2;
+//           rotation = degrees(180);
+
+//           // Haut Droite
+//         } else if (positionIndex === 2) {
+//           x = format.width / 2;
+//           y = format.height / 2;
+
+//           // Bas Droite
+//         } else if (positionIndex === 3) {
+//           x = format.width;
+//           y = format.height / 2;
+//           rotation = degrees(180);
+//         }
+//       } else {
+//         if (positionIndex === 0) {
+//           x = format.width;
+//           y = format.height / 2;
+//         } else if (positionIndex === 1) {
+//           x = format.width;
+//           y = 0;
+//         }
+//       }
+
+//       currentPage.drawPage(embeddedPage, {
+//         x,
+//         y,
+//         width: width,
+//         height: height,
+//         rotate: rotation,
+//       });
+
+//       itemCount++;
+//     } catch (error) {
+//       console.error(`Erreur lors du traitement du fichier ${file}:`, error.message);
+//     }
+//   }
+
+//   try {
+//     let finalPath = outputPath;
+//     let suffix = 1;
+
+//     while (fs.existsSync(finalPath)) {
+//       const parsedPath = path.parse(outputPath);
+//       finalPath = path.format({
+//         dir: parsedPath.dir,
+//         name: `${parsedPath.name}_${suffix}`,
+//         ext: parsedPath.ext,
+//       });
+//       suffix++;
+//     }
+//     const pdfBytes = await outputPdf.save();
+//     fs.writeFileSync(finalPath, pdfBytes);
+//     console.log(`Stickers enregistrés sous : ${finalPath}`);
+//   } catch (error) {
+//     console.error('Erreur lors de la sauvegarde du fichier PDF :', error.message);
+//   }
+// }
+
 async function createStickersPage(directory, outputPath, pageSize = 'A5') {
   const format =
     pageSize === 'A5'
@@ -177,7 +327,10 @@ async function createStickersPage(directory, outputPath, pageSize = 'A5') {
   }
 
   let currentPage = null;
-  let itemCount = 0; // Compteur global pour savoir où placer chaque page A5
+  let itemCount = 0; // Compteur global pour savoir où placer chaque sticker
+  let positionIndex = 0;
+
+  let currentCommandId = null; // ID de la commande actuelle pour éviter de mélanger
 
   for (const file of files) {
     try {
@@ -187,41 +340,53 @@ async function createStickersPage(directory, outputPath, pageSize = 'A5') {
 
       const inputPage = inputPdf.getPage(0); // Charger la première page
       const { width, height } = inputPage.getSize();
-
       let rotation = pageSize === 'A4' ? degrees(0) : degrees(90);
+
+      // Extraire l'ID de la commande du nom du fichier (si nécessaire)
+      const commandId = extractCommandId(file);
+
+      // Si c'est une nouvelle commande, créer une nouvelle page
+      if (commandId !== currentCommandId) {
+        currentCommandId = commandId;
+        currentPage = outputPdf.addPage([format.width, format.height]); // Créer une nouvelle page pour la commande
+        itemCount = 0; // Réinitialiser le compteur d'éléments
+      }
+
+      if ((pageSize === 'A4' && itemCount >= 4) || (pageSize === 'A5' && itemCount >= 2)) {
+        currentPage = outputPdf.addPage([format.width, format.height]);
+        itemCount = 0;
+      }
+
+      positionIndex = itemCount;
 
       const embeddedPage = await outputPdf.embedPage(inputPage);
 
-      if (itemCount % (pageSize === 'A5' ? 2 : 4) === 0) {
-        currentPage = outputPdf.addPage([format.width, format.height]);
-      }
-
-      const positionIndex = itemCount % (pageSize === 'A5' ? 2 : 4);
       let x = 0;
       let y = 0;
 
+      // Logique de placement des stickers sur la page
       if (pageSize === 'A4') {
         // Haut Gauche
         if (positionIndex === 0) {
           x = format.width / 2 - width;
           y = format.height / 2;
 
-          // Bas Gauche
-        } else if (positionIndex === 1) {
-          x = format.width / 2;
-          y = format.height / 2;
-          rotation = degrees(180);
-
           // Haut Droite
         } else if (positionIndex === 2) {
+          x = format.width / 2 - width;
+          y = format.height / 2 - height;
+          //rotation = degrees(180);
+
+          // Bas Gauche
+        } else if (positionIndex === 1) {
           x = format.width / 2;
           y = format.height / 2;
 
           // Bas Droite
         } else if (positionIndex === 3) {
-          x = format.width;
-          y = format.height / 2;
-          rotation = degrees(180);
+          x = format.width / 2;
+          y = format.height / 2 - height;
+          // rotation = degrees(180);
         }
       } else {
         if (positionIndex === 0) {
@@ -233,6 +398,7 @@ async function createStickersPage(directory, outputPath, pageSize = 'A5') {
         }
       }
 
+      // Dessiner le sticker sur la page
       currentPage.drawPage(embeddedPage, {
         x,
         y,
@@ -241,22 +407,41 @@ async function createStickersPage(directory, outputPath, pageSize = 'A5') {
         rotate: rotation,
       });
 
-      itemCount++;
+      itemCount++; // Incrémenter le compteur pour le placement suivant
     } catch (error) {
       console.error(`Erreur lors du traitement du fichier ${file}:`, error.message);
     }
   }
 
   try {
+    let finalPath = outputPath;
+    let suffix = 1;
+
+    while (fs.existsSync(finalPath)) {
+      const parsedPath = path.parse(outputPath);
+      finalPath = path.format({
+        dir: parsedPath.dir,
+        name: `${parsedPath.name}_${suffix}`,
+        ext: parsedPath.ext,
+      });
+      suffix++;
+    }
     const pdfBytes = await outputPdf.save();
-    fs.writeFileSync(outputPath, pdfBytes);
-    console.log(`Etiquette enregistrées sous:`, outputPath);
+    fs.writeFileSync(finalPath, pdfBytes);
+    console.log(`Stickers enregistrés sous : ${finalPath}`);
   } catch (error) {
     console.error('Erreur lors de la sauvegarde du fichier PDF :', error.message);
   }
 }
 
-// const directoryPath = path.join(__dirname, '../public/PRINTSA#28 JANV 2025'); // Répertoire contenant les PDF A5
+// Fonction pour extraire l'ID de la commande à partir du nom du fichier
+function extractCommandId(fileName) {
+  // Suppose que l'ID de la commande est la première partie du nom du fichier, avant le premier underscore
+  const match = fileName.match(/^(\d+)/);
+  return match ? match[0] : null;
+}
+
+// const directoryPath = path.join(__dirname, '../public/TEST'); // Répertoire contenant les PDF A5
 // const outputFilePath = directoryPath + '/Etiquettes' + '/Etiquettes.pdf'; // Nom du fichier PDF généré
 // (async function () {
 //   try {

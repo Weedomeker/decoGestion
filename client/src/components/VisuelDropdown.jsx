@@ -12,6 +12,13 @@ function filterName(name) {
   } else {
     return;
   }
+
+  // Supprimer l'extension .pdf si présente
+  newName = newName.replace(/\.pdf$/i, '');
+
+  // Retirer les accents
+  newName = newName.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
   return newName;
 }
 

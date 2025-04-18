@@ -30,7 +30,6 @@ async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg
 
     // Ajout de repères
     if (reg) {
-      console.log('Create Regmarks.......');
       const drawRegmarks = (xReg, yReg, sizeReg = 0.6) => {
         firstPage.drawCircle({
           x: xReg, // haut - bas
@@ -72,6 +71,7 @@ async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg
     firstPage.setRotation(degrees(-90)); // Appliquer une rotation de 90°
     firstPage.setSize(largeurPlaque, longueurPlaque);
     firstPage.translateContent((largeurPlaque - width) / 2, (longueurPlaque - height) / 2);
+    firstPage.setTrimBox(0, 0, largeurPlaque, longueurPlaque);
 
     const pdfBytes = await pdfDoc.save();
     await fs.promises.writeFile(`${writePath}/${text}.pdf`, pdfBytes);

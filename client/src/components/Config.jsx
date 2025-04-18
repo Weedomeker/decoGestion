@@ -11,6 +11,7 @@ function Config() {
     raccordables: '',
     surMesures: '',
     ecom: '',
+    preview: '',
   });
 
   // Fonction pour charger les données initiales
@@ -89,6 +90,14 @@ function Config() {
       <div className="config">
         <ModalContent scrolling>
           <div className="input-folders">
+            <Input
+              fluid
+              label="Aperçu:"
+              value={data.preview || ''}
+              onChange={(e, v) => {
+                setData((prevData) => ({ ...prevData, preview: v.value }));
+              }}
+            />
             <Input
               fluid
               label="Tauro:"
