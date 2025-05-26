@@ -32,6 +32,8 @@ const checkVernis = require('./src/checkVernis');
 const generateQRCode = require('./src/qrcode');
 const createQRCodePage = require('./src/QRCodePage');
 const { generateStickers, createStickersPage } = require('./src/generateStickers');
+const { processAllPDFs } = require('./src/generatePreview');
+const { cmToPxl } = require('./src/convertUnits');
 
 const log = console.log;
 
@@ -430,27 +432,20 @@ app.post('/run_jobs', async (req, res) => {
         },
       ];
       //Generer QRCodes
-      // const pathQRCodes = `./server/public/${sessionPRINTSA}/QRCodes/`;
-      // try {
-      //   let shortData = {
-      //     date: new Date(job.date).toLocaleDateString('fr-FR'),
-      //     numCmd: job.cmd,
-      //     mag: job.ville,
-      //     deco: matchName ? job.visuel.substring(0, job.visuel.indexOf(matchName[0])) : job.visuel,
-      //     ref: matchRef ? matchRef[0] : 0,
-      //     format: job.format_visu.split('_').pop(),
-      //     ex: parseInt(job.ex),
-      //   };
-      //   if (!fs.existsSync(pathQRCodes)) {
-      //     fs.mkdirSync(pathQRCodes, { recursive: true });
-      //   }
-      //   await generateQRCode(JSON.stringify(shortData), pathQRCodes + `QRCode_${fileName}.png`, {
-      //     scale: 1,
-      //     margin: 1,
-      //   });
-      // } catch (error) {
-      //   console.error(error);
-      // }
+      const pathQRCodes = `./server/public/${sessionPRINTSA}/QRCodes/`;
+      try {
+        let shortData = job?.cmd;
+
+        if (!fs.existsSync(pathQRCodes)) {
+          fs.mkdirSync(pathQRCodes, { recursive: true });
+        }
+        await generateQRCode(JSON.stringify(shortData), pathQRCodes + `QRCode_${job?.cmd}.png`, {
+          margin: 1,
+          width: cmToPxl(2),
+        });
+      } catch (error) {
+        console.error(error);
+      }
 
       //XLSX LOG
       try {
@@ -540,8 +535,8 @@ app.post('/run_jobs', async (req, res) => {
     }
 
     //Generer QRCode page
-    // const pathQRCodes = `./server/public/${sessionPRINTSA}/QRCodes/`;
-    // createQRCodePage(pathQRCodes, pathQRCodes + '/' + sessionPRINTSA + '.pdf');
+    const pathQRCodes = `./server/public/${sessionPRINTSA}/QRCodes/`;
+    createQRCodePage(pathQRCodes, pathQRCodes + '/' + sessionPRINTSA + '.pdf');
 
     res.status(200).json({ message: 'Jobs completed successfully' });
   } catch (error) {
@@ -698,14 +693,25 @@ app.get('/jobs', async (req, res) => {
 });
 
 server.listen(PORT, async () => {
-  checkVersion()
+  await checkVersion()
     .then((result) => {
       log(result.message);
     })
     .catch((error) => {
       console.error('Error:', error);
     });
-
+  try {
+    await processAllPDFs({
+      pdfDirectory: path.join(__dirname, './public/STANDARDS'),
+      jpgDirectory: path.join(__dirname, './public/PREVIEW'),
+      height: 1920,
+      density: 72,
+      parallelLimit: 5,
+      verbose: false,
+    });
+  } catch (error) {
+    console.error('Error:', error);
+  }
   console.log(`Server start on port ${PORT}`);
   await mongoose().catch((err) => console.log(err));
 });

@@ -6,56 +6,55 @@
 const { degrees, PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fs = require('fs');
 const path = require('path');
-
 const arr = [
   {
     cmd: 54540,
     ville: 'Lille',
-    visuel: '5Galets 100x200_73800972_S_.pdf',
-    format_visu: '1_100x200',
-    ref: 73800972,
+    visuel: 'ALAGOAS 100x210 DROIT 94922920 MAT.pdf',
+    format_visu: '1_100x210',
+    ref: 94922920,
     ex: 1,
   },
   {
     cmd: 54540,
     ville: 'Lille',
-    visuel: '5GaletsUnis 100x200_73800993_S_.pdf',
-    format_visu: '1_100x200',
-    ref: 73800993,
+    visuel: 'ULM 805 BLANC SÉNÉ 100x210 94964386.pdf',
+    format_visu: '1_100x210',
+    ref: 94964386,
     ex: 2,
   },
   {
     cmd: 54541,
     ville: 'Tourcoing',
-    visuel: 'Acier 100x200_73801511_S_.pdf',
+    visuel: 'ACIER 100x210 94964015 MAT.pdf',
     format_visu: '1_100x200',
-    ref: 73801511,
+    ref: 94964015,
     ex: 1,
   },
   {
     cmd: 54541,
     ville: 'Tourcoing',
-    visuel: 'Bois 100x200_73801511_S_.pdf',
-    format_visu: '1_100x200',
-    ref: 738015116,
+    visuel: 'BOIS VARIE 150x210+BLANC 94964347 MAT.pdf',
+    format_visu: '150x210',
+    ref: 94964347,
     ex: 1,
   },
-  {
-    cmd: 54542,
-    ville: 'Perpignan',
-    visuel: 'Marbre 100x200_73801511_S_.pdf',
-    format_visu: '1_100x200',
-    ref: 738015113,
-    ex: 1,
-  },
-  {
-    cmd: 54543,
-    ville: 'Langueux',
-    visuel: 'Caroline 100x200_73801511_S_.pdf',
-    format_visu: '1_100x200',
-    ref: 738015119,
-    ex: 1,
-  },
+  // {
+  //   cmd: 54542,
+  //   ville: 'Perpignan',
+  //   visuel: 'Marbre 100x200_73801511_S_.pdf',
+  //   format_visu: '1_100x200',
+  //   ref: 738015113,
+  //   ex: 1,
+  // },
+  // {
+  //   cmd: 54543,
+  //   ville: 'Langueux',
+  //   visuel: 'Caroline 100x200_73801511_S_.pdf',
+  //   format_visu: '1_100x200',
+  //   ref: 738015119,
+  //   ex: 1,
+  // },
 ];
 
 async function generateStickers(commande, outPath, showDataCmd = false) {
@@ -106,9 +105,25 @@ async function generateStickers(commande, outPath, showDataCmd = false) {
 
 async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
   const originalNotice = path.join(__dirname, '../public/images/notice_deco.pdf');
+  const pathPreview = path.join(__dirname, '../public/PREVIEW');
+
+  // Lecture du contenu du dossier
+  let files;
+  try {
+    files = fs.readdirSync(pathPreview);
+  } catch (err) {
+    console.error('Erreur lors de la lecture du dossier PREVIEW:', err);
+    files = [];
+  }
+
+  // Récupération de la référence
+  const ref = (cmd.ref || 'Réf inconnue').toString();
+
+  // Filtrage des fichiers image qui contiennent la référence
+  const images = files.filter((file) => file.toLowerCase().endsWith('.jpg') && file.includes(ref));
 
   let infoCommande = [];
-  const match = cmd.visuel.match(/(gauche|droit)/i);
+  const match = cmd.visuel.match(/(gauche|droit|centre)/i);
 
   if (showDataCmd) {
     if (cmd) {
@@ -119,7 +134,7 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
           ?.split(/\d{3}x\d{3}/i)
           .shift()
           .trim() || 'Visuel inconnu',
-        match ? match[0] : '',
+        match ? match[0] : null,
         cmd.ref?.toString() || 'Réf inconnue',
         cmd.format_visu?.split('_').pop().trim() || 'Format inconnu',
       ];
@@ -138,13 +153,13 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
 
     // Afficher la numérotation des exemplaires (par ex. : 01/03)
     const text = `${numCmd} ${ex}`;
-    const textWidth = font.widthOfTextAtSize(text, 20);
-    const textHeight = font.heightAtSize(20);
+    const textWidth = font.widthOfTextAtSize(text, 16);
+    const textHeight = font.heightAtSize(16);
 
     firstPage.drawText(text, {
       x: width / 2 - textWidth / 2,
-      y: height - textHeight,
-      size: 20,
+      y: height - textHeight * 8.2,
+      size: 16,
       font: font,
       color: rgb(0, 0, 0),
     });
@@ -165,21 +180,54 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
     // Ajouter les informations de la commande (si demandé)
     if (showDataCmd) {
       let fontSize = 10;
-      const textData = 'LM_' + infoCommande.join(' - ').toLocaleUpperCase();
+      const textData = 'LM_' + infoCommande.join(' ').toLocaleUpperCase();
+      const miniaturePreveiw = images[0] || '';
+      const miniaturePreveiwWidth = font.widthOfTextAtSize(miniaturePreveiw, fontSize);
+      const miniaturePreveiwHeight = font.heightAtSize(fontSize);
       let textDataWidth = font.widthOfTextAtSize(textData, fontSize);
       const textDataHeight = font.heightAtSize(fontSize);
       if (textDataWidth > width) {
-        fontSize = 8;
+        fontSize = 6;
         textDataWidth = font.widthOfTextAtSize(textData, fontSize);
       }
 
       firstPage.drawText(textData, {
         x: width / 2 - textDataWidth / 2,
-        y: height - textDataHeight - textHeight * 1.5,
+        y: height - textDataHeight - textHeight * 8.4,
         size: fontSize,
         font: font2,
         color: rgb(0, 0, 0),
       });
+
+      const maxRenderedHeight = 90; // hauteur max autorisée dans le PDF après rotation
+
+      const jpgPath = path.join(pathPreview, miniaturePreveiw);
+
+      if (images.length > 0 && fs.existsSync(jpgPath)) {
+        const imageBuffer = fs.readFileSync(jpgPath);
+        const img = await pdfDoc.embedJpg(imageBuffer);
+
+        // Dimensions de l'image source
+        const origWidth = img.width;
+        const origHeight = img.height;
+
+        // Après rotation, la hauteur devient la largeur, donc on contraint l'ancienne largeur
+        const rotatedHeight = origWidth;
+
+        // Échelle à appliquer pour ne pas dépasser la hauteur maximale autorisée
+        const scaleFactor = maxRenderedHeight / rotatedHeight;
+
+        // Applique l'échelle
+        const scaledDims = img.scale(scaleFactor);
+
+        firstPage.drawImage(img, {
+          x: width / 2 - scaledDims.height / 2, // car rotation -90°
+          y: height - scaledDims.width - textHeight * 3.5,
+          width: scaledDims.width,
+          height: scaledDims.height,
+          rotate: degrees(-90),
+        });
+      }
     }
 
     // Enregistrer le PDF généré
@@ -197,116 +245,6 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
     console.error('La génération des étiquettes a échoué : ', error);
   }
 }
-
-// async function createStickersPage(directory, outputPath, pageSize = 'A5') {
-//   const format =
-//     pageSize === 'A5'
-//       ? { width: 420, height: 595 } // Dimensions pour A5
-//       : { width: 595, height: 842 }; // Dimensions pour A4
-
-//   const margin = 0; // Marge entre les pages
-//   const outputPdf = await PDFDocument.create();
-//   const files = fs
-//     .readdirSync(directory)
-//     .filter((file) => file.endsWith('.pdf'))
-//     .filter((file) => /^[\d]/.test(file));
-
-//   if (files.length === 0) {
-//     console.error('Aucun fichier PDF trouvé dans le répertoire.');
-//     return;
-//   }
-
-//   let currentPage = null;
-//   let itemCount = 0; // Compteur global pour savoir où placer chaque page A5
-
-//   for (const file of files) {
-//     try {
-//       const filePath = path.join(directory, file);
-//       const pdfBytes = fs.readFileSync(filePath);
-//       const inputPdf = await PDFDocument.load(pdfBytes);
-
-//       const inputPage = inputPdf.getPage(0); // Charger la première page
-//       const { width, height } = inputPage.getSize();
-
-//       let rotation = pageSize === 'A4' ? degrees(0) : degrees(90);
-
-//       const embeddedPage = await outputPdf.embedPage(inputPage);
-
-//       if (itemCount % (pageSize === 'A5' ? 2 : 4) === 0) {
-//         currentPage = outputPdf.addPage([format.width, format.height]);
-//       }
-
-//       const positionIndex = itemCount % (pageSize === 'A5' ? 2 : 4);
-//       let x = 0;
-//       let y = 0;
-
-//       if (pageSize === 'A4') {
-//         // Haut Gauche
-//         if (positionIndex === 0) {
-//           x = format.width / 2 - width;
-//           y = format.height / 2;
-
-//           // Bas Gauche
-//         } else if (positionIndex === 1) {
-//           x = format.width / 2;
-//           y = format.height / 2;
-//           rotation = degrees(180);
-
-//           // Haut Droite
-//         } else if (positionIndex === 2) {
-//           x = format.width / 2;
-//           y = format.height / 2;
-
-//           // Bas Droite
-//         } else if (positionIndex === 3) {
-//           x = format.width;
-//           y = format.height / 2;
-//           rotation = degrees(180);
-//         }
-//       } else {
-//         if (positionIndex === 0) {
-//           x = format.width;
-//           y = format.height / 2;
-//         } else if (positionIndex === 1) {
-//           x = format.width;
-//           y = 0;
-//         }
-//       }
-
-//       currentPage.drawPage(embeddedPage, {
-//         x,
-//         y,
-//         width: width,
-//         height: height,
-//         rotate: rotation,
-//       });
-
-//       itemCount++;
-//     } catch (error) {
-//       console.error(`Erreur lors du traitement du fichier ${file}:`, error.message);
-//     }
-//   }
-
-//   try {
-//     let finalPath = outputPath;
-//     let suffix = 1;
-
-//     while (fs.existsSync(finalPath)) {
-//       const parsedPath = path.parse(outputPath);
-//       finalPath = path.format({
-//         dir: parsedPath.dir,
-//         name: `${parsedPath.name}_${suffix}`,
-//         ext: parsedPath.ext,
-//       });
-//       suffix++;
-//     }
-//     const pdfBytes = await outputPdf.save();
-//     fs.writeFileSync(finalPath, pdfBytes);
-//     console.log(`Stickers enregistrés sous : ${finalPath}`);
-//   } catch (error) {
-//     console.error('Erreur lors de la sauvegarde du fichier PDF :', error.message);
-//   }
-// }
 
 async function createStickersPage(directory, outputPath, pageSize = 'A5') {
   const format =

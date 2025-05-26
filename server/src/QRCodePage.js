@@ -83,10 +83,12 @@ function createQRCodePage(directory, outputFile) {
 
     // Ajouter le texte sous l'image
     const fileName = path.basename(imagePath); // Nom du fichier
-    const sliceName = fileName.split('_').slice(1, fileName.length).join(' ');
+    let sliceName = fileName.split('.')[0]; // Nom de la tranche (sans extension)
+    sliceName = sliceName.split('_').pop();
+
     const textY = currentY + imgHeight + 5; // Position Y pour le texte
     try {
-      doc.fontSize(4).text(sliceName, currentX, textY, {
+      doc.fontSize(16).text(sliceName, currentX, textY, {
         width: imgWidth,
         height: imgHeight,
         align: 'center',

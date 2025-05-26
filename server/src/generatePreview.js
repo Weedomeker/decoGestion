@@ -1,22 +1,13 @@
-// const fs = require('fs');
-// const path = require('path');
-// const { fromPath } = require('pdf2pic');
-// const pLimit = require('p-limit');
-
-import cliProgress from 'cli-progress';
-import fs from 'fs';
-import pLimit from 'p-limit';
-import path from 'path';
-import { fromPath } from 'pdf2pic';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const fs = require('fs');
+const path = require('path');
+const { fromPath } = require('pdf2pic');
+const pLimit = require('p-limit');
+const cliProgress = require('cli-progress');
 
 // Function to send logs to the terminal
 function sendLog(message, verbose = true) {
   if (verbose) {
-    console.log(message, '\n');
+    console.log(message);
   }
 }
 
@@ -24,7 +15,7 @@ function sendLog(message, verbose = true) {
 function createProgressBar(totalFiles) {
   const progressBar = new cliProgress.SingleBar(
     {
-      format: '📄 {bar} {percentage}% | {value}/{total} PDFs | 🖼️ {generated} | ✅ {skipped} | ❌ {failure}\n',
+      format: '📄 {bar} {percentage}% | {value}/{total} PDFs | 🖼️  {generated} | ✅ {skipped} | ❌ {failure}\n',
       barCompleteChar: '\u2588',
       barIncompleteChar: '\u2591',
       hideCursor: true,
@@ -34,18 +25,20 @@ function createProgressBar(totalFiles) {
     cliProgress.Presets.shades_classic,
   );
 
+  //log verification jpg
+  console.log('Check JPG files...');
   progressBar.start(totalFiles, 0, { generated: 0, skipped: 0, failure: 0 });
   return progressBar;
 }
 
-// 🔹 Extract the reference number from the filename
+// Extract the reference number from the filename
 function extractReference(filename) {
   const regex = /\b\d{7,}\b/;
   const match = filename.match(regex);
   return match ? match[0] : null;
 }
 
-// 🔹 Recursively find all PDFs
+// Recursively find all PDFs
 async function findAllPDFs(directory) {
   let files = [];
 
@@ -62,7 +55,7 @@ async function findAllPDFs(directory) {
   return files;
 }
 
-// 🔹 Process a single PDF
+// Process a single PDF
 async function processSinglePDF(pdfPath, existingJPGFiles, pdfOptions, progressBar, counters, verbose) {
   const { jpgDirectory, density, width, height } = pdfOptions;
   const pdfFilename = path.basename(pdfPath);
@@ -71,16 +64,12 @@ async function processSinglePDF(pdfPath, existingJPGFiles, pdfOptions, progressB
   if (!pdfReference) {
     sendLog(`⚠️ No reference found for ${pdfFilename}`, verbose);
     counters.failure++;
-    progressBar.increment();
-    progressBar.update({ generated: counters.generated, skipped: counters.skipped, failure: counters.failure });
+    progressBar.increment(1, { generated: counters.generated, skipped: counters.skipped, failure: counters.failure });
     return;
   }
 
   if (existingJPGFiles.has(pdfReference)) {
     counters.skipped++;
-    progressBar.increment();
-    progressBar.update({ generated: counters.generated, skipped: counters.skipped, failure: counters.failure });
-    return;
   } else {
     sendLog(`⚡ Generating JPG for reference ${pdfReference}...`, verbose);
 
@@ -98,25 +87,26 @@ async function processSinglePDF(pdfPath, existingJPGFiles, pdfOptions, progressB
     try {
       await convert(1);
 
-      // Le fichier généré avec suffixe
       const generatedFile = path.join(jpgDirectory, `${outputFilename}.1.jpg`);
       const finalFile = path.join(jpgDirectory, `${outputFilename}.jpg`);
 
-      // Renommer sans suffixe
-      await fs.promises.rename(generatedFile, finalFile);
-
-      sendLog(`🖼️ JPG created: ${outputFilename}.jpg`, verbose);
-      counters.generated++;
+      if (await fs.promises.stat(generatedFile).catch(() => null)) {
+        await fs.promises.rename(generatedFile, finalFile);
+        sendLog(`🖼️ JPG created: ${outputFilename}.jpg`, verbose);
+        counters.generated++;
+      } else {
+        throw new Error(`Generated file not found: ${generatedFile}`);
+      }
     } catch (error) {
       sendLog(`❌ Error generating JPG for ${pdfReference}: ${error}`, verbose);
       counters.failure++;
     }
   }
-  progressBar.increment();
-  progressBar.update({ generated: counters.generated, skipped: counters.skipped, failure: counters.failure });
+
+  progressBar.increment(1, { generated: counters.generated, skipped: counters.skipped, failure: counters.failure });
 }
 
-// 🔥 Main function with dynamic options
+// Main function with dynamic options
 async function processAllPDFs({
   pdfDirectory,
   jpgDirectory,
@@ -127,47 +117,48 @@ async function processAllPDFs({
   verbose = true,
 } = {}) {
   try {
+    // 1. Récupérer tous les PDFs
     const pdfFiles = await findAllPDFs(pdfDirectory);
+
+    // 2. Lister les JPGs déjà existants
     const existingJPGFiles = await fs.promises.readdir(jpgDirectory);
     const existingReferences = new Set(existingJPGFiles.map(extractReference).filter((ref) => ref !== null));
 
-    const counters = { generated: 0, skipped: 0, failure: 0 };
-    const progressBar = createProgressBar(pdfFiles.length);
+    // 3. Filtrer uniquement les PDFs dont le JPG n'existe PAS encore
+    const pdfsToGenerate = pdfFiles.filter((pdfPath) => {
+      const ref = extractReference(path.basename(pdfPath));
+      return ref && !existingReferences.has(ref);
+    });
 
-    sendLog(`🔍 Found ${pdfFiles.length} PDF files.`, verbose);
+    const counters = { generated: 0, skipped: pdfFiles.length - pdfsToGenerate.length, failure: 0 };
+
+    // 4. Progress bar basée uniquement sur les PDFs à générer
+    const progressBar = createProgressBar(pdfsToGenerate.length);
+
+    sendLog(`🔍 Total PDFs: ${pdfFiles.length}`, verbose);
+    sendLog(`🖼️  Previews to generate: ${pdfsToGenerate.length}`, verbose);
+    sendLog(`✅ Already existing previews (skipped): ${counters.skipped}`, verbose);
 
     const limit = pLimit(parallelLimit);
-
     const pdfOptions = { jpgDirectory, width, height, density };
 
-    const limitedPromises = pdfFiles.map((pdfPath) =>
+    // 5. Lancer la génération seulement pour ceux à générer
+    const limitedPromises = pdfsToGenerate.map((pdfPath) =>
       limit(() => processSinglePDF(pdfPath, existingReferences, pdfOptions, progressBar, counters, verbose)),
     );
 
     await Promise.all(limitedPromises);
 
-    // progressBar.update({
-    //   generated: counters.generated,
-    //   skipped: counters.skipped,
-    //   failure: counters.failure,
-    // });
-
     progressBar.stop();
 
-    console.log('\n🎯 Processing complete:');
     console.log(
-      `\n🖼️  ${counters.generated} generated | ✅ ${counters.skipped} skipped | ❌ ${counters.failure} failed.`,
+      `🎯 Processing complete: 🖼️  ${counters.generated} generated | ✅ ${counters.skipped} skipped | ❌ ${counters.failure} failed.`,
     );
   } catch (error) {
     console.error(`❌ Error: ${error.message}`);
   }
 }
 
-await processAllPDFs({
-  pdfDirectory: path.join(__dirname, '../public/STANDARDS'),
-  jpgDirectory: path.join(__dirname, '../public/PREVIEW'),
-  height: 1920,
-  density: 72,
-  parallelLimit: 5,
-  verbose: false,
-});
+module.exports = {
+  processAllPDFs,
+};

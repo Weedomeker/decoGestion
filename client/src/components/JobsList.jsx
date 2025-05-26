@@ -31,7 +31,7 @@ function JobsList({ show, formatTauro }) {
   const [onLoading, setOnLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [sortFolder, setSortFolder] = useState(false);
-  const [stickersData, setStickersData] = useState(false);
+  const [stickersData, setStickersData] = useState(true);
   const [paperSticker, setPaperSticker] = useState('A4');
   const [filter, setFilter] = useState([]);
 

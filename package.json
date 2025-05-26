@@ -5,6 +5,7 @@
   "description": "Permet de produire plus facilement l'imposition des visuels sur les plaques à imprimer.",
   "scripts": {
     "server": "set NODE_ENV=development&& nodemon ./server/server.js -e js,css,html",
+    "test": "set NODE_ENV=development&& node ./server/server.js -e js,css,html",
     "client": "set NODE_ENV=development&& cd client && npm run dev",
     "build": "set NODE_ENV=production&& cd client && npm run build"
   },
@@ -33,7 +34,7 @@
     "mongoose": "^8.7.0",
     "morgan": "^1.10.0",
     "node-fetch": "^2.7.0",
-    "p-limit": "^6.2.0",
+    "p-limit": "^3.1.0",
     "path": "^0.12.7",
     "pdf-lib": "^1.17.1",
     "pdf-poppler": "^0.2.1",
