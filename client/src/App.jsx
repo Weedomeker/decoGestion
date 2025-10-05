@@ -14,6 +14,7 @@ import JobsList from './components/JobsList';
 import LouisPreview from './components/LouisPreview';
 import Place from './components/Place';
 import PreviewDeco from './components/PreviewDeco';
+import TeinteMasseDropdown from './components/TeinteMasseDropdown';
 import VisuelDropdown from './components/VisuelDropdown';
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
   const [checkGenerate, setCheckGenerate] = useState({
     cut: false,
     reg: true,
+    teinteMasse: false,
   });
   const [checkFolder, setCheckFolder] = useState('Standards');
   const [showAddFormat, setShowAddFormat] = useState(false);
@@ -160,7 +162,9 @@ function App() {
       perte: perte,
       regmarks: checkGenerate.reg,
       cut: checkGenerate.cut,
+      teinteMasse: checkGenerate.teinteMasse,
     };
+
     //POST data
     try {
       const response = await fetch(`http://${HOST}:${PORT}/add_job`, {
@@ -278,37 +282,47 @@ function App() {
             {showAddFormat && <Input id="addFormatTauro" size="small" label="Add format" placeholder="ex: 101x215" />}
           </Form.Field>
 
-          {/* PROD AVEC BLANC */}
-          <Form.Field inline>
-            <Checkbox
-              name="Prod avec blanc"
-              label="Prod avec blanc"
-              checked={checkProdBlanc}
-              onChange={(e, data) => setCheckProdBlanc(data.checked)}
-            />
-          </Form.Field>
+          <Form.Field style={{ display: 'flex', justifyContent: 'space-between' }}>
+            {/* PROD AVEC BLANC */}
+            <Form.Field>
+              <Checkbox
+                name="Prod avec blanc"
+                label="Prod avec blanc"
+                checked={checkProdBlanc}
+                onChange={(e, data) => setCheckProdBlanc(data.checked)}
+              />
+              <Checkbox
+                name="Teinte Masse"
+                label="Teinte Masse"
+                checked={checkGenerate.teinteMasse}
+                onChange={(e, data) => {
+                  setCheckGenerate({ ...checkGenerate, teinteMasse: data.checked });
+                }}
+              />
+            </Form.Field>
 
-          {/* GENERATE REGMARKS */}
-          <Form.Field inline>
-            <Checkbox
-              name="Générer regmarks"
-              label="Générer regmarks"
-              checked={checkGenerate.reg}
-              onChange={(e, data) => {
-                setCheckGenerate({ ...checkGenerate, reg: data.checked });
-              }}
-            />
+            {/* GENERATE REGMARKS */}
+            <Form.Field inline>
+              <Checkbox
+                name="Générer regmarks"
+                label="Générer regmarks"
+                checked={checkGenerate.reg}
+                onChange={(e, data) => {
+                  setCheckGenerate({ ...checkGenerate, reg: data.checked });
+                }}
+              />
 
-            {/* GENERATE CUT */}
-            <Checkbox
-              className="decoupe"
-              name="Générer découpe"
-              label="Générer découpe"
-              checked={checkGenerate.cut}
-              onChange={(e, data) => {
-                setCheckGenerate({ cut: data.checked, reg: data.checked });
-              }}
-            />
+              {/* GENERATE CUT */}
+              <Checkbox
+                className="decoupe"
+                name="Générer découpe"
+                label="Générer découpe"
+                checked={checkGenerate.cut}
+                onChange={(e, data) => {
+                  setCheckGenerate({ cut: data.checked, reg: data.checked });
+                }}
+              />
+            </Form.Field>
           </Form.Field>
 
           <Form.Field>
@@ -394,72 +408,90 @@ function App() {
 
           {/* Visu */}
           <Form.Field required error={error.visuel}>
-            <VisuelDropdown
-              enabled={enabled.visu}
-              error={error.visuel}
-              id="visuel"
-              className="visuel"
-              isFile={isFile}
-              files={files}
-              value={selectedFile}
-              text={selectedFile}
-              selectedFile={selectedFile}
-              onSelectedFile={(value) => {
-                const name = value.name.split('/').pop().toLowerCase();
-                if (name.includes('+blanc' || '+ blanc')) {
-                  setCheckProdBlanc(true);
-                } else {
-                  setCheckProdBlanc(false);
-                }
-                setSelectedFile(value.name);
-                setFileSize(value.size);
-                setIsShowPdf(true);
-                setIsShowLouis(false);
-                setIsShowJobsList(false);
-                if (value.name == '' || value.name == undefined) {
-                  setError({ ...error, visuel: true });
-                } else {
-                  setEnabled({ ...enabled, numCmd: false });
-                  setError({ ...error, visuel: false });
-                }
+            {!checkGenerate.teinteMasse ? (
+              <VisuelDropdown
+                enabled={enabled.visu}
+                error={error.visuel}
+                id="visuel"
+                className="visuel"
+                isFile={isFile}
+                files={files}
+                value={selectedFile}
+                text={selectedFile}
+                selectedFile={selectedFile}
+                onSelectedFile={(value) => {
+                  const name = value.name.split('/').pop().toLowerCase();
+                  if (name.includes('+blanc' || '+ blanc')) {
+                    setCheckProdBlanc(true);
+                  } else {
+                    setCheckProdBlanc(false);
+                  }
+                  setSelectedFile(value.name);
+                  setFileSize(value.size);
+                  setIsShowPdf(true);
+                  setIsShowLouis(false);
+                  setIsShowJobsList(false);
+                  if (value.name == '' || value.name == undefined) {
+                    setError({ ...error, visuel: true });
+                  } else {
+                    setEnabled({ ...enabled, numCmd: false });
+                    setError({ ...error, visuel: false });
+                  }
 
-                //Check checkFormats
-                if (
-                  CheckFormats(selectedFormatTauro, value.name.split('/').pop()) &&
-                  CheckFormats(selectedFormatTauro, value.name.split('/').pop()).gap == true
-                ) {
-                  setPerte(CheckFormats(selectedFormatTauro, value.name.split('/').pop()).surface);
-                  setWarnMsg({
-                    ...warnMsg,
-                    hidden: false,
-                    header: 'Attention au format',
-                    msg: `Perte matière: ${CheckFormats(selectedFormatTauro, value.name.split('/').pop()).surface}/m2`,
-                    icon: 'info circle',
-                    color: 'yellow',
-                  });
-                } else if (CheckFormats(selectedFormatTauro, value.name.split('/').pop()) == undefined) {
-                  setWarnMsg({
-                    ...warnMsg,
-                    hidden: false,
-                    header: 'Problème format',
-                    msg: 'Format du visuel introuvable. Attention au format de plaque choisit.',
-                    icon: 'warning sign',
-                    color: 'orange',
-                  });
-                } else if (CheckFormats(selectedFormatTauro, value.name.split('/').pop()).isChecked == false) {
-                  setWarnMsg({
-                    ...warnMsg,
-                    hidden: false,
-                    header: 'Problème format',
-                    msg: 'Le format du visuel est plus grand que celui de la plaque.',
-                    icon: 'warning sign',
-                    color: 'red',
-                  });
-                } else {
-                  setWarnMsg({ ...warnMsg, hidden: true });
-                }
-              }}
-            />
+                  //Check checkFormats
+                  if (
+                    CheckFormats(selectedFormatTauro, value.name.split('/').pop()) &&
+                    CheckFormats(selectedFormatTauro, value.name.split('/').pop()).gap == true
+                  ) {
+                    setPerte(CheckFormats(selectedFormatTauro, value.name.split('/').pop()).surface);
+                    setWarnMsg({
+                      ...warnMsg,
+                      hidden: false,
+                      header: 'Attention au format',
+                      msg: `Perte matière: ${CheckFormats(selectedFormatTauro, value.name.split('/').pop()).surface}/m2`,
+                      icon: 'info circle',
+                      color: 'yellow',
+                    });
+                  } else if (CheckFormats(selectedFormatTauro, value.name.split('/').pop()) == undefined) {
+                    setWarnMsg({
+                      ...warnMsg,
+                      hidden: false,
+                      header: 'Problème format',
+                      msg: 'Format du visuel introuvable. Attention au format de plaque choisit.',
+                      icon: 'warning sign',
+                      color: 'orange',
+                    });
+                  } else if (CheckFormats(selectedFormatTauro, value.name.split('/').pop()).isChecked == false) {
+                    setWarnMsg({
+                      ...warnMsg,
+                      hidden: false,
+                      header: 'Problème format',
+                      msg: 'Le format du visuel est plus grand que celui de la plaque.',
+                      icon: 'warning sign',
+                      color: 'red',
+                    });
+                  } else {
+                    setWarnMsg({ ...warnMsg, hidden: true });
+                  }
+                }}
+              />
+            ) : (
+              <TeinteMasseDropdown
+                value={selectedFile}
+                text={selectedFile}
+                selectedFile={selectedFile}
+                onSelectedFile={(value) => {
+                  setSelectedFile(value);
+                  console.log(selectedFile);
+                  if (!value) {
+                    setError({ ...error, visuel: true });
+                  } else {
+                    setEnabled({ ...enabled, numCmd: false });
+                    setError({ ...error, visuel: false });
+                  }
+                }}
+              />
+            )}
             <p
               style={{
                 fontSize: '10px',

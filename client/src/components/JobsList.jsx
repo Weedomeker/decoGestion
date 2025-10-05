@@ -215,9 +215,9 @@ function JobsList({ show, formatTauro }) {
   };
 
   const ItemsJob = (status) => {
-    if (isLoading || !data[0]) return null;
     const executionTime = startTime && endTime ? endTime - startTime : null;
-    const newTableEntries = data[0][status].map((value, i) => {
+    if (isLoading || !data?.[0]?.[status]) return null;
+    const newTableEntries = data?.[0]?.[status]?.map((value, i) => {
       if (!value) return null;
 
       let visuel = value.visuel ? value.visuel.split('/').pop() : '';
@@ -397,7 +397,7 @@ function JobsList({ show, formatTauro }) {
                     </Button>
                     {executionTime && (
                       <div>
-                        {data[0].jobs.length === 0 ? (
+                        {data?.[0]?.jobs?.length === 0 ? (
                           <pre>
                             Temps d&apos;exécution total:{' '}
                             {executionTime / 1000 > 60

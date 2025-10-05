@@ -1,4 +1,19 @@
-function createJob(cmd, ville, format, formatPlaque, visuel, ref, ex, visuPath, writePath, jpgName, reg, cut, perte) {
+function createJob(
+  cmd,
+  ville,
+  format,
+  formatPlaque,
+  visuel,
+  ref,
+  ex,
+  visuPath,
+  writePath,
+  jpgName,
+  reg,
+  cut,
+  teinteMasse,
+  perte,
+) {
   const date = new Date();
 
   const newJob = {
@@ -16,6 +31,7 @@ function createJob(cmd, ville, format, formatPlaque, visuel, ref, ex, visuPath, 
     jpgName: jpgName !== undefined ? jpgName.split('/').slice(2).join('/') + '.jpg' : '',
     reg: reg,
     cut: cut,
+    teinteMasse: teinteMasse,
     perte: perte,
   };
 

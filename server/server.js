@@ -72,22 +72,26 @@ async function LinkFolders(pathUpdate) {
 
   for (const key in config) {
     if (key !== 'vernis') await symlink(config[key], path.join(__dirname, `./public/${key.toUpperCase()}`), pathUpdate);
-
     switch (key) {
       case 'standards':
         decoFolder = `./server/public/${key}`;
+
         break;
       case 'raccordables':
         decoRaccordablesFolder = `./server/public/${key}`;
+
         break;
       case 'surMesures':
         decoSurMesuresFolder = `./server/public/${key}`;
+
         break;
       case 'ecom':
         decoEcomFolder = `./server/public/${key}`;
+
         break;
       case 'preview':
         previewDeco = `./server/public/${key}`;
+
         break;
       default:
         break;
@@ -223,6 +227,7 @@ app.post('/add_job', (req, res) => {
     ex: req.body.ex !== null ? req.body.ex : '',
     regmarks: req.body.regmarks,
     cut: req.body.cut,
+    teinteMasse: req.body.teinteMasse,
   };
   let visuel = data.visuel.split('/').pop();
   visuel = visuel.includes('-') ? visuel.split('-').pop() : visuel;
@@ -234,6 +239,7 @@ app.post('/add_job', (req, res) => {
   let allFormatTauro = data.allFormatTauro;
   let format = data.format;
   let reg = data.regmarks;
+  let teinteMasse = data.teinteMasse;
 
   //Chemin sortie fichiers
   prodBlanc
@@ -281,9 +287,9 @@ app.post('/add_job', (req, res) => {
     jpgName,
     reg,
     data.cut,
+    teinteMasse,
     perteCalc,
   );
-
   // Fonction pour comparer et mettre à jour les tableaux
   function compareAndAddObject(originalArray, newObject) {
     const jobExist = originalArray.find(
