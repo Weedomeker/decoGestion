@@ -482,9 +482,9 @@ function App() {
               placeholder="N° commande"
               onChange={(e, data) => {
                 const maxValidate = (string) => {
-                  return string.slice(0, 5);
+                  return string.slice(0, 6);
                 };
-                if (data.value.length < 5) {
+                if (data.value.length > 6 || data.value.length < 5) {
                   setError({ ...error, numCmd: true });
                 } else {
                   setEnabled({ ...enabled, ville: false });
