@@ -72,22 +72,26 @@ async function LinkFolders(pathUpdate) {
 
   for (const key in config) {
     if (key !== 'vernis') await symlink(config[key], path.join(__dirname, `./public/${key.toUpperCase()}`), pathUpdate);
-
     switch (key) {
       case 'standards':
         decoFolder = `./server/public/${key}`;
+
         break;
       case 'raccordables':
         decoRaccordablesFolder = `./server/public/${key}`;
+
         break;
       case 'surMesures':
         decoSurMesuresFolder = `./server/public/${key}`;
+
         break;
       case 'ecom':
         decoEcomFolder = `./server/public/${key}`;
+
         break;
       case 'preview':
         previewDeco = `./server/public/${key}`;
+
         break;
       default:
         break;
@@ -235,6 +239,7 @@ app.post('/add_job', (req, res) => {
   let allFormatTauro = data.allFormatTauro;
   let format = data.format;
   let reg = data.regmarks;
+  let teinteMasse = data.teinteMasse;
 
   //Chemin sortie fichiers
   prodBlanc
@@ -282,7 +287,11 @@ app.post('/add_job', (req, res) => {
     jpgName,
     reg,
     data.cut,
+<<<<<<< HEAD
     data.teinteMasse,
+=======
+    teinteMasse,
+>>>>>>> dc408896bad6ad76ba197af2df43b13aa3c47235
     perteCalc,
   );
   // Fonction pour comparer et mettre à jour les tableaux

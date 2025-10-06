@@ -216,8 +216,11 @@ function JobsList({ show, formatTauro }) {
   };
 
   const ItemsJob = (status) => {
-    if (isLoading || !data[0]) return null;
     const executionTime = startTime && endTime ? endTime - startTime : null;
+<<<<<<< HEAD
+=======
+    if (isLoading || !data?.[0]?.[status]) return null;
+>>>>>>> dc408896bad6ad76ba197af2df43b13aa3c47235
     const newTableEntries = data?.[0]?.[status]?.map((value, i) => {
       if (!value) return null;
 
@@ -408,7 +411,7 @@ function JobsList({ show, formatTauro }) {
                     </Button>
                     {executionTime && (
                       <div>
-                        {data[0].jobs.length === 0 ? (
+                        {data?.[0]?.jobs?.length === 0 ? (
                           <pre>
                             Temps d&apos;exécution total:{' '}
                             {executionTime / 1000 > 60

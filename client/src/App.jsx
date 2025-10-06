@@ -164,6 +164,7 @@ function App() {
       cut: checkGenerate.cut,
       teinteMasse: checkGenerate.teinteMasse,
     };
+
     //POST data
     try {
       const response = await fetch(`http://${HOST}:${PORT}/add_job`, {
@@ -476,10 +477,20 @@ function App() {
               />
             ) : (
               <TeinteMasseDropdown
+<<<<<<< HEAD
                 selectedFile={selectedFile}
                 onSelectedFile={(value) => {
                   setSelectedFile(value);
                   if (value == '' || value == undefined) {
+=======
+                value={selectedFile}
+                text={selectedFile}
+                selectedFile={selectedFile}
+                onSelectedFile={(value) => {
+                  setSelectedFile(value);
+                  console.log(selectedFile);
+                  if (!value) {
+>>>>>>> dc408896bad6ad76ba197af2df43b13aa3c47235
                     setError({ ...error, visuel: true });
                   } else {
                     setEnabled({ ...enabled, numCmd: false });
