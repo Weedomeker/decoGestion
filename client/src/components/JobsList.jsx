@@ -42,6 +42,7 @@ function JobsList({ show, formatTauro }) {
         setProgress((data[0].completed.length / totalJobs) * 100);
       }
     }
+    console.log(data);
   }, [data]);
 
   useEffect(() => {
@@ -217,12 +218,17 @@ function JobsList({ show, formatTauro }) {
   const ItemsJob = (status) => {
     if (isLoading || !data[0]) return null;
     const executionTime = startTime && endTime ? endTime - startTime : null;
-    const newTableEntries = data[0][status].map((value, i) => {
+    const newTableEntries = data?.[0]?.[status]?.map((value, i) => {
       if (!value) return null;
 
       let visuel = value.visuel ? value.visuel.split('/').pop() : '';
       const regexFormat = visuel.match(/\d{3}x\d{3}/i);
-      visuel = visuel.split(regexFormat[0])[0].toUpperCase();
+      if (regexFormat && regexFormat[0]) {
+        visuel = visuel.split(regexFormat[0])[0].toUpperCase();
+      } else {
+        visuel = visuel.toUpperCase();
+      }
+
       const title = value.jpgName.split('/').pop();
       let url = '';
       const ifSatin = checkVernis(value.jpgName) === '_S';
@@ -244,7 +250,12 @@ function JobsList({ show, formatTauro }) {
         url = `http://${HOST}:${PORT}/public/` + value.jpgName.replace(/#/i, '%23');
       }
       return (
-        <TableRow key={i} disabled={status === 'jobs' ? onLoading : null} className="table-row">
+        <TableRow
+          key={i}
+          disabled={status === 'jobs' ? onLoading : null}
+          className="table-row"
+          style={value.teinteMasse ? { color: '#fc7703', fontWeight: 'bold' } : null}
+        >
           <TableCell className="table-cell">
             {new Date(value.date).toLocaleString('fr-FR', { timeZone: 'EUROPE/PARIS' })}
           </TableCell>

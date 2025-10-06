@@ -223,6 +223,7 @@ app.post('/add_job', (req, res) => {
     ex: req.body.ex !== null ? req.body.ex : '',
     regmarks: req.body.regmarks,
     cut: req.body.cut,
+    teinteMasse: req.body.teinteMasse,
   };
   let visuel = data.visuel.split('/').pop();
   visuel = visuel.includes('-') ? visuel.split('-').pop() : visuel;
@@ -281,9 +282,9 @@ app.post('/add_job', (req, res) => {
     jpgName,
     reg,
     data.cut,
+    data.teinteMasse,
     perteCalc,
   );
-
   // Fonction pour comparer et mettre à jour les tableaux
   function compareAndAddObject(originalArray, newObject) {
     const jobExist = originalArray.find(
@@ -384,17 +385,19 @@ app.post('/run_jobs', async (req, res) => {
         : `${jpgPath}/${sessionPRINTSA}/${fileName}`;
 
       // Edition pdf
-      try {
-        let startPdf = performance.now();
-        await modifyPdf(job.visuPath, job.writePath, fileName, job.format_visu, job.format_Plaque, job.reg, job);
-        let endPdf = performance.now();
-        pdfTime = endPdf - startPdf;
-        console.log(
-          `📁 ${date} ${time}:`,
-          `${fileName}.pdf (${pdfTime < 1000 ? pdfTime.toFixed(2) + 'ms' : (pdfTime / 1000).toFixed(2) + 's'})`,
-        );
-      } catch (error) {
-        console.error(`Error modifying PDF for job ${job.cmd}:`, error);
+      if (!job.teinteMasse) {
+        try {
+          let startPdf = performance.now();
+          await modifyPdf(job.visuPath, job.writePath, fileName, job.format_visu, job.format_Plaque, job.reg, job);
+          let endPdf = performance.now();
+          pdfTime = endPdf - startPdf;
+          console.log(
+            `📁 ${date} ${time}:`,
+            `${fileName}.pdf (${pdfTime < 1000 ? pdfTime.toFixed(2) + 'ms' : (pdfTime / 1000).toFixed(2) + 's'})`,
+          );
+        } catch (error) {
+          console.error(`Error modifying PDF for job ${job.cmd}:`, error);
+        }
       }
 
       // Générer image
@@ -424,7 +427,7 @@ app.post('/run_jobs', async (req, res) => {
           ref: matchRef ? matchRef[0] : 0,
           format: job.format_visu.split('_').pop(),
           ex: parseInt(job.ex),
-          temps: parseFloat(((jpgTime + pdfTime) / 1000).toFixed(2)),
+          temps: parseFloat(((jpgTime + pdfTime) / 1000).toFixed(2)) || 0,
           perte: parseFloat(job.perte),
           status: '',
           app_version: `v${appVersion}`,
@@ -432,27 +435,27 @@ app.post('/run_jobs', async (req, res) => {
         },
       ];
       //Generer QRCodes
-      const pathQRCodes = `./server/public/${sessionPRINTSA}/QRCodes/`;
-      try {
-        let shortData = job?.cmd;
+      // const pathQRCodes = `./server/public/${sessionPRINTSA}/QRCodes/`;
+      // try {
+      //   let shortData = job?.cmd;
 
-        if (!fs.existsSync(pathQRCodes)) {
-          fs.mkdirSync(pathQRCodes, { recursive: true });
-        }
-        await generateQRCode(JSON.stringify(shortData), pathQRCodes + `QRCode_${job?.cmd}.png`, {
-          margin: 1,
-          width: cmToPxl(2),
-        });
-      } catch (error) {
-        console.error(error);
-      }
+      //   if (!fs.existsSync(pathQRCodes)) {
+      //     fs.mkdirSync(pathQRCodes, { recursive: true });
+      //   }
+      //   await generateQRCode(JSON.stringify(shortData), pathQRCodes + `QRCode_${job?.cmd}.png`, {
+      //     margin: 1,
+      //     width: cmToPxl(2),
+      //   });
+      // } catch (error) {
+      //   console.error(error);
+      // }
 
-      //XLSX LOG
-      try {
-        await createXlsx(dataFileExport);
-      } catch (error) {
-        console.error(error);
-      }
+      // //XLSX LOG
+      // try {
+      //   await createXlsx(dataFileExport);
+      // } catch (error) {
+      //   console.error(error);
+      // }
 
       // SAVE DB
       try {
@@ -535,8 +538,8 @@ app.post('/run_jobs', async (req, res) => {
     }
 
     //Generer QRCode page
-    const pathQRCodes = `./server/public/${sessionPRINTSA}/QRCodes/`;
-    createQRCodePage(pathQRCodes, pathQRCodes + '/' + sessionPRINTSA + '.pdf');
+    // const pathQRCodes = `./server/public/${sessionPRINTSA}/QRCodes/`;
+    // createQRCodePage(pathQRCodes, pathQRCodes + '/' + sessionPRINTSA + '.pdf');
 
     res.status(200).json({ message: 'Jobs completed successfully' });
   } catch (error) {
