@@ -287,11 +287,7 @@ app.post('/add_job', (req, res) => {
     jpgName,
     reg,
     data.cut,
-<<<<<<< HEAD
     data.teinteMasse,
-=======
-    teinteMasse,
->>>>>>> dc408896bad6ad76ba197af2df43b13aa3c47235
     perteCalc,
   );
   // Fonction pour comparer et mettre à jour les tableaux

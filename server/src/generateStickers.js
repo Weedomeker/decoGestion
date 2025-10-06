@@ -1,4 +1,5 @@
 /**
+import { path } from 'path';
  * Génère des étiquettes PDF pour chaque commande
  * @param {Array<Object>} commande - Tableau d'objets contenant les numéros de commande et le nombre d'exemplaires
  * @param {string} outPath - Chemin du dossier où seront enregistrées les étiquettes
@@ -6,56 +7,7 @@
 const { degrees, PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fs = require('fs');
 const path = require('path');
-const arr = [
-  {
-    cmd: 54540,
-    ville: 'Lille',
-    visuel: 'ALAGOAS 100x210 DROIT 94922920 MAT.pdf',
-    format_visu: '1_100x210',
-    ref: 94922920,
-    ex: 1,
-  },
-  {
-    cmd: 54540,
-    ville: 'Lille',
-    visuel: 'ULM 805 BLANC SÉNÉ 100x210 94964386.pdf',
-    format_visu: '1_100x210',
-    ref: 94964386,
-    ex: 2,
-  },
-  {
-    cmd: 54541,
-    ville: 'Tourcoing',
-    visuel: 'ACIER 100x210 94964015 MAT.pdf',
-    format_visu: '1_100x200',
-    ref: 94964015,
-    ex: 1,
-  },
-  {
-    cmd: 54541,
-    ville: 'Tourcoing',
-    visuel: 'BOIS VARIE 150x210+BLANC 94964347 MAT.pdf',
-    format_visu: '150x210',
-    ref: 94964347,
-    ex: 1,
-  },
-  // {
-  //   cmd: 54542,
-  //   ville: 'Perpignan',
-  //   visuel: 'Marbre 100x200_73801511_S_.pdf',
-  //   format_visu: '1_100x200',
-  //   ref: 738015113,
-  //   ex: 1,
-  // },
-  // {
-  //   cmd: 54543,
-  //   ville: 'Langueux',
-  //   visuel: 'Caroline 100x200_73801511_S_.pdf',
-  //   format_visu: '1_100x200',
-  //   ref: 738015119,
-  //   ex: 1,
-  // },
-];
+const m = require('gm');
 
 async function generateStickers(commande, outPath, showDataCmd = false) {
   if (!Array.isArray(commande) || commande.length === 0) {
@@ -106,21 +58,37 @@ async function generateStickers(commande, outPath, showDataCmd = false) {
 async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
   const originalNotice = path.join(__dirname, '../public/images/notice_deco.pdf');
   const pathPreview = path.join(__dirname, '../public/PREVIEW');
-
+  let pathTeinteMasse = path.join(__dirname, '..', cmd.jpgName);
+  let folderTeinteMasse = path.dirname(pathTeinteMasse);
   // Lecture du contenu du dossier
   let files;
+  let filesTeinteMasse;
   try {
     files = fs.readdirSync(pathPreview);
   } catch (err) {
-    console.error('Erreur lors de la lecture du dossier PREVIEW:', err);
+    console.error('Erreur dossier PREVIEW:', err);
     files = [];
+  }
+
+  try {
+    filesTeinteMasse = fs.readdirSync(folderTeinteMasse);
+  } catch (err) {
+    console.error('Erreur dossier TeinteMasse:', err);
+    filesTeinteMasse = [];
   }
 
   // Récupération de la référence
   const ref = (cmd.ref || 'Réf inconnue').toString();
-
+  const teinteMasseColors = ['noir', 'blanc', 'granit', 'alu'];
   // Filtrage des fichiers image qui contiennent la référence
   const images = files.filter((file) => file.toLowerCase().endsWith('.jpg') && file.includes(ref));
+  const regex = new RegExp(teinteMasseColors.join('|'), 'i');
+  const matchColor = cmd.visuel.match(regex);
+  console.log(matchColor);
+  // Filtrage des fichiers image qui contiennent une des couleurs de teinte masse
+  const imagesTeinteMasse = filesTeinteMasse
+    .filter((file) => file.toLowerCase().endsWith('.jpg'))
+    .filter((file) => matchColor && file.toLowerCase().includes(matchColor[0].toLowerCase()));
 
   let infoCommande = [];
   const match = cmd.visuel.match(/(gauche|droit|centre)/i);
@@ -182,8 +150,8 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
       let fontSize = 10;
       const textData = 'LM_' + infoCommande.join(' ').toLocaleUpperCase();
       const miniaturePreveiw = images[0] || '';
-      const miniaturePreveiwWidth = font.widthOfTextAtSize(miniaturePreveiw, fontSize);
-      const miniaturePreveiwHeight = font.heightAtSize(fontSize);
+      const miniatureTeinteMasse = imagesTeinteMasse[0] || '';
+
       let textDataWidth = font.widthOfTextAtSize(textData, fontSize);
       const textDataHeight = font.heightAtSize(fontSize);
       if (textDataWidth > width) {
@@ -202,6 +170,9 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
       const maxRenderedHeight = 90; // hauteur max autorisée dans le PDF après rotation
 
       const jpgPath = path.join(pathPreview, miniaturePreveiw);
+      const jpgPathTeinteMasse = path.join(folderTeinteMasse, miniatureTeinteMasse);
+      console.log('Chemin image :', jpgPathTeinteMasse);
+      console.log('Existe ?', fs.existsSync(jpgPathTeinteMasse));
 
       if (images.length > 0 && fs.existsSync(jpgPath)) {
         const imageBuffer = fs.readFileSync(jpgPath);
@@ -220,6 +191,26 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
         // Applique l'échelle
         const scaledDims = img.scale(scaleFactor);
 
+        firstPage.drawImage(img, {
+          x: width / 2 - scaledDims.height / 2, // car rotation -90°
+          y: height - scaledDims.width - textHeight * 3.5,
+          width: scaledDims.width,
+          height: scaledDims.height,
+          rotate: degrees(-90),
+        });
+      } else if (imagesTeinteMasse.length > 0 && fs.existsSync(jpgPathTeinteMasse)) {
+        const imageBuffer = fs.readFileSync(jpgPathTeinteMasse);
+        const img = await pdfDoc.embedJpg(imageBuffer);
+        // Dimensions de l'image source
+        const origWidth = img.width;
+        const origHeight = img.height;
+
+        // Après rotation, la hauteur devient la largeur, donc on contraint l'ancienne largeur
+        const rotatedHeight = origWidth;
+        // Échelle à appliquer pour ne pas dépasser la hauteur maximale autorisée
+        const scaleFactor = maxRenderedHeight / rotatedHeight;
+        // Applique l'échelle
+        const scaledDims = img.scale(scaleFactor);
         firstPage.drawImage(img, {
           x: width / 2 - scaledDims.height / 2, // car rotation -90°
           y: height - scaledDims.width - textHeight * 3.5,

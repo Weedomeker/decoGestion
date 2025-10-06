@@ -1,5 +1,5 @@
 const { pdftobuffer } = require('pdftopic');
-const gm = require('gm');
+const gm = require('gm').subClass({ imageMagick: true });
 const fs = require('fs');
 const path = require('path');
 const { parentPort, workerData } = require('worker_threads');
@@ -12,7 +12,9 @@ const gmRectangleBuffer = (width, height, rectColor, strokeColor) => {
       .stroke(strokeColor, 2) // contour noir, épaisseur 5px
       .drawRectangle(0, 0, width, height) // rectangle avec marge 50px
       .toBuffer('JPEG', (err, buffer) => {
-        if (err) return reject(err);
+        if (err) {
+          return reject(err);
+        }
         resolve(buffer);
       });
   });
@@ -27,7 +29,6 @@ const colors = {
 const pdfToimg = async (readFile, writeFile) => {
   const regex = new RegExp(`(${Object.keys(colors).join('|')})`, 'gi');
   const match = path.basename(writeFile).match(regex);
-
   try {
     if (fs.existsSync(readFile)) {
       // --- Cas 1 : PDF existe → conversion ---
@@ -39,7 +40,7 @@ const pdfToimg = async (readFile, writeFile) => {
       const buffer = await gmRectangleBuffer(
         800,
         600,
-        match?.[0] ? colors[match[0].toLowerCase()] : colors.blanc,
+        match?.[0] ? colors[match?.[0]?.toLowerCase()] : colors.blanc,
         '#000000',
       );
       fs.writeFileSync(writeFile, buffer);

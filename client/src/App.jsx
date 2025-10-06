@@ -477,20 +477,12 @@ function App() {
               />
             ) : (
               <TeinteMasseDropdown
-<<<<<<< HEAD
-                selectedFile={selectedFile}
-                onSelectedFile={(value) => {
-                  setSelectedFile(value);
-                  if (value == '' || value == undefined) {
-=======
                 value={selectedFile}
                 text={selectedFile}
                 selectedFile={selectedFile}
                 onSelectedFile={(value) => {
                   setSelectedFile(value);
-                  console.log(selectedFile);
                   if (!value) {
->>>>>>> dc408896bad6ad76ba197af2df43b13aa3c47235
                     setError({ ...error, visuel: true });
                   } else {
                     setEnabled({ ...enabled, numCmd: false });

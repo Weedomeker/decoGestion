@@ -31,11 +31,7 @@ function createJob(
     jpgName: jpgName !== undefined ? jpgName.split('/').slice(2).join('/') + '.jpg' : '',
     reg: reg,
     cut: cut,
-<<<<<<< HEAD
-    teinteMasse,
-=======
     teinteMasse: teinteMasse,
->>>>>>> dc408896bad6ad76ba197af2df43b13aa3c47235
     perte: perte,
   };
 
