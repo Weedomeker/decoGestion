@@ -58,11 +58,9 @@ async function generateStickers(commande, outPath, showDataCmd = false) {
 async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
   const originalNotice = path.join(__dirname, '../public/images/notice_deco.pdf');
   const pathPreview = path.join(__dirname, '../public/PREVIEW');
-  let pathTeinteMasse = path.join(__dirname, '..', cmd.jpgName);
-  let folderTeinteMasse = path.dirname(pathTeinteMasse);
-  // Lecture du contenu du dossier
+
   let files;
-  let filesTeinteMasse;
+
   try {
     files = fs.readdirSync(pathPreview);
   } catch (err) {
@@ -70,25 +68,19 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
     files = [];
   }
 
-  try {
-    filesTeinteMasse = fs.readdirSync(folderTeinteMasse);
-  } catch (err) {
-    console.error('Erreur dossier TeinteMasse:', err);
-    filesTeinteMasse = [];
-  }
-
-  // Récupération de la référence
+  // Récupération de la référence ou nom
+  const teinteMasse = ['blanc zero', 'noir zero', 'alu brosse', 'granit 3'];
   const ref = (cmd.ref || 'Réf inconnue').toString();
-  const teinteMasseColors = ['noir', 'blanc', 'granit', 'alu'];
+  const name = cmd.visuel || 'Visuel inconnu';
+  const matchTeinteMasse = teinteMasse.find((teinte) => name.toLowerCase().includes(teinte.toLowerCase()));
+
   // Filtrage des fichiers image qui contiennent la référence
   const images = files.filter((file) => file.toLowerCase().endsWith('.jpg') && file.includes(ref));
-  const regex = new RegExp(teinteMasseColors.join('|'), 'i');
-  const matchColor = cmd.visuel.match(regex);
-  console.log(matchColor);
-  // Filtrage des fichiers image qui contiennent une des couleurs de teinte masse
-  const imagesTeinteMasse = filesTeinteMasse
-    .filter((file) => file.toLowerCase().endsWith('.jpg'))
-    .filter((file) => matchColor && file.toLowerCase().includes(matchColor[0].toLowerCase()));
+  const imagesTeinteMasse = files.filter(
+    (file) => file.toLowerCase().endsWith('.jpg') && matchTeinteMasse && file.toLowerCase().includes(matchTeinteMasse),
+  );
+
+  console.log(imagesTeinteMasse, matchTeinteMasse);
 
   let infoCommande = [];
   const match = cmd.visuel.match(/(gauche|droit|centre)/i);
@@ -149,8 +141,7 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
     if (showDataCmd) {
       let fontSize = 10;
       const textData = 'LM_' + infoCommande.join(' ').toLocaleUpperCase();
-      const miniaturePreveiw = images[0] || '';
-      const miniatureTeinteMasse = imagesTeinteMasse[0] || '';
+      const miniaturePreveiw = !cmd.teinteMasse ? images[0] || '' : imagesTeinteMasse[0] || '';
 
       let textDataWidth = font.widthOfTextAtSize(textData, fontSize);
       const textDataHeight = font.heightAtSize(fontSize);
@@ -168,13 +159,10 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
       });
 
       const maxRenderedHeight = 90; // hauteur max autorisée dans le PDF après rotation
-
       const jpgPath = path.join(pathPreview, miniaturePreveiw);
-      const jpgPathTeinteMasse = path.join(folderTeinteMasse, miniatureTeinteMasse);
-      console.log('Chemin image :', jpgPathTeinteMasse);
-      console.log('Existe ?', fs.existsSync(jpgPathTeinteMasse));
-
-      if (images.length > 0 && fs.existsSync(jpgPath)) {
+      console.log(jpgPath);
+      console.log(imagesTeinteMasse.length);
+      if (images.length || (imagesTeinteMasse.length > 0 && fs.existsSync(jpgPath))) {
         const imageBuffer = fs.readFileSync(jpgPath);
         const img = await pdfDoc.embedJpg(imageBuffer);
 
@@ -191,26 +179,6 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
         // Applique l'échelle
         const scaledDims = img.scale(scaleFactor);
 
-        firstPage.drawImage(img, {
-          x: width / 2 - scaledDims.height / 2, // car rotation -90°
-          y: height - scaledDims.width - textHeight * 3.5,
-          width: scaledDims.width,
-          height: scaledDims.height,
-          rotate: degrees(-90),
-        });
-      } else if (imagesTeinteMasse.length > 0 && fs.existsSync(jpgPathTeinteMasse)) {
-        const imageBuffer = fs.readFileSync(jpgPathTeinteMasse);
-        const img = await pdfDoc.embedJpg(imageBuffer);
-        // Dimensions de l'image source
-        const origWidth = img.width;
-        const origHeight = img.height;
-
-        // Après rotation, la hauteur devient la largeur, donc on contraint l'ancienne largeur
-        const rotatedHeight = origWidth;
-        // Échelle à appliquer pour ne pas dépasser la hauteur maximale autorisée
-        const scaleFactor = maxRenderedHeight / rotatedHeight;
-        // Applique l'échelle
-        const scaledDims = img.scale(scaleFactor);
         firstPage.drawImage(img, {
           x: width / 2 - scaledDims.height / 2, // car rotation -90°
           y: height - scaledDims.width - textHeight * 3.5,
@@ -369,16 +337,5 @@ function extractCommandId(fileName) {
   const match = fileName.match(/^(\d+)/);
   return match ? match[0] : null;
 }
-
-// const directoryPath = path.join(__dirname, '../public/TEST'); // Répertoire contenant les PDF A5
-// const outputFilePath = directoryPath + '/Etiquettes' + '/Etiquettes.pdf'; // Nom du fichier PDF généré
-// (async function () {
-//   try {
-//     await generateStickers(arr, directoryPath + '/' + 'Etiquettes', true);
-//     await createStickersPage(directoryPath + '/Etiquettes', outputFilePath, 'A5').catch((error) => console.log(error));
-//   } catch (error) {
-//     console.log(error);
-//   }
-// })();
 
 module.exports = { generateStickers, createStickersPage };
