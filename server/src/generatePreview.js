@@ -3,6 +3,7 @@ const path = require('path');
 const { fromPath } = require('pdf2pic');
 const pLimit = require('p-limit');
 const cliProgress = require('cli-progress');
+const e = require('express');
 
 // Function to send logs to the terminal
 function sendLog(message, verbose = true) {
@@ -33,7 +34,7 @@ function createProgressBar(totalFiles) {
 
 // Extract the reference number from the filename
 function extractReference(filename) {
-  const regex = /\b\d{7,}\b/;
+  const regex = /\d{7,}/;
   const match = filename.match(regex);
   return match ? match[0] : null;
 }
@@ -56,24 +57,38 @@ async function findAllPDFs(directory) {
 }
 
 // Process a single PDF
-async function processSinglePDF(pdfPath, existingJPGFiles, pdfOptions, progressBar, counters, verbose) {
+async function processSinglePDF(
+  pdfPath,
+  existingReferences,
+  existingNames,
+  pdfOptions,
+  progressBar,
+  counters,
+  verbose,
+) {
   const { jpgDirectory, density, width, height } = pdfOptions;
   const pdfFilename = path.basename(pdfPath);
   const pdfReference = extractReference(pdfFilename);
+  const outputFilename = path.parse(pdfFilename).name;
 
   if (!pdfReference) {
     sendLog(`⚠️ No reference found for ${pdfFilename}`, verbose);
     counters.failure++;
     progressBar.increment(1, { generated: counters.generated, skipped: counters.skipped, failure: counters.failure });
     return;
+  } else if (outputFilename === '' || outputFilename === null) {
+    sendLog(`⚠️ No valid output filename for ${pdfFilename}`, verbose);
+    counters.failure++;
+    progressBar.increment(1, { generated: counters.generated, skipped: counters.skipped, failure: counters.failure });
+    return;
   }
 
-  if (existingJPGFiles.has(pdfReference)) {
+  if (existingReferences.has(pdfReference)) {
+    counters.skipped++;
+  } else if (existingNames.has(outputFilename)) {
     counters.skipped++;
   } else {
     sendLog(`⚡ Generating JPG for reference ${pdfReference}...`, verbose);
-
-    const outputFilename = path.parse(pdfFilename).name;
 
     const convert = fromPath(pdfPath, {
       density: density || 72,
@@ -98,7 +113,7 @@ async function processSinglePDF(pdfPath, existingJPGFiles, pdfOptions, progressB
         throw new Error(`Generated file not found: ${generatedFile}`);
       }
     } catch (error) {
-      sendLog(`❌ Error generating JPG for ${pdfReference}: ${error}`, verbose);
+      console.log(`❌ Error generating JPG for ${pdfReference}: ${error.message}\n${error.stack}`);
       counters.failure++;
     }
   }
@@ -123,11 +138,16 @@ async function processAllPDFs({
     // 2. Lister les JPGs déjà existants
     const existingJPGFiles = await fs.promises.readdir(jpgDirectory);
     const existingReferences = new Set(existingJPGFiles.map(extractReference).filter((ref) => ref !== null));
+    const existingNames = new Set(
+      existingJPGFiles.map((file) => path.parse(file).name).filter((name) => name !== null),
+    );
 
     // 3. Filtrer uniquement les PDFs dont le JPG n'existe PAS encore
     const pdfsToGenerate = pdfFiles.filter((pdfPath) => {
       const ref = extractReference(path.basename(pdfPath));
-      return ref && !existingReferences.has(ref);
+      const name = path.parse(path.basename(pdfPath)).name;
+      // Vérifier à la fois par référence et par nom de fichier
+      return ref && !existingReferences.has(ref) && !existingNames.has(name);
     });
 
     const counters = { generated: 0, skipped: pdfFiles.length - pdfsToGenerate.length, failure: 0 };
@@ -144,7 +164,9 @@ async function processAllPDFs({
 
     // 5. Lancer la génération seulement pour ceux à générer
     const limitedPromises = pdfsToGenerate.map((pdfPath) =>
-      limit(() => processSinglePDF(pdfPath, existingReferences, pdfOptions, progressBar, counters, verbose)),
+      limit(() =>
+        processSinglePDF(pdfPath, existingReferences, existingNames, pdfOptions, progressBar, counters, verbose),
+      ),
     );
 
     await Promise.all(limitedPromises);

@@ -80,8 +80,6 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
     (file) => file.toLowerCase().endsWith('.jpg') && matchTeinteMasse && file.toLowerCase().includes(matchTeinteMasse),
   );
 
-  console.log(imagesTeinteMasse, matchTeinteMasse);
-
   let infoCommande = [];
   const match = cmd.visuel.match(/(gauche|droit|centre)/i);
 
@@ -160,8 +158,7 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
 
       const maxRenderedHeight = 90; // hauteur max autorisée dans le PDF après rotation
       const jpgPath = path.join(pathPreview, miniaturePreveiw);
-      console.log(jpgPath);
-      console.log(imagesTeinteMasse.length);
+
       if (images.length || (imagesTeinteMasse.length > 0 && fs.existsSync(jpgPath))) {
         const imageBuffer = fs.readFileSync(jpgPath);
         const img = await pdfDoc.embedJpg(imageBuffer);
