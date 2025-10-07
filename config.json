@@ -1,1 +1,12 @@
-{"standards":"X:\\Dev\\decoGestion\\server\\public\\DECO","raccordables":"X:\\Dev\\decoGestion\\server\\public\\DECO","surMesures":"X:\\Dev\\decoGestion\\server\\public\\DECO","ecom":"X:\\Dev\\decoGestion\\server\\public\\DECO","tauro":"","preview":"X:\\Dev\\decoGestion\\server\\public\\PREVIEW","vernis":["MAT","Brillant"]}
+{
+  "standards": "\\\\NASSYNORS1221\\agence\\1-décokin\\ DECO-K-IN\\01 SALLE DE BAIN\\01 REF LEROY MERLIN\\1_FORMATS STANDARDS 2025",
+  "raccordables": "\\\\NASSYNORS1221\\agence\\1-décokin\\ DECO-K-IN\\01 SALLE DE BAIN\\01 REF LEROY MERLIN\\1_FORMATS STANDARDS RACCORDABLES",
+  "surMesures": "\\\\NASSYNORS1221\\agence\\1-décokin\\ DECO-K-IN\\01 SALLE DE BAIN\\01 REF LEROY MERLIN\\0_SUR MESURE",
+  "ecom": "\\\\NASSYNORS1221\\agence\\1-décokin\\ DECO-K-IN\\01 SALLE DE BAIN\\02 REF DECOKIN\\FORMAT STANDARD ECOM",
+  "tauro": "\\\\192.168.1.72\\HotFolderRoot",
+  "preview": "\\\\NASSYNORS1221\\agence\\1-décokin\\ DECO-K-IN\\01 SALLE DE BAIN\\01 REF LEROY MERLIN\\__ APERCU STANDARDS 2025",
+  "vernis": [
+    "MAT",
+    "Brillant"
+  ]
+}
