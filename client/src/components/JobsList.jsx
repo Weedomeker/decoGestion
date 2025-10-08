@@ -42,7 +42,6 @@ function JobsList({ show, formatTauro }) {
         setProgress((data[0].completed.length / totalJobs) * 100);
       }
     }
-    console.log(data);
   }, [data]);
 
   useEffect(() => {

@@ -69,15 +69,15 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
   }
 
   // Récupération de la référence ou nom
-  const teinteMasse = ['blanc zero', 'noir zero', 'alu brosse', 'granit 3'];
+  //const teinteMasse = ['blanc zero', 'noir zero', 'alu brosse', 'granit 3'];
   const ref = (cmd.ref || 'Réf inconnue').toString();
   const name = cmd.visuel || 'Visuel inconnu';
-  const matchTeinteMasse = teinteMasse.find((teinte) => name.toLowerCase().includes(teinte.toLowerCase()));
+  // const matchName = teinteMasse.find((teinte) => name.toLowerCase().includes(teinte.toLowerCase()));
 
   // Filtrage des fichiers image qui contiennent la référence
   const images = files.filter((file) => file.toLowerCase().endsWith('.jpg') && file.includes(ref));
   const imagesTeinteMasse = files.filter(
-    (file) => file.toLowerCase().endsWith('.jpg') && matchTeinteMasse && file.toLowerCase().includes(matchTeinteMasse),
+    (file) => file.toLowerCase().endsWith('.jpg') && file.toLowerCase().includes(name.toLowerCase()),
   );
 
   let infoCommande = [];

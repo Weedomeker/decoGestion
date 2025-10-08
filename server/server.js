@@ -34,6 +34,7 @@ const createQRCodePage = require('./src/QRCodePage');
 const { generateStickers, createStickersPage } = require('./src/generateStickers');
 const { processAllPDFs } = require('./src/generatePreview');
 const { cmToPxl } = require('./src/convertUnits');
+const generateImages = require('./src/generateImages');
 
 const log = console.log;
 
@@ -247,10 +248,11 @@ app.post('/add_job', (req, res) => {
     : (writePath = path.join(saveFolder + '/Deco_Std_' + formatTauro));
 
   //Nom fichier
-  fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${formatTauro} - ${visuel.replace(
+  fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${teinteMasse === true ? format?.split('_').pop() : formatTauro} - ${visuel.replace(
     /\.[^/.]+$/,
     '',
   )} ${data.ex}_EX`;
+  console.log(fileName);
   //Verifier si dossiers exist si pas le créer
   if (fs.existsSync(writePath) && fs.existsSync(`${jpgPath}/${sessionPRINTSA}`)) {
     pdfName = writePath + '/' + fileName;
@@ -356,9 +358,10 @@ app.post('/run_jobs', async (req, res) => {
         .toLocaleUpperCase();
 
       // Nom fichier
-      const fileName = `${job.cmd} - LM ${job.ville.toUpperCase()} - ${job.format_Plaque
-        .split('_')
-        .pop()} - ${job.visuel.replace(/\.[^/.]+$/, '')} ${job.ex}_EX`;
+      const fileName = `${job.cmd} - LM ${job.ville.toUpperCase()} - ${
+        job.teinteMasse ? job.format_visu.split('_').pop() : job.format_Plaque.split('_').pop()
+      } - ${job.visuel.replace(/\.[^/.]+$/, '')} ${job.ex}_EX`;
+      console.log(fileName);
 
       // Vérifier si dossiers existent, sinon les créer
       const sortFolder = req.body.sortFolder;
@@ -403,20 +406,27 @@ app.post('/run_jobs', async (req, res) => {
         } catch (error) {
           console.error(`Error modifying PDF for job ${job.cmd}:`, error);
         }
-      }
 
-      // Générer image
-      try {
-        let startJpg = performance.now();
-        await _useWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
-        let endJpg = performance.now();
-        jpgTime = endJpg - startJpg;
-        console.log(
-          `🖼️  ${date} ${time}:`,
-          `${fileName}.jpg (${jpgTime < 1000 ? jpgTime.toFixed(2) + 'ms' : (jpgTime / 1000).toFixed(2) + 's'})`,
-        );
-      } catch (error) {
-        console.error(`Error generating JPG for job ${job.cmd}:`, error);
+        // Générer image
+        try {
+          let startJpg = performance.now();
+          await _useWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
+          let endJpg = performance.now();
+          jpgTime = endJpg - startJpg;
+          console.log(
+            `🖼️  ${date} ${time}:`,
+            `${fileName}.jpg (${jpgTime < 1000 ? jpgTime.toFixed(2) + 'ms' : (jpgTime / 1000).toFixed(2) + 's'})`,
+          );
+        } catch (error) {
+          console.error(`Error generating JPG for job ${job.cmd}:`, error);
+        }
+      } else {
+        // Générer image
+        try {
+          generateImages(job, previewDeco, `${jpgName}.jpg`);
+        } catch (error) {
+          console.error(`Error generating JPG for job ${job.cmd}:`, error);
+        }
       }
 
       //Get all data
