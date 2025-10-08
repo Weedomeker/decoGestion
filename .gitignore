@@ -31,3 +31,4 @@ test/visu
 *.crt
 *.pem
 *.key
+.config.json
