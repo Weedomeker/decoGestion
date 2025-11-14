@@ -449,28 +449,6 @@ app.post('/run_jobs', async (req, res) => {
           ip: req.ip.split(':').pop() === '1' || req.hostname === 'localhost' ? os.hostname() : req.ip.split(':').pop(),
         },
       ];
-      //Generer QRCodes
-      // const pathQRCodes = `./server/public/${sessionPRINTSA}/QRCodes/`;
-      // try {
-      //   let shortData = job?.cmd;
-
-      //   if (!fs.existsSync(pathQRCodes)) {
-      //     fs.mkdirSync(pathQRCodes, { recursive: true });
-      //   }
-      //   await generateQRCode(JSON.stringify(shortData), pathQRCodes + `QRCode_${job?.cmd}.png`, {
-      //     margin: 1,
-      //     width: cmToPxl(2),
-      //   });
-      // } catch (error) {
-      //   console.error(error);
-      // }
-
-      // //XLSX LOG
-      // try {
-      //   await createXlsx(dataFileExport);
-      // } catch (error) {
-      //   console.error(error);
-      // }
 
       // SAVE DB
       try {
@@ -708,6 +686,44 @@ app.get('/qrcode', (req, res) => {
 
 app.get('/jobs', async (req, res) => {
   res.json(jobList);
+});
+
+// Generer stickers uniquement
+app.post('/generate_stickers', async (req, res) => {
+  try {
+    const baseFolder = path.join(__dirname, `./public/${sessionPRINTSA}`);
+    const tempFolder = path.join(baseFolder, '_tmp');
+    const etiquettesFolder = path.join(baseFolder, 'Etiquettes');
+
+    // Vérifier et créer les dossiers si nécessaires
+    await fs.promises.mkdir(tempFolder, { recursive: true });
+    await fs.promises.mkdir(etiquettesFolder, { recursive: true });
+
+    // Générer les étiquettes
+    await generateStickers(jobList.jobs, tempFolder, true);
+
+    // Chemin du fichier PDF
+    const pdfPath = path.join(etiquettesFolder, `${sessionPRINTSA}.pdf`);
+
+    // Générer le PDF
+    await createStickersPage(tempFolder, pdfPath, 'A4');
+
+    // Lire et déplacer les fichiers
+    const files = await fs.promises.readdir(tempFolder);
+    await Promise.all(
+      files.map(async (file) => {
+        const oldPath = path.join(tempFolder, file);
+        const newPath = path.join(etiquettesFolder, file);
+        await fs.promises.rename(oldPath, newPath);
+      }),
+    );
+
+    // Supprimer le dossier temporaire
+    await fs.promises.rm(tempFolder, { recursive: true, force: true });
+  } catch (error) {
+    console.error('❌ Erreur lors de la génération des étiquettes :', error);
+    res.status(500).json({ error: 'Erreur lors de la génération des étiquettes' });
+  }
 });
 
 server.listen(PORT, async () => {
