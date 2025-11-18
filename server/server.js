@@ -153,200 +153,24 @@ let fileName = '',
   jpgTime,
   fileDownload;
 
+const testSession = require('../testSession.json');
 let jobList = {
-  jobs: [
-    {
-      _id: 1763384309041,
-      date: '2025-11-17T12:58:29.041Z',
-      cmd: 54542,
-      ville: 'LILLE',
-      format_visu: '3_150x210',
-      format_Plaque: '151x260',
-      visuel: 'ARCHE BEIGE 150x210+BLANC 94953554 MAT.pdf',
-      ref: 94953554,
-      ex: 1,
-      visuPath: 'server/public/standards/3_150x210/ARCHE BEIGE 150x210+BLANC 94953554 MAT.pdf',
-      writePath: 'C:\\Users\\Kongsberg\\Desktop\\JOE\\DEV\\decoGestion\\server\\public\\tmp\\Prod avec BLANC',
-      jpgName:
-        'public/PRINTSA#17 NOV 2025/54542 - LM LILLE - 151x260 - ARCHE BEIGE 150x210+BLANC 94953554 MAT 1_EX.jpg',
-      reg: true,
-      cut: false,
-      teinteMasse: false,
-      perte: 0.776,
-    },
-    {
-      _id: 1763384312757,
-      date: '2025-11-17T12:58:32.757Z',
-      cmd: 54542,
-      ville: 'LILLE',
-      format_visu: '3_150x210',
-      format_Plaque: '151x260',
-      visuel: 'ARCHE Bicolor 150x210+BLANC 94956063 MAT.pdf',
-      ref: 94956063,
-      ex: 1,
-      visuPath: 'server/public/standards/3_150x210/ARCHE Bicolor 150x210+BLANC 94956063 MAT.pdf',
-      writePath: 'C:\\Users\\Kongsberg\\Desktop\\JOE\\DEV\\decoGestion\\server\\public\\tmp\\Prod avec BLANC',
-      jpgName:
-        'public/PRINTSA#17 NOV 2025/54542 - LM LILLE - 151x260 - ARCHE Bicolor 150x210+BLANC 94956063 MAT 1_EX.jpg',
-      reg: true,
-      cut: false,
-      teinteMasse: false,
-      perte: 0.776,
-    },
-    {
-      _id: 1763384315366,
-      date: '2025-11-17T12:58:35.366Z',
-      cmd: 54542,
-      ville: 'LILLE',
-      format_visu: '3_150x210',
-      format_Plaque: '151x260',
-      visuel: 'ARCHE tricolor 150x210+BLANC 94956959 MAT.pdf',
-      ref: 94956959,
-      ex: 1,
-      visuPath: 'server/public/standards/3_150x210/ARCHE tricolor 150x210+BLANC 94956959 MAT.pdf',
-      writePath: 'C:\\Users\\Kongsberg\\Desktop\\JOE\\DEV\\decoGestion\\server\\public\\tmp\\Prod avec BLANC',
-      jpgName:
-        'public/PRINTSA#17 NOV 2025/54542 - LM LILLE - 151x260 - ARCHE tricolor 150x210+BLANC 94956959 MAT 1_EX.jpg',
-      reg: true,
-      cut: false,
-      teinteMasse: false,
-      perte: 0.776,
-    },
-    {
-      _id: 1763384328022,
-      date: '2025-11-17T12:58:48.022Z',
-      cmd: 54542,
-      ville: 'LILLE',
-      format_visu: '3_150x210',
-      format_Plaque: '151x260',
-      visuel: 'Bois Sans Noeud 150x210+BLANC 94963993 MAT.pdf',
-      ref: 94963993,
-      ex: 1,
-      visuPath: 'server/public/standards/3_150x210/Bois Sans Noeud 150x210+BLANC 94963993 MAT.pdf',
-      writePath: 'C:\\Users\\Kongsberg\\Desktop\\JOE\\DEV\\decoGestion\\server\\public\\tmp\\Prod avec BLANC',
-      jpgName:
-        'public/PRINTSA#17 NOV 2025/54542 - LM LILLE - 151x260 - Bois Sans Noeud 150x210+BLANC 94963993 MAT 1_EX.jpg',
-      reg: true,
-      cut: false,
-      teinteMasse: false,
-      perte: 0.776,
-    },
-
-    {
-      _id: 1763384358750,
-      date: '2025-11-17T12:59:18.750Z',
-      cmd: 54542,
-      ville: 'LILLE',
-      format_visu: '3_150x210',
-      format_Plaque: '151x260',
-      visuel: 'LAMBRIS Chêne CLAIR 150x210+BLANC 94956953 MAT.pdf',
-      ref: 94956953,
-      ex: 1,
-      visuPath: 'server/public/standards/3_150x210/LAMBRIS Chêne CLAIR 150x210+BLANC 94956953 MAT.pdf',
-      writePath: 'C:\\Users\\Kongsberg\\Desktop\\JOE\\DEV\\decoGestion\\server\\public\\tmp\\Prod avec BLANC',
-      jpgName:
-        'public/PRINTSA#17 NOV 2025/54542 - LM LILLE - 151x260 - LAMBRIS Chêne CLAIR 150x210+BLANC 94956953 MAT 1_EX.jpg',
-      reg: true,
-      cut: false,
-      teinteMasse: false,
-      perte: 0.776,
-    },
-    {
-      _id: 1763384372975,
-      date: '2025-11-17T12:59:32.975Z',
-      cmd: 54542,
-      ville: 'LILLE',
-      format_visu: '3_150x210',
-      format_Plaque: '151x260',
-      visuel: 'TRAVERTIN 150x210+BLANC 94953558 MAT.pdf',
-      ref: 94953558,
-      ex: 1,
-      visuPath: 'server/public/standards/3_150x210/TRAVERTIN 150x210+BLANC 94953558 MAT.pdf',
-      writePath: 'C:\\Users\\Kongsberg\\Desktop\\JOE\\DEV\\decoGestion\\server\\public\\tmp\\Prod avec BLANC',
-      jpgName: 'public/PRINTSA#17 NOV 2025/54542 - LM LILLE - 151x260 - TRAVERTIN 150x210+BLANC 94953558 MAT 1_EX.jpg',
-      reg: true,
-      cut: false,
-      teinteMasse: false,
-      perte: 0.776,
-    },
-    {
-      _id: 1763384391191,
-      date: '2025-11-17T12:59:51.191Z',
-      cmd: 54542,
-      ville: 'LILLE',
-      format_visu: '3_150x210',
-      format_Plaque: '151x260',
-      visuel: 'ZELLIE BLEU GRIS 150x210+BLANC 94964410 BRILLANT.pdf',
-      ref: 94964410,
-      ex: 1,
-      visuPath: 'server/public/standards/3_150x210/ZELLIE BLEU GRIS 150x210+BLANC 94964410 BRILLANT.pdf',
-      writePath: 'C:\\Users\\Kongsberg\\Desktop\\JOE\\DEV\\decoGestion\\server\\public\\tmp\\Prod avec BLANC',
-      jpgName:
-        'public/PRINTSA#17 NOV 2025/54542 - LM LILLE - 151x260 - ZELLIE BLEU GRIS 150x210+BLANC 94964410 BRILLANT 1_EX.jpg',
-      reg: true,
-      cut: false,
-      teinteMasse: false,
-      perte: 0.776,
-    },
-    {
-      _id: 1763384393742,
-      date: '2025-11-17T12:59:53.742Z',
-      cmd: 54542,
-      ville: 'LILLE',
-      format_visu: '3_150x210',
-      format_Plaque: '151x260',
-      visuel: 'ZELLIE BLEU 150x210+BLANC 94953569 BRILLANT.pdf',
-      ref: 94953569,
-      ex: 1,
-      visuPath: 'server/public/standards/3_150x210/ZELLIE BLEU 150x210+BLANC 94953569 BRILLANT.pdf',
-      writePath: 'C:\\Users\\Kongsberg\\Desktop\\JOE\\DEV\\decoGestion\\server\\public\\tmp\\Prod avec BLANC',
-      jpgName:
-        'public/PRINTSA#17 NOV 2025/54542 - LM LILLE - 151x260 - ZELLIE BLEU 150x210+BLANC 94953569 BRILLANT 1_EX.jpg',
-      reg: true,
-      cut: false,
-      teinteMasse: false,
-      perte: 0.776,
-    },
-    {
-      _id: 1763384401567,
-      date: '2025-11-17T13:00:01.567Z',
-      cmd: 54542,
-      ville: 'LILLE',
-      format_visu: '3_150x210',
-      format_Plaque: '151x260',
-      visuel: 'ZELLIE SAUGE 150x210+BLANC 94953539 BRILLANT.pdf',
-      ref: 94953539,
-      ex: 1,
-      visuPath: 'server/public/standards/3_150x210/ZELLIE SAUGE 150x210+BLANC 94953539 BRILLANT.pdf',
-      writePath: 'C:\\Users\\Kongsberg\\Desktop\\JOE\\DEV\\decoGestion\\server\\public\\tmp\\Prod avec BLANC',
-      jpgName:
-        'public/PRINTSA#17 NOV 2025/54542 - LM LILLE - 151x260 - ZELLIE SAUGE 150x210+BLANC 94953539 BRILLANT 1_EX.jpg',
-      reg: true,
-      cut: false,
-      teinteMasse: false,
-      perte: 0.776,
-    },
-    {
-      _id: 1763385168071,
-      date: '2025-11-17T13:12:48.071Z',
-      cmd: 54542,
-      ville: 'LILLE',
-      format_visu: '3_150x210',
-      format_Plaque: '151x260',
-      visuel: 'LINEA 150x210+BLANC 94964444 MAT.pdf',
-      ref: 94964444,
-      ex: 1,
-      visuPath: 'server/public/standards/3_150x210/LINEA 150x210+BLANC 94964444 MAT.pdf',
-      writePath: 'C:\\Users\\Kongsberg\\Desktop\\JOE\\DEV\\decoGestion\\server\\public\\tmp\\Prod avec BLANC',
-      jpgName: 'public/PRINTSA#17 NOV 2025/54542 - LM LILLE - 151x260 - LINEA 150x210+BLANC 94964444 MAT 1_EX.jpg',
-      reg: true,
-      cut: false,
-      teinteMasse: false,
-      perte: 0.776,
-    },
-  ],
+  jobs: testSession,
   completed: [],
 };
+
+//RESTAURATION JOBS SI PLANTAGE
+const backupPath = path.join(__dirname, './backups/jobs_backup.json');
+
+if (fs.existsSync(backupPath)) {
+  try {
+    const backupData = JSON.parse(fs.readFileSync(backupPath, 'utf8'));
+    jobList.jobs = backupData;
+    console.log('♻️ Jobs restaurés depuis le backup.');
+  } catch (e) {
+    console.error('❌ Erreur lors de la restauration du backup', e);
+  }
+}
 
 const server = http.createServer(app); // Créer le serveur HTTP
 const wss = new WebSocket.Server({ server: server });
@@ -528,6 +352,18 @@ app.post('/run_jobs', async (req, res) => {
   try {
     //Reset Jobs completed
     jobList.completed = [];
+
+    // 🔄 Backup des jobs avant exécution
+    const backupPath = path.join(__dirname, './backups/jobs_backup.json');
+
+    try {
+      fs.mkdirSync(path.join(__dirname, './backups'), { recursive: true });
+      fs.writeFileSync(backupPath, JSON.stringify(jobList.jobs, null, 2), 'utf8');
+      console.log('📝 Backup des jobs créé.');
+    } catch (e) {
+      console.error('❌ Impossible de créer le backup des jobs', e);
+    }
+
     const jobsToRun = [...jobList.jobs]; // Créer une copie pour éviter de modifier l'original pendant l'itération
     const startTime = performance.now();
     wss.clients.forEach((client) => {
@@ -682,6 +518,17 @@ app.post('/run_jobs', async (req, res) => {
     jobList.jobs = jobList.jobs.filter(
       (job) => !jobList.completed.some((completedJob) => completedJob._id === job._id),
     );
+
+    //  Suppression du backup après succès
+    try {
+      if (fs.existsSync(backupPath)) {
+        fs.unlinkSync(backupPath);
+        console.log('✔️ Backup supprimé après exécution des jobs');
+      }
+    } catch (e) {
+      console.error('❌ Impossible de supprimer le backup', e);
+    }
+
     const endTime = performance.now();
     wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
