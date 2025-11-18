@@ -14,6 +14,7 @@ async function generateStickers(commande, outPath, showDataCmd = false) {
     console.error('La commande est vide ou non valide.');
     return;
   }
+
   if (!fs.existsSync(outPath)) {
     fs.mkdirSync(outPath, { recursive: true });
   }

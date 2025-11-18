@@ -156,11 +156,12 @@ input {
 }
 
 .container-buttons {
-  padding-top: 14px;
-  padding-left: 20px;
-  margin-bottom: 24px;
   display: flex;
   flex-direction: row;
+  justify-items: center;
+  width: 100%;
+  margin-left: 14px;
+  margin-top: 24px;
 }
 
 .container-buttons .ui.button.compact {
@@ -171,10 +172,10 @@ input {
 }
 
 .config-button .ui.button {
-  width: 50px;
-  height: 30px;
-  margin-right: 0;
-  margin-left: 100%;
+  width: 60px;
+  height: max-content;
+  min-height: max-content;
+  margin-left: 50px;
 }
 
 .format-tauro {

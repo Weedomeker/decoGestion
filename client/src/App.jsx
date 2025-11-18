@@ -72,6 +72,19 @@ function App() {
     error: null,
   });
 
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = ''; // nécessaire pour Chrome
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+
   //Get Format Tauro
   useEffect(() => {
     fetch(`http://${HOST}:${PORT}/formatsTauro`, {
@@ -597,8 +610,6 @@ function App() {
               <Icon name="file" fitted />
             </ButtonContent>
           </Button>
-
-          {/* Config */}
           <Config />
         </div>
       </div>

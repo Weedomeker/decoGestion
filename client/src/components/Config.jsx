@@ -74,9 +74,9 @@ function Config() {
       size="small"
       trigger={
         <div className="config-button">
-          <Button animated="fade" compact color="black" type="button">
+          <Button animated="fade" color="black" type="button">
             <ButtonContent visible>
-              <Icon name="cogs" fitted />
+              <Icon name="cogs" />
             </ButtonContent>
             <ButtonContent hidden>Config</ButtonContent>
           </Button>

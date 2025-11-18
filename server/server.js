@@ -35,6 +35,7 @@ const { generateStickers, createStickersPage } = require('./src/generateStickers
 const { processAllPDFs } = require('./src/generatePreview');
 const { cmToPxl } = require('./src/convertUnits');
 const generateImages = require('./src/generateImages');
+const getPreview = require('./src/getPreview');
 
 const log = console.log;
 
@@ -153,7 +154,197 @@ let fileName = '',
   fileDownload;
 
 let jobList = {
-  jobs: [],
+  jobs: [
+    {
+      _id: 1763384309041,
+      date: '2025-11-17T12:58:29.041Z',
+      cmd: 54542,
+      ville: 'LILLE',
+      format_visu: '3_150x210',
+      format_Plaque: '151x260',
+      visuel: 'ARCHE BEIGE 150x210+BLANC 94953554 MAT.pdf',
+      ref: 94953554,
+      ex: 1,
+      visuPath: 'server/public/standards/3_150x210/ARCHE BEIGE 150x210+BLANC 94953554 MAT.pdf',
+      writePath: 'C:\\Users\\Kongsberg\\Desktop\\JOE\\DEV\\decoGestion\\server\\public\\tmp\\Prod avec BLANC',
+      jpgName:
+        'public/PRINTSA#17 NOV 2025/54542 - LM LILLE - 151x260 - ARCHE BEIGE 150x210+BLANC 94953554 MAT 1_EX.jpg',
+      reg: true,
+      cut: false,
+      teinteMasse: false,
+      perte: 0.776,
+    },
+    {
+      _id: 1763384312757,
+      date: '2025-11-17T12:58:32.757Z',
+      cmd: 54542,
+      ville: 'LILLE',
+      format_visu: '3_150x210',
+      format_Plaque: '151x260',
+      visuel: 'ARCHE Bicolor 150x210+BLANC 94956063 MAT.pdf',
+      ref: 94956063,
+      ex: 1,
+      visuPath: 'server/public/standards/3_150x210/ARCHE Bicolor 150x210+BLANC 94956063 MAT.pdf',
+      writePath: 'C:\\Users\\Kongsberg\\Desktop\\JOE\\DEV\\decoGestion\\server\\public\\tmp\\Prod avec BLANC',
+      jpgName:
+        'public/PRINTSA#17 NOV 2025/54542 - LM LILLE - 151x260 - ARCHE Bicolor 150x210+BLANC 94956063 MAT 1_EX.jpg',
+      reg: true,
+      cut: false,
+      teinteMasse: false,
+      perte: 0.776,
+    },
+    {
+      _id: 1763384315366,
+      date: '2025-11-17T12:58:35.366Z',
+      cmd: 54542,
+      ville: 'LILLE',
+      format_visu: '3_150x210',
+      format_Plaque: '151x260',
+      visuel: 'ARCHE tricolor 150x210+BLANC 94956959 MAT.pdf',
+      ref: 94956959,
+      ex: 1,
+      visuPath: 'server/public/standards/3_150x210/ARCHE tricolor 150x210+BLANC 94956959 MAT.pdf',
+      writePath: 'C:\\Users\\Kongsberg\\Desktop\\JOE\\DEV\\decoGestion\\server\\public\\tmp\\Prod avec BLANC',
+      jpgName:
+        'public/PRINTSA#17 NOV 2025/54542 - LM LILLE - 151x260 - ARCHE tricolor 150x210+BLANC 94956959 MAT 1_EX.jpg',
+      reg: true,
+      cut: false,
+      teinteMasse: false,
+      perte: 0.776,
+    },
+    {
+      _id: 1763384328022,
+      date: '2025-11-17T12:58:48.022Z',
+      cmd: 54542,
+      ville: 'LILLE',
+      format_visu: '3_150x210',
+      format_Plaque: '151x260',
+      visuel: 'Bois Sans Noeud 150x210+BLANC 94963993 MAT.pdf',
+      ref: 94963993,
+      ex: 1,
+      visuPath: 'server/public/standards/3_150x210/Bois Sans Noeud 150x210+BLANC 94963993 MAT.pdf',
+      writePath: 'C:\\Users\\Kongsberg\\Desktop\\JOE\\DEV\\decoGestion\\server\\public\\tmp\\Prod avec BLANC',
+      jpgName:
+        'public/PRINTSA#17 NOV 2025/54542 - LM LILLE - 151x260 - Bois Sans Noeud 150x210+BLANC 94963993 MAT 1_EX.jpg',
+      reg: true,
+      cut: false,
+      teinteMasse: false,
+      perte: 0.776,
+    },
+
+    {
+      _id: 1763384358750,
+      date: '2025-11-17T12:59:18.750Z',
+      cmd: 54542,
+      ville: 'LILLE',
+      format_visu: '3_150x210',
+      format_Plaque: '151x260',
+      visuel: 'LAMBRIS Chêne CLAIR 150x210+BLANC 94956953 MAT.pdf',
+      ref: 94956953,
+      ex: 1,
+      visuPath: 'server/public/standards/3_150x210/LAMBRIS Chêne CLAIR 150x210+BLANC 94956953 MAT.pdf',
+      writePath: 'C:\\Users\\Kongsberg\\Desktop\\JOE\\DEV\\decoGestion\\server\\public\\tmp\\Prod avec BLANC',
+      jpgName:
+        'public/PRINTSA#17 NOV 2025/54542 - LM LILLE - 151x260 - LAMBRIS Chêne CLAIR 150x210+BLANC 94956953 MAT 1_EX.jpg',
+      reg: true,
+      cut: false,
+      teinteMasse: false,
+      perte: 0.776,
+    },
+    {
+      _id: 1763384372975,
+      date: '2025-11-17T12:59:32.975Z',
+      cmd: 54542,
+      ville: 'LILLE',
+      format_visu: '3_150x210',
+      format_Plaque: '151x260',
+      visuel: 'TRAVERTIN 150x210+BLANC 94953558 MAT.pdf',
+      ref: 94953558,
+      ex: 1,
+      visuPath: 'server/public/standards/3_150x210/TRAVERTIN 150x210+BLANC 94953558 MAT.pdf',
+      writePath: 'C:\\Users\\Kongsberg\\Desktop\\JOE\\DEV\\decoGestion\\server\\public\\tmp\\Prod avec BLANC',
+      jpgName: 'public/PRINTSA#17 NOV 2025/54542 - LM LILLE - 151x260 - TRAVERTIN 150x210+BLANC 94953558 MAT 1_EX.jpg',
+      reg: true,
+      cut: false,
+      teinteMasse: false,
+      perte: 0.776,
+    },
+    {
+      _id: 1763384391191,
+      date: '2025-11-17T12:59:51.191Z',
+      cmd: 54542,
+      ville: 'LILLE',
+      format_visu: '3_150x210',
+      format_Plaque: '151x260',
+      visuel: 'ZELLIE BLEU GRIS 150x210+BLANC 94964410 BRILLANT.pdf',
+      ref: 94964410,
+      ex: 1,
+      visuPath: 'server/public/standards/3_150x210/ZELLIE BLEU GRIS 150x210+BLANC 94964410 BRILLANT.pdf',
+      writePath: 'C:\\Users\\Kongsberg\\Desktop\\JOE\\DEV\\decoGestion\\server\\public\\tmp\\Prod avec BLANC',
+      jpgName:
+        'public/PRINTSA#17 NOV 2025/54542 - LM LILLE - 151x260 - ZELLIE BLEU GRIS 150x210+BLANC 94964410 BRILLANT 1_EX.jpg',
+      reg: true,
+      cut: false,
+      teinteMasse: false,
+      perte: 0.776,
+    },
+    {
+      _id: 1763384393742,
+      date: '2025-11-17T12:59:53.742Z',
+      cmd: 54542,
+      ville: 'LILLE',
+      format_visu: '3_150x210',
+      format_Plaque: '151x260',
+      visuel: 'ZELLIE BLEU 150x210+BLANC 94953569 BRILLANT.pdf',
+      ref: 94953569,
+      ex: 1,
+      visuPath: 'server/public/standards/3_150x210/ZELLIE BLEU 150x210+BLANC 94953569 BRILLANT.pdf',
+      writePath: 'C:\\Users\\Kongsberg\\Desktop\\JOE\\DEV\\decoGestion\\server\\public\\tmp\\Prod avec BLANC',
+      jpgName:
+        'public/PRINTSA#17 NOV 2025/54542 - LM LILLE - 151x260 - ZELLIE BLEU 150x210+BLANC 94953569 BRILLANT 1_EX.jpg',
+      reg: true,
+      cut: false,
+      teinteMasse: false,
+      perte: 0.776,
+    },
+    {
+      _id: 1763384401567,
+      date: '2025-11-17T13:00:01.567Z',
+      cmd: 54542,
+      ville: 'LILLE',
+      format_visu: '3_150x210',
+      format_Plaque: '151x260',
+      visuel: 'ZELLIE SAUGE 150x210+BLANC 94953539 BRILLANT.pdf',
+      ref: 94953539,
+      ex: 1,
+      visuPath: 'server/public/standards/3_150x210/ZELLIE SAUGE 150x210+BLANC 94953539 BRILLANT.pdf',
+      writePath: 'C:\\Users\\Kongsberg\\Desktop\\JOE\\DEV\\decoGestion\\server\\public\\tmp\\Prod avec BLANC',
+      jpgName:
+        'public/PRINTSA#17 NOV 2025/54542 - LM LILLE - 151x260 - ZELLIE SAUGE 150x210+BLANC 94953539 BRILLANT 1_EX.jpg',
+      reg: true,
+      cut: false,
+      teinteMasse: false,
+      perte: 0.776,
+    },
+    {
+      _id: 1763385168071,
+      date: '2025-11-17T13:12:48.071Z',
+      cmd: 54542,
+      ville: 'LILLE',
+      format_visu: '3_150x210',
+      format_Plaque: '151x260',
+      visuel: 'LINEA 150x210+BLANC 94964444 MAT.pdf',
+      ref: 94964444,
+      ex: 1,
+      visuPath: 'server/public/standards/3_150x210/LINEA 150x210+BLANC 94964444 MAT.pdf',
+      writePath: 'C:\\Users\\Kongsberg\\Desktop\\JOE\\DEV\\decoGestion\\server\\public\\tmp\\Prod avec BLANC',
+      jpgName: 'public/PRINTSA#17 NOV 2025/54542 - LM LILLE - 151x260 - LINEA 150x210+BLANC 94964444 MAT 1_EX.jpg',
+      reg: true,
+      cut: false,
+      teinteMasse: false,
+      perte: 0.776,
+    },
+  ],
   completed: [],
 };
 
@@ -252,7 +443,6 @@ app.post('/add_job', (req, res) => {
     /\.[^/.]+$/,
     '',
   )} ${data.ex}_EX`;
-  console.log(fileName);
   //Verifier si dossiers exist si pas le créer
   if (fs.existsSync(writePath) && fs.existsSync(`${jpgPath}/${sessionPRINTSA}`)) {
     pdfName = writePath + '/' + fileName;
@@ -361,7 +551,6 @@ app.post('/run_jobs', async (req, res) => {
       const fileName = `${job.cmd} - LM ${job.ville.toUpperCase()} - ${
         job.teinteMasse ? job.format_visu.split('_').pop() : job.format_Plaque.split('_').pop()
       } - ${job.visuel.replace(/\.[^/.]+$/, '')} ${job.ex}_EX`;
-      console.log(fileName);
 
       // Vérifier si dossiers existent, sinon les créer
       const sortFolder = req.body.sortFolder;
@@ -410,7 +599,13 @@ app.post('/run_jobs', async (req, res) => {
         // Générer image
         try {
           let startJpg = performance.now();
-          await _useWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
+          if (job.ref) {
+            getPreview(job.ref, jpgName);
+            // await _useWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
+          } else {
+            await _useWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
+            console.log('Image génerée');
+          }
           let endJpg = performance.now();
           jpgTime = endJpg - startJpg;
           console.log(
@@ -691,40 +886,66 @@ app.get('/jobs', async (req, res) => {
 // Generer stickers uniquement
 app.post('/generate_stickers', async (req, res) => {
   try {
+    jobList.completed = [];
+    const jobsToRun = [...jobList.jobs]; // copie des jobs
+
+    if (!sessionPRINTSA) {
+      return res.status(400).json({ error: 'sessionPRINTSA est manquant' });
+    }
+
     const baseFolder = path.join(__dirname, `./public/${sessionPRINTSA}`);
     const tempFolder = path.join(baseFolder, '_tmp');
     const etiquettesFolder = path.join(baseFolder, 'Etiquettes');
 
-    // Vérifier et créer les dossiers si nécessaires
+    const startTime = performance.now();
+    broadcastWS({ type: 'start', startTime });
+
+    // Création des dossiers
     await fs.promises.mkdir(tempFolder, { recursive: true });
     await fs.promises.mkdir(etiquettesFolder, { recursive: true });
 
-    // Générer les étiquettes
-    await generateStickers(jobList.jobs, tempFolder, true);
+    // Génération des stickers
+    const startGenerateStickers = performance.now();
+    await generateStickers(jobsToRun, tempFolder, true);
 
-    // Chemin du fichier PDF
+    // Génération du PDF final
     const pdfPath = path.join(etiquettesFolder, `${sessionPRINTSA}.pdf`);
-
-    // Générer le PDF
     await createStickersPage(tempFolder, pdfPath, 'A4');
 
-    // Lire et déplacer les fichiers
+    // Déplacement des images générées vers Etiquettes/
     const files = await fs.promises.readdir(tempFolder);
     await Promise.all(
-      files.map(async (file) => {
-        const oldPath = path.join(tempFolder, file);
-        const newPath = path.join(etiquettesFolder, file);
-        await fs.promises.rename(oldPath, newPath);
-      }),
+      files.map((file) => fs.promises.rename(path.join(tempFolder, file), path.join(etiquettesFolder, file))),
     );
 
-    // Supprimer le dossier temporaire
+    // Ajouter les jobs complétés (bonne méthode)
+    jobList.completed.push(...jobsToRun);
+    broadcastCompletedJob(jobsToRun);
+
+    // Retirer les jobs accomplis (fiable via _id)
+    jobList.jobs = jobList.jobs.filter((job) => !jobsToRun.some((j) => j._id === job._id));
+
+    // Suppression du dossier temporaire
     await fs.promises.rm(tempFolder, { recursive: true, force: true });
+
+    const endTime = performance.now();
+    broadcastWS({ type: 'end', endTime });
+
+    res.status(200).json({ message: 'Étiquettes générées avec succès !' });
   } catch (error) {
     console.error('❌ Erreur lors de la génération des étiquettes :', error);
     res.status(500).json({ error: 'Erreur lors de la génération des étiquettes' });
   }
 });
+
+// Helper WebSocket
+function broadcastWS(data) {
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(data));
+    }
+  });
+}
 
 server.listen(PORT, async () => {
   await checkVersion()

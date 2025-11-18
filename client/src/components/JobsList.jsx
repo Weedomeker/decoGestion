@@ -4,9 +4,7 @@ import {
   Button,
   ButtonContent,
   Checkbox,
-  Dropdown,
   Icon,
-  Label,
   Progress,
   Table,
   TableBody,
@@ -30,9 +28,9 @@ function JobsList({ show, formatTauro }) {
   const [endTime, setEndTime] = useState(null);
   const [onLoading, setOnLoading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [sortFolder, setSortFolder] = useState(false);
-  const [stickersData, setStickersData] = useState(true);
-  const [paperSticker, setPaperSticker] = useState('A4');
+  const [stickersOnly, setStickersOnly] = useState(false);
+  // const [stickersData, setStickersData] = useState(true);
+  // const [paperSticker, setPaperSticker] = useState('A4');
   const [filter, setFilter] = useState([]);
 
   useEffect(() => {
@@ -77,14 +75,26 @@ function JobsList({ show, formatTauro }) {
 
       if (message.completedJob) {
         setData((prevData) => {
-          const updatedCompleted = [...prevData[0].completed, message.completedJob];
-          const updatedJobs = prevData[0].jobs.filter((job) => job._id !== message.completedJob._id);
+          const prev = prevData[0];
+
+          // Toujours transformer recu en tableau
+          const completedJobs = Array.isArray(message.completedJob) ? message.completedJob : [message.completedJob];
+
+          // Ajouter les jobs complétés au tableau completed
+          const updatedCompleted = [...prev.completed, ...completedJobs];
+
+          // Supprimer ces jobs de la liste jobs
+          const updatedJobs = prev.jobs.filter((job) => !completedJobs.some((cj) => cj._id === job._id));
+
           // Mise à jour de la progression
-          const newProgress = (updatedCompleted.length / (updatedJobs.length + updatedCompleted.length)) * 100;
+          const total = updatedCompleted.length + updatedJobs.length;
+          const newProgress = (updatedCompleted.length / total) * 100;
           setProgress(newProgress);
+
           return [{ jobs: updatedJobs, completed: updatedCompleted }];
         });
       }
+
       if (message.type === 'end') {
         setEndTime(message.endTime);
         setOnLoading(false);
@@ -118,6 +128,24 @@ function JobsList({ show, formatTauro }) {
     dataFetch();
   }, []);
 
+  const handleGenerateStickers = async () => {
+    try {
+      const response = await fetch(`http://${HOST}:${PORT}/generate_stickers`, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        console.error('Failed to generate stickers:', response.statusText);
+        return;
+      }
+
+      console.log('Stickers generated successfully');
+    } catch (error) {
+      console.error('Error deleting jobs:', error);
+    }
+  };
+
   const checkVernis = (value) => {
     value = value.toLowerCase();
     // S'assurer que value est une chaîne
@@ -143,9 +171,9 @@ function JobsList({ show, formatTauro }) {
         body: JSON.stringify({
           run: true,
           formatTauro: formatTauro,
-          sortFolder: sortFolder,
-          stickersData: stickersData,
-          paperSticker: paperSticker,
+          // sortFolder: sortFolder,
+          // stickersData: stickersData,
+          // paperSticker: paperSticker,
         }),
       });
 
@@ -228,25 +256,26 @@ function JobsList({ show, formatTauro }) {
       }
 
       const title = value.jpgName.split('/').pop();
-      let url = '';
-      const ifSatin = checkVernis(value.jpgName) === '_S';
-      if (checkVernis(value.jpgName) !== undefined && sortFolder) {
-        url =
-          `http://${HOST}:${PORT}/public/` +
-          value.jpgName.split('/')[0] +
-          '/' +
-          value.jpgName.split('/')[1].replace(/#/i, '%23') +
-          '/' +
-          checkVernis(value.jpgName) +
-          '/' +
-          value.jpgName.split('/')[2];
+      const url = `http://${HOST}:${PORT}/public/` + value.jpgName.replace(/#/i, '%23');
 
-        if (ifSatin) {
-          url = url.replace('_S', 'Satin');
-        }
-      } else {
-        url = `http://${HOST}:${PORT}/public/` + value.jpgName.replace(/#/i, '%23');
-      }
+      // const ifSatin = checkVernis(value.jpgName) === '_S';
+      // if (checkVernis(value.jpgName) !== undefined && sortFolder) {
+      //   url =
+      //     `http://${HOST}:${PORT}/public/` +
+      //     value.jpgName.split('/')[0] +
+      //     '/' +
+      //     value.jpgName.split('/')[1].replace(/#/i, '%23') +
+      //     '/' +
+      //     checkVernis(value.jpgName) +
+      //     '/' +
+      //     value.jpgName.split('/')[2];
+
+      //   if (ifSatin) {
+      //     url = url.replace('_S', 'Satin');
+      //   }
+      // } else {
+      //   url = `http://${HOST}:${PORT}/public/` + value.jpgName.replace(/#/i, '%23');
+      // }
       return (
         <TableRow
           key={i}
@@ -260,7 +289,7 @@ function JobsList({ show, formatTauro }) {
           <TableCell className="table-cell">{value.cmd}</TableCell>
           <TableCell className="table-cell">{value.ville}</TableCell>
           <TableCell className="table-cell ">
-            {status === 'completed' ? (
+            {!stickersOnly && status === 'completed' ? (
               <a href={url} data-lightbox={title} data-title={title}>
                 {visuel}
               </a>
@@ -322,24 +351,51 @@ function JobsList({ show, formatTauro }) {
                 <TableHeaderCell colSpan="10" collapsing>
                   <div className="sticky-footer-content">
                     <div className="checkbox-footer">
-                      {!onLoading && (
-                        <Button
-                          type="button"
-                          color="red"
-                          animated="fade"
-                          size="small"
-                          compact
-                          onClick={() => runJobsList()}
-                          disabled={onLoading}
-                        >
-                          <ButtonContent visible>
-                            <Icon name="send" inverted />
-                          </ButtonContent>
-                          <ButtonContent hidden content="Traiter la file" />
-                        </Button>
-                      )}
+                      {!onLoading &&
+                        (stickersOnly ? (
+                          <Button
+                            type="button"
+                            color="green"
+                            animated="fade"
+                            size="small"
+                            compact
+                            onClick={() => handleGenerateStickers()}
+                            disabled={onLoading}
+                          >
+                            <ButtonContent visible>
+                              <Icon name="file text" inverted />
+                            </ButtonContent>
+                            <ButtonContent hidden content="Générer stickers" />
+                          </Button>
+                        ) : (
+                          <Button
+                            type="button"
+                            color="red"
+                            animated="fade"
+                            size="small"
+                            compact
+                            onClick={() => runJobsList()}
+                            disabled={onLoading}
+                          >
+                            <ButtonContent visible>
+                              <Icon name="send" inverted />
+                            </ButtonContent>
+                            <ButtonContent hidden content="Traiter la file" />
+                          </Button>
+                        ))}
 
                       {!onLoading && (
+                        <Checkbox
+                          label="Générer stickers seulement"
+                          checked={stickersOnly}
+                          toggle
+                          onChange={(e, data) => {
+                            setStickersOnly(data.checked);
+                          }}
+                        />
+                      )}
+
+                      {/* {!onLoading && (
                         <Checkbox
                           label="Trier lasers texturé"
                           checked={sortFolder}
@@ -375,7 +431,7 @@ function JobsList({ show, formatTauro }) {
                             setStickersData(data.checked);
                           }}
                         />
-                      )}
+                      )} */}
 
                       {onLoading && (
                         <Progress
