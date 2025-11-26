@@ -15,7 +15,6 @@ function PreviewDeco({ fileSelected, show }) {
       .then((res) => res.json())
       .then((data) => {
         if (data[0].Preview) setPreviewList(data[0].Preview);
-        console.log(data[0].Preview);
       })
       .catch((err) => console.error('Erreur preview:', err));
   }, []);

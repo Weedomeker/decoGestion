@@ -36,6 +36,7 @@ const { processAllPDFs } = require('./src/generatePreview');
 const { cmToPxl } = require('./src/convertUnits');
 const generateImages = require('./src/generateImages');
 const getPreview = require('./src/getPreview');
+const findStock = require('./src/findStock');
 
 const log = console.log;
 
@@ -153,9 +154,9 @@ let fileName = '',
   jpgTime,
   fileDownload;
 
-const testSession = require('../testSession.json');
+// const testSession = require('../testSession.json');
 let jobList = {
-  jobs: testSession,
+  jobs: [],
   completed: [],
 };
 
@@ -231,7 +232,7 @@ app.patch('/edit_job', async (req, res) => {
   res.status(200).json({ message: 'Objet mis à jour avec succès', object: jobList.jobs[objIndex] });
 });
 
-app.post('/add_job', (req, res) => {
+app.post('/add_job', async (req, res) => {
   const data = {
     allFormatTauro: req.body.allFormatTauro,
     formatTauro: req.body.formatTauro,
@@ -289,7 +290,7 @@ app.post('/add_job', (req, res) => {
   const perteCalc = parseFloat(widthPlaque * heightPlaque - widthVisu * heightVisu) / 10000;
 
   // JOBS LIST STANDBY
-  const matchRef = visuel.match(/\d{8}/); // Recherche une séquence de 8 chiffres
+  const matchRef = visuel.match(/\d{8}/) || visuel.match(/\d{13}/); // Recherche une séquence de 8 chiffres
   const newJob = createJob(
     data.numCmd,
     data.ville,
@@ -322,10 +323,18 @@ app.post('/add_job', (req, res) => {
 
   const result = compareAndAddObject(jobList.jobs, newJob);
 
+  //Vérifier si model déjà en stock
+  const modelStock = [];
+  await findStock(matchRef[0]).then((stock) => {
+    if (!stock) return;
+    const { visuel, finition, format, ref, ex } = stock;
+    modelStock.push(visuel, ref, format, finition, ex);
+  });
+
   if (result.exist) {
     return res.status(200).json({ message: 'Commande déjà existante', object: result.object });
   } else {
-    return res.status(201).json({ message: 'Commande ajoutée', object: result.object });
+    return res.status(201).json({ message: 'Commande ajoutée', object: result.object, stock: modelStock });
   }
 });
 

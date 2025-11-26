@@ -10,6 +10,7 @@ import FormatTauro from './components/FormatTauro';
 import Header from './components/Header';
 import InfoMessage from './components/InfoMessage';
 import InfoModal from './components/InfoModal';
+import InfoStockModal from './components/InfoStockModal';
 import JobsList from './components/JobsList';
 import LouisPreview from './components/LouisPreview';
 import Place from './components/Place';
@@ -70,6 +71,10 @@ function App() {
     message: '',
     object: null,
     error: null,
+  });
+  const [modalInfoStock, setModalInfoStock] = useState({
+    open: false,
+    stock: [],
   });
 
   useEffect(() => {
@@ -158,6 +163,13 @@ function App() {
     });
   };
 
+  const handleCloseStock = () => {
+    setModalInfoStock({
+      open: false,
+      stock: [],
+    });
+  };
+
   const handleJobSubmit = async (e) => {
     e.preventDefault();
     const form = document.querySelector('form');
@@ -186,6 +198,7 @@ function App() {
         body: JSON.stringify(data),
       });
       const result = await response.json();
+
       if (!response.ok) {
         throw new Error(result.error || 'Une erreur est survenue');
       }
@@ -199,6 +212,12 @@ function App() {
         });
       } else {
         setIsShowJobsList(true);
+        if (result.stock.length > 0) {
+          setModalInfoStock({
+            open: true,
+            stock: result.stock,
+          });
+        }
       }
     } catch (err) {
       setModalData({
@@ -633,6 +652,9 @@ function App() {
         object={modalData.object}
         error={modalData.error}
       />
+
+      {/* Info Stock Modal */}
+      <InfoStockModal open={modalInfoStock.open} onClose={handleCloseStock} stock={modalInfoStock.stock} />
 
       {/* FOOTER */}
       <Footer active={!isFooter} />
