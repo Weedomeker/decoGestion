@@ -32,3 +32,5 @@ test/visu
 *.pem
 *.key
 config.json
+visu_casto/
+*.pdf
