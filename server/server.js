@@ -430,7 +430,7 @@ app.post('/run_jobs', async (req, res) => {
       if (!job.teinteMasse) {
         try {
           let startPdf = performance.now();
-          await modifyPdf(job.visuPath, job.writePath, fileName, job.format_visu, job.format_Plaque, job.reg, job);
+          await modifyPdf(job.visuPath, job.writePath, fileName, job.format_visu, job.format_Plaque, job.reg);
           let endPdf = performance.now();
           pdfTime = endPdf - startPdf;
           console.log(

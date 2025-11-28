@@ -31,6 +31,7 @@ function placePanels({ plateW, plateH, sizes, spacing }) {
 }
 
 // --- Fonction principale ---
+
 async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = true) {
   try {
     const pdfDoc = await PDFDocument.create();
@@ -82,11 +83,12 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
     if (!positions) throw new Error('Impossible de placer les panneaux');
 
     // --- Dessin final ---
+    // Pour stocker les textes fichiers
     const text = [];
-    const sizeMaxVisuel = [
-      embeddedPanels[0].renderW > embeddedPanels[1].renderW ? embeddedPanels[0].renderW : embeddedPanels[1].renderW,
-      embeddedPanels[0].renderH > embeddedPanels[1].renderH ? embeddedPanels[0].renderH : embeddedPanels[1].renderH,
-    ];
+    // Pour stocker les positions maximales
+    const positionMin = [];
+    const positionMax = [];
+
     for (let i = 0; i < embeddedPanels.length; i++) {
       const p = embeddedPanels[i];
       let pos = { ...positions[i] };
@@ -99,6 +101,10 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
         pos.x = cx + p.realH / 2;
         pos.y = cy - p.realW / 2;
       }
+
+      // Calcul des positions minimales et maximales pour vérification
+      positionMin.push({ x: pos.x - p.renderW, y: pos.y });
+      positionMax.push({ x: pos.x, y: pos.y + p.renderH });
 
       page.drawPage(p.embedded, {
         x: pos.x,
@@ -121,22 +127,29 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
       color: rgb(0, 0, 0),
       rotate: degrees(90),
     });
+    // Récupère tous les Y minimaux et maximaux dans un seul tableau
+    const allY = [...positionMin.map((p) => p.y), ...positionMax.map((p) => p.y)];
+    const allX = [...positionMin.map((p) => p.x), ...positionMax.map((p) => p.x)];
 
+    // Hauteur minimale globale
+    const globalMinY = Math.min(...allY);
+    const globalMaxY = Math.max(...allY);
+
+    const globalMinX = Math.min(...allX);
+    const globalMaxX = Math.max(...allX);
+    // (Optionnel) conversion en cm pour debug
+    console.log('MinY global (cm):', pointsToCm(globalMinY));
+    console.log('MaxY global (cm):', pointsToCm(globalMaxY));
     // ---Insertion Regmarks ---
-    const maxSizeX = sizeMaxVisuel[0];
-    const maxSizeY = sizeMaxVisuel[1];
-    const maxSizeXcm = Number(pointsToCm(maxSizeX).toFixed(2));
-    const maxSizeYcm = Number(pointsToCm(maxSizeY).toFixed(2));
-    console.log(maxSizeXcm, maxSizeYcm);
     if (reg) {
-      // const drawRegmarks = (xReg, yReg, sizeReg = 0.6) => {
-      //   page.drawCircle({
-      //     x: xReg, // haut - bas
-      //     y: yReg, // gauche - droite
-      //     size: cmToPoints(sizeReg / 2), // Conversion de cm à points pour la taille du cercle
-      //     color: rgb(0, 0, 0),
-      //   });
-      // };
+      const drawRegmarks = (xReg, yReg, sizeReg = 0.6) => {
+        page.drawCircle({
+          x: xReg, // haut - bas
+          y: yReg, // gauche - droite
+          size: cmToPoints(sizeReg / 2), // Conversion de cm à points pour la taille du cercle
+          color: rgb(0, 0, 0),
+        });
+      };
       // Calcul de la position des repères en points (en utilisant cmToPoints)
       let regSize = cmToPoints(0.3);
       let regPosition = regSize + cmToPoints(1);
@@ -146,13 +159,12 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
       //                         |
       //                         |
       // 3 --------------------- 5
+      drawRegmarks(globalMinX, globalMinY - regPosition); //1
+      drawRegmarks(globalMinX + cmToPoints(10), globalMinY - regPosition); //2
+      drawRegmarks(globalMaxX, globalMinY - regPosition); // 3
 
-      // drawRegmarks(width - regPosition, height + regPosition); //1
-      // drawRegmarks(width - regPosition - cmToPoints(10), height + regPosition); //2
-      // drawRegmarks(regPosition, height + regPosition); // 3
-
-      // drawRegmarks(width - regPosition, -regPosition); // 4
-      // drawRegmarks(regPosition, -regPosition); // 5
+      drawRegmarks(globalMinX, globalMaxY + regPosition); // 4
+      drawRegmarks(globalMaxX, globalMaxY + regPosition); // 5
     }
 
     // --- Sauvegarde ---
@@ -169,8 +181,14 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
 modifyPdf(
   {
     visuals: [
-      { file: './visu_casto/visuA.pdf', name: '54542 - CASTO LILLE - 101x215 - 5Galets_73800965_100x200_S_  1_EX' },
-      { file: './visu_casto/visuB.pdf', name: '58584 - CASTO MARSEILLE - 101x215 - 5Galets_73800965_100x200_S_  1_EX' },
+      {
+        file: './visu_casto/visuA.pdf',
+        name: '54542 - CASTO LILLE - 101x215 - 5Galets_73800965_100x200_S_  1_EX',
+      },
+      {
+        file: './visu_casto/visuB.pdf',
+        name: '58584 - CASTO MARSEILLE - 101x215 - 5Galets_73800965_100x200_S_  1_EX',
+      },
     ],
     plaque: '150x305',
     spacing: null,

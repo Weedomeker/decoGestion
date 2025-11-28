@@ -5,13 +5,13 @@ const PORT = process.env.PORT || 8000;
 const fs = require('fs');
 const { cmToPoints, pointsToCm, cmToPxl } = require('./convertUnits');
 
-async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg, data) {
+async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg) {
   try {
     const readPdf = await fs.promises.readFile(filePath);
     const pdfDoc = await PDFDocument.load(readPdf);
     const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-    const [wSize, hSize] = format.split('x').map(Number);
+    // const [wSize, hSize] = format.split('x').map(Number);
     const pages = pdfDoc.getPages();
     const firstPage = pages[0];
     const { width, height } = firstPage.getSize();
@@ -19,7 +19,7 @@ async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg
     const fTauro = formatTauro.split('_').pop();
     const [largeurPlaqueCm, longueurPlaqueCm] = fTauro.split('x').map(Number);
 
-    // Utiliser cmToPoints pour avoir des coordonnées cohérentes
+    // Utiliser cmToPoints pour avoir des coordonnées cohérentesö
     const largeurPlaque = cmToPoints(largeurPlaqueCm);
     const longueurPlaque = cmToPoints(longueurPlaqueCm);
 
