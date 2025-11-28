@@ -1,6 +1,6 @@
 const { PDFDocument, degrees, StandardFonts, rgb } = require('pdf-lib');
 const fs = require('fs');
-const { cmToPoints } = require('./server/src/convertUnits');
+const { cmToPoints, pointsToCm } = require('./server/src/convertUnits');
 
 // --- Placement des panneaux ---
 function placeOne(plateW, plateH, w, h) {
@@ -31,7 +31,7 @@ function placePanels({ plateW, plateH, sizes, spacing }) {
 }
 
 // --- Fonction principale ---
-async function modifyPdf({ visuals, plaque, spacing = null }, writePath) {
+async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = true) {
   try {
     const pdfDoc = await PDFDocument.create();
     const [plaqueWcm, plaqueHcm] = plaque.split('x').map(Number);
@@ -83,6 +83,10 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath) {
 
     // --- Dessin final ---
     const text = [];
+    const sizeMaxVisuel = [
+      embeddedPanels[0].renderW > embeddedPanels[1].renderW ? embeddedPanels[0].renderW : embeddedPanels[1].renderW,
+      embeddedPanels[0].renderH > embeddedPanels[1].renderH ? embeddedPanels[0].renderH : embeddedPanels[1].renderH,
+    ];
     for (let i = 0; i < embeddedPanels.length; i++) {
       const p = embeddedPanels[i];
       let pos = { ...positions[i] };
@@ -102,6 +106,7 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath) {
         rotate: p.rotate ? degrees(90) : undefined,
       });
     }
+
     // ---Insertion des noms des fichiers---
     let xPosition = cmToPoints(2);
     let textSize = 65;
@@ -116,6 +121,39 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath) {
       color: rgb(0, 0, 0),
       rotate: degrees(90),
     });
+
+    // ---Insertion Regmarks ---
+    const maxSizeX = sizeMaxVisuel[0];
+    const maxSizeY = sizeMaxVisuel[1];
+    const maxSizeXcm = Number(pointsToCm(maxSizeX).toFixed(2));
+    const maxSizeYcm = Number(pointsToCm(maxSizeY).toFixed(2));
+    console.log(maxSizeXcm, maxSizeYcm);
+    if (reg) {
+      // const drawRegmarks = (xReg, yReg, sizeReg = 0.6) => {
+      //   page.drawCircle({
+      //     x: xReg, // haut - bas
+      //     y: yReg, // gauche - droite
+      //     size: cmToPoints(sizeReg / 2), // Conversion de cm à points pour la taille du cercle
+      //     color: rgb(0, 0, 0),
+      //   });
+      // };
+      // Calcul de la position des repères en points (en utilisant cmToPoints)
+      let regSize = cmToPoints(0.3);
+      let regPosition = regSize + cmToPoints(1);
+
+      // 1 --------------------- 4
+      // 2                       |
+      //                         |
+      //                         |
+      // 3 --------------------- 5
+
+      // drawRegmarks(width - regPosition, height + regPosition); //1
+      // drawRegmarks(width - regPosition - cmToPoints(10), height + regPosition); //2
+      // drawRegmarks(regPosition, height + regPosition); // 3
+
+      // drawRegmarks(width - regPosition, -regPosition); // 4
+      // drawRegmarks(regPosition, -regPosition); // 5
+    }
 
     // --- Sauvegarde ---
     const pdfBytes = await pdfDoc.save();
