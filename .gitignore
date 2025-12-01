@@ -2,6 +2,7 @@ node_modules
 .vscode/*
 !.vscode/extensions.json
 dist/
+test/
 !server/public/*.html
 !server/public/icons
 !server/public/images
