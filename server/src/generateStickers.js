@@ -4,14 +4,14 @@ import { path } from 'path';
  * @param {Array<Object>} commande - Tableau d'objets contenant les numéros de commande et le nombre d'exemplaires
  * @param {string} outPath - Chemin du dossier où seront enregistrées les étiquettes
  */
-const { degrees, PDFDocument, rgb, StandardFonts } = require('pdf-lib');
-const fs = require('fs');
-const path = require('path');
-const m = require('gm');
+const { degrees, PDFDocument, rgb, StandardFonts } = require("pdf-lib");
+const fs = require("fs");
+const path = require("path");
+const m = require("gm");
 
 async function generateStickers(commande, outPath, showDataCmd = false) {
   if (!Array.isArray(commande) || commande.length === 0) {
-    console.error('La commande est vide ou non valide.');
+    console.error("La commande est vide ou non valide.");
     return;
   }
 
@@ -43,7 +43,7 @@ async function generateStickers(commande, outPath, showDataCmd = false) {
         currentEx++; // Incrémenter le numéro d'exemplaire
         return createStickers(
           cmd,
-          `${currentEx.toString().padStart(2, '0')}/${maxEx.toString().padStart(2, '0')}`, // Ex : 01/03
+          `${currentEx.toString().padStart(2, "0")}/${maxEx.toString().padStart(2, "0")}`, // Ex : 01/03
           outPath,
           cmdInfo,
           showDataCmd,
@@ -57,28 +57,28 @@ async function generateStickers(commande, outPath, showDataCmd = false) {
 }
 
 async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
-  const originalNotice = path.join(__dirname, '../public/images/notice_deco.pdf');
-  const pathPreview = path.join(__dirname, '../public/PREVIEW');
+  const originalNotice = path.join(__dirname, "../public/images/notice_deco.pdf");
+  const pathPreview = path.join(__dirname, "../public/PREVIEW");
 
   let files;
 
   try {
     files = fs.readdirSync(pathPreview);
   } catch (err) {
-    console.error('Erreur dossier PREVIEW:', err);
+    console.error("Erreur dossier PREVIEW:", err);
     files = [];
   }
 
   // Récupération de la référence ou nom
   //const teinteMasse = ['blanc zero', 'noir zero', 'alu brosse', 'granit 3'];
-  const ref = (cmd.ref || 'Réf inconnue').toString();
-  const name = cmd.visuel || 'Visuel inconnu';
+  const ref = (cmd.ref || "Réf inconnue").toString();
+  const name = cmd.visuel || "Visuel inconnu";
   // const matchName = teinteMasse.find((teinte) => name.toLowerCase().includes(teinte.toLowerCase()));
 
   // Filtrage des fichiers image qui contiennent la référence
-  const images = files.filter((file) => file.toLowerCase().endsWith('.jpg') && file.includes(ref));
+  const images = files.filter((file) => file.toLowerCase().endsWith(".jpg") && file.includes(ref));
   const imagesTeinteMasse = files.filter(
-    (file) => file.toLowerCase().endsWith('.jpg') && file.toLowerCase().includes(name.toLowerCase()),
+    (file) => file.toLowerCase().endsWith(".jpg") && file.toLowerCase().includes(name.toLowerCase()),
   );
 
   let infoCommande = [];
@@ -88,14 +88,14 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
     if (cmd) {
       // Extraction des informations spécifiques pour chaque commande
       infoCommande = [
-        cmd.ville || 'Ville inconnue',
+        cmd.ville || "Ville inconnue",
         cmd.visuel
           ?.split(/\d{3}x\d{3}/i)
           .shift()
-          .trim() || 'Visuel inconnu',
+          .trim() || "Visuel inconnu",
         match ? match[0] : null,
-        cmd.ref?.toString() || 'Réf inconnue',
-        cmd.format_visu?.split('_').pop().trim() || 'Format inconnu',
+        cmd.ref?.toString() || "Réf inconnue",
+        cmd.format_visu?.split("_").pop().trim() || "Format inconnu",
       ];
     }
   }
@@ -139,8 +139,8 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
     // Ajouter les informations de la commande (si demandé)
     if (showDataCmd) {
       let fontSize = 10;
-      const textData = 'LM_' + infoCommande.join(' ').toLocaleUpperCase();
-      const miniaturePreveiw = !cmd.teinteMasse ? images[0] || '' : imagesTeinteMasse[0] || '';
+      const textData = "LM_" + infoCommande.join(" ").toLocaleUpperCase();
+      const miniaturePreveiw = !cmd.teinteMasse ? images[0] || "" : imagesTeinteMasse[0] || "";
 
       let textDataWidth = font.widthOfTextAtSize(textData, fontSize);
       const textDataHeight = font.heightAtSize(fontSize);
@@ -196,16 +196,16 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
     }
 
     // Nom du fichier basé sur le numéro de commande et l'exemplaire
-    const fileName = `${numCmd}_${ex.split('/')[0]}.pdf`;
+    const fileName = `${numCmd}_${ex.split("/")[0]}.pdf`;
     await fs.promises.writeFile(`${outPath}/${fileName}`, pdfBytes);
   } catch (error) {
-    console.error('La génération des étiquettes a échoué : ', error);
+    console.error("La génération des étiquettes a échoué : ", error);
   }
 }
 
-async function createStickersPage(directory, outputPath, pageSize = 'A5') {
+async function createStickersPage(directory, outputPath, pageSize = "A5") {
   const format =
-    pageSize === 'A5'
+    pageSize === "A5"
       ? { width: 420, height: 595 } // Dimensions pour A5
       : { width: 595, height: 842 }; // Dimensions pour A4
 
@@ -213,11 +213,11 @@ async function createStickersPage(directory, outputPath, pageSize = 'A5') {
   const outputPdf = await PDFDocument.create();
   const files = fs
     .readdirSync(directory)
-    .filter((file) => file.endsWith('.pdf'))
+    .filter((file) => file.endsWith(".pdf"))
     .filter((file) => /^[\d]/.test(file));
 
   if (files.length === 0) {
-    console.error('Aucun fichier PDF trouvé dans le répertoire.');
+    console.error("Aucun fichier PDF trouvé dans le répertoire.");
     return;
   }
 
@@ -235,7 +235,7 @@ async function createStickersPage(directory, outputPath, pageSize = 'A5') {
 
       const inputPage = inputPdf.getPage(0); // Charger la première page
       const { width, height } = inputPage.getSize();
-      let rotation = pageSize === 'A4' ? degrees(0) : degrees(90);
+      let rotation = pageSize === "A4" ? degrees(0) : degrees(90);
 
       // Extraire l'ID de la commande du nom du fichier (si nécessaire)
       const commandId = extractCommandId(file);
@@ -247,7 +247,7 @@ async function createStickersPage(directory, outputPath, pageSize = 'A5') {
         itemCount = 0; // Réinitialiser le compteur d'éléments
       }
 
-      if ((pageSize === 'A4' && itemCount >= 4) || (pageSize === 'A5' && itemCount >= 2)) {
+      if ((pageSize === "A4" && itemCount >= 4) || (pageSize === "A5" && itemCount >= 2)) {
         currentPage = outputPdf.addPage([format.width, format.height]);
         itemCount = 0;
       }
@@ -260,7 +260,7 @@ async function createStickersPage(directory, outputPath, pageSize = 'A5') {
       let y = 0;
 
       // Logique de placement des stickers sur la page
-      if (pageSize === 'A4') {
+      if (pageSize === "A4") {
         // Haut Gauche
         if (positionIndex === 0) {
           x = format.width / 2 - width;
@@ -325,7 +325,7 @@ async function createStickersPage(directory, outputPath, pageSize = 'A5') {
     fs.writeFileSync(finalPath, pdfBytes);
     console.log(`Stickers enregistrés sous : ${finalPath}`);
   } catch (error) {
-    console.error('Erreur lors de la sauvegarde du fichier PDF :', error.message);
+    console.error("Erreur lors de la sauvegarde du fichier PDF :", error.message);
   }
 }
 

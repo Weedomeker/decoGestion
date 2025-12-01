@@ -1,9 +1,9 @@
-const { Jimp } = require('jimp');
-const path = require('path');
+const { Jimp } = require("jimp");
+const path = require("path");
 
 async function generateImages(data, readFile, writeFile) {
-  const imagePath = readFile + '/' + data.visuel + '.jpg';
-  const format = data.format_visu?.split('_')?.pop();
+  const imagePath = readFile + "/" + data.visuel + ".jpg";
+  const format = data.format_visu?.split("_")?.pop();
 
   let fileName = path.basename(writeFile);
   // fileName = fileName?.split(' - ');
@@ -15,9 +15,9 @@ async function generateImages(data, readFile, writeFile) {
 
     await image.rotate(90, false);
     // Sauvegarder l'image modifiée
-    await image.write(path.dirname(writeFile) + '/' + fileName);
+    await image.write(path.dirname(writeFile) + "/" + fileName);
   } catch (err) {
-    console.error('❌ Erreur :', err);
+    console.error("❌ Erreur :", err);
   }
 }
 

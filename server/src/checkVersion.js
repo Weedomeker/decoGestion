@@ -1,6 +1,6 @@
-const fetch = require('node-fetch');
-const fs = require('fs');
-const chalk = require('chalk');
+const fetch = require("node-fetch");
+const fs = require("fs");
+const chalk = require("chalk");
 
 const log = console.log;
 
@@ -43,13 +43,13 @@ function getDefaultMessage(options) {
 }
 
 async function getGitHubPackageInfo(options) {
-  const file = fs.readFileSync('./package.json', { encoding: 'utf-8' });
+  const file = fs.readFileSync("./package.json", { encoding: "utf-8" });
   const pkg = JSON.parse(file);
   const defaultOptions = {
-    user: 'Weedomeker',
-    name: 'Decogestion',
+    user: "Weedomeker",
+    name: "Decogestion",
     currentVersion: pkg.version,
-    branch: 'main',
+    branch: "main",
   };
 
   options = { ...defaultOptions, ...options };

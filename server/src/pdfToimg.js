@@ -1,7 +1,7 @@
-const { pdftobuffer } = require('pdftopic');
-const fs = require('fs');
-const path = require('path');
-const { parentPort, workerData } = require('worker_threads');
+const { pdftobuffer } = require("pdftopic");
+const fs = require("fs");
+const path = require("path");
+const { parentPort, workerData } = require("worker_threads");
 
 const pdfToimg = async (readFile, writeFile) => {
   try {
@@ -13,13 +13,13 @@ const pdfToimg = async (readFile, writeFile) => {
 
     // Vérification
     if (fs.existsSync(writeFile)) {
-      parentPort.postMessage('ok');
+      parentPort.postMessage("ok");
     } else {
-      parentPort.postMessage('error');
+      parentPort.postMessage("error");
     }
   } catch (error) {
     console.error(error);
-    parentPort.postMessage('error');
+    parentPort.postMessage("error");
   }
 };
 

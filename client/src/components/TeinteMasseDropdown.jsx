@@ -1,15 +1,15 @@
-import PropTypes from 'prop-types';
-import { Dropdown } from 'semantic-ui-react';
+import PropTypes from "prop-types";
+import { Dropdown } from "semantic-ui-react";
 
 const options = [
-  { key: 'noir', text: 'NOIR ZERO MAT', value: 'NOIR ZERO MAT' },
-  { key: 'blanc', text: 'BLANC ZERO MAT', value: 'BLANC ZERO MAT' },
-  { key: 'granit3', text: 'GRANIT 3 MAT', value: 'GRANIT 3 MAT' },
-  { key: 'alu', text: 'ALU BROSSE', value: 'ALU BROSSE' },
-  { key: 'bronze', text: 'BRONZE BROSSE', value: 'BRONZE BROSSE' },
-  { key: 'cuivre', text: 'CUIVRE BROSSE', value: 'CUIVRE BROSSE' },
-  { key: 'noir brosse', text: 'NOIR BROSSE', value: 'NOIR BROSSE' },
-  { key: 'or brosse', text: 'OR BROSSE', value: 'OR BROSSE' },
+  { key: "noir", text: "NOIR ZERO MAT", value: "NOIR ZERO MAT" },
+  { key: "blanc", text: "BLANC ZERO MAT", value: "BLANC ZERO MAT" },
+  { key: "granit3", text: "GRANIT 3 MAT", value: "GRANIT 3 MAT" },
+  { key: "alu", text: "ALU BROSSE", value: "ALU BROSSE" },
+  { key: "bronze", text: "BRONZE BROSSE", value: "BRONZE BROSSE" },
+  { key: "cuivre", text: "CUIVRE BROSSE", value: "CUIVRE BROSSE" },
+  { key: "noir brosse", text: "NOIR BROSSE", value: "NOIR BROSSE" },
+  { key: "or brosse", text: "OR BROSSE", value: "OR BROSSE" },
 ].sort((a, b) => a.text.localeCompare(b.text));
 
 const TeinteMasseDropdown = ({ selectedFile, onSelectedFile }) => {

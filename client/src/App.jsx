@@ -1,53 +1,53 @@
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
-import { useEffect, useState } from 'react';
-import { Button, ButtonContent, Checkbox, Form, Icon, Input, Label, Segment } from 'semantic-ui-react';
-import CheckFormats from './CheckFormats';
-import Config from './components/Config';
-import Footer from './components/Footer';
-import FormatDropdown from './components/FormatDropdown';
-import FormatTauro from './components/FormatTauro';
-import Header from './components/Header';
-import InfoMessage from './components/InfoMessage';
-import InfoModal from './components/InfoModal';
-import InfoStockModal from './components/InfoStockModal';
-import JobsList from './components/JobsList';
-import LouisPreview from './components/LouisPreview';
-import Place from './components/Place';
-import PreviewDeco from './components/PreviewDeco';
-import TeinteMasseDropdown from './components/TeinteMasseDropdown';
-import VisuelDropdown from './components/VisuelDropdown';
+import { useEffect, useState } from "react";
+import { Button, ButtonContent, Checkbox, Form, Icon, Input, Label, Segment } from "semantic-ui-react";
+import CheckFormats from "./CheckFormats";
+import Config from "./components/Config";
+import Footer from "./components/Footer";
+import FormatDropdown from "./components/FormatDropdown";
+import FormatTauro from "./components/FormatTauro";
+import Header from "./components/Header";
+import InfoMessage from "./components/InfoMessage";
+import InfoModal from "./components/InfoModal";
+import InfoStockModal from "./components/InfoStockModal";
+import JobsList from "./components/JobsList";
+import LouisPreview from "./components/LouisPreview";
+import Place from "./components/Place";
+import PreviewDeco from "./components/PreviewDeco";
+import TeinteMasseDropdown from "./components/TeinteMasseDropdown";
+import VisuelDropdown from "./components/VisuelDropdown";
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
-  const [data, setData] = useState(['']);
-  const [selectedFormat, setSelectedFormat] = useState('');
-  const [formatTauro, setFormatTauro] = useState(['']);
+  const [data, setData] = useState([""]);
+  const [selectedFormat, setSelectedFormat] = useState("");
+  const [formatTauro, setFormatTauro] = useState([""]);
   const [checkProdBlanc, setCheckProdBlanc] = useState(false);
   const [checkGenerate, setCheckGenerate] = useState({
     cut: false,
     reg: true,
     teinteMasse: false,
   });
-  const [checkFolder, setCheckFolder] = useState('Standards');
+  const [checkFolder, setCheckFolder] = useState("Standards");
   const [showAddFormat, setShowAddFormat] = useState(false);
-  const [selectedFormatTauro, setSelectedFormatTauro] = useState('');
+  const [selectedFormatTauro, setSelectedFormatTauro] = useState("");
   const [version, setVersion] = useState(null);
   const [isloadingFormatTauro, setLoadingFormatTauro] = useState(true);
-  const [files, setFiles] = useState([{ name: '', fileSize: '' }]);
+  const [files, setFiles] = useState([{ name: "", fileSize: "" }]);
   const [isFile, setIsFile] = useState(false);
-  const [selectedFile, setSelectedFile] = useState('');
-  const [fileSize, setFileSize] = useState('');
+  const [selectedFile, setSelectedFile] = useState("");
+  const [fileSize, setFileSize] = useState("");
   const [isFooter, setIsFooter] = useState(false);
   const [isShowPdf, setIsShowPdf] = useState(false);
   const [isShowLouis, setIsShowLouis] = useState(false);
   const [isShowJobsList, setIsShowJobsList] = useState(true);
   const [warnMsg, setWarnMsg] = useState({
     hidden: true,
-    header: '',
-    msg: '',
-    icon: 'warning sign',
-    color: 'red',
+    header: "",
+    msg: "",
+    icon: "warning sign",
+    color: "red",
   });
   const [error, setError] = useState({
     formatTauro: false,
@@ -68,7 +68,7 @@ function App() {
   const [perte, setPerte] = useState(0);
   const [modalData, setModalData] = useState({
     open: false,
-    message: '',
+    message: "",
     object: null,
     error: null,
   });
@@ -80,29 +80,29 @@ function App() {
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       e.preventDefault();
-      e.returnValue = ''; // nécessaire pour Chrome
+      e.returnValue = ""; // nécessaire pour Chrome
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, []);
 
   //Get Format Tauro
   useEffect(() => {
     fetch(`http://${HOST}:${PORT}/formatsTauro`, {
-      method: 'GET',
-      headers: { Accept: 'Application/json' },
+      method: "GET",
+      headers: { Accept: "Application/json" },
     })
       .then((res) => res.json())
       .then((res) => {
         let arr = [];
-        res.map((v) => {
+        (res.map((v) => {
           arr.push(v.value);
         }),
-          setFormatTauro(arr);
+          setFormatTauro(arr));
         setLoadingFormatTauro(false);
       })
       .catch((err) => console.log(err));
@@ -111,10 +111,10 @@ function App() {
   //Get App version
   useEffect(() => {
     fetch(`http://${HOST}:${PORT}/process`, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        Accept: 'Application/json',
-        'Content-Type': 'application/json',
+        Accept: "Application/json",
+        "Content-Type": "application/json",
       },
     })
       .then((res) => res.json())
@@ -126,9 +126,9 @@ function App() {
 
   useEffect(() => {
     fetch(`http://${HOST}:${PORT}/path`, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        Accept: 'Application/json',
+        Accept: "Application/json",
       },
     })
       .then((res) => res.json())
@@ -142,10 +142,10 @@ function App() {
         } else {
           setWarnMsg({
             hidden: false,
-            header: 'Erreure',
+            header: "Erreure",
             msg: res.message,
-            icon: 'warning sign',
-            color: 'red',
+            icon: "warning sign",
+            color: "red",
           });
         }
         setIsLoading(false);
@@ -157,7 +157,7 @@ function App() {
   const handleClose = () => {
     setModalData({
       open: false,
-      message: '',
+      message: "",
       object: null,
       error: null,
     });
@@ -172,7 +172,7 @@ function App() {
 
   const handleJobSubmit = async (e) => {
     e.preventDefault();
-    const form = document.querySelector('form');
+    const form = document.querySelector("form");
     const formData = new FormData(form);
 
     const data = {
@@ -181,9 +181,9 @@ function App() {
       prodBlanc: checkProdBlanc,
       format: selectedFormat,
       visuel: selectedFile,
-      numCmd: formData.get('numCmd'),
-      ville: formData.get('ville'),
-      ex: formData.get('ex'),
+      numCmd: formData.get("numCmd"),
+      ville: formData.get("ville"),
+      ex: formData.get("ex"),
       perte: perte,
       regmarks: checkGenerate.reg,
       cut: checkGenerate.cut,
@@ -193,14 +193,14 @@ function App() {
     //POST data
     try {
       const response = await fetch(`http://${HOST}:${PORT}/add_job`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Une erreur est survenue');
+        throw new Error(result.error || "Une erreur est survenue");
       }
       if (response.status === 200) {
         setIsShowJobsList(true);
@@ -222,7 +222,7 @@ function App() {
     } catch (err) {
       setModalData({
         open: true,
-        message: '',
+        message: "",
         object: null,
         error: err.message,
       });
@@ -233,8 +233,8 @@ function App() {
   const handleToggleAddFormat = () => {
     showAddFormat ? setShowAddFormat(false) : setShowAddFormat(true);
     if (showAddFormat) {
-      const value = 'Deco_Std_' + document.getElementById('addFormatTauro').value;
-      if (value !== '') {
+      const value = "Deco_Std_" + document.getElementById("addFormatTauro").value;
+      if (value !== "") {
         setFormatTauro((curr) => [...curr, value]);
       }
     }
@@ -269,10 +269,10 @@ function App() {
                   setWarnMsg({
                     ...warnMsg,
                     hidden: false,
-                    header: 'Attention au format',
+                    header: "Attention au format",
                     msg: `Perte matère: (${CheckFormats(data.value, selectedFormat).surface}/m2)`,
-                    icon: 'info circle',
-                    color: 'yellow',
+                    icon: "info circle",
+                    color: "yellow",
                   });
                 } else if (
                   selectedFormat &&
@@ -283,16 +283,16 @@ function App() {
                   setWarnMsg({
                     ...warnMsg,
                     hidden: false,
-                    header: 'Problème format',
-                    msg: 'Le format du visuel est plus grand que celui de la plaque.',
-                    icon: 'warning sign',
-                    color: 'red',
+                    header: "Problème format",
+                    msg: "Le format du visuel est plus grand que celui de la plaque.",
+                    icon: "warning sign",
+                    color: "red",
                   });
                 } else {
                   setWarnMsg({ ...warnMsg, hidden: true });
                 }
 
-                if (data.value == '') {
+                if (data.value == "") {
                   setEnabled({ ...enabled, format: false });
                   setError({ ...error, formatTauro: true });
                 } else {
@@ -314,7 +314,7 @@ function App() {
             {showAddFormat && <Input id="addFormatTauro" size="small" label="Add format" placeholder="ex: 101x215" />}
           </Form.Field>
 
-          <Form.Field style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <Form.Field style={{ display: "flex", justifyContent: "space-between" }}>
             {/* PROD AVEC BLANC */}
             <Form.Field>
               <Checkbox
@@ -359,7 +359,7 @@ function App() {
 
           <Form.Field>
             <Segment color="blue" style={{ marginTop: 0 }}>
-              <Label color="blue" ribbon style={{ position: 'absolute', top: -8, left: -15 }}>
+              <Label color="blue" ribbon style={{ position: "absolute", top: -8, left: -15 }}>
                 Deco
               </Label>
               <Form.Group inline style={{ marginTop: 10 }}>
@@ -368,7 +368,7 @@ function App() {
                     name="folders"
                     label="Standards"
                     value="Standards"
-                    checked={checkFolder === 'Standards'}
+                    checked={checkFolder === "Standards"}
                     onChange={(e, data) => {
                       setCheckFolder(data.value);
                     }}
@@ -377,7 +377,7 @@ function App() {
                     name="folders"
                     label="Raccordables"
                     value="Raccordables"
-                    checked={checkFolder === 'Raccordables'}
+                    checked={checkFolder === "Raccordables"}
                     onChange={(e, data) => {
                       setCheckFolder(data.value);
                     }}
@@ -388,7 +388,7 @@ function App() {
                     name="folders"
                     label="Sur Mesures"
                     value="SurMesures"
-                    checked={checkFolder === 'SurMesures'}
+                    checked={checkFolder === "SurMesures"}
                     onChange={(e, data) => {
                       setCheckFolder(data.value);
                     }}
@@ -397,7 +397,7 @@ function App() {
                     name="folders"
                     label="Ecom"
                     value="Ecom"
-                    checked={checkFolder === 'Ecom'}
+                    checked={checkFolder === "Ecom"}
                     onChange={(e, data) => {
                       setCheckFolder(data.value);
                     }}
@@ -421,7 +421,7 @@ function App() {
               text={selectedFormat}
               selectedFormat={selectedFormat}
               onSelectFormat={(e, v) => {
-                const value = isLoading ? 'Loading..' : data && data[0][checkFolder].find((x) => x.path === v.value);
+                const value = isLoading ? "Loading.." : data && data[0][checkFolder].find((x) => x.path === v.value);
                 setSelectedFormat(value.name);
                 setFiles(value.files);
                 setIsFile(true);
@@ -429,7 +429,7 @@ function App() {
                 setIsFooter(false);
                 setEnabled({ ...enabled, visu: false });
 
-                if (value.name == '' || value.name == undefined) {
+                if (value.name == "" || value.name == undefined) {
                   setError({ ...error, format: true });
                 } else {
                   setError({ ...error, format: false });
@@ -452,8 +452,8 @@ function App() {
                 text={selectedFile}
                 selectedFile={selectedFile}
                 onSelectedFile={(value) => {
-                  const name = value.name.split('/').pop().toLowerCase();
-                  if (name.includes('+blanc' || '+ blanc')) {
+                  const name = value.name.split("/").pop().toLowerCase();
+                  if (name.includes("+blanc" || "+ blanc")) {
                     setCheckProdBlanc(true);
                   } else {
                     setCheckProdBlanc(false);
@@ -463,7 +463,7 @@ function App() {
                   setIsShowPdf(true);
                   setIsShowLouis(false);
                   setIsShowJobsList(false);
-                  if (value.name == '' || value.name == undefined) {
+                  if (value.name == "" || value.name == undefined) {
                     setError({ ...error, visuel: true });
                   } else {
                     setEnabled({ ...enabled, numCmd: false });
@@ -472,35 +472,35 @@ function App() {
 
                   //Check checkFormats
                   if (
-                    CheckFormats(selectedFormatTauro, value.name.split('/').pop()) &&
-                    CheckFormats(selectedFormatTauro, value.name.split('/').pop()).gap == true
+                    CheckFormats(selectedFormatTauro, value.name.split("/").pop()) &&
+                    CheckFormats(selectedFormatTauro, value.name.split("/").pop()).gap == true
                   ) {
-                    setPerte(CheckFormats(selectedFormatTauro, value.name.split('/').pop()).surface);
+                    setPerte(CheckFormats(selectedFormatTauro, value.name.split("/").pop()).surface);
                     setWarnMsg({
                       ...warnMsg,
                       hidden: false,
-                      header: 'Attention au format',
-                      msg: `Perte matière: ${CheckFormats(selectedFormatTauro, value.name.split('/').pop()).surface}/m2`,
-                      icon: 'info circle',
-                      color: 'yellow',
+                      header: "Attention au format",
+                      msg: `Perte matière: ${CheckFormats(selectedFormatTauro, value.name.split("/").pop()).surface}/m2`,
+                      icon: "info circle",
+                      color: "yellow",
                     });
-                  } else if (CheckFormats(selectedFormatTauro, value.name.split('/').pop()) == undefined) {
+                  } else if (CheckFormats(selectedFormatTauro, value.name.split("/").pop()) == undefined) {
                     setWarnMsg({
                       ...warnMsg,
                       hidden: false,
-                      header: 'Problème format',
-                      msg: 'Format du visuel introuvable. Attention au format de plaque choisit.',
-                      icon: 'warning sign',
-                      color: 'orange',
+                      header: "Problème format",
+                      msg: "Format du visuel introuvable. Attention au format de plaque choisit.",
+                      icon: "warning sign",
+                      color: "orange",
                     });
-                  } else if (CheckFormats(selectedFormatTauro, value.name.split('/').pop()).isChecked == false) {
+                  } else if (CheckFormats(selectedFormatTauro, value.name.split("/").pop()).isChecked == false) {
                     setWarnMsg({
                       ...warnMsg,
                       hidden: false,
-                      header: 'Problème format',
-                      msg: 'Le format du visuel est plus grand que celui de la plaque.',
-                      icon: 'warning sign',
-                      color: 'red',
+                      header: "Problème format",
+                      msg: "Le format du visuel est plus grand que celui de la plaque.",
+                      icon: "warning sign",
+                      color: "red",
                     });
                   } else {
                     setWarnMsg({ ...warnMsg, hidden: true });
@@ -525,10 +525,10 @@ function App() {
             )}
             <p
               style={{
-                fontSize: '10px',
-                textAlign: 'right',
-                width: '300px',
-                marginTop: '2px',
+                fontSize: "10px",
+                textAlign: "right",
+                width: "300px",
+                marginTop: "2px",
               }}
             >
               {fileSize}
@@ -557,7 +557,7 @@ function App() {
               }}
               onFocus={(e) =>
                 e.target.addEventListener(
-                  'wheel',
+                  "wheel",
                   function (e) {
                     e.preventDefault();
                   },

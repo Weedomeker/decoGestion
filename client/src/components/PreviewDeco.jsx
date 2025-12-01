@@ -1,5 +1,5 @@
-import PropTypes from 'prop-types';
-import { useEffect, useRef, useState } from 'react';
+import PropTypes from "prop-types";
+import { useEffect, useRef, useState } from "react";
 
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
@@ -16,7 +16,7 @@ function PreviewDeco({ fileSelected, show }) {
       .then((data) => {
         if (data[0].Preview) setPreviewList(data[0].Preview);
       })
-      .catch((err) => console.error('Erreur preview:', err));
+      .catch((err) => console.error("Erreur preview:", err));
   }, []);
 
   useEffect(() => {
@@ -39,15 +39,15 @@ function PreviewDeco({ fileSelected, show }) {
   useEffect(() => {
     if (!fileSelected || previewList.length === 0) return;
 
-    const reference = extractReference(fileSelected.split('/').pop());
+    const reference = extractReference(fileSelected.split("/").pop());
 
     const matched = previewList.find((entry) => entry.name.includes(reference));
 
     if (matched) {
-      setImageUrl(`http://${HOST}:${PORT}/${matched.path.split('\\').slice(1).join('/')}`);
+      setImageUrl(`http://${HOST}:${PORT}/${matched.path.split("\\").slice(1).join("/")}`);
     } else {
       setImageUrl(null);
-      console.warn('Aucune image trouvée pour :', reference);
+      console.warn("Aucune image trouvée pour :", reference);
     }
   }, [fileSelected, previewList]);
 
@@ -55,7 +55,7 @@ function PreviewDeco({ fileSelected, show }) {
 
   return (
     <div className="pdf-container" ref={containerRef}>
-      <img src={imageUrl} alt="Aperçu déco" style={{ width: width / 2 + 'px', transform: 'rotate(90deg)' }} />
+      <img src={imageUrl} alt="Aperçu déco" style={{ width: width / 2 + "px", transform: "rotate(90deg)" }} />
     </div>
   );
 }

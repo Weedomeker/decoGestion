@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema({
   uid: { type: String, unique: true }, // Identifiant unique
@@ -7,6 +7,6 @@ const userSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }, // Date de création
 });
 
-const User = mongoose.model('users', userSchema);
+const User = mongoose.model("users", userSchema);
 
 module.exports = User;

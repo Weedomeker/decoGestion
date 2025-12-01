@@ -1,20 +1,20 @@
-const PDFDocument = require('pdfkit');
-const fs = require('fs');
-const path = require('path');
-const sizeOf = require('image-size'); // Pour obtenir les dimensions des images
+const PDFDocument = require("pdfkit");
+const fs = require("fs");
+const path = require("path");
+const sizeOf = require("image-size"); // Pour obtenir les dimensions des images
 
 function createQRCodePage(directory, outputFile) {
   const files = fs.readdirSync(directory);
 
   // Filtrer uniquement les fichiers d'image supportés
-  const supportedExtensions = ['.jpg', '.jpeg', '.png'];
+  const supportedExtensions = [".jpg", ".jpeg", ".png"];
   const images = files
     .filter((file) => supportedExtensions.includes(path.extname(file).toLowerCase()))
     .map((file) => path.join(directory, file))
     .sort(); // Chemin complet des fichiers
 
   if (images.length === 0) {
-    console.log('Aucune image trouvée dans le répertoire.');
+    console.log("Aucune image trouvée dans le répertoire.");
     return;
   }
 
@@ -83,15 +83,15 @@ function createQRCodePage(directory, outputFile) {
 
     // Ajouter le texte sous l'image
     const fileName = path.basename(imagePath); // Nom du fichier
-    let sliceName = fileName.split('.')[0]; // Nom de la tranche (sans extension)
-    sliceName = sliceName.split('_').pop();
+    let sliceName = fileName.split(".")[0]; // Nom de la tranche (sans extension)
+    sliceName = sliceName.split("_").pop();
 
     const textY = currentY + imgHeight + 5; // Position Y pour le texte
     try {
       doc.fontSize(16).text(sliceName, currentX, textY, {
         width: imgWidth,
         height: imgHeight,
-        align: 'center',
+        align: "center",
       });
     } catch (error) {
       console.error(`Erreur lors de l'ajout du texte sous l'image ${imagePath}:`, error.message);
@@ -106,8 +106,8 @@ function createQRCodePage(directory, outputFile) {
   doc.end();
 
   // Gérer la fin de l'écriture du fichier
-  stream.on('finish', () => {
-    console.log('PDF créé avec succès:', outputFile);
+  stream.on("finish", () => {
+    console.log("PDF créé avec succès:", outputFile);
   });
 }
 

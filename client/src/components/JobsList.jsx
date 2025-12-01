@@ -1,5 +1,5 @@
-import PropTypes from 'prop-types';
-import { useEffect, useState } from 'react';
+import PropTypes from "prop-types";
+import { useEffect, useState } from "react";
 import {
   Button,
   ButtonContent,
@@ -13,9 +13,9 @@ import {
   TableHeader,
   TableHeaderCell,
   TableRow,
-} from 'semantic-ui-react';
-import '../css/JobsList.css';
-import './InfoModal';
+} from "semantic-ui-react";
+import "../css/JobsList.css";
+import "./InfoModal";
 
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
@@ -45,12 +45,12 @@ function JobsList({ show, formatTauro }) {
   useEffect(() => {
     const dataFetch = async () => {
       try {
-        const response = await fetch(`http://${HOST}:${PORT}/jobs/`, { method: 'GET' });
+        const response = await fetch(`http://${HOST}:${PORT}/jobs/`, { method: "GET" });
         const res = await response.json();
         setData([{ jobs: res.jobs, completed: res.completed }]);
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error("Error fetching data:", error);
         setLoading(false);
       }
     };
@@ -58,17 +58,17 @@ function JobsList({ show, formatTauro }) {
 
     const ws = new WebSocket(`ws://${HOST}:${PORT}`);
     ws.onopen = () => {
-      console.log('Connected to WebSocket server');
+      console.log("Connected to WebSocket server");
     };
 
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
 
-      if (message.type === 'update') {
+      if (message.type === "update") {
         setRefreshFlag((prev) => !prev);
       }
 
-      if (message.type === 'start') {
+      if (message.type === "start") {
         setStartTime(message.startTime);
         setOnLoading(true);
       }
@@ -95,7 +95,7 @@ function JobsList({ show, formatTauro }) {
         });
       }
 
-      if (message.type === 'end') {
+      if (message.type === "end") {
         setEndTime(message.endTime);
         setOnLoading(false);
         setProgress(100); // S'assurer que la barre affiche bien 100% à la fin
@@ -103,11 +103,11 @@ function JobsList({ show, formatTauro }) {
     };
 
     ws.onclose = () => {
-      console.log('Disconnected from WebSocket server');
+      console.log("Disconnected from WebSocket server");
     };
 
     ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      console.error("WebSocket error:", error);
     };
 
     return () => {
@@ -118,11 +118,11 @@ function JobsList({ show, formatTauro }) {
   useEffect(() => {
     const dataFetch = async () => {
       try {
-        const response = await fetch(`http://${HOST}:${PORT}/config/`, { method: 'GET' });
+        const response = await fetch(`http://${HOST}:${PORT}/config/`, { method: "GET" });
         const res = await response.json();
         setFilter(res.vernis);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error("Error fetching data:", error);
       }
     };
     dataFetch();
@@ -131,25 +131,25 @@ function JobsList({ show, formatTauro }) {
   const handleGenerateStickers = async () => {
     try {
       const response = await fetch(`http://${HOST}:${PORT}/generate_stickers`, {
-        method: 'POST',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
       });
 
       if (!response.ok) {
-        console.error('Failed to generate stickers:', response.statusText);
+        console.error("Failed to generate stickers:", response.statusText);
         return;
       }
 
-      console.log('Stickers generated successfully');
+      console.log("Stickers generated successfully");
     } catch (error) {
-      console.error('Error deleting jobs:', error);
+      console.error("Error deleting jobs:", error);
     }
   };
 
   const checkVernis = (value) => {
     value = value.toLowerCase();
     // S'assurer que value est une chaîne
-    if (typeof value !== 'string') {
+    if (typeof value !== "string") {
       console.error('Le paramètre "value" doit être une chaîne de caractères.');
       return;
     }
@@ -166,8 +166,8 @@ function JobsList({ show, formatTauro }) {
   const runJobsList = async () => {
     try {
       const response = await fetch(`http://${HOST}:${PORT}/run_jobs`, {
-        method: 'POST',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({
           run: true,
           formatTauro: formatTauro,
@@ -178,30 +178,30 @@ function JobsList({ show, formatTauro }) {
       });
 
       if (!response.ok) {
-        console.error('Failed to run jobs:', response.statusText);
+        console.error("Failed to run jobs:", response.statusText);
         return;
       }
       setRefreshFlag((prev) => !prev);
     } catch (error) {
-      console.error('Error running jobs:', error);
+      console.error("Error running jobs:", error);
     }
   };
 
   const handleDeleteJob = async (id) => {
     try {
       const response = await fetch(`http://${HOST}:${PORT}/delete_job`, {
-        method: 'DELETE',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        method: "DELETE",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({ _id: id }), // Envoie l'ID du job à supprimer
       });
 
       // Gestion de la réponse de suppression
       if (!response.ok) {
-        console.error('Failed to delete job:', response.statusText);
+        console.error("Failed to delete job:", response.statusText);
         return;
       }
 
-      console.log('Job deleted successfully');
+      console.log("Job deleted successfully");
 
       // Mise à jour de l'état après la suppression réussie
       const updateJobs = data[0].jobs.filter((item) => item._id !== id);
@@ -213,7 +213,7 @@ function JobsList({ show, formatTauro }) {
         },
       ]);
     } catch (error) {
-      console.error('Error deleting job:', error);
+      console.error("Error deleting job:", error);
     }
   };
 
@@ -226,19 +226,19 @@ function JobsList({ show, formatTauro }) {
     ]);
     try {
       const response = await fetch(`http://${HOST}:${PORT}/delete_job_completed`, {
-        method: 'DELETE',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        method: "DELETE",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({ clear: true }),
       });
 
       if (!response.ok) {
-        console.error('Failed to delete all jobs:', response.statusText);
+        console.error("Failed to delete all jobs:", response.statusText);
         return;
       }
 
-      console.log('Jobs deleted successfully');
+      console.log("Jobs deleted successfully");
     } catch (error) {
-      console.error('Error deleting jobs:', error);
+      console.error("Error deleting jobs:", error);
     }
   };
 
@@ -247,7 +247,7 @@ function JobsList({ show, formatTauro }) {
     const newTableEntries = data?.[0]?.[status]?.map((value, i) => {
       if (!value) return null;
 
-      let visuel = value.visuel ? value.visuel.split('/').pop() : '';
+      let visuel = value.visuel ? value.visuel.split("/").pop() : "";
       const regexFormat = visuel.match(/\d{3}x\d{3}/i);
       if (regexFormat && regexFormat[0]) {
         visuel = visuel.split(regexFormat[0])[0].toUpperCase();
@@ -255,8 +255,8 @@ function JobsList({ show, formatTauro }) {
         visuel = visuel.toUpperCase();
       }
 
-      const title = value.jpgName.split('/').pop();
-      const url = `http://${HOST}:${PORT}/public/` + value.jpgName.replace(/#/i, '%23');
+      const title = value.jpgName.split("/").pop();
+      const url = `http://${HOST}:${PORT}/public/` + value.jpgName.replace(/#/i, "%23");
 
       // const ifSatin = checkVernis(value.jpgName) === '_S';
       // if (checkVernis(value.jpgName) !== undefined && sortFolder) {
@@ -279,17 +279,17 @@ function JobsList({ show, formatTauro }) {
       return (
         <TableRow
           key={i}
-          disabled={status === 'jobs' ? onLoading : null}
+          disabled={status === "jobs" ? onLoading : null}
           className="table-row"
-          style={value.teinteMasse ? { color: '#fc7703', fontWeight: 'bold' } : null}
+          style={value.teinteMasse ? { color: "#fc7703", fontWeight: "bold" } : null}
         >
           <TableCell className="table-cell">
-            {new Date(value.date).toLocaleString('fr-FR', { timeZone: 'EUROPE/PARIS' })}
+            {new Date(value.date).toLocaleString("fr-FR", { timeZone: "EUROPE/PARIS" })}
           </TableCell>
           <TableCell className="table-cell">{value.cmd}</TableCell>
           <TableCell className="table-cell">{value.ville}</TableCell>
           <TableCell className="table-cell ">
-            {!stickersOnly && status === 'completed' ? (
+            {!stickersOnly && status === "completed" ? (
               <a href={url} data-lightbox={title} data-title={title}>
                 {visuel}
               </a>
@@ -298,12 +298,12 @@ function JobsList({ show, formatTauro }) {
             )}
           </TableCell>
           <TableCell className="table-cell">{checkVernis(value?.visuel)?.slice(0, 1)?.toUpperCase()}</TableCell>
-          <TableCell className="table-cell">{value.format_visu.split('_').pop()}</TableCell>
-          <TableCell className="table-cell">{value.format_Plaque.split('_').pop()}</TableCell>
+          <TableCell className="table-cell">{value.format_visu.split("_").pop()}</TableCell>
+          <TableCell className="table-cell">{value.format_Plaque.split("_").pop()}</TableCell>
           <TableCell className="table-cell">{value.ex}</TableCell>
           <TableCell className="table-cell">{value.cut ? <Icon name="cut" /> : null}</TableCell>
 
-          {status === 'jobs' ? (
+          {status === "jobs" ? (
             <TableCell className="table-cell ">
               <Button
                 compact
@@ -325,7 +325,7 @@ function JobsList({ show, formatTauro }) {
 
     const newTable = !isLoading && (
       <div className="jobs-table-container">
-        <Table size="small" compact columns={'10'} className="jobs-table" striped>
+        <Table size="small" compact columns={"10"} className="jobs-table" striped>
           <TableHeader className="sticky-header">
             <TableRow className="table-row">
               <TableHeaderCell className="table-cell">Dates</TableHeaderCell>
@@ -345,7 +345,7 @@ function JobsList({ show, formatTauro }) {
           <TableBody className="body-table-jobs">{newTableEntries}</TableBody>
 
           {/* FOOTER */}
-          {status === 'jobs' && (
+          {status === "jobs" && (
             <TableFooter className="sticky-footer">
               <TableRow className="table-row">
                 <TableHeaderCell colSpan="10" collapsing>
@@ -449,7 +449,7 @@ function JobsList({ show, formatTauro }) {
               </TableRow>
             </TableFooter>
           )}
-          {status === 'completed' && (
+          {status === "completed" && (
             <TableFooter className="sticky-footer">
               <TableRow className="table-row">
                 <TableHeaderCell colSpan="10" collapsing>
@@ -464,10 +464,10 @@ function JobsList({ show, formatTauro }) {
                       <div>
                         {data?.[0]?.jobs?.length === 0 ? (
                           <pre>
-                            Temps d&apos;exécution total:{' '}
+                            Temps d&apos;exécution total:{" "}
                             {executionTime / 1000 > 60
-                              ? (executionTime / 1000 / 60).toFixed(2) + ' min(s)'
-                              : (executionTime / 1000).toFixed(2) + ' sec(s)'}
+                              ? (executionTime / 1000 / 60).toFixed(2) + " min(s)"
+                              : (executionTime / 1000).toFixed(2) + " sec(s)"}
                           </pre>
                         ) : null}
                       </div>
@@ -484,8 +484,8 @@ function JobsList({ show, formatTauro }) {
     return newTable;
   };
 
-  const jobs = ItemsJob('jobs');
-  const completed = ItemsJob('completed');
+  const jobs = ItemsJob("jobs");
+  const completed = ItemsJob("completed");
 
   if (show) {
     return (

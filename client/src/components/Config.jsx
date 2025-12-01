@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Button, ButtonContent, Header, Icon, Input, Modal, ModalActions, ModalContent } from 'semantic-ui-react';
+import { useEffect, useState } from "react";
+import { Button, ButtonContent, Header, Icon, Input, Modal, ModalActions, ModalContent } from "semantic-ui-react";
 
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
@@ -7,29 +7,29 @@ const PORT = import.meta.env.VITE_PORT;
 function Config() {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState({
-    standards: '',
-    raccordables: '',
-    surMesures: '',
-    ecom: '',
-    preview: '',
+    standards: "",
+    raccordables: "",
+    surMesures: "",
+    ecom: "",
+    preview: "",
   });
 
   // Fonction pour charger les données initiales
   const fetchInitialData = async () => {
     try {
       const response = await fetch(`http://${HOST}:${PORT}/config`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
       });
 
       if (response.ok) {
         const responseData = await response.json();
         setData(responseData); // Met à jour l'état avec les données récupérées
       } else {
-        console.log('Erreur lors du chargement des données');
+        console.log("Erreur lors du chargement des données");
       }
     } catch (err) {
-      console.error('Erreur de connexion lors du chargement :', err);
+      console.error("Erreur de connexion lors du chargement :", err);
     }
   };
 
@@ -44,8 +44,8 @@ function Config() {
   async function fetchDataAndCompare(newData) {
     try {
       const response = await fetch(`http://${HOST}:${PORT}/config`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newData),
       });
 
@@ -57,11 +57,11 @@ function Config() {
           setData(responseData);
           console.log("Les valeurs de l'état ont été mises à jour.");
         } else {
-          console.log('Les valeurs sont identiques, pas de mise à jour.');
+          console.log("Les valeurs sont identiques, pas de mise à jour.");
         }
       }
     } catch (err) {
-      console.error('Erreur lors de la connexion :', err);
+      console.error("Erreur lors de la connexion :", err);
     }
   }
 
@@ -93,7 +93,7 @@ function Config() {
             <Input
               fluid
               label="Aperçu:"
-              value={data.preview || ''}
+              value={data.preview || ""}
               onChange={(e, v) => {
                 setData((prevData) => ({ ...prevData, preview: v.value }));
               }}
@@ -101,7 +101,7 @@ function Config() {
             <Input
               fluid
               label="Tauro:"
-              value={data.tauro || ''}
+              value={data.tauro || ""}
               onChange={(e, v) => {
                 setData((prevData) => ({ ...prevData, tauro: v.value }));
               }}
@@ -109,7 +109,7 @@ function Config() {
             <Input
               fluid
               label="Standards:"
-              value={data.standards || ''}
+              value={data.standards || ""}
               onChange={(e, v) => {
                 setData((prevData) => ({ ...prevData, standards: v.value }));
               }}
@@ -117,7 +117,7 @@ function Config() {
             <Input
               fluid
               label="Raccordables:"
-              value={data.raccordables || ''}
+              value={data.raccordables || ""}
               onChange={(e, v) => {
                 setData((prevData) => ({ ...prevData, raccordables: v.value }));
               }}
@@ -125,7 +125,7 @@ function Config() {
             <Input
               fluid
               label="Sur Mesures:"
-              value={data.surMesures || ''}
+              value={data.surMesures || ""}
               onChange={(e, v) => {
                 setData((prevData) => ({ ...prevData, surMesures: v.value }));
               }}
@@ -133,7 +133,7 @@ function Config() {
             <Input
               fluid
               label="Ecom:"
-              value={data.ecom || ''}
+              value={data.ecom || ""}
               onChange={(e, v) => {
                 setData((prevData) => ({ ...prevData, ecom: v.value }));
               }}

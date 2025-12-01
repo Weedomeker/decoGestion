@@ -1,4 +1,4 @@
-const Stocks = require('./models/Stocks');
+const Stocks = require("./models/Stocks");
 
 const findStock = async (ref) => {
   const stock = await Stocks.findOne({ ref });

@@ -19,9 +19,9 @@ import { path } from 'path';
  * découpe principale. La fonction crée ensuite un fichier de découpe
  **/
 
-const fs = require('fs');
-const path = require('path');
-const PDFDocument = require('pdfkit');
+const fs = require("fs");
+const path = require("path");
+const PDFDocument = require("pdfkit");
 
 //cacluler metre lineaire
 function linearCutFile(dibondWidth, dibondHeight, cutWidth, cutHeight) {
@@ -37,8 +37,8 @@ function linearCutFile(dibondWidth, dibondHeight, cutWidth, cutHeight) {
   let seconds = (cutTime % 60).toFixed(2);
 
   console.log(VerticalWastes, HorizontalWastes);
-  console.log(total, 'mètres');
-  console.log(minutes + ' min(s) ' + seconds + ' secs');
+  console.log(total, "mètres");
+  console.log(minutes + " min(s) " + seconds + " secs");
 }
 
 function mmToPt(mm) {
@@ -127,7 +127,7 @@ function generateCutFile(dibondWidth, dibondHeight, cutWidth, cutHeight, milling
       fs.mkdirSync(outPath, { recursive: true });
     }
     fs.writeFileSync(`${outPath}/${fileName}.cut`, content);
-    console.log('Fichier cut ✅');
+    console.log("Fichier cut ✅");
 
     // // ➡️ PDF visuel AVEC dimensions mm fidèles
     // const doc = new PDFDocument({

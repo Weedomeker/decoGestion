@@ -1,6 +1,6 @@
-const { PDFDocument, degrees, StandardFonts, rgb } = require('pdf-lib');
-const fs = require('fs');
-const { cmToPoints, pointsToCm } = require('./server/src/convertUnits');
+const { PDFDocument, degrees, StandardFonts, rgb } = require("pdf-lib");
+const fs = require("fs");
+const { cmToPoints, pointsToCm } = require("./server/src/convertUnits");
 
 // --- Placement des panneaux ---
 function placeOne(plateW, plateH, w, h) {
@@ -35,7 +35,7 @@ function placePanels({ plateW, plateH, sizes, spacing }) {
 async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = true) {
   try {
     const pdfDoc = await PDFDocument.create();
-    const [plaqueWcm, plaqueHcm] = plaque.split('x').map(Number);
+    const [plaqueWcm, plaqueHcm] = plaque.split("x").map(Number);
     const plateW = cmToPoints(plaqueWcm);
     const plateH = cmToPoints(plaqueHcm);
     const page = pdfDoc.addPage([plateW, plateH]);
@@ -80,7 +80,7 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
       spacing: spacing ? cmToPoints(spacing) : null,
     });
 
-    if (!positions) throw new Error('Impossible de placer les panneaux');
+    if (!positions) throw new Error("Impossible de placer les panneaux");
 
     // --- Dessin final ---
     // Pour stocker les textes fichiers
@@ -116,7 +116,7 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
     // ---Insertion des noms des fichiers---
     let xPosition = cmToPoints(2);
     let textSize = 65;
-    const textFichiers = text.join(' + ');
+    const textFichiers = text.join(" + ");
     const textWidth = helveticaFont.widthOfTextAtSize(textFichiers, textSize);
 
     page.drawText(textFichiers, {
@@ -138,8 +138,8 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
     const globalMinX = Math.min(...allX);
     const globalMaxX = Math.max(...allX);
     // (Optionnel) conversion en cm pour debug
-    console.log('MinY global (cm):', pointsToCm(globalMinY));
-    console.log('MaxY global (cm):', pointsToCm(globalMaxY));
+    console.log("MinY global (cm):", pointsToCm(globalMinY));
+    console.log("MaxY global (cm):", pointsToCm(globalMaxY));
     // ---Insertion Regmarks ---
     if (reg) {
       const drawRegmarks = (xReg, yReg, sizeReg = 0.6) => {
@@ -170,9 +170,9 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
     // --- Sauvegarde ---
     const pdfBytes = await pdfDoc.save();
     await fs.promises.writeFile(`${writePath}/test.pdf`, pdfBytes);
-    console.log('PDF généré avec succès !');
+    console.log("PDF généré avec succès !");
   } catch (e) {
-    console.error('Erreur modifyPdf:', e);
+    console.error("Erreur modifyPdf:", e);
   }
 }
 
@@ -182,17 +182,17 @@ modifyPdf(
   {
     visuals: [
       {
-        file: './visu_casto/visuA.pdf',
-        name: '54542 - CASTO LILLE - 101x215 - 5Galets_73800965_100x200_S_  1_EX',
+        file: "./visu_casto/visuA.pdf",
+        name: "54542 - CASTO LILLE - 101x215 - 5Galets_73800965_100x200_S_  1_EX",
       },
       {
-        file: './visu_casto/visuB.pdf',
-        name: '58584 - CASTO MARSEILLE - 101x215 - 5Galets_73800965_100x200_S_  1_EX',
+        file: "./visu_casto/visuB.pdf",
+        name: "58584 - CASTO MARSEILLE - 101x215 - 5Galets_73800965_100x200_S_  1_EX",
       },
     ],
-    plaque: '150x305',
+    plaque: "150x305",
     spacing: null,
   },
 
-  './',
+  "./",
 );

@@ -1,8 +1,8 @@
-const makerjs = require('makerjs');
-const fs = require('fs');
-const path = require('path');
-const Wastecut = require('./wastecut');
-const { error } = require('console');
+const makerjs = require("makerjs");
+const fs = require("fs");
+const path = require("path");
+const Wastecut = require("./wastecut");
+const { error } = require("console");
 let exportPath = [];
 
 function convertParamsToNumbers(...params) {
@@ -67,37 +67,37 @@ const createDec = (widthPlate, heightPlate, decWidth, decHeight, writePath) => {
   const waste = Wastecut(widthPlate, heightPlate, decWidth, decHeight).paths;
   model.models.wasteCut.paths = waste;
 
-  model.models.plate.models.dec.layer = 'red';
-  model.models.regmarks.paths.reg1.layer = 'black';
-  model.models.regmarks.paths.reg2.layer = 'black';
-  model.models.regmarks.paths.reg3.layer = 'black';
-  model.models.regmarks.paths.reg4.layer = 'black';
-  model.models.regmarks.paths.reg5.layer = 'black';
+  model.models.plate.models.dec.layer = "red";
+  model.models.regmarks.paths.reg1.layer = "black";
+  model.models.regmarks.paths.reg2.layer = "black";
+  model.models.regmarks.paths.reg3.layer = "black";
+  model.models.regmarks.paths.reg4.layer = "black";
+  model.models.regmarks.paths.reg5.layer = "black";
 
   const { paths } = Wastecut(widthPlate, heightPlate, decWidth, decHeight);
   Object.keys(paths).map((el) => {
-    model.models.wasteCut.paths[el].layer = 'maroon';
+    model.models.wasteCut.paths[el].layer = "maroon";
   });
 
   try {
     let pathFile = writePath;
     let fileName = `${decWidth}x${decHeight}`;
     const dxf = makerjs.exporter.toDXF(model, {
-      units: 'cm',
+      units: "cm",
     });
-    const svg = makerjs.exporter.toSVG(model, { units: 'cm', strokeWidth: 1 / 28.3464567 });
+    const svg = makerjs.exporter.toSVG(model, { units: "cm", strokeWidth: 1 / 28.3464567 });
     try {
       if (fs.existsSync(pathFile)) {
-        fs.writeFileSync(pathFile + '/' + fileName + '.dxf', dxf);
-        fs.writeFileSync(pathFile + '/' + fileName + '.svg', svg);
-        console.log('Fichier dxf ✅');
-        console.log('Fichier svg ✅');
+        fs.writeFileSync(pathFile + "/" + fileName + ".dxf", dxf);
+        fs.writeFileSync(pathFile + "/" + fileName + ".svg", svg);
+        console.log("Fichier dxf ✅");
+        console.log("Fichier svg ✅");
       } else {
         fs.mkdirSync(pathFile, { recursive: true });
-        fs.writeFileSync(pathFile + '/' + fileName + '.dxf', dxf);
-        fs.writeFileSync(pathFile + '/' + fileName + '.svg', svg);
-        console.log('Fichier dxf ✅');
-        console.log('Fichier svg ✅');
+        fs.writeFileSync(pathFile + "/" + fileName + ".dxf", dxf);
+        fs.writeFileSync(pathFile + "/" + fileName + ".svg", svg);
+        console.log("Fichier dxf ✅");
+        console.log("Fichier svg ✅");
       }
     } catch (error) {
       console.log(error);

@@ -6,7 +6,7 @@
   "scripts": {
     "start": "set NODE_ENV=production&& node ./server/server.js -e js,css,html",
     "server": "set NODE_ENV=development&& nodemon ./server/server.js -e js,css,html",
-    "test": "set NODE_ENV=development&& node ./server/server.js -e js,css,html",
+    "format": "prettier-eslint \"./server/**/*.js\" --write && prettier-eslint \"./client/src/**/*.{js,jsx}\" --write",
     "client": "set NODE_ENV=development&& cd client && npm run dev",
     "build": "set NODE_ENV=production&& cd client && npm run build"
   },
@@ -60,6 +60,7 @@
     "isdev": "^1.0.1",
     "mocha": "^11.1.0",
     "prettier": "^3.1.0",
-    "prettier-eslint": "^16.1.2"
+    "prettier-eslint": "^16.1.2",
+    "prettier-eslint-cli": "^8.0.1"
   }
 }

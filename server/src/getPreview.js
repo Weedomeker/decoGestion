@@ -1,16 +1,16 @@
-const fs = require('fs');
-const path = require('path');
-const { Jimp } = require('jimp');
+const fs = require("fs");
+const path = require("path");
+const { Jimp } = require("jimp");
 
 const getPreview = async (ref, jpgName) => {
   try {
-    const previewDir = path.join(__dirname, '../public/preview');
+    const previewDir = path.join(__dirname, "../public/preview");
     const files = fs.readdirSync(previewDir);
 
     const file = files.find((f) => f.includes(ref));
 
     if (!file) {
-      console.log('file not found');
+      console.log("file not found");
       return false;
     }
 
@@ -28,7 +28,7 @@ const getPreview = async (ref, jpgName) => {
 
     return destPath;
   } catch (err) {
-    console.error('Error in getPreview:', err);
+    console.error("Error in getPreview:", err);
     return false;
   }
 };

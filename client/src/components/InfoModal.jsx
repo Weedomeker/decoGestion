@@ -1,11 +1,11 @@
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
-import PropTypes from 'prop-types';
-import { useEffect, useState } from 'react';
-import { Button, Input, Message, Modal } from 'semantic-ui-react';
+import PropTypes from "prop-types";
+import { useEffect, useState } from "react";
+import { Button, Input, Message, Modal } from "semantic-ui-react";
 const InfoModal = ({ open, onClose, message, object, error }) => {
   const [data, setData] = useState(object);
-  const visuel = object && object.visuel ? object.visuel.split('/').pop().split('-').pop().split(' ')[0] : '';
+  const visuel = object && object.visuel ? object.visuel.split("/").pop().split("-").pop().split(" ")[0] : "";
 
   useEffect(() => {
     setData(object);
@@ -15,13 +15,13 @@ const InfoModal = ({ open, onClose, message, object, error }) => {
   const updateJob = async () => {
     try {
       const response = await fetch(`http://${HOST}:${PORT}/edit_job`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error || 'Une erreur est survenue');
+        throw new Error(result.error || "Une erreur est survenue");
       }
 
       onClose(); // Fermer le modal après une mise à jour réussie
@@ -43,7 +43,7 @@ const InfoModal = ({ open, onClose, message, object, error }) => {
           <Message negative>
             <Message.Header>{message}</Message.Header>
             {object && (
-              <pre>{`${object.cmd} ${object.ville} ${visuel} ${object.ref} ${object.format_visu} ${object.format_Plaque.split('_').pop()} ${object.ex}ex(s)`}</pre>
+              <pre>{`${object.cmd} ${object.ville} ${visuel} ${object.ref} ${object.format_visu} ${object.format_Plaque.split("_").pop()} ${object.ex}ex(s)`}</pre>
             )}
           </Message>
         )}
@@ -56,7 +56,7 @@ const InfoModal = ({ open, onClose, message, object, error }) => {
           onChange={(e) => {
             const newValue = parseInt(e.target.value);
             const matchEx = data.jpgName.match(/\d_EX/gi);
-            const newJpgName = data.jpgName.replace(matchEx, newValue + '_EX');
+            const newJpgName = data.jpgName.replace(matchEx, newValue + "_EX");
             setData({ ...data, ex: newValue, jpgName: newJpgName });
           }}
         />

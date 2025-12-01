@@ -1,9 +1,9 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const stocksSchema = new mongoose.Schema(
   {
     visuel: { type: String },
-    finition: { type: String, default: '' },
+    finition: { type: String, default: "" },
     format: { type: String },
     ref: { type: Number },
     ex: { type: Number },
@@ -13,6 +13,6 @@ const stocksSchema = new mongoose.Schema(
   },
 );
 
-const Stocks = mongoose.model('stocks', stocksSchema);
+const Stocks = mongoose.model("stocks", stocksSchema);
 
 module.exports = Stocks;

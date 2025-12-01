@@ -1,9 +1,9 @@
-const { degrees, PDFDocument, rgb, StandardFonts } = require('pdf-lib');
-require('dotenv').config();
-const HOST = process.env.HOST || 'localhost';
+const { degrees, PDFDocument, rgb, StandardFonts } = require("pdf-lib");
+require("dotenv").config();
+const HOST = process.env.HOST || "localhost";
 const PORT = process.env.PORT || 8000;
-const fs = require('fs');
-const { cmToPoints, pointsToCm, cmToPxl } = require('./convertUnits');
+const fs = require("fs");
+const { cmToPoints, pointsToCm, cmToPxl } = require("./convertUnits");
 
 async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg) {
   try {
@@ -16,8 +16,8 @@ async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg
     const firstPage = pages[0];
     const { width, height } = firstPage.getSize();
 
-    const fTauro = formatTauro.split('_').pop();
-    const [largeurPlaqueCm, longueurPlaqueCm] = fTauro.split('x').map(Number);
+    const fTauro = formatTauro.split("_").pop();
+    const [largeurPlaqueCm, longueurPlaqueCm] = fTauro.split("x").map(Number);
 
     // Utiliser cmToPoints pour avoir des coordonnées cohérentesö
     const largeurPlaque = cmToPoints(largeurPlaqueCm);

@@ -1,14 +1,14 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
 function filterVerni(name) {
   name = name.toLowerCase();
   let filtered = [];
-  const configPath = path.join('./config.json');
+  const configPath = path.join("./config.json");
 
   // Lire le fichier s'il existe
   if (fs.existsSync(configPath)) {
-    const readFile = fs.readFileSync(configPath, 'utf8');
+    const readFile = fs.readFileSync(configPath, "utf8");
     try {
       filtered = JSON.parse(readFile).vernis;
     } catch (error) {
@@ -17,7 +17,7 @@ function filterVerni(name) {
   }
 
   // S'assurer que name est une chaîne
-  if (typeof name !== 'string') {
+  if (typeof name !== "string") {
     console.error('Le paramètre "name" doit être une chaîne de caractères.');
     return;
   }

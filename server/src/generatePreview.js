@@ -1,9 +1,9 @@
-const fs = require('fs');
-const path = require('path');
-const { fromPath } = require('pdf2pic');
-const pLimit = require('p-limit');
-const cliProgress = require('cli-progress');
-const e = require('express');
+const fs = require("fs");
+const path = require("path");
+const { fromPath } = require("pdf2pic");
+const pLimit = require("p-limit");
+const cliProgress = require("cli-progress");
+const e = require("express");
 
 // Function to send logs to the terminal
 function sendLog(message, verbose = true) {
@@ -16,9 +16,9 @@ function sendLog(message, verbose = true) {
 function createProgressBar(totalFiles) {
   const progressBar = new cliProgress.SingleBar(
     {
-      format: '📄 {bar} {percentage}% | {value}/{total} PDFs | 🖼️  {generated} | ✅ {skipped} | ❌ {failure}\n',
-      barCompleteChar: '\u2588',
-      barIncompleteChar: '\u2591',
+      format: "📄 {bar} {percentage}% | {value}/{total} PDFs | 🖼️  {generated} | ✅ {skipped} | ❌ {failure}\n",
+      barCompleteChar: "\u2588",
+      barIncompleteChar: "\u2591",
       hideCursor: true,
       clearOnComplete: true,
       autopadding: true,
@@ -27,7 +27,7 @@ function createProgressBar(totalFiles) {
   );
 
   //log verification jpg
-  console.log('Check JPG files...');
+  console.log("Check JPG files...");
   progressBar.start(totalFiles, 0, { generated: 0, skipped: 0, failure: 0 });
   return progressBar;
 }
@@ -49,7 +49,7 @@ async function findAllPDFs(directory) {
     if (entry.isDirectory()) {
       const subFiles = await findAllPDFs(fullPath);
       files = files.concat(subFiles);
-    } else if (entry.isFile() && path.extname(entry.name).toLowerCase() === '.pdf') {
+    } else if (entry.isFile() && path.extname(entry.name).toLowerCase() === ".pdf") {
       files.push(fullPath);
     }
   }
@@ -76,7 +76,7 @@ async function processSinglePDF(
     counters.failure++;
     progressBar.increment(1, { generated: counters.generated, skipped: counters.skipped, failure: counters.failure });
     return;
-  } else if (outputFilename === '' || outputFilename === null) {
+  } else if (outputFilename === "" || outputFilename === null) {
     sendLog(`⚠️ No valid output filename for ${pdfFilename}`, verbose);
     counters.failure++;
     progressBar.increment(1, { generated: counters.generated, skipped: counters.skipped, failure: counters.failure });
@@ -94,7 +94,7 @@ async function processSinglePDF(
       density: density || 72,
       saveFilename: outputFilename,
       savePath: jpgDirectory,
-      format: 'jpg',
+      format: "jpg",
       height: height || 1920,
       preserveAspectRatio: true,
     });
