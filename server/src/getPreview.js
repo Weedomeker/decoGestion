@@ -10,7 +10,7 @@ const getPreview = async (ref, jpgName) => {
     const file = files.find((f) => f.includes(ref));
 
     if (!file) {
-      console.log("file not found");
+      console.log("preview: file not found");
       return false;
     }
 

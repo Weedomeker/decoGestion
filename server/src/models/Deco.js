@@ -23,12 +23,12 @@ const decoSchema = new mongoose.Schema({
 decoSchema.pre("save", async function (next) {
   try {
     if (this.isModified("ref") && this.ref) {
-      const refData = await RefDeco.findOne({ "REF LM": this.ref });
+      const refData = await RefDeco.findOne({ ref: this.ref });
 
       if (refData) {
-        this.finition = refData["FINITION VERNIS"] || "";
-        this.format = refData["FORMAT"] || this.format;
-        this.deco = refData["NOM DU MODELE"] || this.deco;
+        this.finition = refData["finition"] || "";
+        this.format = refData["format"] || this.format;
+        this.deco = refData["model"] || this.deco;
       } else {
         // si pas trouvé → vider finition et déco
         this.finition = "";
@@ -47,12 +47,12 @@ decoSchema.pre("findOneAndUpdate", async function (next) {
     const update = this.getUpdate();
 
     if (update.ref) {
-      const refData = await RefDeco.findOne({ "REF LM": update.ref });
+      const refData = await RefDeco.findOne({ ref: update.ref });
 
       if (refData) {
-        update.finition = refData["FINITION VERNIS"] || "";
-        update.format = refData["FORMAT"] || update.format;
-        update.deco = refData["NOM DU MODELE"] || update.deco;
+        update.finition = refData["finition"] || "";
+        update.format = refData["format"] || update.format;
+        update.deco = refData["model"] || update.deco;
       } else {
         update.finition = "";
       }

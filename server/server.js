@@ -51,10 +51,8 @@ const dayDate = new Date()
   .toLocaleUpperCase();
 
 // Path Sources Deco
-let decoFolder;
-let decoRaccordablesFolder;
-let decoSurMesuresFolder;
-let decoEcomFolder;
+let decoLM;
+let decoCASTO;
 let previewDeco;
 let jpgPath = "./server/public";
 let sessionPRINTSA = `PRINTSA#${dayDate}`;
@@ -76,25 +74,14 @@ async function LinkFolders(pathUpdate) {
   for (const key in config) {
     if (key !== "vernis") await symlink(config[key], path.join(__dirname, `./public/${key.toUpperCase()}`), pathUpdate);
     switch (key) {
-      case "standards":
-        decoFolder = `./server/public/${key}`;
-
+      case "LM":
+        decoLM = `./server/public/${key}`;
         break;
-      case "raccordables":
-        decoRaccordablesFolder = `./server/public/${key}`;
-
-        break;
-      case "surMesures":
-        decoSurMesuresFolder = `./server/public/${key}`;
-
-        break;
-      case "ecom":
-        decoEcomFolder = `./server/public/${key}`;
-
+      case "CASTO":
+        decoCASTO = `./server/public/${key}`;
         break;
       case "preview":
         previewDeco = `./server/public/${key}`;
-
         break;
       default:
         break;
@@ -148,8 +135,10 @@ app.use(
 );
 
 let fileName = "",
+  fileName2 = "",
   writePath = "",
   jpgName = "",
+  jpgName2 = "",
   pdfTime,
   jpgTime,
   fileDownload;
@@ -234,11 +223,14 @@ app.patch("/edit_job", async (req, res) => {
 
 app.post("/add_job", async (req, res) => {
   const data = {
+    client: req.body.client,
     allFormatTauro: req.body.allFormatTauro,
     formatTauro: req.body.formatTauro,
     prodBlanc: req.body.prodBlanc,
     format: req.body.format,
+    format2: req.body.format2,
     visuel: req.body.visuel,
+    visuel2: req.body.visuel2,
     numCmd: req.body.numCmd,
     ville: req.body.ville != null ? req.body.ville.toUpperCase() : "",
     ex: req.body.ex !== null ? req.body.ex : "",
@@ -246,15 +238,21 @@ app.post("/add_job", async (req, res) => {
     cut: req.body.cut,
     teinteMasse: req.body.teinteMasse,
   };
+  let client = data.client;
   let visuel = data.visuel.split("/").pop();
   visuel = visuel.includes("-") ? visuel.split("-").pop() : visuel;
 
+  let visuel2 = data.visuel2.split("/").pop();
+  visuel2 = visuel2.includes("-") ? visuel2.split("-").pop() : visuel2;
+
   let visuPath = data.visuel;
+  let visuPath2 = data.visuel2;
   let formatTauro = data.formatTauro;
   formatTauro = formatTauro.split("_").pop();
   let prodBlanc = data.prodBlanc;
   let allFormatTauro = data.allFormatTauro;
   let format = data.format;
+  let format2 = data.format2;
   let reg = data.regmarks;
   let teinteMasse = data.teinteMasse;
 
@@ -268,15 +266,20 @@ app.post("/add_job", async (req, res) => {
     /\.[^/.]+$/,
     "",
   )} ${data.ex}_EX`;
+  fileName2 = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${teinteMasse === true ? format2?.split("_").pop() : formatTauro} - ${visuel2.replace(/\.[^/.]+$/, "")} ${data.ex}_EX`;
+
   //Verifier si dossiers exist si pas le créer
   if (fs.existsSync(writePath) && fs.existsSync(`${jpgPath}/${sessionPRINTSA}`)) {
-    pdfName = writePath + "/" + fileName;
+    pdfName = fileName2 ? writePath + "/" + fileName + " - " + fileName2 : writePath + "/" + fileName;
+    console.log(pdfName);
     jpgName = `${jpgPath}/${sessionPRINTSA}` + "/" + fileName;
+    jpgName2 = `${jpgPath}/${sessionPRINTSA}` + "/" + fileName2;
   } else {
     fs.mkdirSync(writePath, { recursive: true });
     fs.mkdirSync(`${jpgPath}/${sessionPRINTSA}`, { recursive: true });
-    pdfName = writePath + "/" + fileName;
+    pdfName = fileName2 ? writePath + "/" + fileName + " - " + fileName2 : writePath + "/" + fileName;
     jpgName = `${jpgPath}/${sessionPRINTSA}` + "/" + fileName;
+    jpgName2 = `${jpgPath}/${sessionPRINTSA}` + "/" + fileName2;
   }
 
   const parseDimensions = (format) => {
@@ -290,18 +293,25 @@ app.post("/add_job", async (req, res) => {
   const perteCalc = parseFloat(widthPlaque * heightPlaque - widthVisu * heightVisu) / 10000;
 
   // JOBS LIST STANDBY
-  const matchRef = visuel.match(/\d{8}/) || visuel.match(/\d{13}/); // Recherche une séquence de 8 chiffres
+  const matchRef = visuel.match(/\d{8,13}/);
+  const matchRef2 = visuel2.match(/\d{8,13}/);
   const newJob = createJob(
+    client,
     data.numCmd,
     data.ville,
     format,
+    format2,
     formatTauro,
     visuel,
+    visuel2,
     matchRef ? matchRef[0] : 0,
+    matchRef2 ? matchRef2[0] : 0,
     data.ex,
     visuPath,
+    visuPath2,
     writePath,
     jpgName,
+    jpgName2,
     reg,
     data.cut,
     data.teinteMasse,
@@ -642,23 +652,15 @@ app.get("/public", async (req, res) => {
 });
 
 app.get("/path", async (req, res) => {
-  if (
-    typeof decoFolder === "string" ||
-    typeof decoSurMesuresFolder === "string" ||
-    typeof decoRaccordablesFolder === "string" ||
-    typeof decoEcomFolder === "string" ||
-    typeof previewDeco === "string"
-  ) {
+  if (typeof decoLM === "string" || typeof decoCASTO === "string" || typeof previewDeco === "string") {
     let jpgFiles = [];
     if (fs.existsSync(previewDeco)) {
       const files = fs.readdirSync(previewDeco, { withFileTypes: true });
       jpgFiles = files.filter((file) => file.isFile() && file.name.endsWith(".jpg"));
     }
 
-    const dirDeco = await getFiles(decoFolder);
-    const dirDecoSurMesures = await getFiles(decoSurMesuresFolder);
-    const dirDecoRaccordables = await getFiles(decoRaccordablesFolder);
-    const dirDecoEcom = await getFiles(decoEcomFolder);
+    const dirLM = await getFiles(decoLM);
+    const dirCASTO = await getFiles(decoCASTO);
     const dirDecoPreview = jpgFiles.map((file) => ({
       name: file.name,
       path: path.join(previewDeco, file.name),
@@ -666,10 +668,8 @@ app.get("/path", async (req, res) => {
 
     res.json([
       {
-        Standards: dirDeco,
-        SurMesures: dirDecoSurMesures,
-        Raccordables: dirDecoRaccordables,
-        Ecom: dirDecoEcom,
+        LM: dirLM,
+        CASTO: dirCASTO,
         Preview: dirDecoPreview,
       },
     ]);
@@ -813,8 +813,8 @@ server.listen(PORT, async () => {
     });
   try {
     await processAllPDFs({
-      pdfDirectory: path.join(__dirname, "./public/STANDARDS"),
-      jpgDirectory: path.join(__dirname, "./public/PREVIEW"),
+      pdfDirectory: path.join(decoLM),
+      jpgDirectory: path.join(previewDeco),
       height: 1920,
       density: 72,
       parallelLimit: 5,

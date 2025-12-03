@@ -176,6 +176,8 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
   }
 }
 
+module.exports = { modifyPdf };
+
 // --- Exemple d’utilisation ---
 //54542 - LM LILLE - 101x215 - 5Galets_73800965_100x200_S_  1_EX
 modifyPdf(

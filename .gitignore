@@ -6,11 +6,9 @@ test/
 !server/public/*.html
 !server/public/icons
 !server/public/images
-server/public/DECO
+server/public/LM
 server/public/ECOM
-server/public/STANDARDS
-server/public/SURMESURES
-server/public/RACCORDABLES
+server/public/CASTO
 server/public/TAURO
 server/public/tmp
 server/public/PREVIEW

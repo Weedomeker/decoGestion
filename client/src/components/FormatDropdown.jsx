@@ -2,7 +2,7 @@ import PropTypes from "prop-types";
 import { Dropdown } from "semantic-ui-react";
 
 function FormatDropdown({ data, isLoading, onSelectFormat, selectedFormat, error, enabled, placeholder = "" }) {
-  const formatRegex = /\d{3}x\d{3}/i;
+  const formatRegex = /\d{3}x\d{2,3}/i;
 
   const formatOptions = data
     ?.map((format, index) => {

@@ -247,6 +247,8 @@ function JobsList({ show, formatTauro }) {
     const newTableEntries = data?.[0]?.[status]?.map((value, i) => {
       if (!value) return null;
 
+      const client = value.client || "";
+
       let visuel = value.visuel ? value.visuel.split("/").pop() : "";
       const regexFormat = visuel.match(/\d{3}x\d{3}/i);
       if (regexFormat && regexFormat[0]) {
@@ -258,24 +260,6 @@ function JobsList({ show, formatTauro }) {
       const title = value.jpgName.split("/").pop();
       const url = `http://${HOST}:${PORT}/public/` + value.jpgName.replace(/#/i, "%23");
 
-      // const ifSatin = checkVernis(value.jpgName) === '_S';
-      // if (checkVernis(value.jpgName) !== undefined && sortFolder) {
-      //   url =
-      //     `http://${HOST}:${PORT}/public/` +
-      //     value.jpgName.split('/')[0] +
-      //     '/' +
-      //     value.jpgName.split('/')[1].replace(/#/i, '%23') +
-      //     '/' +
-      //     checkVernis(value.jpgName) +
-      //     '/' +
-      //     value.jpgName.split('/')[2];
-
-      //   if (ifSatin) {
-      //     url = url.replace('_S', 'Satin');
-      //   }
-      // } else {
-      //   url = `http://${HOST}:${PORT}/public/` + value.jpgName.replace(/#/i, '%23');
-      // }
       return (
         <TableRow
           key={i}
@@ -283,6 +267,7 @@ function JobsList({ show, formatTauro }) {
           className="table-row"
           style={value.teinteMasse ? { color: "#fc7703", fontWeight: "bold" } : null}
         >
+          <TableCell className="table-cell">{client}</TableCell>
           <TableCell className="table-cell">
             {new Date(value.date).toLocaleString("fr-FR", { timeZone: "EUROPE/PARIS" })}
           </TableCell>
@@ -325,9 +310,10 @@ function JobsList({ show, formatTauro }) {
 
     const newTable = !isLoading && (
       <div className="jobs-table-container">
-        <Table size="small" compact columns={"10"} className="jobs-table" striped>
+        <Table size="small" compact columns={"11"} className="jobs-table" striped>
           <TableHeader className="sticky-header">
             <TableRow className="table-row">
+              <TableHeaderCell className="table-cell">Clients</TableHeaderCell>
               <TableHeaderCell className="table-cell">Dates</TableHeaderCell>
               <TableHeaderCell className="table-cell">Commandes</TableHeaderCell>
               <TableHeaderCell className="table-cell">Villes</TableHeaderCell>
@@ -394,44 +380,6 @@ function JobsList({ show, formatTauro }) {
                           }}
                         />
                       )}
-
-                      {/* {!onLoading && (
-                        <Checkbox
-                          label="Trier lasers texturé"
-                          checked={sortFolder}
-                          onChange={(e, data) => {
-                            setSortFolder(data.checked);
-                          }}
-                        />
-                      )}
-
-                      {!onLoading && <Label>Papier stickers:</Label>}
-
-                      {!onLoading && (
-                        <Dropdown
-                          value={paperSticker}
-                          onChange={(e, data) => {
-                            setPaperSticker(data.value);
-                          }}
-                          upward
-                          compact
-                          selection
-                          options={[
-                            { key: 'A5', text: 'A5', value: 'A5' },
-                            { key: 'A4', text: 'A4', value: 'A4' },
-                          ]}
-                        />
-                      )}
-
-                      {!onLoading && (
-                        <Checkbox
-                          label="Étiquettes avec infos"
-                          checked={stickersData}
-                          onChange={(e, data) => {
-                            setStickersData(data.checked);
-                          }}
-                        />
-                      )} */}
 
                       {onLoading && (
                         <Progress

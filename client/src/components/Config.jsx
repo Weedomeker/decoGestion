@@ -108,34 +108,18 @@ function Config() {
             />
             <Input
               fluid
-              label="Standards:"
-              value={data.standards || ""}
+              label="LM:"
+              value={data.LM || ""}
               onChange={(e, v) => {
-                setData((prevData) => ({ ...prevData, standards: v.value }));
+                setData((prevData) => ({ ...prevData, LM: v.value }));
               }}
             />
             <Input
               fluid
-              label="Raccordables:"
-              value={data.raccordables || ""}
+              label="CASTO:"
+              value={data.CASTO || ""}
               onChange={(e, v) => {
-                setData((prevData) => ({ ...prevData, raccordables: v.value }));
-              }}
-            />
-            <Input
-              fluid
-              label="Sur Mesures:"
-              value={data.surMesures || ""}
-              onChange={(e, v) => {
-                setData((prevData) => ({ ...prevData, surMesures: v.value }));
-              }}
-            />
-            <Input
-              fluid
-              label="Ecom:"
-              value={data.ecom || ""}
-              onChange={(e, v) => {
-                setData((prevData) => ({ ...prevData, ecom: v.value }));
+                setData((prevData) => ({ ...prevData, CASTO: v.value }));
               }}
             />
           </div>

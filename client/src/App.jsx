@@ -22,6 +22,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState([""]);
   const [selectedFormat, setSelectedFormat] = useState("");
+  const [selectedFormat2, setSelectedFormat2] = useState("");
   const [formatTauro, setFormatTauro] = useState([""]);
   const [checkProdBlanc, setCheckProdBlanc] = useState(false);
   const [checkGenerate, setCheckGenerate] = useState({
@@ -29,15 +30,19 @@ function App() {
     reg: true,
     teinteMasse: false,
   });
-  const [checkFolder, setCheckFolder] = useState("Standards");
+  const [checkFolder, setCheckFolder] = useState("LM");
   const [showAddFormat, setShowAddFormat] = useState(false);
   const [selectedFormatTauro, setSelectedFormatTauro] = useState("");
   const [version, setVersion] = useState(null);
   const [isloadingFormatTauro, setLoadingFormatTauro] = useState(true);
   const [files, setFiles] = useState([{ name: "", fileSize: "" }]);
+  const [files2, setFiles2] = useState([{ name: "", fileSize: "" }]);
   const [isFile, setIsFile] = useState(false);
+  const [isFile2, setIsFile2] = useState(false);
   const [selectedFile, setSelectedFile] = useState("");
+  const [selectedFile2, setSelectedFile2] = useState("");
   const [fileSize, setFileSize] = useState("");
+  const [fileSize2, setFileSize2] = useState("");
   const [isFooter, setIsFooter] = useState(false);
   const [isShowPdf, setIsShowPdf] = useState(false);
   const [isShowLouis, setIsShowLouis] = useState(false);
@@ -176,11 +181,14 @@ function App() {
     const formData = new FormData(form);
 
     const data = {
+      client: checkFolder,
       allFormatTauro: formatTauro,
       formatTauro: selectedFormatTauro,
       prodBlanc: checkProdBlanc,
       format: selectedFormat,
+      format2: selectedFormat2,
       visuel: selectedFile,
+      visuel2: selectedFile2,
       numCmd: formData.get("numCmd"),
       ville: formData.get("ville"),
       ex: formData.get("ex"),
@@ -358,46 +366,30 @@ function App() {
           </Form.Field>
 
           <Form.Field>
-            <Segment color="blue" style={{ marginTop: 0 }}>
-              <Label color="blue" ribbon style={{ position: "absolute", top: -8, left: -15 }}>
-                Deco
+            <Segment color={checkFolder === "LM" ? "green" : "blue"} style={{ marginTop: 0 }}>
+              <Label
+                color={checkFolder === "LM" ? "green" : "blue"}
+                ribbon
+                style={{ position: "absolute", top: -8, left: -15 }}
+              >
+                {checkFolder === "LM" ? "Leroy Merlin" : "Castorama"}
               </Label>
               <Form.Group inline style={{ marginTop: 10 }}>
                 <Form.Field>
                   <Checkbox
-                    name="folders"
-                    label="Standards"
-                    value="Standards"
-                    checked={checkFolder === "Standards"}
+                    name="folders_LM"
+                    label="Standards LM"
+                    value="LM"
+                    checked={checkFolder === "LM"}
                     onChange={(e, data) => {
                       setCheckFolder(data.value);
                     }}
                   />
                   <Checkbox
-                    name="folders"
-                    label="Raccordables"
-                    value="Raccordables"
-                    checked={checkFolder === "Raccordables"}
-                    onChange={(e, data) => {
-                      setCheckFolder(data.value);
-                    }}
-                  />
-                </Form.Field>
-                <Form.Field>
-                  <Checkbox
-                    name="folders"
-                    label="Sur Mesures"
-                    value="SurMesures"
-                    checked={checkFolder === "SurMesures"}
-                    onChange={(e, data) => {
-                      setCheckFolder(data.value);
-                    }}
-                  />
-                  <Checkbox
-                    name="folders"
-                    label="Ecom"
-                    value="Ecom"
-                    checked={checkFolder === "Ecom"}
+                    name="folders_CASTO"
+                    label="Credences CASTO"
+                    value="CASTO"
+                    checked={checkFolder === "CASTO"}
                     onChange={(e, data) => {
                       setCheckFolder(data.value);
                     }}
@@ -534,6 +526,121 @@ function App() {
               {fileSize}
             </p>
           </Form.Field>
+
+          {/* Si on choisit Castorama */}
+          {checkFolder === "CASTO" && (
+            <Form.Field required error={error.format}>
+              <FormatDropdown
+                placeholder={checkFolder}
+                enabled={enabled.format}
+                error={error.format}
+                id="format"
+                className="format"
+                isLoading={isLoading}
+                data={data[0][checkFolder] || []}
+                value={selectedFormat2}
+                text={selectedFormat2}
+                selectedFormat={selectedFormat2}
+                onSelectFormat={(e, v) => {
+                  const value = isLoading ? "Loading.." : data && data[0][checkFolder].find((x) => x.path === v.value);
+                  setSelectedFormat2(value.name);
+                  setFiles2(value.files);
+                  setIsFile2(true);
+                  setSelectedFile2(null);
+                  setIsFooter(false);
+                  setEnabled({ ...enabled, visu: false });
+
+                  if (value.name == "" || value.name == undefined) {
+                    setError({ ...error, format: true });
+                  } else {
+                    setError({ ...error, format: false });
+                  }
+                }}
+              />
+            </Form.Field>
+          )}
+
+          {checkFolder === "CASTO" && (
+            <Form.Field required error={error.visuel}>
+              <VisuelDropdown
+                enabled={enabled.visu}
+                error={error.visuel}
+                id="visuel"
+                className="visuel"
+                isFile={isFile2}
+                files={files2}
+                value={selectedFile2}
+                text={selectedFile2}
+                selectedFile={selectedFile2}
+                onSelectedFile={(value) => {
+                  const name = value.name.split("/").pop().toLowerCase();
+                  if (name.includes("+blanc" || "+ blanc")) {
+                    setCheckProdBlanc(true);
+                  } else {
+                    setCheckProdBlanc(false);
+                  }
+                  setSelectedFile2(value.name);
+                  setFileSize2(value.size);
+                  setIsShowPdf(true);
+                  setIsShowLouis(false);
+                  setIsShowJobsList(false);
+                  if (value.name == "" || value.name == undefined) {
+                    setError({ ...error, visuel: true });
+                  } else {
+                    setEnabled({ ...enabled, numCmd: false });
+                    setError({ ...error, visuel: false });
+                  }
+
+                  //Check checkFormats
+                  if (
+                    CheckFormats(selectedFormatTauro, value.name.split("/").pop()) &&
+                    CheckFormats(selectedFormatTauro, value.name.split("/").pop()).gap == true
+                  ) {
+                    setPerte(CheckFormats(selectedFormatTauro, value.name.split("/").pop()).surface);
+                    setWarnMsg({
+                      ...warnMsg,
+                      hidden: false,
+                      header: "Attention au format",
+                      msg: `Perte matière: ${CheckFormats(selectedFormatTauro, value.name.split("/").pop()).surface}/m2`,
+                      icon: "info circle",
+                      color: "yellow",
+                    });
+                  } else if (CheckFormats(selectedFormatTauro, value.name.split("/").pop()) == undefined) {
+                    setWarnMsg({
+                      ...warnMsg,
+                      hidden: false,
+                      header: "Problème format",
+                      msg: "Format du visuel introuvable. Attention au format de plaque choisit.",
+                      icon: "warning sign",
+                      color: "orange",
+                    });
+                  } else if (CheckFormats(selectedFormatTauro, value.name.split("/").pop()).isChecked == false) {
+                    setWarnMsg({
+                      ...warnMsg,
+                      hidden: false,
+                      header: "Problème format",
+                      msg: "Le format du visuel est plus grand que celui de la plaque.",
+                      icon: "warning sign",
+                      color: "red",
+                    });
+                  } else {
+                    setWarnMsg({ ...warnMsg, hidden: true });
+                  }
+                }}
+              />
+              <p
+                style={{
+                  fontSize: "10px",
+                  textAlign: "right",
+                  width: "300px",
+                  marginTop: "2px",
+                }}
+              >
+                {fileSize2}
+              </p>
+            </Form.Field>
+          )}
+
           {/* Infos commande */}
           <Form.Field required error={error.numCmd}>
             <Input

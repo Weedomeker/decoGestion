@@ -2,10 +2,10 @@ const mongoose = require("mongoose");
 
 const refDecoSchema = new mongoose.Schema(
   {
-    "REF LM": { type: Number, required: true },
-    "NOM DU MODELE": { type: String },
-    "FINITION VERNIS": { type: String },
-    FORMAT: { type: String },
+    ref: { type: Number, required: true },
+    model: { type: String },
+    finition: { type: String },
+    format: { type: String },
   },
   { collection: "lm_ref_deco" },
 ); // préciser le nom exact de la collection Mongo

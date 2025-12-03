@@ -13,6 +13,11 @@ function filterName(name) {
     return;
   }
 
+  //CASTO
+  // if (name.match(/CRED \d{1,}x\d{1,}/gi)) {
+  //   newName = newName.split(/CRED \d{1,}x\d{1,}cm/gi).pop();
+  // }
+
   // Supprimer l'extension .pdf si présente
   newName = newName.replace(/\.pdf$/i, "");
 
