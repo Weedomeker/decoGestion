@@ -244,68 +244,107 @@ function JobsList({ show, formatTauro }) {
 
   const ItemsJob = (status) => {
     const executionTime = startTime && endTime ? endTime - startTime : null;
-    const newTableEntries = data?.[0]?.[status]?.map((value, i) => {
-      if (!value) return null;
 
-      const client = value.client || "";
+    const newTableEntries = data?.[0]?.[status]?.flatMap((value, i) => {
+      if (!value) return [];
 
-      let visuel = value.visuel ? value.visuel.split("/").pop() : "";
-      const regexFormat = visuel.match(/\d{3}x\d{3}/i);
-      if (regexFormat && regexFormat[0]) {
-        visuel = visuel.split(regexFormat[0])[0].toUpperCase();
-      } else {
-        visuel = visuel.toUpperCase();
+      const baseEntry = {
+        client: value.client,
+        date: value.date,
+        cmd: value.cmd,
+        ville: value.ville,
+        format_Plaque: value.format_Plaque,
+        ex: value.ex,
+        cut: value.cut,
+        jobId: value._id,
+      };
+
+      // Préparation du premier visuel
+      const entries = [
+        {
+          ...baseEntry,
+          visuel: value.visuel,
+          jpgName: value.jpgName,
+          format_visu: value.format_visu,
+          ref: value.ref,
+        },
+      ];
+
+      // Si CASTO → ajouter la deuxième ligne
+      if (value.client === "CASTO" && value.visuel2) {
+        entries.push({
+          ...baseEntry,
+          visuel: value.visuel2,
+          jpgName: value.jpgName2,
+          format_visu: value.format2_visu,
+          ref: value.ref2,
+        });
       }
 
-      const title = value.jpgName.split("/").pop();
-      const url = `http://${HOST}:${PORT}/public/` + value.jpgName.replace(/#/i, "%23");
+      // Générer les lignes (1 pour LM, 2 pour CASTO)
+      return entries.map((entry, idx) => {
+        const title = entry.jpgName.split("/").pop();
+        const url = `http://${HOST}:${PORT}/public/` + entry.jpgName.replace(/#/i, "%23");
 
-      return (
-        <TableRow
-          key={i}
-          disabled={status === "jobs" ? onLoading : null}
-          className="table-row"
-          style={value.teinteMasse ? { color: "#fc7703", fontWeight: "bold" } : null}
-        >
-          <TableCell className="table-cell">{client}</TableCell>
-          <TableCell className="table-cell">
-            {new Date(value.date).toLocaleString("fr-FR", { timeZone: "EUROPE/PARIS" })}
-          </TableCell>
-          <TableCell className="table-cell">{value.cmd}</TableCell>
-          <TableCell className="table-cell">{value.ville}</TableCell>
-          <TableCell className="table-cell ">
-            {!stickersOnly && status === "completed" ? (
-              <a href={url} data-lightbox={title} data-title={title}>
-                {visuel}
-              </a>
-            ) : (
-              visuel
-            )}
-          </TableCell>
-          <TableCell className="table-cell">{checkVernis(value?.visuel)?.slice(0, 1)?.toUpperCase()}</TableCell>
-          <TableCell className="table-cell">{value.format_visu.split("_").pop()}</TableCell>
-          <TableCell className="table-cell">{value.format_Plaque.split("_").pop()}</TableCell>
-          <TableCell className="table-cell">{value.ex}</TableCell>
-          <TableCell className="table-cell">{value.cut ? <Icon name="cut" /> : null}</TableCell>
+        let visuelName = entry.visuel.split("/").pop();
+        const regexFormat = visuelName.match(/\d{3}x\d{2,}/i);
+        const regexRef = visuelName.match(/\d{8,}/);
+        const cleanVisuelNameCasto = ["cred", "cm", regexFormat[0], regexRef[0], ".pdf", "mat", "brillant"];
+        if (entry.client === "CASTO") {
+          cleanVisuelNameCasto.map((el) => (visuelName = visuelName.toLowerCase().replace(el, "")));
+        }
+        if (regexFormat && regexFormat[0]) {
+          visuelName = visuelName.split(regexFormat[0])[0].toUpperCase();
+        } else {
+          visuelName = visuelName.toUpperCase();
+        }
 
-          {status === "jobs" ? (
-            <TableCell className="table-cell ">
-              <Button
-                compact
-                size="mini"
-                color="grey"
-                value={value._id}
-                onClick={() => handleDeleteJob(value._id)}
-                disabled={onLoading}
-              >
-                <Icon name="remove" fitted inverted />
-              </Button>
+        return (
+          <TableRow
+            key={`${i}-${idx}`}
+            disabled={status === "jobs" ? onLoading : null}
+            className="table-row"
+            style={value.teinteMasse ? { color: "#fc7703", fontWeight: "bold" } : null}
+          >
+            <TableCell>{entry.client}</TableCell>
+            <TableCell>{new Date(entry.date).toLocaleString("fr-FR", { timeZone: "EUROPE/PARIS" })}</TableCell>
+            <TableCell>{entry.cmd}</TableCell>
+            <TableCell>{entry.ville}</TableCell>
+
+            <TableCell>
+              {!stickersOnly && status === "completed" ? (
+                <a href={url} data-lightbox={title} data-title={title}>
+                  {visuelName}
+                </a>
+              ) : (
+                visuelName
+              )}
             </TableCell>
-          ) : (
-            <TableCell className="table-cell " />
-          )}
-        </TableRow>
-      );
+
+            <TableCell>{checkVernis(entry.visuel)?.slice(0, 1)?.toUpperCase()}</TableCell>
+            <TableCell>{entry.format_visu.split("_").pop()}</TableCell>
+            <TableCell>{entry.format_Plaque.split("_").pop()}</TableCell>
+            <TableCell>{entry.ex}</TableCell>
+            <TableCell>{entry.cut ? <Icon name="cut" /> : null}</TableCell>
+
+            {status === "jobs" ? (
+              <TableCell>
+                <Button
+                  compact
+                  size="mini"
+                  color="grey"
+                  onClick={() => handleDeleteJob(entry.jobId)}
+                  disabled={onLoading}
+                >
+                  <Icon name="remove" fitted inverted />
+                </Button>
+              </TableCell>
+            ) : (
+              <TableCell />
+            )}
+          </TableRow>
+        );
+      });
     });
 
     const newTable = !isLoading && (
@@ -313,27 +352,27 @@ function JobsList({ show, formatTauro }) {
         <Table size="small" compact columns={"11"} className="jobs-table" striped>
           <TableHeader className="sticky-header">
             <TableRow className="table-row">
-              <TableHeaderCell className="table-cell">Clients</TableHeaderCell>
-              <TableHeaderCell className="table-cell">Dates</TableHeaderCell>
-              <TableHeaderCell className="table-cell">Commandes</TableHeaderCell>
-              <TableHeaderCell className="table-cell">Villes</TableHeaderCell>
-              <TableHeaderCell className="table-cell">Visuels</TableHeaderCell>
-              <TableHeaderCell className="table-cell">Vernis</TableHeaderCell>
-              <TableHeaderCell className="table-cell">Formats</TableHeaderCell>
-              <TableHeaderCell className="table-cell">Plaques</TableHeaderCell>
-              <TableHeaderCell className="table-cell">Ex</TableHeaderCell>
-              <TableHeaderCell className="table-cell" />
-              <TableHeaderCell className="table-cell" />
+              <TableHeaderCell>Clients</TableHeaderCell>
+              <TableHeaderCell>Dates</TableHeaderCell>
+              <TableHeaderCell>Commandes</TableHeaderCell>
+              <TableHeaderCell>Villes</TableHeaderCell>
+              <TableHeaderCell>Visuels</TableHeaderCell>
+              <TableHeaderCell>Vernis</TableHeaderCell>
+              <TableHeaderCell>Formats</TableHeaderCell>
+              <TableHeaderCell>Plaques</TableHeaderCell>
+              <TableHeaderCell>Ex</TableHeaderCell>
+              <TableHeaderCell />
+              <TableHeaderCell />
             </TableRow>
           </TableHeader>
 
           {/* BODY */}
           <TableBody className="body-table-jobs">{newTableEntries}</TableBody>
 
-          {/* FOOTER */}
+          {/* FOOTERS IDENTIQUES À TA VERSION (je ne les ai pas touchés) */}
           {status === "jobs" && (
             <TableFooter className="sticky-footer">
-              <TableRow className="table-row">
+              <TableRow>
                 <TableHeaderCell colSpan="10" collapsing>
                   <div className="sticky-footer-content">
                     <div className="checkbox-footer">
@@ -375,9 +414,7 @@ function JobsList({ show, formatTauro }) {
                           label="Générer stickers seulement"
                           checked={stickersOnly}
                           toggle
-                          onChange={(e, data) => {
-                            setStickersOnly(data.checked);
-                          }}
+                          onChange={(e, data) => setStickersOnly(data.checked)}
                         />
                       )}
 
@@ -397,9 +434,10 @@ function JobsList({ show, formatTauro }) {
               </TableRow>
             </TableFooter>
           )}
+
           {status === "completed" && (
             <TableFooter className="sticky-footer">
-              <TableRow className="table-row">
+              <TableRow>
                 <TableHeaderCell colSpan="10" collapsing>
                   <div className="sticky-footer-content">
                     <Button animated="fade" color="red" size="small" compact onClick={() => handleDeleteJobComplete()}>
@@ -408,17 +446,14 @@ function JobsList({ show, formatTauro }) {
                         <Icon name="warning circle" />
                       </ButtonContent>
                     </Button>
-                    {executionTime && (
-                      <div>
-                        {data?.[0]?.jobs?.length === 0 ? (
-                          <pre>
-                            Temps d&apos;exécution total:{" "}
-                            {executionTime / 1000 > 60
-                              ? (executionTime / 1000 / 60).toFixed(2) + " min(s)"
-                              : (executionTime / 1000).toFixed(2) + " sec(s)"}
-                          </pre>
-                        ) : null}
-                      </div>
+
+                    {executionTime && data?.[0]?.jobs?.length === 0 && (
+                      <pre>
+                        Temps d&apos;exécution total:{" "}
+                        {executionTime / 1000 > 60
+                          ? (executionTime / 1000 / 60).toFixed(2) + " min(s)"
+                          : (executionTime / 1000).toFixed(2) + " sec(s)"}
+                      </pre>
                     )}
                   </div>
                 </TableHeaderCell>

@@ -19,6 +19,7 @@ const cors = require("cors");
 const morgan = require("morgan");
 const checkVersion = require("./src/checkVersion");
 const modifyPdf = require("./src/app");
+const modifyPdfCasto = require("./src/appCasto.js");
 const getFiles = require("./src/getFiles").getData;
 const createDec = require("./src/dec");
 const createEskoCut = require("./src/generateCutFile");
@@ -238,7 +239,7 @@ app.post("/add_job", async (req, res) => {
     cut: req.body.cut,
     teinteMasse: req.body.teinteMasse,
   };
-  let client = data.client;
+  let client = data.client != null ? data.client.toUpperCase() : "";
   let visuel = data.visuel.split("/").pop();
   visuel = visuel.includes("-") ? visuel.split("-").pop() : visuel;
 
@@ -403,9 +404,14 @@ app.post("/run_jobs", async (req, res) => {
         .toLocaleUpperCase();
 
       // Nom fichier
-      const fileName = `${job.cmd} - LM ${job.ville.toUpperCase()} - ${
+      const fileName = `${job.cmd} - ${job.client} ${job.ville.toUpperCase()} - ${
         job.teinteMasse ? job.format_visu.split("_").pop() : job.format_Plaque.split("_").pop()
       } - ${job.visuel.replace(/\.[^/.]+$/, "")} ${job.ex}_EX`;
+
+      const fileName2 =
+        `${job.cmd} - ${job.client} ${job.ville.toUpperCase()} - ${
+          job.teinteMasse ? job.format2_visu.split("_").pop() : job.format_Plaque.split("_").pop()
+        } - ${job.visuel2.replace(/\.[^/.]+$/, "")} ${job.ex}_EX` || "";
 
       // Vérifier si dossiers existent, sinon les créer
       const sortFolder = req.body.sortFolder;
@@ -432,21 +438,39 @@ app.post("/run_jobs", async (req, res) => {
       }
 
       const pdfName = `${job.writePath}/${fileName}`;
+      const pdfName2 = `${job.writePath}/${fileName2}` || "";
+
       const jpgName = sortFolder
         ? `${jpgPath}/${sessionPRINTSA}/${checkVernis(fileName) === "_S" ? "Satin" : checkVernis(fileName)}/${fileName}`
         : `${jpgPath}/${sessionPRINTSA}/${fileName}`;
+      const jpgName2 = sortFolder
+        ? `${jpgPath}/${sessionPRINTSA}/${checkVernis(fileName2) === "_S" ? "Satin" : checkVernis(fileName2)}/${fileName2}`
+        : `${jpgPath}/${sessionPRINTSA}/${fileName2}` || "";
 
       // Edition pdf
       if (!job.teinteMasse) {
         try {
           let startPdf = performance.now();
-          await modifyPdf(job.visuPath, job.writePath, fileName, job.format_visu, job.format_Plaque, job.reg);
-          let endPdf = performance.now();
-          pdfTime = endPdf - startPdf;
-          console.log(
-            `📁 ${date} ${time}:`,
-            `${fileName}.pdf (${pdfTime < 1000 ? pdfTime.toFixed(2) + "ms" : (pdfTime / 1000).toFixed(2) + "s"})`,
-          );
+          if (job.client === "CASTO") {
+            await modifyPdfCasto(
+              {
+                visuals: [
+                  { file: job.visuPath, name: fileName },
+                  { file: job.visuPath2, name: fileName2 },
+                ],
+                plaque: job.format_Plaque,
+              },
+              job.writePath,
+            );
+          } else {
+            await modifyPdf(job.visuPath, job.writePath, fileName, job.format_visu, job.format_Plaque, job.reg);
+            let endPdf = performance.now();
+            pdfTime = endPdf - startPdf;
+            console.log(
+              `📁 ${date} ${time}:`,
+              `${fileName}.pdf (${pdfTime < 1000 ? pdfTime.toFixed(2) + "ms" : (pdfTime / 1000).toFixed(2) + "s"})`,
+            );
+          }
         } catch (error) {
           console.error(`Error modifying PDF for job ${job.cmd}:`, error);
         }
@@ -455,6 +479,9 @@ app.post("/run_jobs", async (req, res) => {
         try {
           let startJpg = performance.now();
           if (job.ref) {
+            if (job.client === "CASTO") {
+              getPreview(job.ref2, jpgName2);
+            }
             getPreview(job.ref, jpgName);
             // await _useWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
           } else {
