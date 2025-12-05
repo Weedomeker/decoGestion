@@ -47,6 +47,7 @@ function App() {
   const [isShowPdf, setIsShowPdf] = useState(false);
   const [isShowLouis, setIsShowLouis] = useState(false);
   const [isShowJobsList, setIsShowJobsList] = useState(true);
+  const [preview, setPreview] = useState(null);
   const [warnMsg, setWarnMsg] = useState({
     hidden: true,
     header: "",
@@ -452,6 +453,7 @@ function App() {
                   }
                   setSelectedFile(value.name);
                   setFileSize(value.size);
+                  setPreview(value.name);
                   setIsShowPdf(true);
                   setIsShowLouis(false);
                   setIsShowJobsList(false);
@@ -580,6 +582,7 @@ function App() {
                     setCheckProdBlanc(false);
                   }
                   setSelectedFile2(value.name);
+                  setPreview(value.name);
                   setFileSize2(value.size);
                   setIsShowPdf(true);
                   setIsShowLouis(false);
@@ -742,7 +745,7 @@ function App() {
 
       {/* Preview visu */}
       <div className="preview-deco">
-        <PreviewDeco fileSelected={selectedFile} show={isShowPdf} />
+        <PreviewDeco fileSelected={preview} show={isShowPdf} client={checkFolder} />
       </div>
 
       {/*  FolderFiles Files */}

@@ -261,16 +261,23 @@ app.post("/add_job", async (req, res) => {
     : (writePath = path.join(saveFolder + "/Deco_Std_" + formatTauro));
 
   //Nom fichier
-  fileName = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${teinteMasse === true ? format?.split("_").pop() : formatTauro} - ${visuel.replace(
+  let prefixClient = "";
+  if (client === null) {
+    prefixClient = "";
+  } else if (client === "LM") {
+    prefixClient = "LM";
+  } else {
+    prefixClient = "CASTO";
+  }
+  fileName = `${data.numCmd} - ${prefixClient} ${data.ville.toUpperCase()} - ${teinteMasse === true ? format?.split("_").pop() : formatTauro} - ${visuel.replace(
     /\.[^/.]+$/,
     "",
   )} ${data.ex}_EX`;
-  fileName2 = `${data.numCmd} - LM ${data.ville.toUpperCase()} - ${teinteMasse === true ? format2?.split("_").pop() : formatTauro} - ${visuel2.replace(/\.[^/.]+$/, "")} ${data.ex}_EX`;
+  fileName2 = `${data.numCmd} - ${prefixClient} ${data.ville.toUpperCase()} - ${teinteMasse === true ? format2?.split("_").pop() : formatTauro} - ${visuel2.replace(/\.[^/.]+$/, "")} ${data.ex}_EX`;
 
   //Verifier si dossiers exist si pas le créer
   if (fs.existsSync(writePath) && fs.existsSync(`${jpgPath}/${sessionPRINTSA}`)) {
     pdfName = fileName2 ? writePath + "/" + fileName + " - " + fileName2 : writePath + "/" + fileName;
-    logger.info(pdfName);
     jpgName = `${jpgPath}/${sessionPRINTSA}` + "/" + fileName;
     jpgName2 = `${jpgPath}/${sessionPRINTSA}` + "/" + fileName2;
   } else {
@@ -465,8 +472,8 @@ app.post("/run_jobs", async (req, res) => {
             let endPdf = performance.now();
             pdfTime = endPdf - startPdf;
             logger.info(
-              `📁 ${date} ${time}:`,
-              `${fileName}.pdf (${pdfTime < 1000 ? pdfTime.toFixed(2) + "ms" : (pdfTime / 1000).toFixed(2) + "s"})`,
+              `📁 ${date} ${time}:` +
+                `${fileName}.pdf (${pdfTime < 1000 ? pdfTime.toFixed(2) + "ms" : (pdfTime / 1000).toFixed(2) + "s"})`,
             );
           }
         } catch (error) {
@@ -489,8 +496,8 @@ app.post("/run_jobs", async (req, res) => {
           let endJpg = performance.now();
           jpgTime = endJpg - startJpg;
           logger.info(
-            `🖼️  ${date} ${time}:`,
-            `${fileName}.jpg (${jpgTime < 1000 ? jpgTime.toFixed(2) + "ms" : (jpgTime / 1000).toFixed(2) + "s"})`,
+            `🖼️  ${date} ${time}:` +
+              `${fileName}.jpg (${jpgTime < 1000 ? jpgTime.toFixed(2) + "ms" : (jpgTime / 1000).toFixed(2) + "s"})`,
           );
         } catch (error) {
           logger.error(`Error generating JPG for job ${job.cmd}:`, error);
@@ -567,7 +574,7 @@ app.post("/run_jobs", async (req, res) => {
     try {
       if (fs.existsSync(backupPath)) {
         fs.unlinkSync(backupPath);
-        logger.info("✔️ Backup supprimé après exécution des jobs");
+        logger.info("✔️  Backup supprimé après exécution des jobs");
       }
     } catch (e) {
       logger.error("❌ Impossible de supprimer le backup", e);

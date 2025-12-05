@@ -286,6 +286,8 @@ function JobsList({ show, formatTauro }) {
         const title = entry.jpgName.split("/").pop();
         const url = `http://${HOST}:${PORT}/public/` + entry.jpgName.replace(/#/i, "%23");
 
+        console.log(url);
+
         let visuelName = entry.visuel.split("/").pop();
         const regexFormat = visuelName.match(/\d{3}x\d{2,}/i);
         const regexRef = visuelName.match(/\d{8,}/);
