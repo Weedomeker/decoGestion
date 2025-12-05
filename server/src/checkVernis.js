@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const logger = require("./logger/logger");
 
 function filterVerni(name) {
   name = name.toLowerCase();
@@ -12,13 +13,13 @@ function filterVerni(name) {
     try {
       filtered = JSON.parse(readFile).vernis;
     } catch (error) {
-      return console.error(error);
+      return logger.error(error);
     }
   }
 
   // S'assurer que name est une chaîne
   if (typeof name !== "string") {
-    console.error('Le paramètre "name" doit être une chaîne de caractères.');
+    logger.error('Le paramètre "name" doit être une chaîne de caractères.');
     return;
   }
 

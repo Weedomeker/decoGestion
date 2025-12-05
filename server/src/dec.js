@@ -2,14 +2,14 @@ const makerjs = require("makerjs");
 const fs = require("fs");
 const path = require("path");
 const Wastecut = require("./wastecut");
-const { error } = require("console");
+const logger = require("../src/logger/logger");
 let exportPath = [];
 
 function convertParamsToNumbers(...params) {
   return params.map((param) => {
     const num = Number(param);
     if (isNaN(num)) {
-      throw new Error(`Le paramètre "${param}" n'est pas un nombre valide`);
+      logger.error(`Le paramètre "${param}" n'est pas un nombre valide`);
     }
     return num;
   });
@@ -90,21 +90,21 @@ const createDec = (widthPlate, heightPlate, decWidth, decHeight, writePath) => {
       if (fs.existsSync(pathFile)) {
         fs.writeFileSync(pathFile + "/" + fileName + ".dxf", dxf);
         fs.writeFileSync(pathFile + "/" + fileName + ".svg", svg);
-        console.log("Fichier dxf ✅");
-        console.log("Fichier svg ✅");
+        logger.info("Fichier dxf ✅");
+        logger.info("Fichier svg ✅");
       } else {
         fs.mkdirSync(pathFile, { recursive: true });
         fs.writeFileSync(pathFile + "/" + fileName + ".dxf", dxf);
         fs.writeFileSync(pathFile + "/" + fileName + ".svg", svg);
-        console.log("Fichier dxf ✅");
-        console.log("Fichier svg ✅");
+        logger.info("Fichier dxf ✅");
+        logger.info("Fichier svg ✅");
       }
     } catch (error) {
-      console.log(error);
+      logger.error(error);
     }
     exportPath.push(fileName);
   } catch (err) {
-    console.log(err);
+    logger.error(err);
   }
 };
 

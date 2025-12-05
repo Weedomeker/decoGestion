@@ -1,4 +1,5 @@
 require("dotenv").config();
+const logger = require("../src/logger/logger");
 const mongoose = require("mongoose");
 
 const main = async () => {
@@ -7,7 +8,7 @@ const main = async () => {
       ? process.env.MONGO_URL + "Test?retryWrites=true&w=majority&appName=Orphea"
       : process.env.MONGO_URL + "DecoKin?retryWrites=true&w=majority&appName=Orphea",
   );
-  console.log("Mongoose connecté !");
+  logger.info("Mongoose connecté !");
 };
 
 module.exports = main;

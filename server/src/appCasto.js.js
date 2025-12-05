@@ -2,6 +2,7 @@ const { PDFDocument, degrees, StandardFonts, rgb } = require("pdf-lib");
 const fs = require("fs");
 const path = require("path");
 const { cmToPoints, pointsToCm } = require("./convertUnits");
+const logger = require("./logger/logger");
 
 // --- Placement des panneaux ---
 function placeOne(plateW, plateH, w, h) {
@@ -138,9 +139,7 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
 
     const globalMinX = Math.min(...allX);
     const globalMaxX = Math.max(...allX);
-    // (Optionnel) conversion en cm pour debug
-    console.log("MinY global (cm):", pointsToCm(globalMinY));
-    console.log("MaxY global (cm):", pointsToCm(globalMaxY));
+
     // ---Insertion Regmarks ---
     if (reg) {
       const drawRegmarks = (xReg, yReg, sizeReg = 0.6) => {
@@ -171,9 +170,9 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
     // --- Sauvegarde ---
     const pdfBytes = await pdfDoc.save();
     await fs.promises.writeFile(`${writePath}/${textFichiers}.pdf`, pdfBytes);
-    console.log("PDF généré avec succès !");
+    logger.info("PDF généré avec succès !");
   } catch (e) {
-    console.error("Erreur modifyPdf:", e);
+    logger.error("Erreur modifyPdf:", e);
   }
 }
 

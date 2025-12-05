@@ -2,6 +2,7 @@ const { pdftobuffer } = require("pdftopic");
 const fs = require("fs");
 const path = require("path");
 const { parentPort, workerData } = require("worker_threads");
+const logger = require("./logger/logger");
 
 const pdfToimg = async (readFile, writeFile) => {
   try {
@@ -18,7 +19,7 @@ const pdfToimg = async (readFile, writeFile) => {
       parentPort.postMessage("error");
     }
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     parentPort.postMessage("error");
   }
 };

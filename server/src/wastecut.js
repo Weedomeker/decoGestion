@@ -1,4 +1,5 @@
 const makerjs = require("makerjs");
+const logger = require("../src/logger/logger");
 
 function Wastcut(widthPlate, heightPlate, decWidth, decHeight) {
   const espacement = 80;
@@ -16,7 +17,7 @@ function Wastcut(widthPlate, heightPlate, decWidth, decHeight) {
   const coupe = parseFloat((heightPlate / Math.round(interval)).toFixed(2));
 
   if (heightPlate < espacement) {
-    console.log("no waste");
+    logger.info("no waste");
   } else {
     //Left
     ((paths[`Left`] = new makerjs.paths.Line([parseFloat(`${-heightPlate / 2}`), 0], [-decHeight / 2 - fraise, 0])),

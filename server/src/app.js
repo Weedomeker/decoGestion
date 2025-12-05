@@ -4,6 +4,7 @@ const HOST = process.env.HOST || "localhost";
 const PORT = process.env.PORT || 8000;
 const fs = require("fs");
 const { cmToPoints, pointsToCm, cmToPxl } = require("./convertUnits");
+const logger = require("./logger/logger");
 
 async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg) {
   try {
@@ -76,7 +77,7 @@ async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg
     const pdfBytes = await pdfDoc.save();
     await fs.promises.writeFile(`${writePath}/${text}.pdf`, pdfBytes);
   } catch (error) {
-    console.error("Une erreur s'est produite lors de la modification du PDF :", error);
+    logger.error("Une erreur s'est produite lors de la modification du PDF :", error);
   }
 }
 

@@ -1,5 +1,6 @@
 const { Jimp } = require("jimp");
 const path = require("path");
+const logger = require("./logger/logger");
 
 async function generateImages(data, readFile, writeFile) {
   const imagePath = readFile + "/" + data.visuel + ".jpg";
@@ -17,7 +18,7 @@ async function generateImages(data, readFile, writeFile) {
     // Sauvegarder l'image modifiée
     await image.write(path.dirname(writeFile) + "/" + fileName);
   } catch (err) {
-    console.error("❌ Erreur :", err);
+    logger.error("❌ Erreur :", err);
   }
 }
 

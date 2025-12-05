@@ -49,6 +49,8 @@
     "serve-index": "^1.9.1",
     "svg-to-pdfkit": "^0.1.8",
     "uuid": "^11.0.3",
+    "winston": "^3.18.3",
+    "winston-daily-rotate-file": "^5.0.0",
     "ws": "^8.17.0",
     "xlsx": "^0.18.5",
     "xml2js": "^0.6.2"

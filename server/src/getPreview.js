@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { Jimp } = require("jimp");
+const logger = require("./logger/logger");
 
 const getPreview = async (ref, jpgName) => {
   try {
@@ -10,7 +11,7 @@ const getPreview = async (ref, jpgName) => {
     const file = files.find((f) => f.includes(ref));
 
     if (!file) {
-      console.log("preview: file not found");
+      logger.info("preview: file not found");
       return false;
     }
 
@@ -28,7 +29,7 @@ const getPreview = async (ref, jpgName) => {
 
     return destPath;
   } catch (err) {
-    console.error("Error in getPreview:", err);
+    logger.info("Error in getPreview:", err);
     return false;
   }
 };

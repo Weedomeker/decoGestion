@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const RefDeco = require("./RefDeco");
+const logger = require("../../src/logger/logger");
 
 // Schéma des commandes
 const decoSchema = new mongoose.Schema({
@@ -36,7 +37,7 @@ decoSchema.pre("save", async function (next) {
     }
     next();
   } catch (err) {
-    console.error("Erreur pre-save:", err);
+    logger.error("Erreur pre-save:", err);
     next(err);
   }
 });
@@ -61,7 +62,7 @@ decoSchema.pre("findOneAndUpdate", async function (next) {
     }
     next();
   } catch (err) {
-    console.error("Erreur pre-findOneAndUpdate:", err);
+    logger.error("Erreur pre-findOneAndUpdate:", err);
     next(err);
   }
 });

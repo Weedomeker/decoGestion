@@ -2,6 +2,7 @@ const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const path = require("path");
 const sizeOf = require("image-size"); // Pour obtenir les dimensions des images
+const logger = require("./logger/logger");
 
 function createQRCodePage(directory, outputFile) {
   const files = fs.readdirSync(directory);
@@ -14,7 +15,7 @@ function createQRCodePage(directory, outputFile) {
     .sort(); // Chemin complet des fichiers
 
   if (images.length === 0) {
-    console.log("Aucune image trouvée dans le répertoire.");
+    logger.info("Aucune image trouvée dans le répertoire.");
     return;
   }
 
@@ -38,10 +39,10 @@ function createQRCodePage(directory, outputFile) {
   doc.addPage({ size: [pageWidth, pageHeight] }); // Ajouter la première page
 
   images.forEach((imagePath) => {
-    //console.log(`Traitement de l'image : ${imagePath}`);
+    //logger.info(`Traitement de l'image : ${imagePath}`);
 
     if (!fs.existsSync(imagePath)) {
-      console.error(`Le fichier ${imagePath} n'existe pas. Ignoré.`);
+      logger.error(`Le fichier ${imagePath} n'existe pas. Ignoré.`);
       return;
     }
 
@@ -49,9 +50,9 @@ function createQRCodePage(directory, outputFile) {
     let dimensions;
     try {
       dimensions = sizeOf(imagePath);
-      //console.log(`Dimensions de l'image : ${dimensions.width}x${dimensions.height}`);
+      //logger.info(`Dimensions de l'image : ${dimensions.width}x${dimensions.height}`);
     } catch (error) {
-      console.error(`Impossible de lire les dimensions de l'image ${imagePath}:`, error.message);
+      logger.error(`Impossible de lire les dimensions de l'image ${imagePath}:`, error.message);
       return;
     }
 
@@ -77,7 +78,7 @@ function createQRCodePage(directory, outputFile) {
     try {
       doc.image(imagePath, currentX, currentY);
     } catch (error) {
-      console.error(`Erreur lors de l'ajout de l'image ${imagePath}:`, error.message);
+      logger.error(`Erreur lors de l'ajout de l'image ${imagePath}:`, error.message);
       return;
     }
 
@@ -94,7 +95,7 @@ function createQRCodePage(directory, outputFile) {
         align: "center",
       });
     } catch (error) {
-      console.error(`Erreur lors de l'ajout du texte sous l'image ${imagePath}:`, error.message);
+      logger.error(`Erreur lors de l'ajout du texte sous l'image ${imagePath}:`, error.message);
     }
 
     // Mettre à jour la position X pour la prochaine image
@@ -107,7 +108,7 @@ function createQRCodePage(directory, outputFile) {
 
   // Gérer la fin de l'écriture du fichier
   stream.on("finish", () => {
-    console.log("PDF créé avec succès:", outputFile);
+    logger.info("PDF créé avec succès:", outputFile);
   });
 }
 

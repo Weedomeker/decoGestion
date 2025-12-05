@@ -4,11 +4,12 @@ const { fromPath } = require("pdf2pic");
 const pLimit = require("p-limit");
 const cliProgress = require("cli-progress");
 const e = require("express");
+const logger = require("./logger/logger");
 
 // Function to send logs to the terminal
 function sendLog(message, verbose = true) {
   if (verbose) {
-    console.log(message);
+    logger.info(message);
   }
 }
 
@@ -27,7 +28,7 @@ function createProgressBar(totalFiles) {
   );
 
   //log verification jpg
-  console.log("Check JPG files...");
+  logger.info("Check JPG files...");
   progressBar.start(totalFiles, 0, { generated: 0, skipped: 0, failure: 0 });
   return progressBar;
 }
@@ -113,7 +114,7 @@ async function processSinglePDF(
         throw new Error(`Generated file not found: ${generatedFile}`);
       }
     } catch (error) {
-      console.log(`❌ Error generating JPG for ${pdfReference}: ${error.message}\n${error.stack}`);
+      logger.error(`❌ Error generating JPG for ${pdfReference}: ${error.message}\n${error.stack}`);
       counters.failure++;
     }
   }
@@ -173,11 +174,11 @@ async function processAllPDFs({
 
     progressBar.stop();
 
-    console.log(
+    logger.info(
       `🎯 Processing complete: 🖼️  ${counters.generated} generated | ✅ ${counters.skipped} skipped | ❌ ${counters.failure} failed.`,
     );
   } catch (error) {
-    console.error(`❌ Error: ${error.message}`);
+    logger.error(`❌ Error: ${error.message}`);
   }
 }
 

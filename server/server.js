@@ -1,6 +1,5 @@
 require("dotenv").config();
 const { v4: uuidv4 } = require("uuid");
-const chalk = require("chalk");
 const express = require("express");
 const cookieParser = require("cookie-parser");
 const compression = require("compression");
@@ -13,6 +12,7 @@ const { Worker, workerData } = require("worker_threads");
 const WebSocket = require("ws");
 const http = require("http");
 const PORT = process.env.PORT_HTTP || 8000;
+const logger = require("./src/logger/logger");
 
 const serveIndex = require("serve-index");
 const cors = require("cors");
@@ -38,8 +38,6 @@ const { cmToPxl } = require("./src/convertUnits");
 const generateImages = require("./src/generateImages");
 const getPreview = require("./src/getPreview");
 const findStock = require("./src/findStock");
-
-const log = console.log;
 
 const accessLogStream = fs.createWriteStream(path.join(__dirname, "server.log"), { flags: "a" });
 const dayDate = new Date()
@@ -68,7 +66,7 @@ async function LinkFolders(pathUpdate) {
     try {
       config = JSON.parse(readFile);
     } catch (error) {
-      return console.error(error);
+      return logger.error(error);
     }
   }
 
@@ -102,9 +100,9 @@ let appVersion;
 try {
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
   appVersion = packageJson.version;
-  log("Version de l'application: " + chalk.blue(appVersion));
+  logger.info("Version de l'application: " + appVersion);
 } catch (err) {
-  log(chalk.red("Erreur lors de la lecture du fichier package.json: "), err);
+  logger.info("Erreur lors de la lecture du fichier package.json: ", err);
 }
 const corsOptions = {
   origin: ["http://localhost:8000", "http://localhost:5173"],
@@ -157,9 +155,9 @@ if (fs.existsSync(backupPath)) {
   try {
     const backupData = JSON.parse(fs.readFileSync(backupPath, "utf8"));
     jobList.jobs = backupData;
-    console.log("♻️ Jobs restaurés depuis le backup.");
+    logger.info("♻️ Jobs restaurés depuis le backup.");
   } catch (e) {
-    console.error("❌ Erreur lors de la restauration du backup", e);
+    logger.error("❌ Erreur lors de la restauration du backup", e);
   }
 }
 
@@ -272,7 +270,7 @@ app.post("/add_job", async (req, res) => {
   //Verifier si dossiers exist si pas le créer
   if (fs.existsSync(writePath) && fs.existsSync(`${jpgPath}/${sessionPRINTSA}`)) {
     pdfName = fileName2 ? writePath + "/" + fileName + " - " + fileName2 : writePath + "/" + fileName;
-    console.log(pdfName);
+    logger.info(pdfName);
     jpgName = `${jpgPath}/${sessionPRINTSA}` + "/" + fileName;
     jpgName2 = `${jpgPath}/${sessionPRINTSA}` + "/" + fileName2;
   } else {
@@ -379,9 +377,9 @@ app.post("/run_jobs", async (req, res) => {
     try {
       fs.mkdirSync(path.join(__dirname, "./backups"), { recursive: true });
       fs.writeFileSync(backupPath, JSON.stringify(jobList.jobs, null, 2), "utf8");
-      console.log("📝 Backup des jobs créé.");
+      logger.info("📝 Backup des jobs créé.");
     } catch (e) {
-      console.error("❌ Impossible de créer le backup des jobs", e);
+      logger.error("❌ Impossible de créer le backup des jobs", e);
     }
 
     const jobsToRun = [...jobList.jobs]; // Créer une copie pour éviter de modifier l'original pendant l'itération
@@ -466,13 +464,13 @@ app.post("/run_jobs", async (req, res) => {
             await modifyPdf(job.visuPath, job.writePath, fileName, job.format_visu, job.format_Plaque, job.reg);
             let endPdf = performance.now();
             pdfTime = endPdf - startPdf;
-            console.log(
+            logger.info(
               `📁 ${date} ${time}:`,
               `${fileName}.pdf (${pdfTime < 1000 ? pdfTime.toFixed(2) + "ms" : (pdfTime / 1000).toFixed(2) + "s"})`,
             );
           }
         } catch (error) {
-          console.error(`Error modifying PDF for job ${job.cmd}:`, error);
+          logger.error(`Error modifying PDF for job ${job.cmd}:`, error);
         }
 
         // Générer image
@@ -486,23 +484,23 @@ app.post("/run_jobs", async (req, res) => {
             // await _useWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
           } else {
             await _useWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
-            console.log("Image génerée");
+            logger.info("Image génerée");
           }
           let endJpg = performance.now();
           jpgTime = endJpg - startJpg;
-          console.log(
+          logger.info(
             `🖼️  ${date} ${time}:`,
             `${fileName}.jpg (${jpgTime < 1000 ? jpgTime.toFixed(2) + "ms" : (jpgTime / 1000).toFixed(2) + "s"})`,
           );
         } catch (error) {
-          console.error(`Error generating JPG for job ${job.cmd}:`, error);
+          logger.error(`Error generating JPG for job ${job.cmd}:`, error);
         }
       } else {
         // Générer image
         try {
           generateImages(job, previewDeco, `${jpgName}.jpg`);
         } catch (error) {
-          console.error(`Error generating JPG for job ${job.cmd}:`, error);
+          logger.error(`Error generating JPG for job ${job.cmd}:`, error);
         }
       }
 
@@ -532,7 +530,7 @@ app.post("/run_jobs", async (req, res) => {
         const newDeco = new modelDeco(dataFileExport[0]);
         await newDeco.save();
       } catch (error) {
-        console.log(error);
+        logger.info(error);
       }
 
       //Générer découpe
@@ -551,7 +549,7 @@ app.post("/run_jobs", async (req, res) => {
           createDec(wPlate, hPlate, width, height, pathCutFiles);
           createEskoCut(hPlate * 10, wPlate * 10, height * 10, width * 10, 6, pathCutFiles);
         } catch (error) {
-          console.log(error);
+          logger.info(error);
         }
       }
 
@@ -569,10 +567,10 @@ app.post("/run_jobs", async (req, res) => {
     try {
       if (fs.existsSync(backupPath)) {
         fs.unlinkSync(backupPath);
-        console.log("✔️ Backup supprimé après exécution des jobs");
+        logger.info("✔️ Backup supprimé après exécution des jobs");
       }
     } catch (e) {
-      console.error("❌ Impossible de supprimer le backup", e);
+      logger.error("❌ Impossible de supprimer le backup", e);
     }
 
     const endTime = performance.now();
@@ -615,7 +613,7 @@ app.post("/run_jobs", async (req, res) => {
       // Supprimer le dossier temporaire
       await fs.promises.rm(tempFolder, { recursive: true, force: true });
     } catch (error) {
-      console.error("❌ Erreur lors de la génération des étiquettes :", error);
+      logger.error("❌ Erreur lors de la génération des étiquettes :", error);
     }
 
     //Generer QRCode page
@@ -624,7 +622,7 @@ app.post("/run_jobs", async (req, res) => {
 
     res.status(200).json({ message: "Jobs completed successfully" });
   } catch (error) {
-    console.error("Error running jobs:", error);
+    logger.error("Error running jobs:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -816,7 +814,7 @@ app.post("/generate_stickers", async (req, res) => {
 
     res.status(200).json({ message: "Étiquettes générées avec succès !" });
   } catch (error) {
-    console.error("❌ Erreur lors de la génération des étiquettes :", error);
+    logger.error("❌ Erreur lors de la génération des étiquettes :", error);
     res.status(500).json({ error: "Erreur lors de la génération des étiquettes" });
   }
 });
@@ -833,10 +831,10 @@ function broadcastWS(data) {
 server.listen(PORT, async () => {
   await checkVersion()
     .then((result) => {
-      log(result.message);
+      logger.info(result.message);
     })
     .catch((error) => {
-      console.error("Error:", error);
+      logger.error("Error:", error);
     });
   try {
     await processAllPDFs({
@@ -848,8 +846,8 @@ server.listen(PORT, async () => {
       verbose: false,
     });
   } catch (error) {
-    console.error("Error:", error);
+    logger.error("Error:", error);
   }
-  console.log(`Server start on port ${PORT}`);
-  await mongoose().catch((err) => console.log(err));
+  logger.info(`Server start on port ${PORT}`);
+  await mongoose().catch((err) => logger.info(err));
 });

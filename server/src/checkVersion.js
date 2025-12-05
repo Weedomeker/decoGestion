@@ -1,8 +1,6 @@
 const fetch = require("node-fetch");
 const fs = require("fs");
-const chalk = require("chalk");
-
-const log = console.log;
+const logger = require("./logger/logger");
 
 async function fetchDataFromURL(url) {
   try {
@@ -12,7 +10,7 @@ async function fetchDataFromURL(url) {
     }
     return response.json();
   } catch (error) {
-    throw error;
+    logger.error(error);
   }
 }
 
@@ -29,7 +27,7 @@ async function getVersionFromGitHub(options) {
     }
     return response.version;
   } catch (error) {
-    throw error;
+    logger.error(error);
   }
 }
 

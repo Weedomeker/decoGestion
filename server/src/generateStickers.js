@@ -8,10 +8,11 @@ const { degrees, PDFDocument, rgb, StandardFonts } = require("pdf-lib");
 const fs = require("fs");
 const path = require("path");
 const m = require("gm");
+const logger = require("./logger/logger");
 
 async function generateStickers(commande, outPath, showDataCmd = false) {
   if (!Array.isArray(commande) || commande.length === 0) {
-    console.error("La commande est vide ou non valide.");
+    logger.error("La commande est vide ou non valide.");
     return;
   }
 
@@ -65,7 +66,7 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
   try {
     files = fs.readdirSync(pathPreview);
   } catch (err) {
-    console.error("Erreur dossier PREVIEW:", err);
+    logger.error("Erreur dossier PREVIEW:", err);
     files = [];
   }
 
@@ -199,7 +200,7 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
     const fileName = `${numCmd}_${ex.split("/")[0]}.pdf`;
     await fs.promises.writeFile(`${outPath}/${fileName}`, pdfBytes);
   } catch (error) {
-    console.error("La génération des étiquettes a échoué : ", error);
+    logger.error("La génération des étiquettes a échoué : ", error);
   }
 }
 
@@ -217,7 +218,7 @@ async function createStickersPage(directory, outputPath, pageSize = "A5") {
     .filter((file) => /^[\d]/.test(file));
 
   if (files.length === 0) {
-    console.error("Aucun fichier PDF trouvé dans le répertoire.");
+    logger.error("Aucun fichier PDF trouvé dans le répertoire.");
     return;
   }
 
@@ -304,7 +305,7 @@ async function createStickersPage(directory, outputPath, pageSize = "A5") {
 
       itemCount++; // Incrémenter le compteur pour le placement suivant
     } catch (error) {
-      console.error(`Erreur lors du traitement du fichier ${file}:`, error.message);
+      logger.error(`Erreur lors du traitement du fichier ${file}:`, error.message);
     }
   }
 
@@ -323,9 +324,9 @@ async function createStickersPage(directory, outputPath, pageSize = "A5") {
     }
     const pdfBytes = await outputPdf.save();
     fs.writeFileSync(finalPath, pdfBytes);
-    console.log(`Stickers enregistrés sous : ${finalPath}`);
+    logger.info(`Stickers enregistrés sous : ${finalPath}`);
   } catch (error) {
-    console.error("Erreur lors de la sauvegarde du fichier PDF :", error.message);
+    logger.error("Erreur lors de la sauvegarde du fichier PDF :", error.message);
   }
 }
 
