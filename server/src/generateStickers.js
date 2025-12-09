@@ -1,5 +1,4 @@
 /**
-import { path } from 'path';
  * Génère des étiquettes PDF pour chaque commande
  * @param {Array<Object>} commande - Tableau d'objets contenant les numéros de commande et le nombre d'exemplaires
  * @param {string} outPath - Chemin du dossier où seront enregistrées les étiquettes
@@ -197,14 +196,15 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
     }
 
     // Nom du fichier basé sur le numéro de commande et l'exemplaire
-    const fileName = `${numCmd}_${ex.split("/")[0]}.pdf`;
+    const vernisTag = extractVernis(cmd) ? "_B" : "_M";
+    const fileName = `${numCmd}${vernisTag}_${ex.split("/")[0]}.pdf`;
     await fs.promises.writeFile(`${outPath}/${fileName}`, pdfBytes);
   } catch (error) {
     logger.error("La génération des étiquettes a échoué : ", error);
   }
 }
 
-async function createStickersPage(directory, outputPath, pageSize = "A5") {
+async function createStickersPage(directory, outputPath, pageSize = "A4") {
   const format =
     pageSize === "A5"
       ? { width: 420, height: 595 } // Dimensions pour A5
@@ -332,9 +332,23 @@ async function createStickersPage(directory, outputPath, pageSize = "A5") {
 
 // Fonction pour extraire l'ID de la commande à partir du nom du fichier
 function extractCommandId(fileName) {
-  // Suppose que l'ID de la commande est la première partie du nom du fichier, avant le premier underscore
-  const match = fileName.match(/^(\d+)/);
-  return match ? match[0] : null;
+  const commandMatch = fileName.match(/^(\d+)/); // ex: 12345
+  const vernisMatch = fileName.match(/_(B|M)_/i); // ex: _B_ ou _M_
+
+  const id = commandMatch ? commandMatch[1] : null;
+  const vernis = vernisMatch ? vernisMatch[1].toUpperCase() : "X"; // X = inconnu
+
+  return `${id}_${vernis}`;
+}
+
+function extractVernis(cmd) {
+  //regex pour match Brillant ou Mat
+  const regexBrillant = /brillant/i;
+  const regexMat = /mat/i;
+  const matchBrillant = regexBrillant.test(cmd.visuel);
+  const matchMat = regexMat.test(cmd.visuel);
+  if (matchBrillant) return true;
+  if (matchMat) return false;
 }
 
 module.exports = { generateStickers, createStickersPage };

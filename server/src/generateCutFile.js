@@ -1,5 +1,4 @@
 /**
-import { path } from 'path';
  * La fonction `generateCutFile` crée un fichier de découpe pour un matériau Dibond avec des
  * dimensions spécifiées, y compris la découpe principale, les repères de registration, les déchets de
  * découpe et un calcul d'offset global automatique.
@@ -21,8 +20,8 @@ import { path } from 'path';
 
 const fs = require("fs");
 const path = require("path");
-const PDFDocument = require("pdfkit");
-const logger = require("./logger/logger");
+const logger = require("./logger/logger.js");
+const placePanels = require("./appCasto.js");
 
 //cacluler metre lineaire
 function linearCutFile(dibondWidth, dibondHeight, cutWidth, cutHeight) {
@@ -129,62 +128,104 @@ function generateCutFile(dibondWidth, dibondHeight, cutWidth, cutHeight, milling
     }
     fs.writeFileSync(`${outPath}/${fileName}.cut`, content);
     logger.info("Fichier cut ✅");
+  } catch (error) {
+    logger.error(error);
+  }
+}
 
-    // // ➡️ PDF visuel AVEC dimensions mm fidèles
-    // const doc = new PDFDocument({
-    //   size: [mmToPt(dibondWidth), mmToPt(dibondHeight)], // taille réelle en mm
-    //   margins: { top: 0, left: 0, right: 0, bottom: 0 },
-    // });
+function generateCutFileTwoCuts(
+  dibondWidth,
+  dibondHeight,
+  cutSizes, // [{w,h},{w,h}]
+  millingMargin,
+  outPath,
+) {
+  if (!millingMargin || isNaN(millingMargin)) millingMargin = 6;
 
-    // const pdfPath = `${outPath}/${fileName}.pdf`;
-    // doc.pipe(fs.createWriteStream(pdfPath));
+  logger.warn("⚠️ Génération de deux découpes");
 
-    // // 🔹 Découpe principale
-    // doc
-    //   .moveTo(mmToPt(cutX), mmToPt(cutY))
-    //   .lineTo(mmToPt(cutX + cutWidth), mmToPt(cutY))
-    //   .lineTo(mmToPt(cutX + cutWidth), mmToPt(cutY + cutHeight))
-    //   .lineTo(mmToPt(cutX), mmToPt(cutY + cutHeight))
-    //   .lineTo(mmToPt(cutX), mmToPt(cutY))
-    //   .strokeColor('#FF0000')
-    //   .lineWidth(0.25)
-    //   .stroke();
+  // ↗️ LÀ : tu utilises ta fonction existante
+  const positions = placePanels({
+    plateW: dibondWidth,
+    plateH: dibondHeight,
+    sizes: cutSizes.map((s) => ({ w: s.cutWidth, h: s.cutHeight })),
+    spacing: null,
+  });
 
-    // // 🔸 Marques repérage
-    // regMarks.forEach((mark) => {
-    //   doc.circle(mmToPt(mark.x), mmToPt(mark.y), mmToPt(3)).strokeColor('#000000').lineWidth(0.15).stroke();
-    // });
+  logger.info(positions);
 
-    // // 🟢 Waste cuts VERTICAUX
-    // doc.strokeColor('maroon').stroke();
-    // for (let y = 0; y <= dibondHeight; y += wasteSpacing) {
-    //   // BAS
-    //   doc
-    //     .moveTo(mmToPt(safeXStart), mmToPt(dibondHeight / 2))
-    //     .lineTo(mmToPt(0), mmToPt(dibondHeight / 2))
-    //     .stroke();
-    //   // HAUT
-    //   doc
-    //     .moveTo(mmToPt(dibondWidth), mmToPt(dibondHeight / 2))
-    //     .lineTo(mmToPt(safeXEnd), mmToPt(dibondHeight / 2))
-    //     .stroke();
-    // }
+  if (!positions) {
+    throw new Error("Impossible de placer les panneaux sur le Dibond.");
+  }
 
-    // // 🟢 Waste cuts HORIZONTAUX
-    // if ((dibondHeight - cutHeight) / 2 > 10) {
-    //   let numWasteCuts = Math.max(2, Math.floor(dibondWidth / wasteSpacing));
-    //   let adjustedSpacing = dibondWidth / numWasteCuts;
-    //   for (let i = 1; i < numWasteCuts; i++) {
-    //     let x = i * adjustedSpacing;
-    //     // GAUCHE
-    //     doc.moveTo(mmToPt(x), mmToPt(safeYStart)).lineTo(mmToPt(x), mmToPt(0)).stroke();
-    //     // DROITE
-    //     doc.moveTo(mmToPt(x), mmToPt(dibondHeight)).lineTo(mmToPt(x), mmToPt(safeYEnd)).stroke();
-    //   }
-    // }
+  let content = `MGE i-cut script
+Clear
+SystemUnits mm Local
+OpenCuttingKeyFor Dibond 3mm
+`;
 
-    // doc.end();
-    // logger.info('PDF visuel mm généré ✅');
+  // ----------------------------------------------------
+  // 1) Ajouter les 2 découpes
+  // ----------------------------------------------------
+  content += `SelectLayer Cut\n`;
+
+  cutSizes.forEach((panel, index) => {
+    const { cutWidth: w, cutHeight: h } = panel;
+    const { x, y } = positions[index];
+
+    content += `MoveTo ${x},${y},Closed,Cut\n`;
+    content += `LineTo ${x + w},${y},Corner\n`;
+    content += `LineTo ${x + w},${y + h},Corner\n`;
+    content += `LineTo ${x},${y + h},Corner\n`;
+    content += `LineTo ${x},${y},Corner\n`;
+  });
+
+  // ----------------------------------------------------
+  // 2) Repères globaux (à 4 coins du Dibond)
+  // ----------------------------------------------------
+  const regSize = 3;
+  const margin = 10 + regSize + 5;
+
+  const regMarks = [
+    { x: margin, y: margin },
+    { x: dibondWidth - margin, y: margin },
+    { x: margin, y: dibondHeight - margin },
+    { x: dibondWidth - margin, y: dibondHeight - margin },
+  ];
+
+  regMarks.forEach((mark) => {
+    content += `RegMark ${mark.x},${mark.y},Regmark\n`;
+  });
+
+  // ----------------------------------------------------
+  // 3) WasteCutting global (comme ton fichier actuel)
+  // ----------------------------------------------------
+  content += `SelectLayer WasteCutting\n`;
+
+  const wasteSpacing = 800;
+
+  // Waste verticaux
+  for (let x = wasteSpacing; x < dibondWidth; x += wasteSpacing) {
+    content += `MoveTo ${x},0,Open,WasteCutting\n`;
+    content += `LineTo ${x},${dibondHeight},Corner\n`;
+  }
+
+  // Waste horizontaux
+  for (let y = wasteSpacing; y < dibondHeight; y += wasteSpacing) {
+    content += `MoveTo 0,${y},Open,WasteCutting\n`;
+    content += `LineTo ${dibondWidth},${y},Corner\n`;
+  }
+
+  // ----------------------------------------------------
+  // 4) Écrire 1 seul fichier .cut
+  // ----------------------------------------------------
+  try {
+    const fileName = `cut_${cutSizes.length}panels.cut`;
+    if (!fs.existsSync(outPath)) {
+      fs.mkdirSync(outPath, { recursive: true });
+    }
+    fs.writeFileSync(path.join(outPath, fileName), content);
+    logger.info(`✂️ Fichier cut ${fileName} ✅`, fileName);
   } catch (error) {
     logger.error(error);
   }
@@ -194,4 +235,4 @@ function generateCutFile(dibondWidth, dibondHeight, cutWidth, cutHeight, milling
 //generateCutFile(2600, 1250, 2550, 1000, 6, path.join('./'));
 // linearCutFile(2150, 1010, 2000, 1000);
 
-module.exports = generateCutFile;
+module.exports = { generateCutFile, generateCutFileTwoCuts };

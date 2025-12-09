@@ -19,7 +19,6 @@ function placeTwo(plateW, plateH, w1, h1, w2, h2, spacing = null) {
   const startX = (plateW - totalWidth) / 2;
   const y1 = (plateH - h1) / 2;
   const y2 = (plateH - h2) / 2;
-
   return [
     { x: startX, y: y1 },
     { x: startX + w1 + finalSpacing, y: y2 },
@@ -27,8 +26,12 @@ function placeTwo(plateW, plateH, w1, h1, w2, h2, spacing = null) {
 }
 
 function placePanels({ plateW, plateH, sizes, spacing }) {
-  if (sizes.length === 1) return placeOne(plateW, plateH, sizes[0].w, sizes[0].h);
-  if (sizes.length === 2) return placeTwo(plateW, plateH, sizes[0].w, sizes[0].h, sizes[1].w, sizes[1].h, spacing);
+  if (sizes.length === 1) {
+    return placeOne(plateW, plateH, sizes[0].w, sizes[0].h);
+  }
+  if (sizes.length === 2) {
+    return placeTwo(plateW, plateH, sizes[0].w, sizes[0].h, sizes[1].w, sizes[1].h, spacing);
+  }
   return null;
 }
 
@@ -72,6 +75,9 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
 
       embeddedPanels.push({ embedded, realW, realH, renderW, renderH, rotate, fileName: v.name });
     }
+
+    // --- Positionner plus grand tjs à gauche ---
+    embeddedPanels.sort((a, b) => b.renderW * b.renderH - a.renderW * a.renderH);
 
     // --- Calcul des positions ---
     const sizes = embeddedPanels.map((p) => ({ w: p.renderW, h: p.renderH }));
@@ -176,25 +182,4 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
   }
 }
 
-module.exports = modifyPdf;
-
-// --- Exemple d’utilisation ---
-//54542 - LM LILLE - 101x215 - 5Galets_73800965_100x200_S_  1_EX
-// modifyPdf(
-//   {
-//     visuals: [
-//       {
-//         file: "./visu_casto/visuA.pdf",
-//         name: "54542 - CASTO LILLE - 101x215 - 5Galets_73800965_100x200_S_  1_EX",
-//       },
-//       {
-//         file: "./visu_casto/visuB.pdf",
-//         name: "58584 - CASTO MARSEILLE - 101x215 - 5Galets_73800965_100x200_S_  1_EX",
-//       },
-//     ],
-//     plaque: "150x305",
-//     spacing: null,
-//   },
-
-//   "./",
-// );
+module.exports = { modifyPdf, placePanels };

@@ -19,10 +19,10 @@ const cors = require("cors");
 const morgan = require("morgan");
 const checkVersion = require("./src/checkVersion");
 const modifyPdf = require("./src/app");
-const modifyPdfCasto = require("./src/appCasto.js");
+const modifyPdfCasto = require("./src/appCasto.js").modifyPdf;
 const getFiles = require("./src/getFiles").getData;
 const createDec = require("./src/dec");
-const createEskoCut = require("./src/generateCutFile");
+const { generateCutFile, generateCutFileTwoCuts } = require("./src/generateCutFile");
 const createJob = require("./src/jobsList");
 const createXlsx = require("./src/xlsx");
 const mongoose = require("./src/mongoose");
@@ -546,17 +546,49 @@ app.post("/run_jobs", async (req, res) => {
         if (!fs.existsSync(pathCutFiles)) {
           fs.mkdirSync(pathCutFiles, { recursive: true });
         }
-        try {
-          const fTauro = job.format_Plaque.split("_").pop();
-          const fVisu = job.format_visu.split("_").pop();
-          const wPlate = parseFloat(fTauro.toLowerCase().split("x")[0]);
-          const hPlate = parseFloat(fTauro.toLowerCase().split("x")[1]);
-          const width = parseFloat(fVisu.toLowerCase().split("x")[0]);
-          const height = parseFloat(fVisu.toLowerCase().split("x")[1]);
-          createDec(wPlate, hPlate, width, height, pathCutFiles);
-          createEskoCut(hPlate * 10, wPlate * 10, height * 10, width * 10, 6, pathCutFiles);
-        } catch (error) {
-          logger.info(error);
+        const fTauro = job.format_Plaque.split("_").pop();
+        const fVisu = job.format_visu.split("_").pop();
+        const wPlate = parseFloat(fTauro.toLowerCase().split("x")[0]);
+        const hPlate = parseFloat(fTauro.toLowerCase().split("x")[1]);
+        const width = parseFloat(fVisu.toLowerCase().split("x")[0]);
+        const height = parseFloat(fVisu.toLowerCase().split("x")[1]);
+
+        //Second visuel si CASTO
+        const fVisu2 = job.format2_visu.split("_").pop();
+        const width2 = parseFloat(fVisu2.toLowerCase().split("x")[0]);
+        const height2 = parseFloat(fVisu2.toLowerCase().split("x")[1]);
+
+        // Générer le fichier de découpe pour le client LM
+        if (job.client === "LM") {
+          try {
+            // Créer le fichier de découpe
+            createDec(wPlate, hPlate, width, height, pathCutFiles);
+            // Générer le fichier de découpe avec les dimensions spécifiées
+            generateCutFile(
+              hPlate * 10, // hauteur de la plaque en mm
+              wPlate * 10, // largeur de la plaque en mm
+              height * 10, // hauteur de la visu en mm
+              width * 10, // largeur de la visu en mm
+              6, // marge de découpe en mm
+              pathCutFiles, // chemin du fichier de découpe
+            );
+          } catch (error) {
+            logger.info(error);
+          }
+        }
+        if (job.client === "CASTO") {
+          try {
+            generateCutFileTwoCuts(
+              hPlate * 10, // Dibond Width
+              wPlate * 10, // Dibond Height
+              { cutWidth: width * 10, cutHeight: height * 10 }, // découpe 1
+              { cutWidth: width2 * 10, cutHeight: height2 * 10 }, // découpe 2
+              6, // millingMargin
+              pathCutFiles, // dossier
+            );
+          } catch (error) {
+            logger.info(error);
+          }
         }
       }
 
@@ -588,8 +620,6 @@ app.post("/run_jobs", async (req, res) => {
     });
 
     try {
-      // Récupérer les données du corps de la requête
-      const { stickersData, paperSticker } = req.body;
       const baseFolder = path.join(__dirname, `./public/${sessionPRINTSA}`);
       const tempFolder = path.join(baseFolder, "_tmp");
       const etiquettesFolder = path.join(baseFolder, "Etiquettes");
@@ -599,13 +629,13 @@ app.post("/run_jobs", async (req, res) => {
       await fs.promises.mkdir(etiquettesFolder, { recursive: true });
 
       // Générer les étiquettes
-      await generateStickers(jobList.completed, tempFolder, stickersData);
+      await generateStickers(jobList.completed, tempFolder, true);
 
       // Chemin du fichier PDF
       const pdfPath = path.join(etiquettesFolder, `${sessionPRINTSA}.pdf`);
 
       // Générer le PDF
-      await createStickersPage(tempFolder, pdfPath, paperSticker);
+      await createStickersPage(tempFolder, pdfPath, "A4");
 
       // Lire et déplacer les fichiers
       const files = await fs.promises.readdir(tempFolder);
