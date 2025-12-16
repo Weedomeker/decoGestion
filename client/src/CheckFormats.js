@@ -1,49 +1,58 @@
-function checkFormats(formatTauro, formatVisu) {
-  // Si l'un des paramètres est manquant, retourner des valeurs par défaut
-  if (!formatTauro || !formatVisu) return { isChecked: false, gap: false, surface: 0 };
+function checkFormats(formatTauro, formatVisu, formatVisu2) {
+  if (!formatTauro || !formatVisu) {
+    return { isChecked: false, gap: false, surface: 0 };
+  }
 
   const parseDimensions = (format) => {
-    let [width, height] = [];
-    const regex = format.match(/\d{0,}[x]\d{0,}/gi);
-    if (regex) {
-      if (regex.length > 1) {
-        [width, height] = regex[regex.length - 1].split(/x/i);
-      } else {
-        [width, height] = regex[0].split(/x/i);
-      }
-      return [parseFloat(width), parseFloat(height)];
-    } else {
-      return [];
-    }
+    if (!format) return null;
+
+    const match = format.match(/(\d+)\s*x\s*(\d+)/i);
+    if (!match) return null;
+
+    return [Number(match[1]), Number(match[2])];
   };
 
-  let [widthTauro, heightTauro] = parseDimensions(formatTauro);
-  let [widthVisu, heightVisu] = parseDimensions(formatVisu);
+  let [widthTauro, heightTauro] = parseDimensions(formatTauro) || [];
+  let [widthVisu, heightVisu] = parseDimensions(formatVisu) || [];
+  let [widthVisu2, heightVisu2] = parseDimensions(formatVisu2) || [];
 
-  // Vérification des unités (conversion mm en cm si nécessaire)
-  if (heightVisu && heightVisu.toString().length > 3) {
-    heightVisu = heightVisu / 10;
-    widthVisu = widthVisu / 10;
+  // Orientation : largeur ≤ hauteur
+  if (widthVisu > heightVisu) {
+    [widthVisu, heightVisu] = [heightVisu, widthVisu];
   }
 
-  // Initialisation des variables avec des valeurs par défaut
-  let surface = 0; // Toujours un nombre
+  if (widthVisu2 && widthVisu2 > heightVisu2) {
+    [widthVisu2, heightVisu2] = [heightVisu2, widthVisu2];
+  }
+
+  // Conversion mm → cm (si valeur > 300 cm)
+  const normalizeUnit = (v) => (v > 300 ? v / 10 : v);
+
+  widthVisu = normalizeUnit(widthVisu);
+  heightVisu = normalizeUnit(heightVisu);
+  widthVisu2 = normalizeUnit(widthVisu2);
+  heightVisu2 = normalizeUnit(heightVisu2);
+
   let isChecked = false;
   let gap = false;
+  let surface = 0;
 
-  // Calculs si les dimensions sont valides
-  if (!isNaN(widthVisu) && !isNaN(heightVisu) && !isNaN(widthTauro) && !isNaN(heightTauro)) {
-    isChecked = widthVisu <= widthTauro && heightVisu <= heightTauro;
-    const surfaceAreaTauro = widthTauro * heightTauro; // Surface de formatTauro en cm²
-    const surfaceAreaVisu = widthVisu * heightVisu; // Surface de formatVisu en cm²
-    surface = (surfaceAreaTauro - surfaceAreaVisu) / 10000; // Conversion cm² → m²
+  if (![widthTauro, heightTauro, widthVisu, heightVisu].some((v) => isNaN(v))) {
+    const visu1Ok = widthVisu <= widthTauro && heightVisu <= heightTauro;
 
-    // Arrondi à deux décimales
-    surface = parseFloat(surface.toFixed(2)); // Toujours un nombre, même si négatif
-    gap = surface > 1; // Écart supérieur à 1 m²
+    const visu2Ok = formatVisu2 ? widthVisu2 <= widthTauro && heightVisu2 <= heightTauro : true;
+
+    isChecked = visu1Ok && visu2Ok;
+
+    const surfaceTauro = widthTauro * heightTauro;
+    const surfaceVisu = widthVisu * heightVisu + (formatVisu2 ? widthVisu2 * heightVisu2 : 0);
+
+    surface = (surfaceTauro - surfaceVisu) / 10000;
+    surface = Number(surface.toFixed(2));
+    console.log(surface);
+    gap = surface > 1;
   }
 
-  // Retour des valeurs calculées ou par défaut
   return { isChecked, gap, surface };
 }
 

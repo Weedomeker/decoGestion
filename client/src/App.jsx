@@ -191,6 +191,7 @@ function App() {
       visuel: selectedFile,
       visuel2: selectedFile2,
       numCmd: formData.get("numCmd"),
+      numCmd2: formData.get("numCmd2"),
       ville: formData.get("ville"),
       ex: formData.get("ex"),
       perte: perte,
@@ -247,6 +248,28 @@ function App() {
         setFormatTauro((curr) => [...curr, value]);
       }
     }
+  };
+
+  const handleResetForm = () => {
+    setSelectedFormatTauro("");
+    setSelectedFormat("");
+    setSelectedFormat2("");
+    setSelectedFile("");
+    setSelectedFile2("");
+    setFileSize("");
+    setFileSize2("");
+    setFiles([{ name: "", fileSize: "" }]);
+    setFiles2([{ name: "", fileSize: "" }]);
+    setIsFile(false);
+    setIsFile2(false);
+    setPerte("");
+    setCheckProdBlanc(false);
+    setPreview(null);
+    setCheckGenerate({
+      cut: false,
+      reg: true,
+      teinteMasse: false,
+    });
   };
 
   return (
@@ -332,14 +355,16 @@ function App() {
                 checked={checkProdBlanc}
                 onChange={(e, data) => setCheckProdBlanc(data.checked)}
               />
-              <Checkbox
-                name="Teinte Masse"
-                label="Teinte Masse"
-                checked={checkGenerate.teinteMasse}
-                onChange={(e, data) => {
-                  setCheckGenerate({ ...checkGenerate, teinteMasse: data.checked });
-                }}
-              />
+              {checkFolder == "LM" && (
+                <Checkbox
+                  name="Teinte Masse"
+                  label="Teinte Masse"
+                  checked={checkGenerate.teinteMasse}
+                  onChange={(e, data) => {
+                    setCheckGenerate({ ...checkGenerate, teinteMasse: data.checked });
+                  }}
+                />
+              )}
             </Form.Field>
 
             {/* GENERATE REGMARKS */}
@@ -354,20 +379,25 @@ function App() {
               />
 
               {/* GENERATE CUT */}
-              <Checkbox
-                className="decoupe"
-                name="Générer découpe"
-                label="Générer découpe"
-                checked={checkGenerate.cut}
-                onChange={(e, data) => {
-                  setCheckGenerate({ cut: data.checked, reg: data.checked });
-                }}
-              />
+              {checkFolder == "LM" && (
+                <Checkbox
+                  className="decoupe"
+                  name="Générer découpe"
+                  label="Générer découpe"
+                  checked={checkGenerate.cut}
+                  onChange={(e, data) => {
+                    setCheckGenerate({ cut: data.checked, reg: data.checked });
+                  }}
+                />
+              )}
             </Form.Field>
           </Form.Field>
 
           <Form.Field>
-            <Segment color={checkFolder === "LM" ? "green" : "blue"} style={{ marginTop: 0 }}>
+            <Segment
+              color={checkFolder === "LM" ? "green" : "blue"}
+              style={{ marginTop: 0, marginBottom: 0, paddingBottom: 0 }}
+            >
               <Label
                 color={checkFolder === "LM" ? "green" : "blue"}
                 ribbon
@@ -375,14 +405,16 @@ function App() {
               >
                 {checkFolder === "LM" ? "Leroy Merlin" : "Castorama"}
               </Label>
-              <Form.Group inline style={{ marginTop: 10 }}>
+              <Form.Group style={{ marginTop: 10 }}>
                 <Form.Field>
                   <Checkbox
+                    style={{ marginRight: 14 }}
                     name="folders_LM"
                     label="Standards LM"
                     value="LM"
                     checked={checkFolder === "LM"}
                     onChange={(e, data) => {
+                      handleResetForm();
                       setCheckFolder(data.value);
                     }}
                   />
@@ -392,6 +424,7 @@ function App() {
                     value="CASTO"
                     checked={checkFolder === "CASTO"}
                     onChange={(e, data) => {
+                      handleResetForm();
                       setCheckFolder(data.value);
                     }}
                   />
@@ -446,7 +479,9 @@ function App() {
                 selectedFile={selectedFile}
                 onSelectedFile={(value) => {
                   const name = value.name.split("/").pop().toLowerCase();
-                  if (name.includes("+blanc" || "+ blanc")) {
+                  const regexBlanc = /\bblanc\b/i;
+
+                  if (name.toLowerCase().includes("+blanc" || "+ blanc") || regexBlanc.test(name)) {
                     setCheckProdBlanc(true);
                   } else {
                     setCheckProdBlanc(false);
@@ -529,6 +564,38 @@ function App() {
             </p>
           </Form.Field>
 
+          <Form.Field required error={error.numCmd} inline>
+            <Input
+              disabled={enabled.numCmd}
+              error={error.numCmd}
+              id="numCmd"
+              name="numCmd"
+              type="number"
+              placeholder="N° commande"
+              onChange={(e, data) => {
+                const maxValidate = (string) => {
+                  return string.slice(0, 6);
+                };
+                if (data.value.length > 6 || data.value.length < 5) {
+                  setError({ ...error, numCmd: true });
+                } else {
+                  setEnabled({ ...enabled, ville: false });
+                  maxValidate(data.value);
+                  setError({ ...error, numCmd: false });
+                }
+              }}
+              onFocus={(e) =>
+                e.target.addEventListener(
+                  "wheel",
+                  function (e) {
+                    e.preventDefault();
+                  },
+                  { passive: false },
+                )
+              }
+            />
+          </Form.Field>
+
           {/* Si on choisit Castorama */}
           {checkFolder === "CASTO" && (
             <Form.Field required error={error.format}>
@@ -576,7 +643,8 @@ function App() {
                 selectedFile={selectedFile2}
                 onSelectedFile={(value) => {
                   const name = value.name.split("/").pop().toLowerCase();
-                  if (name.includes("+blanc" || "+ blanc")) {
+                  const regexBlanc = /\bblanc\b/i;
+                  if (name.toLowerCase().includes("+blanc" || "+ blanc" || "blanc+") || regexBlanc.test(name)) {
                     setCheckProdBlanc(true);
                   } else {
                     setCheckProdBlanc(false);
@@ -596,19 +664,26 @@ function App() {
 
                   //Check checkFormats
                   if (
-                    CheckFormats(selectedFormatTauro, value.name.split("/").pop()) &&
-                    CheckFormats(selectedFormatTauro, value.name.split("/").pop()).gap == true
+                    CheckFormats(selectedFormatTauro, value.name.split("/").pop(), selectedFile.split("/").pop()) &&
+                    CheckFormats(selectedFormatTauro, value.name.split("/").pop(), selectedFile.split("/").pop()).gap ==
+                      true
                   ) {
-                    setPerte(CheckFormats(selectedFormatTauro, value.name.split("/").pop()).surface);
+                    setPerte(
+                      CheckFormats(selectedFormatTauro, value.name.split("/").pop(), selectedFile.split("/").pop())
+                        .surface,
+                    );
                     setWarnMsg({
                       ...warnMsg,
                       hidden: false,
                       header: "Attention au format",
-                      msg: `Perte matière: ${CheckFormats(selectedFormatTauro, value.name.split("/").pop()).surface}/m2`,
+                      msg: `Perte matière: ${CheckFormats(selectedFormatTauro, value.name.split("/").pop(), selectedFile.split("/").pop()).surface}/m2`,
                       icon: "info circle",
                       color: "yellow",
                     });
-                  } else if (CheckFormats(selectedFormatTauro, value.name.split("/").pop()) == undefined) {
+                  } else if (
+                    CheckFormats(selectedFormatTauro, value.name.split("/").pop(), selectedFile.split("/").pop()) ==
+                    undefined
+                  ) {
                     setWarnMsg({
                       ...warnMsg,
                       hidden: false,
@@ -617,7 +692,10 @@ function App() {
                       icon: "warning sign",
                       color: "orange",
                     });
-                  } else if (CheckFormats(selectedFormatTauro, value.name.split("/").pop()).isChecked == false) {
+                  } else if (
+                    CheckFormats(selectedFormatTauro, value.name.split("/").pop(), selectedFile.split("/").pop())
+                      .isChecked == false
+                  ) {
                     setWarnMsg({
                       ...warnMsg,
                       hidden: false,
@@ -645,37 +723,41 @@ function App() {
           )}
 
           {/* Infos commande */}
-          <Form.Field required error={error.numCmd}>
-            <Input
-              disabled={enabled.numCmd}
-              error={error.numCmd}
-              id="numCmd"
-              name="numCmd"
-              type="number"
-              placeholder="N° commande"
-              onChange={(e, data) => {
-                const maxValidate = (string) => {
-                  return string.slice(0, 6);
-                };
-                if (data.value.length > 6 || data.value.length < 5) {
-                  setError({ ...error, numCmd: true });
-                } else {
-                  setEnabled({ ...enabled, ville: false });
-                  maxValidate(data.value);
-                  setError({ ...error, numCmd: false });
+
+          {checkFolder === "CASTO" && (
+            <Form.Field required error={error.numCmd} inline>
+              <Input
+                disabled={enabled.numCmd}
+                error={error.numCmd}
+                id="numCmd2"
+                name="numCmd2"
+                type="number"
+                placeholder="N° commande 2"
+                onChange={(e, data) => {
+                  const maxValidate = (string) => {
+                    return string.slice(0, 6);
+                  };
+                  if (data.value.length > 6 || data.value.length < 5) {
+                    setError({ ...error, numCmd: true });
+                  } else {
+                    setEnabled({ ...enabled, ville: false });
+                    maxValidate(data.value);
+                    setError({ ...error, numCmd: false });
+                  }
+                }}
+                onFocus={(e) =>
+                  e.target.addEventListener(
+                    "wheel",
+                    function (e) {
+                      e.preventDefault();
+                    },
+                    { passive: false },
+                  )
                 }
-              }}
-              onFocus={(e) =>
-                e.target.addEventListener(
-                  "wheel",
-                  function (e) {
-                    e.preventDefault();
-                  },
-                  { passive: false },
-                )
-              }
-            />
-          </Form.Field>
+              />
+            </Form.Field>
+          )}
+
           {/* Ville / Mag */}
           <Form.Field required error={error.ville}>
             <Place

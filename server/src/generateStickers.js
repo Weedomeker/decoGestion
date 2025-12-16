@@ -31,25 +31,27 @@ async function generateStickers(commande, outPath, showDataCmd = false) {
   }, {});
 
   // Générer les stickers pour chaque commande
-  const promises = Object.values(groupedCommands).flatMap(({ items, maxEx }) => {
-    // Créer un compteur pour chaque exemplaire dans la commande
+  const promises = [];
+
+  Object.values(groupedCommands).forEach(({ items, maxEx }) => {
     let currentEx = 0;
 
-    return items.flatMap((cmdInfo) => {
+    items.forEach((cmdInfo) => {
       const { cmd, ex } = cmdInfo;
 
-      // Générer un sticker pour chaque exemplaire
-      return Array.from({ length: ex }, () => {
-        currentEx++; // Incrémenter le numéro d'exemplaire
-        return createStickers(
-          cmd,
-          `${currentEx.toString().padStart(2, "0")}/${maxEx.toString().padStart(2, "0")}`, // Ex : 01/03
-          outPath,
-          cmdInfo,
-          showDataCmd,
-          maxEx,
-        );
-      });
+      for (let i = 0; i < ex; i++) {
+        currentEx++;
+
+        const exStr = `${currentEx.toString().padStart(2, "0")}/${maxEx.toString().padStart(2, "0")}`;
+
+        // Sticker principal
+        promises.push(createStickers(cmd, exStr, outPath, { ...cmdInfo, isSecond: false }, showDataCmd));
+
+        // Sticker secondaire CASTO
+        if (cmdInfo.client === "CASTO") {
+          promises.push(createStickers(cmd + " ", exStr, outPath, { ...cmdInfo, isSecond: true }, showDataCmd));
+        }
+      }
     });
   });
 
@@ -60,7 +62,19 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
   const originalNotice = path.join(__dirname, "../public/images/notice_deco.pdf");
   const pathPreview = path.join(__dirname, "../public/PREVIEW");
 
+  // Nouveau : support deux visuels CASTO
+  const useSecond = cmd.isSecond === true;
+
+  const ref = useSecond ? cmd.ref2 : cmd.ref;
+  const visuel = useSecond ? cmd.visuel2 : cmd.visuel;
+  const format = useSecond ? cmd.format2_visu : cmd.format_visu;
+
+  if (!ref || !visuel) {
+    logger.error("❌ Données manquantes sur la commande " + numCmd);
+  }
+
   let files;
+  const isCasto = cmd.client === "CASTO";
 
   try {
     files = fs.readdirSync(pathPreview);
@@ -71,32 +85,63 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
 
   // Récupération de la référence ou nom
   //const teinteMasse = ['blanc zero', 'noir zero', 'alu brosse', 'granit 3'];
-  const ref = (cmd.ref || "Réf inconnue").toString();
-  const name = cmd.visuel || "Visuel inconnu";
-  // const matchName = teinteMasse.find((teinte) => name.toLowerCase().includes(teinte.toLowerCase()));
+
+  const ref2 = null;
+  const name2 = null;
 
   // Filtrage des fichiers image qui contiennent la référence
-  const images = files.filter((file) => file.toLowerCase().endsWith(".jpg") && file.includes(ref));
+  const images = files.filter(
+    (file) =>
+      file.toLowerCase().endsWith(".jpg") && (file.includes(ref) || file.toLowerCase().includes(visuel.toLowerCase())),
+  );
+
   const imagesTeinteMasse = files.filter(
-    (file) => file.toLowerCase().endsWith(".jpg") && file.toLowerCase().includes(name.toLowerCase()),
+    (file) => file.toLowerCase().endsWith(".jpg") && file.toLowerCase().includes(visuel.toLowerCase()),
   );
 
   let infoCommande = [];
-  const match = cmd.visuel.match(/(gauche|droit|centre)/i);
+  const match = (useSecond ? cmd.visuel2 : cmd.visuel)?.match(/(gauche|droit|centre)/i);
 
   if (showDataCmd) {
     if (cmd) {
+      const castoNameVisuel = [];
+      if (isCasto) {
+        //CRED 255x60cm BETON CLAIR 3664711962643 MAT.pdf
+
+        const origineCastoName = [cmd.visuel, cmd.visuel2];
+        //extraction nom visuel
+        const nameCasto = origineCastoName.map((name) =>
+          name
+            ?.replace(/\d{2,}x\d{2,}/i, "")
+            ?.replace("cm", "")
+            ?.replace("CRED", "")
+            ?.replace(/\d{13}/, "")
+            ?.replace("MAT.pdf", "")
+            ?.replace("BRILLANT.pdf", "")
+            .trim(),
+        );
+        castoNameVisuel.push(nameCasto[0], nameCasto[1]);
+      }
       // Extraction des informations spécifiques pour chaque commande
-      infoCommande = [
+      infoCommande.push(
         cmd.ville || "Ville inconnue",
-        cmd.visuel
-          ?.split(/\d{3}x\d{3}/i)
-          .shift()
-          .trim() || "Visuel inconnu",
+        isCasto
+          ? castoNameVisuel[0]
+          : cmd.visuel
+              ?.split(/\d{2,}x\d{2,}/i)
+              .shift()
+              .trim() || "Visuel inconnu",
         match ? match[0] : null,
         cmd.ref?.toString() || "Réf inconnue",
         cmd.format_visu?.split("_").pop().trim() || "Format inconnu",
-      ];
+      );
+      isCasto
+        ? infoCommande.push(
+            castoNameVisuel[1] || "Visuel inconnu",
+            cmd.ref2?.toString() || "Réf inconnue",
+            cmd.format2_visu?.split("_").pop().trim() || "Format inconnu",
+          )
+        : null;
     }
   }
 
@@ -117,7 +162,7 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
 
     firstPage.drawText(text, {
       x: width / 2 - textWidth / 2,
-      y: height - textHeight * 8.2,
+      y: height - textHeight * 7.7,
       size: 16,
       font: font,
       color: rgb(0, 0, 0),
@@ -138,47 +183,81 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
 
     // Ajouter les informations de la commande (si demandé)
     if (showDataCmd) {
-      let fontSize = 10;
-      const textData = "LM_" + infoCommande.join(" ").toLocaleUpperCase();
-      const miniaturePreveiw = !cmd.teinteMasse ? images[0] || "" : imagesTeinteMasse[0] || "";
+      const usedFont = font2; // police fine pour l’affichage
 
-      let textDataWidth = font.widthOfTextAtSize(textData, fontSize);
-      const textDataHeight = font.heightAtSize(fontSize);
-      if (textDataWidth > width) {
-        fontSize = 6;
-        textDataWidth = font.widthOfTextAtSize(textData, fontSize);
+      // Extraction du nom propre CASTO
+      function cleanCastoName(str) {
+        return str
+          ?.replace(/\d{2,}x\d{2,}/i, "")
+          ?.replace("cm", "")
+          ?.replace("CRED", "")
+          ?.replace(/\d{13}/, "")
+          ?.replace("MAT.pdf", "")
+          ?.replace("BRILLANT.pdf", "")
+          .trim();
       }
 
+      // Sélection cohérente selon le sticker
+      const currentVisuelRAW = useSecond ? cmd.visuel2 : cmd.visuel;
+      const currentRef = useSecond ? cmd.ref2 : cmd.ref;
+      const currentFormat = useSecond ? cmd.format2_visu : cmd.format_visu;
+
+      const currentVisuelName = isCasto
+        ? cleanCastoName(currentVisuelRAW)
+        : currentVisuelRAW?.split(/\d{2,}x\d{2,}/i)[0]?.trim();
+
+      const matchGD = currentVisuelRAW?.match(/(gauche|droit|centre)/i);
+
+      const infoCommande = [
+        cmd.ville || "Ville inconnue",
+        currentVisuelName || "Visuel inconnu",
+        matchGD ? matchGD[0] : "",
+        currentRef?.toString() || "Réf inconnue",
+        currentFormat?.split("_").pop().trim() || "Format inconnu",
+      ];
+
+      // Construction de la ligne affichée
+      const textData = `${cmd.client}_` + infoCommande.join(" ").toUpperCase();
+
+      // Sélection correcte de l'image preview
+      const miniaturePreview = images[0] || "";
+
+      // Ajustement de la taille du texte
+      let fontSize = 10;
+      let textDataWidth = usedFont.widthOfTextAtSize(textData, fontSize);
+      logger.warn(`textDataWidth: ${textDataWidth}`);
+      logger.warn(`width: ${width}`);
+      const textDataHeight = usedFont.heightAtSize(fontSize);
+
+      if (textDataWidth > width) {
+        fontSize = 6;
+        textDataWidth = usedFont.widthOfTextAtSize(textData, fontSize);
+      }
+
+      // Dessin du texte
       firstPage.drawText(textData, {
         x: width / 2 - textDataWidth / 2,
         y: height - textDataHeight - textHeight * 8.4,
         size: fontSize,
-        font: font2,
+        font: usedFont,
         color: rgb(0, 0, 0),
       });
 
-      const maxRenderedHeight = 90; // hauteur max autorisée dans le PDF après rotation
-      const jpgPath = path.join(pathPreview, miniaturePreveiw);
+      // Preview image
+      const jpgPath = path.join(pathPreview, miniaturePreview);
 
-      if (images.length || (imagesTeinteMasse.length > 0 && fs.existsSync(jpgPath))) {
+      if (fs.existsSync(jpgPath)) {
         const imageBuffer = fs.readFileSync(jpgPath);
         const img = await pdfDoc.embedJpg(imageBuffer);
 
-        // Dimensions de l'image source
         const origWidth = img.width;
-        const origHeight = img.height;
+        const maxRenderedHeight = 90;
+        const scaleFactor = maxRenderedHeight / origWidth;
 
-        // Après rotation, la hauteur devient la largeur, donc on contraint l'ancienne largeur
-        const rotatedHeight = origWidth;
-
-        // Échelle à appliquer pour ne pas dépasser la hauteur maximale autorisée
-        const scaleFactor = maxRenderedHeight / rotatedHeight;
-
-        // Applique l'échelle
         const scaledDims = img.scale(scaleFactor);
 
         firstPage.drawImage(img, {
-          x: width / 2 - scaledDims.height / 2, // car rotation -90°
+          x: width / 2 - scaledDims.height / 2,
           y: height - scaledDims.width - textHeight * 3.5,
           width: scaledDims.width,
           height: scaledDims.height,
@@ -196,7 +275,8 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
     }
 
     // Nom du fichier basé sur le numéro de commande et l'exemplaire
-    const vernisTag = extractVernis(cmd) ? "_B" : "_M";
+    const vernis = extractVernis(cmd);
+    const vernisTag = vernis === true ? "_B" : vernis === false ? "_M" : "";
     const fileName = `${numCmd}${vernisTag}_${ex.split("/")[0]}.pdf`;
     await fs.promises.writeFile(`${outPath}/${fileName}`, pdfBytes);
   } catch (error) {
@@ -212,10 +292,8 @@ async function createStickersPage(directory, outputPath, pageSize = "A4") {
 
   const margin = 0; // Marge entre les pages
   const outputPdf = await PDFDocument.create();
-  const files = fs
-    .readdirSync(directory)
-    .filter((file) => file.endsWith(".pdf"))
-    .filter((file) => /^[\d]/.test(file));
+  const files = fs.readdirSync(directory).filter((file) => file.endsWith(".pdf"));
+  //.filter((file) => /^[\d]/.test(file));
 
   if (files.length === 0) {
     logger.error("Aucun fichier PDF trouvé dans le répertoire.");
@@ -323,7 +401,7 @@ async function createStickersPage(directory, outputPath, pageSize = "A4") {
       suffix++;
     }
     const pdfBytes = await outputPdf.save();
-    fs.writeFileSync(finalPath, pdfBytes);
+    await fs.promises.writeFile(finalPath, pdfBytes);
     logger.info(`Stickers enregistrés sous : ${finalPath}`);
   } catch (error) {
     logger.error("Erreur lors de la sauvegarde du fichier PDF :", error.message);
@@ -332,11 +410,12 @@ async function createStickersPage(directory, outputPath, pageSize = "A4") {
 
 // Fonction pour extraire l'ID de la commande à partir du nom du fichier
 function extractCommandId(fileName) {
-  const commandMatch = fileName.match(/^(\d+)/); // ex: 12345
-  const vernisMatch = fileName.match(/_(B|M)_/i); // ex: _B_ ou _M_
+  // Exemple : 54542_2_M_01.pdf ou 54542_M_01.pdf
+  const commandMatch = fileName.match(/^(\d+)/); // capture le 54542 et le _2 si présent
+  const vernisMatch = fileName.match(/_(B|M)_/i); // capture _B_ ou _M_
 
   const id = commandMatch ? commandMatch[1] : null;
-  const vernis = vernisMatch ? vernisMatch[1].toUpperCase() : "X"; // X = inconnu
+  const vernis = vernisMatch ? vernisMatch[1].toUpperCase() : "";
 
   return `${id}_${vernis}`;
 }

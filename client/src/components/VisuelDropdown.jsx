@@ -2,13 +2,14 @@ import PropTypes from "prop-types";
 import { Dropdown } from "semantic-ui-react";
 
 function filterName(name) {
+  if (!name) return;
   let newName = name;
 
-  if (name.match(/\//g) && name.match(/DIBOND \d{1,}x\d{1,}-/gi)) {
-    let splitDibondName = name.match(/DIBOND \d{1,}x\d{1,}-/gi);
-    newName = name.split(splitDibondName).pop();
-  } else if (name.match(/\//g)) {
-    newName = name.split("/").pop();
+  if (name?.match(/\//g) && name?.match(/DIBOND \d{1,}x\d{1,}-/gi)) {
+    let splitDibondName = name?.match(/DIBOND \d{1,}x\d{1,}-/gi);
+    newName = name?.split(splitDibondName).pop();
+  } else if (name?.match(/\//g)) {
+    newName = name?.split("/").pop();
   } else {
     return;
   }
@@ -19,23 +20,23 @@ function filterName(name) {
   // }
 
   // Supprimer l'extension .pdf si présente
-  newName = newName.replace(/\.pdf$/i, "");
+  newName = newName?.replace(/\.pdf$/i, "");
 
   // Retirer les accents
-  newName = newName.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  newName = newName?.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
   return newName;
 }
 
 function VisuelDropdown({ files, isFile, onSelectedFile, selectedFile, error, enabled }) {
   const filesOptions = files.map((file, index) => ({
-    text: filterName(file.name),
-    value: file.name,
+    text: filterName(file?.name),
+    value: file?.name,
     key: index,
   }));
 
   const handleChange = (e, data) => {
-    const selectedFile = files.find((file) => file.name === data.value);
+    const selectedFile = files.find((file) => file?.name === data.value);
     const value = isFile ? selectedFile : "";
     onSelectedFile(value);
   };

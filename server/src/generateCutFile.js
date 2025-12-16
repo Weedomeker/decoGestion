@@ -21,24 +21,95 @@
 const fs = require("fs");
 const path = require("path");
 const logger = require("./logger/logger.js");
-const placePanels = require("./appCasto.js");
+const { placePanels } = require("./appCasto.js");
 
 //cacluler metre lineaire
-function linearCutFile(dibondWidth, dibondHeight, cutWidth, cutHeight) {
-  const timeCut = 10;
-  const fraise = 3;
-  const dec = (cutWidth + cutHeight) * 2;
-  let VerticalWastes = dibondWidth - cutWidth - fraise;
-  let HorizontalWastes = dibondHeight - cutHeight - fraise < 10 ? 0 : (dibondHeight - cutHeight - fraise) * 2;
-  let wastes = VerticalWastes + HorizontalWastes;
-  const total = (dec + wastes) / 1000; // en mètres
-  let cutTime = parseFloat((timeCut * total).toFixed(2));
-  let minutes = Math.floor(cutTime / 60);
-  let seconds = (cutTime % 60).toFixed(2);
+function linearCutFile(dibondWidth, dibondHeight, cutSizes, millingMargin = 6, spacing = null) {
+  const timeCutPerMeter = 10; // secondes par mètre
 
-  logger.info(VerticalWastes, HorizontalWastes);
-  logger.info(total, "mètres");
-  logger.info(minutes + " min(s) " + seconds + " secs");
+  if (!Array.isArray(cutSizes)) cutSizes = [cutSizes];
+
+  const sizes = cutSizes.map((c) => ({ w: c.cutWidth, h: c.cutHeight }));
+
+  let positions = placePanels({ plateW: dibondWidth, plateH: dibondHeight, sizes, spacing });
+
+  // fallback vertical
+  if (!positions && cutSizes.length === 2) {
+    const p1 = cutSizes[0],
+      p2 = cutSizes[1];
+    const finalSpacing = spacing ?? 0;
+    const totalHeight = p1.cutHeight + p2.cutHeight + finalSpacing;
+    if (totalHeight <= dibondHeight) {
+      const startY = (dibondHeight - totalHeight) / 2;
+      positions = [
+        { x: (dibondWidth - p1.cutWidth) / 2, y: startY },
+        { x: (dibondWidth - p2.cutWidth) / 2, y: startY + p1.cutHeight + finalSpacing },
+      ];
+    }
+  }
+
+  if (!positions) throw new Error("Impossible de placer les panneaux pour calcul linéaire.");
+
+  // --- Définition des zones protégées
+  const protectedZones = positions.map((pos, i) => {
+    const w = cutSizes[i].cutWidth;
+    const h = cutSizes[i].cutHeight;
+    return {
+      x1: pos.x - millingMargin,
+      y1: pos.y - millingMargin,
+      x2: pos.x + w + millingMargin,
+      y2: pos.y + h + millingMargin,
+    };
+  });
+
+  // --- Calcule le périmètre des panneaux
+  let totalCut = cutSizes.reduce((acc, c) => acc + 2 * (c.cutWidth + c.cutHeight), 0);
+
+  const wasteSpacing = 800;
+
+  // --- Segments verticaux ---
+  for (let x = wasteSpacing; x < dibondWidth; x += wasteSpacing) {
+    let segments = [{ y1: 0, y2: dibondHeight }];
+
+    protectedZones.forEach((zone) => {
+      segments = segments.flatMap((seg) => {
+        // si la ligne ne touche pas le panneau
+        if (x < zone.x1 || x > zone.x2) return [seg];
+
+        const newSegs = [];
+        if (seg.y1 < zone.y1) newSegs.push({ y1: seg.y1, y2: Math.min(seg.y2, zone.y1) });
+        if (seg.y2 > zone.y2) newSegs.push({ y1: Math.max(seg.y1, zone.y2), y2: seg.y2 });
+        return newSegs;
+      });
+    });
+
+    totalCut += segments.reduce((sum, s) => sum + (s.y2 - s.y1), 0);
+  }
+
+  // --- Segments horizontaux ---
+  for (let y = wasteSpacing; y < dibondHeight; y += wasteSpacing) {
+    let segments = [{ x1: 0, x2: dibondWidth }];
+
+    protectedZones.forEach((zone) => {
+      segments = segments.flatMap((seg) => {
+        if (y < zone.y1 || y > zone.y2) return [seg];
+
+        const newSegs = [];
+        if (seg.x1 < zone.x1) newSegs.push({ x1: seg.x1, x2: Math.min(seg.x2, zone.x1) });
+        if (seg.x2 > zone.x2) newSegs.push({ x1: Math.max(seg.x1, zone.x2), x2: seg.x2 });
+        return newSegs;
+      });
+    });
+
+    totalCut += segments.reduce((sum, s) => sum + (s.x2 - s.x1), 0);
+  }
+
+  const totalMeters = totalCut / 1000;
+  const totalSeconds = totalMeters * timeCutPerMeter;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = (totalSeconds % 60).toFixed(2);
+
+  return { meters: totalMeters, time: { minutes, seconds }, positions };
 }
 
 function mmToPt(mm) {
@@ -136,98 +207,120 @@ function generateCutFile(dibondWidth, dibondHeight, cutWidth, cutHeight, milling
 function generateCutFileTwoCuts(
   dibondWidth,
   dibondHeight,
-  cutSizes, // [{w,h},{w,h}]
+  cutSizes, // [{cutWidth, cutHeight}, ...]
   millingMargin,
   outPath,
+  spacing = null, // en mm
 ) {
   if (!millingMargin || isNaN(millingMargin)) millingMargin = 6;
 
-  logger.warn("⚠️ Génération de deux découpes");
+  //
+  // --- 1) Conversion du format pour placePanels (exact modifyPdf)
+  //
+  const DEBORD = 0;
+  const sizes = cutSizes.map((s) => ({ w: s.cutWidth + DEBORD, h: s.cutHeight + DEBORD }));
 
-  // ↗️ LÀ : tu utilises ta fonction existante
-  const positions = placePanels({
+  // ✨ IMPORTANT : placePanels fait la logique EXACTE de modifyPdf
+  let positions = placePanels({
     plateW: dibondWidth,
     plateH: dibondHeight,
-    sizes: cutSizes.map((s) => ({ w: s.cutWidth, h: s.cutHeight })),
-    spacing: null,
+    sizes,
+    spacing, // spacing mm brut, même logique que modifyPdf
   });
 
-  logger.info(positions);
+  //
+  // --- 2) Fallback vertical IDENTIQUE à placeTwo (si horizontal impossible)
+  //
+  if (!positions) {
+    const p1 = cutSizes[0];
+    const p2 = cutSizes[1];
+
+    const finalSpacing = spacing ?? (dibondHeight - (p1.cutHeight + p2.cutHeight)) / 3;
+    const totalHeight = p1.cutHeight + p2.cutHeight + finalSpacing;
+
+    if (totalHeight <= dibondHeight) {
+      const startY = (dibondHeight - totalHeight) / 2;
+
+      positions = [
+        { x: (dibondWidth - p1.cutWidth) / 2, y: startY },
+        {
+          x: (dibondWidth - p2.cutWidth) / 2,
+          y: startY + p1.cutHeight + finalSpacing,
+        },
+      ];
+    }
+  }
 
   if (!positions) {
     throw new Error("Impossible de placer les panneaux sur le Dibond.");
   }
 
+  //
+  // --- 3) Construction du CUT identique à ton système
+  //
   let content = `MGE i-cut script
 Clear
 SystemUnits mm Local
 OpenCuttingKeyFor Dibond 3mm
 `;
 
-  // ----------------------------------------------------
-  // 1) Ajouter les 2 découpes
-  // ----------------------------------------------------
+  // --- Découpes ---
   content += `SelectLayer Cut\n`;
 
-  cutSizes.forEach((panel, index) => {
-    const { cutWidth: w, cutHeight: h } = panel;
-    const { x, y } = positions[index];
+  for (let i = 0; i < cutSizes.length; i++) {
+    const { cutWidth: w, cutHeight: h } = cutSizes[i];
+    const { x, y } = positions[i];
+    const cutX = x - DEBORD / 2;
+    const cutY = y - DEBORD / 2;
 
-    content += `MoveTo ${x},${y},Closed,Cut\n`;
-    content += `LineTo ${x + w},${y},Corner\n`;
-    content += `LineTo ${x + w},${y + h},Corner\n`;
-    content += `LineTo ${x},${y + h},Corner\n`;
-    content += `LineTo ${x},${y},Corner\n`;
-  });
-
-  // ----------------------------------------------------
-  // 2) Repères globaux (à 4 coins du Dibond)
-  // ----------------------------------------------------
-  const regSize = 3;
-  const margin = 10 + regSize + 5;
-
-  const regMarks = [
-    { x: margin, y: margin },
-    { x: dibondWidth - margin, y: margin },
-    { x: margin, y: dibondHeight - margin },
-    { x: dibondWidth - margin, y: dibondHeight - margin },
-  ];
-
-  regMarks.forEach((mark) => {
-    content += `RegMark ${mark.x},${mark.y},Regmark\n`;
-  });
-
-  // ----------------------------------------------------
-  // 3) WasteCutting global (comme ton fichier actuel)
-  // ----------------------------------------------------
-  content += `SelectLayer WasteCutting\n`;
-
-  const wasteSpacing = 800;
-
-  // Waste verticaux
-  for (let x = wasteSpacing; x < dibondWidth; x += wasteSpacing) {
-    content += `MoveTo ${x},0,Open,WasteCutting\n`;
-    content += `LineTo ${x},${dibondHeight},Corner\n`;
+    content += `MoveTo ${cutX},${cutY},Closed,Cut\n`;
+    content += `LineTo ${cutX + w},${cutY},Corner\n`;
+    content += `LineTo ${cutX + w},${cutY + h},Corner\n`;
+    content += `LineTo ${cutX},${cutY + h},Corner\n`;
+    content += `LineTo ${cutX},${cutY},Corner\n`;
   }
 
-  // Waste horizontaux
-  for (let y = wasteSpacing; y < dibondHeight; y += wasteSpacing) {
-    content += `MoveTo 0,${y},Open,WasteCutting\n`;
-    content += `LineTo ${dibondWidth},${y},Corner\n`;
-  }
+  //
+  // --- Regmarks globaux (inchangé)
+  //
+  // content += `SelectLayer RegMark\n`;
 
-  // ----------------------------------------------------
-  // 4) Écrire 1 seul fichier .cut
-  // ----------------------------------------------------
+  // const regSize = 3;
+  // const margin = 10 + regSize + 5;
+
+  // [
+  //   { x: margin, y: margin },
+  //   { x: dibondWidth - margin, y: margin },
+  //   { x: margin, y: dibondHeight - margin },
+  //   { x: dibondWidth - margin, y: dibondHeight - margin },
+  // ].forEach((m) => {
+  //   content += `RegMark ${m.x},${m.y},Regmark\n`;
+  // });
+
+  // --- WasteCutting (inchangé)
+
+  // content += `SelectLayer WasteCutting\n`;
+  // const wasteSpacing = 800;
+
+  // for (let x = wasteSpacing; x < dibondWidth; x += wasteSpacing) {
+  //   content += `MoveTo ${x},0,Open,WasteCutting\n`;
+  //   content += `LineTo ${x},${dibondHeight},Corner\n`;
+  // }
+
+  // for (let y = wasteSpacing; y < dibondHeight; y += wasteSpacing) {
+  //   content += `MoveTo 0,${y},Open,WasteCutting\n`;
+  //   content += `LineTo ${dibondWidth},${y},Corner\n`;
+  // }
+
+  //
+  // --- Sauvegarde
+  //
   try {
     const fileName = `cut_${cutSizes.length}panels.cut`;
-    if (!fs.existsSync(outPath)) {
-      fs.mkdirSync(outPath, { recursive: true });
-    }
+    if (!fs.existsSync(outPath)) fs.mkdirSync(outPath, { recursive: true });
     fs.writeFileSync(path.join(outPath, fileName), content);
-    logger.info(`✂️ Fichier cut ${fileName} ✅`, fileName);
-  } catch (error) {
-    logger.error(error);
+  } catch (err) {
+    logger.error(err);
   }
 }
 

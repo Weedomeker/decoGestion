@@ -22,7 +22,8 @@ const modifyPdf = require("./src/app");
 const modifyPdfCasto = require("./src/appCasto.js").modifyPdf;
 const getFiles = require("./src/getFiles").getData;
 const createDec = require("./src/dec");
-const { generateCutFile, generateCutFileTwoCuts } = require("./src/generateCutFile");
+const generateCutFile = require("./src/generateCutFile").generateCutFile;
+const generateCutFileTwoCuts = require("./src/generateCutFile").generateCutFileTwoCuts;
 const createJob = require("./src/jobsList");
 const createXlsx = require("./src/xlsx");
 const mongoose = require("./src/mongoose");
@@ -117,7 +118,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(compression());
 
 app.use("/public", express.static(__dirname));
-app.use(express.static(__dirname + "/public"));
+
 app.use("/public/PREVIEW", express.static(__dirname + "/public/PREVIEW"));
 app.use(express.static(path.join(__dirname, "../client/dist")));
 app.use(
@@ -231,6 +232,7 @@ app.post("/add_job", async (req, res) => {
     visuel: req.body.visuel,
     visuel2: req.body.visuel2,
     numCmd: req.body.numCmd,
+    numCmd2: req.body.numCmd2,
     ville: req.body.ville != null ? req.body.ville.toUpperCase() : "",
     ex: req.body.ex !== null ? req.body.ex : "",
     regmarks: req.body.regmarks,
@@ -241,8 +243,8 @@ app.post("/add_job", async (req, res) => {
   let visuel = data.visuel.split("/").pop();
   visuel = visuel.includes("-") ? visuel.split("-").pop() : visuel;
 
-  let visuel2 = data.visuel2.split("/").pop();
-  visuel2 = visuel2.includes("-") ? visuel2.split("-").pop() : visuel2;
+  let visuel2 = data.visuel2?.split("/").pop() || "";
+  visuel2 = visuel2?.includes("-") ? visuel2.split("-").pop() : visuel2;
 
   let visuPath = data.visuel;
   let visuPath2 = data.visuel2;
@@ -273,7 +275,7 @@ app.post("/add_job", async (req, res) => {
     /\.[^/.]+$/,
     "",
   )} ${data.ex}_EX`;
-  fileName2 = `${data.numCmd} - ${prefixClient} ${data.ville.toUpperCase()} - ${teinteMasse === true ? format2?.split("_").pop() : formatTauro} - ${visuel2.replace(/\.[^/.]+$/, "")} ${data.ex}_EX`;
+  fileName2 = `${data.numCmd2} - ${prefixClient} ${data.ville.toUpperCase()} - ${teinteMasse === true ? format2?.split("_").pop() : formatTauro} - ${visuel2.replace(/\.[^/.]+$/, "")} ${data.ex}_EX`;
 
   //Verifier si dossiers exist si pas le créer
   if (fs.existsSync(writePath) && fs.existsSync(`${jpgPath}/${sessionPRINTSA}`)) {
@@ -304,6 +306,7 @@ app.post("/add_job", async (req, res) => {
   const newJob = createJob(
     client,
     data.numCmd,
+    data.numCmd2,
     data.ville,
     format,
     format2,
@@ -518,6 +521,7 @@ app.post("/run_jobs", async (req, res) => {
         {
           date: job.date,
           numCmd: job.cmd,
+          numCmd2: job.cmd2,
           mag: job.ville,
           dibond: job.format_Plaque,
           deco: matchName ? job.visuel.substring(0, job.visuel.indexOf(matchName[0])) : job.visuel,
@@ -537,7 +541,7 @@ app.post("/run_jobs", async (req, res) => {
         const newDeco = new modelDeco(dataFileExport[0]);
         await newDeco.save();
       } catch (error) {
-        logger.info(error);
+        logger.error(error);
       }
 
       //Générer découpe
@@ -573,7 +577,7 @@ app.post("/run_jobs", async (req, res) => {
               pathCutFiles, // chemin du fichier de découpe
             );
           } catch (error) {
-            logger.info(error);
+            logger.error(error);
           }
         }
         if (job.client === "CASTO") {
@@ -581,13 +585,16 @@ app.post("/run_jobs", async (req, res) => {
             generateCutFileTwoCuts(
               hPlate * 10, // Dibond Width
               wPlate * 10, // Dibond Height
-              { cutWidth: width * 10, cutHeight: height * 10 }, // découpe 1
-              { cutWidth: width2 * 10, cutHeight: height2 * 10 }, // découpe 2
+              [
+                { cutWidth: width * 10, cutHeight: height * 10 },
+                { cutWidth: width2 * 10, cutHeight: height2 * 10 },
+              ],
               6, // millingMargin
               pathCutFiles, // dossier
             );
+            logger.info("✔️  Decoupe CASTO crée");
           } catch (error) {
-            logger.info(error);
+            logger.error("Decoupe Casto échoué: ", error);
           }
         }
       }

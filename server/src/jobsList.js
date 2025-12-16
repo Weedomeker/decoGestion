@@ -1,6 +1,7 @@
 function createJob(
   client,
   cmd,
+  cmd2,
   ville,
   format,
   format2,
@@ -27,6 +28,7 @@ function createJob(
     date: date,
     client: client,
     cmd: parseInt(cmd),
+    cmd2: parseInt(cmd2),
     ville: ville,
     format_visu: format,
     format2_visu: format2,
