@@ -1,15 +1,19 @@
 const { Jimp } = require("jimp");
 const path = require("path");
+const fs = require("fs");
 const logger = require("./logger/logger");
 
 async function generateImages(data, readFile, writeFile) {
-  const imagePath = readFile + "/" + data.visuel + ".jpg";
-  const format = data.format_visu?.split("_")?.pop();
+  let imagePath = readFile + "/" + data.visuel + ".jpg";
+  //chercher fichier incluant reference dans son nom
+  fs.readdirSync(readFile).forEach((file) => {
+    if (file.includes(data.ref)) {
+      imagePath = path.join(readFile, file);
+    }
+  });
 
   let fileName = path.basename(writeFile);
-  // fileName = fileName?.split(' - ');
-  // fileName?.splice(2, 1, format);
-  // fileName = fileName?.join(' - ');
+
   try {
     // Charger l'image
     const image = await Jimp.read(imagePath);

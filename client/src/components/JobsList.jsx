@@ -245,107 +245,124 @@ function JobsList({ show, formatTauro }) {
   const ItemsJob = (status) => {
     const executionTime = startTime && endTime ? endTime - startTime : null;
 
-    const newTableEntries = data?.[0]?.[status]?.flatMap((value, i) => {
-      if (!value) return [];
+    const source = data?.[0]?.[status];
+    const newTableEntries = Array.isArray(source)
+      ? source.flatMap((value, i) => {
+          if (!value) return [];
 
-      const baseEntry = {
-        client: value.client,
-        date: value.date,
-        cmd: value.cmd,
-        ville: value.ville,
-        format_Plaque: value.format_Plaque,
-        ex: value.ex,
-        cut: value.cut,
-        jobId: value._id,
-      };
+          const baseEntry = {
+            client: value.client,
+            date: value.date,
+            cmd: value.cmd,
+            cmd2: value.cmd2,
+            ville: value.ville,
+            format_Plaque: value.format_Plaque,
+            ex: value.ex,
+            cut: value.cut,
+            jobId: value._id,
+          };
 
-      // Préparation du premier visuel
-      const entries = [
-        {
-          ...baseEntry,
-          visuel: value.visuel,
-          jpgName: value.jpgName,
-          format_visu: value.format_visu,
-          ref: value.ref,
-        },
-      ];
+          // Préparation du premier visuel
+          const entries = [
+            {
+              ...baseEntry,
+              visuel: value.visuel,
+              jpgName: value.jpgName,
+              format_visu: value.format_visu,
+              ref: value.ref,
+            },
+          ];
+          // Si credences → ajouter la deuxième ligne
+          if (value.format_visu.match(/\d{3}x\d{2,}/i) && value.visuel2) {
+            entries.push({
+              ...baseEntry,
+              cmd: value.cmd2,
+              visuel: value.visuel2,
+              jpgName: value.jpgName2,
+              format_visu: value.format2_visu,
+              ref: value.ref2,
+            });
+          }
 
-      // Si CASTO → ajouter la deuxième ligne
-      if (value.client === "CASTO" && value.visuel2) {
-        entries.push({
-          ...baseEntry,
-          visuel: value.visuel2,
-          jpgName: value.jpgName2,
-          format_visu: value.format2_visu,
-          ref: value.ref2,
-        });
-      }
+          // Générer les lignes (1 pour LM, 2 pour CASTO)
+          return entries.map((entry, idx) => {
+            const title = entry.jpgName?.split("/")?.pop() ?? "";
+            const url = `http://${HOST}:${PORT}/public/` + entry.jpgName.replace(/#/i, "%23");
 
-      // Générer les lignes (1 pour LM, 2 pour CASTO)
-      return entries.map((entry, idx) => {
-        const title = entry.jpgName.split("/").pop();
-        const url = `http://${HOST}:${PORT}/public/` + entry.jpgName.replace(/#/i, "%23");
+            let visuelName = entry.visuel?.split("/")?.pop() ?? "";
+            const regexFormat = visuelName.match(/\d{3}x\d{2,}/i);
+            const regexRef = visuelName.match(/\d{8,}/);
+            const cleanVisuelNameCasto = [
+              "cred",
+              "cm",
+              regexFormat?.[0],
+              regexRef?.[0],
+              ".pdf",
+              "mat",
+              "brillant",
+            ].filter(Boolean);
+            if (entry.client === "CASTO") {
+              cleanVisuelNameCasto.map((el) => (visuelName = visuelName.toLowerCase().replace(el, "")));
+            }
+            if (entry.client === "BRICO") {
+              const regex = /^[A-Z]+-\d+$/;
+              visuelName = visuelName.match(regex)?.[0] ?? visuelName;
+              visuelName = visuelName.replace("BRILLANT", "").replace("MAT", "");
+            }
+            if (regexFormat && regexFormat[0]) {
+              visuelName = visuelName.split(regexFormat[0])[0].toUpperCase();
+            } else {
+              visuelName = visuelName.toUpperCase();
+            }
 
-        let visuelName = entry.visuel.split("/").pop();
-        const regexFormat = visuelName.match(/\d{3}x\d{2,}/i);
-        const regexRef = visuelName.match(/\d{8,}/);
-        const cleanVisuelNameCasto = ["cred", "cm", regexFormat[0], regexRef[0], ".pdf", "mat", "brillant"];
-        if (entry.client === "CASTO") {
-          cleanVisuelNameCasto.map((el) => (visuelName = visuelName.toLowerCase().replace(el, "")));
-        }
-        if (regexFormat && regexFormat[0]) {
-          visuelName = visuelName.split(regexFormat[0])[0].toUpperCase();
-        } else {
-          visuelName = visuelName.toUpperCase();
-        }
+            return (
+              <TableRow
+                key={`${i}-${idx}`}
+                disabled={status === "jobs" ? onLoading : null}
+                className="table-row"
+                style={value.teinteMasse ? { color: "#fc7703", fontWeight: "bold" } : null}
+              >
+                <TableCell>{entry.client}</TableCell>
+                <TableCell>{new Date(entry.date).toLocaleString("fr-FR", { timeZone: "EUROPE/PARIS" })}</TableCell>
+                <TableCell>{entry.cmd}</TableCell>
+                <TableCell>{entry.ville}</TableCell>
 
-        return (
-          <TableRow
-            key={`${i}-${idx}`}
-            disabled={status === "jobs" ? onLoading : null}
-            className="table-row"
-            style={value.teinteMasse ? { color: "#fc7703", fontWeight: "bold" } : null}
-          >
-            <TableCell>{entry.client}</TableCell>
-            <TableCell>{new Date(entry.date).toLocaleString("fr-FR", { timeZone: "EUROPE/PARIS" })}</TableCell>
-            <TableCell>{entry.cmd}</TableCell>
-            <TableCell>{entry.ville}</TableCell>
+                <TableCell>
+                  {!stickersOnly && status === "completed" ? (
+                    <a href={url} data-lightbox={title} data-title={title}>
+                      {visuelName}
+                    </a>
+                  ) : (
+                    visuelName
+                  )}
+                </TableCell>
 
-            <TableCell>
-              {!stickersOnly && status === "completed" ? (
-                <a href={url} data-lightbox={title} data-title={title}>
-                  {visuelName}
-                </a>
-              ) : (
-                visuelName
-              )}
-            </TableCell>
+                <TableCell>{checkVernis(entry.visuel)?.slice(0, 1)?.toUpperCase()}</TableCell>
+                <TableCell>{entry.format_visu?.split("_").pop()}</TableCell>
+                <TableCell>{entry.format_Plaque?.split("_").pop()}</TableCell>
+                <TableCell>{entry.ex}</TableCell>
+                <TableCell>{entry.cut ? <Icon name="cut" /> : null}</TableCell>
 
-            <TableCell>{checkVernis(entry.visuel)?.slice(0, 1)?.toUpperCase()}</TableCell>
-            <TableCell>{entry.format_visu.split("_").pop()}</TableCell>
-            <TableCell>{entry.format_Plaque.split("_").pop()}</TableCell>
-            <TableCell>{entry.ex}</TableCell>
-            <TableCell>{entry.cut ? <Icon name="cut" /> : null}</TableCell>
-
-            {status === "jobs" ? (
-              <TableCell>
-                <Button
-                  compact
-                  size="mini"
-                  color="grey"
-                  onClick={() => handleDeleteJob(entry.jobId)}
-                  disabled={onLoading}
-                >
-                  <Icon name="remove" fitted inverted />
-                </Button>
-              </TableCell>
-            ) : (
-              <TableCell />
-            )}
-          </TableRow>
-        );
-      });
-    });
+                {status === "jobs" ? (
+                  <TableCell>
+                    <Button
+                      compact
+                      size="mini"
+                      color="grey"
+                      onClick={() => handleDeleteJob(entry.jobId)}
+                      disabled={onLoading}
+                    >
+                      <Icon name="remove" fitted inverted />
+                    </Button>
+                  </TableCell>
+                ) : (
+                  <TableCell />
+                )}
+              </TableRow>
+            );
+          });
+        })
+      : [];
 
     const newTable = !isLoading && (
       <div className="jobs-table-container">
@@ -373,7 +390,7 @@ function JobsList({ show, formatTauro }) {
           {status === "jobs" && (
             <TableFooter className="sticky-footer">
               <TableRow>
-                <TableHeaderCell colSpan="10" collapsing>
+                <TableHeaderCell colSpan="11" collapsing>
                   <div className="sticky-footer-content">
                     <div className="checkbox-footer">
                       {!onLoading &&
@@ -447,7 +464,7 @@ function JobsList({ show, formatTauro }) {
                       </ButtonContent>
                     </Button>
 
-                    {executionTime && data?.[0]?.jobs?.length === 0 && (
+                    {executionTime && (data?.[0]?.jobs?.length ?? 0) === 0 && (
                       <pre>
                         Temps d&apos;exécution total:{" "}
                         {executionTime / 1000 > 60

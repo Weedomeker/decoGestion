@@ -8,6 +8,7 @@ logs/
 !server/public/icons
 !server/public/images
 server/public/LM
+server/public/BRICO
 server/public/ECOM
 server/public/CASTO
 server/public/TAURO

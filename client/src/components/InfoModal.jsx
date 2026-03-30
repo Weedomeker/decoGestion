@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Button, Input, Message, Modal } from "semantic-ui-react";
 const InfoModal = ({ open, onClose, message, object, error }) => {
   const [data, setData] = useState(object);
-  const visuel = object && object.visuel ? object.visuel.split("/").pop().split("-").pop().split(" ")[0] : "";
+  const visuel = object && object.visuel ? object.visuel?.split("/")?.pop()?.split("-")?.pop()?.split(" ")[0] : "";
 
   useEffect(() => {
     setData(object);
@@ -43,7 +43,7 @@ const InfoModal = ({ open, onClose, message, object, error }) => {
           <Message negative>
             <Message.Header>{message}</Message.Header>
             {object && (
-              <pre>{`${object.cmd} ${object.ville} ${visuel} ${object.ref} ${object.format_visu} ${object.format_Plaque.split("_").pop()} ${object.ex}ex(s)`}</pre>
+              <pre>{`${object.cmd} ${object.ville} ${visuel} ${object.ref} ${object.format_visu} ${object.format_Plaque.split("_")?.pop()} ${object.ex}ex(s)`}</pre>
             )}
           </Message>
         )}

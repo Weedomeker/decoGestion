@@ -9,6 +9,27 @@ const path = require("path");
 const m = require("gm");
 const logger = require("./logger/logger");
 
+function getVisuelsForCmd(cmdInfo) {
+  const visuels = [
+    {
+      commandId: cmdInfo.cmd,
+      visuelIndex: 1,
+    },
+  ];
+
+  // 👉 condition UNIQUE pour créer V2
+  if (cmdInfo.visuPath2) {
+    const commandId = cmdInfo.cmd2 && cmdInfo.cmd2 > 0 ? cmdInfo.cmd2 : cmdInfo.cmd; // fallback si cmd2 = 0
+
+    visuels.push({
+      commandId,
+      visuelIndex: 2,
+      isStock: !(cmdInfo.cmd2 && cmdInfo.cmd2 > 0), // Si cmd2 est absent ou égal à 0, c'est du stock
+    });
+  }
+
+  return visuels;
+}
 async function generateStickers(commande, outPath, showDataCmd = false) {
   if (!Array.isArray(commande) || commande.length === 0) {
     logger.error("La commande est vide ou non valide.");
@@ -21,36 +42,52 @@ async function generateStickers(commande, outPath, showDataCmd = false) {
 
   // Grouper les commandes par `cmd` et accumuler les exemplaires
   const groupedCommands = commande.reduce((acc, curr) => {
-    const { cmd, ex } = curr;
-    if (!acc[cmd]) {
-      acc[cmd] = { items: [], maxEx: 0 };
+    const key = curr.cmd;
+
+    if (!acc[key]) {
+      acc[key] = {
+        items: [],
+        maxEx: 0,
+        cmd: curr.cmd,
+        cmd2: curr.cmd2,
+      };
     }
-    acc[cmd].items.push(curr);
-    acc[cmd].maxEx += ex; // Ajouter les exemplaires à ce `cmd`
+
+    acc[key].items.push(curr);
+    acc[key].maxEx += curr.ex;
+
     return acc;
   }, {});
 
   // Générer les stickers pour chaque commande
   const promises = [];
 
-  Object.values(groupedCommands).forEach(({ items, maxEx }) => {
+  Object.values(groupedCommands).forEach(({ items, maxEx, cmd, cmd2 }) => {
     let currentEx = 0;
 
     items.forEach((cmdInfo) => {
-      const { cmd, ex } = cmdInfo;
-
-      for (let i = 0; i < ex; i++) {
+      for (let i = 0; i < cmdInfo.ex; i++) {
         currentEx++;
-
         const exStr = `${currentEx.toString().padStart(2, "0")}/${maxEx.toString().padStart(2, "0")}`;
 
-        // Sticker principal
-        promises.push(createStickers(cmd, exStr, outPath, { ...cmdInfo, isSecond: false }, showDataCmd));
+        const visuels = getVisuelsForCmd(cmdInfo);
 
-        // Sticker secondaire CASTO
-        if (cmdInfo.client === "CASTO") {
-          promises.push(createStickers(cmd + " ", exStr, outPath, { ...cmdInfo, isSecond: true }, showDataCmd));
-        }
+        visuels.forEach(({ commandId, visuelIndex, isStock }) => {
+          promises.push(
+            createStickers(
+              commandId,
+              exStr,
+              outPath,
+              {
+                ...cmdInfo,
+                commandId,
+                visuelIndex,
+                isStock,
+              },
+              showDataCmd,
+            ),
+          );
+        });
       }
     });
   });
@@ -59,22 +96,25 @@ async function generateStickers(commande, outPath, showDataCmd = false) {
 }
 
 async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
-  const originalNotice = path.join(__dirname, "../public/images/notice_deco.pdf");
+  const notice_deco = path.join(__dirname, "../public/images/notice_deco.pdf");
+  const notice_casto = path.join(__dirname, "../public/images/notice_casto.pdf");
+  const notice_brico = path.join(__dirname, "../public/images/notice_brico.pdf");
   const pathPreview = path.join(__dirname, "../public/PREVIEW");
 
   // Nouveau : support deux visuels CASTO
-  const useSecond = cmd.isSecond === true;
+  const useSecond = cmd.visuelIndex === 2;
 
   const ref = useSecond ? cmd.ref2 : cmd.ref;
   const visuel = useSecond ? cmd.visuel2 : cmd.visuel;
   const format = useSecond ? cmd.format2_visu : cmd.format_visu;
 
-  if (!ref || !visuel) {
-    logger.error("❌ Données manquantes sur la commande " + numCmd);
-  }
+  // if (!ref || !visuel) {
+  //   logger.error("❌ Données manquantes sur la commande " + numCmd);
+  // }
 
   let files;
   const isCasto = cmd.client === "CASTO";
+  const isBrico = cmd.client === "BRICO";
 
   try {
     files = fs.readdirSync(pathPreview);
@@ -125,7 +165,7 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
       // Extraction des informations spécifiques pour chaque commande
       infoCommande.push(
         cmd.ville || "Ville inconnue",
-        isCasto
+        isCasto || isBrico
           ? castoNameVisuel[0]
           : cmd.visuel
               ?.split(/\d{2,}x\d{2,}/i)
@@ -135,7 +175,7 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
         cmd.ref?.toString() || "Réf inconnue",
         cmd.format_visu?.split("_").pop().trim() || "Format inconnu",
       );
-      isCasto
+      isCasto || isBrico
         ? infoCommande.push(
             castoNameVisuel[1] || "Visuel inconnu",
             cmd.ref2?.toString() || "Réf inconnue",
@@ -147,7 +187,14 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
 
   try {
     // Lire le modèle de PDF
-    const readPdf = await fs.promises.readFile(originalNotice);
+    let readPdf;
+    if (isCasto) {
+      readPdf = await fs.promises.readFile(notice_casto);
+    } else if (isBrico) {
+      readPdf = await fs.promises.readFile(notice_brico);
+    } else {
+      readPdf = await fs.promises.readFile(notice_deco);
+    }
     const pdfDoc = await PDFDocument.load(readPdf);
     const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     const font2 = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -156,7 +203,12 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
     const { width, height } = firstPage.getSize();
 
     // Afficher la numérotation des exemplaires (par ex. : 01/03)
-    const text = `${numCmd} ${ex}`;
+    let text = "";
+    if (cmd.visuelIndex === 2 && cmd.isStock) {
+      text = "STOCK";
+    } else {
+      text = numCmd > 0 ? `${numCmd} ${ex}` : "";
+    }
     const textWidth = font.widthOfTextAtSize(text, 16);
     const textHeight = font.heightAtSize(16);
 
@@ -202,22 +254,27 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
       const currentRef = useSecond ? cmd.ref2 : cmd.ref;
       const currentFormat = useSecond ? cmd.format2_visu : cmd.format_visu;
 
-      const currentVisuelName = isCasto
-        ? cleanCastoName(currentVisuelRAW)
-        : currentVisuelRAW?.split(/\d{2,}x\d{2,}/i)[0]?.trim();
+      let currentVisuelName;
+      if (isCasto) {
+        currentVisuelName = cleanCastoName(currentVisuelRAW);
+      } else if (isBrico) {
+        currentVisuelName = currentVisuelRAW?.split(/\d{2,}x\d{2,}/i)[0]?.trim();
+      } else {
+        currentVisuelName = currentVisuelRAW?.split(/\d{2,}x\d{2,}/i)[0]?.trim();
+      }
 
       const matchGD = currentVisuelRAW?.match(/(gauche|droit|centre)/i);
 
       const infoCommande = [
-        cmd.ville || "Ville inconnue",
-        currentVisuelName || "Visuel inconnu",
+        cmd.ville || "",
+        currentVisuelName || "",
         matchGD ? matchGD[0] : "",
-        currentRef?.toString() || "Réf inconnue",
-        currentFormat?.split("_").pop().trim() || "Format inconnu",
+        currentRef?.toString() || "",
+        currentFormat?.split("_").pop().replace("/", "").trim() || "Format inconnu",
       ];
 
       // Construction de la ligne affichée
-      const textData = `${cmd.client}_` + infoCommande.join(" ").toUpperCase();
+      const textData = infoCommande.join(" ").toUpperCase();
 
       // Sélection correcte de l'image preview
       const miniaturePreview = images[0] || "";
@@ -225,8 +282,7 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
       // Ajustement de la taille du texte
       let fontSize = 10;
       let textDataWidth = usedFont.widthOfTextAtSize(textData, fontSize);
-      logger.warn(`textDataWidth: ${textDataWidth}`);
-      logger.warn(`width: ${width}`);
+
       const textDataHeight = usedFont.heightAtSize(fontSize);
 
       if (textDataWidth > width) {
@@ -277,7 +333,14 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
     // Nom du fichier basé sur le numéro de commande et l'exemplaire
     const vernis = extractVernis(cmd);
     const vernisTag = vernis === true ? "_B" : vernis === false ? "_M" : "";
-    const fileName = `${numCmd}${vernisTag}_${ex.split("/")[0]}.pdf`;
+    const commandId = cmd.commandId || numCmd;
+    let visuelTag;
+    if (cmd.client === "CASTO" || cmd.client === "BRICO") {
+      visuelTag = `_V${cmd.visuelIndex}`;
+    } else {
+      visuelTag = "";
+    }
+    const fileName = `${commandId}${visuelTag}${vernisTag}_${ex.split("/")[0]}.pdf`;
     await fs.promises.writeFile(`${outPath}/${fileName}`, pdfBytes);
   } catch (error) {
     logger.error("La génération des étiquettes a échoué : ", error);

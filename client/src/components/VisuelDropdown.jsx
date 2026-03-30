@@ -14,16 +14,16 @@ function filterName(name) {
     return;
   }
 
-  //CASTO
-  // if (name.match(/CRED \d{1,}x\d{1,}/gi)) {
-  //   newName = newName.split(/CRED \d{1,}x\d{1,}cm/gi).pop();
-  // }
-
   // Supprimer l'extension .pdf si présente
   newName = newName?.replace(/\.pdf$/i, "");
 
   // Retirer les accents
   newName = newName?.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  //CASTO
+  if (name.match(/CRED \d{2,}x\d{2,}/gi)) {
+    newName = newName.split(/CRED \d{1,}x\d{1,}cm/gi).pop();
+  }
 
   return newName;
 }
@@ -36,9 +36,12 @@ function VisuelDropdown({ files, isFile, onSelectedFile, selectedFile, error, en
   }));
 
   const handleChange = (e, data) => {
+    if (data.value === null) {
+      onSelectedFile(null);
+      return;
+    }
     const selectedFile = files.find((file) => file?.name === data.value);
-    const value = isFile ? selectedFile : "";
-    onSelectedFile(value);
+    onSelectedFile(isFile ? selectedFile : null);
   };
 
   return (
@@ -53,8 +56,7 @@ function VisuelDropdown({ files, isFile, onSelectedFile, selectedFile, error, en
       fluid
       search
       selection
-      value={selectedFile || ""}
-      text={selectedFile ? filterName(selectedFile) : selectedFile}
+      value={selectedFile || null}
       options={filesOptions}
       onChange={handleChange}
     />

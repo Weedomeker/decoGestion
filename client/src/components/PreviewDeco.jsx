@@ -19,7 +19,7 @@ function PreviewDeco({ fileSelected, show, client }) {
   }, []);
 
   const extractReference = (filename) => {
-    const match = filename.match(/\b\d{8,}\b/);
+    const match = filename.match(/\b\d{7,}\b/);
     return match ? match[0] : null;
   };
 
@@ -27,15 +27,23 @@ function PreviewDeco({ fileSelected, show, client }) {
   useEffect(() => {
     if (!fileSelected || previewList.length === 0) return;
 
-    const reference = extractReference(fileSelected.split("/").pop());
+    const filename = fileSelected.split("/").pop();
+    const name = filename.replace(".pdf", "");
+    const reference = extractReference(filename);
 
-    const matched = previewList.find((entry) => entry.name.includes(reference));
+    let matched;
+
+    if (reference) {
+      matched = previewList.find((entry) => entry.name.includes(reference));
+    } else {
+      matched = previewList.find((entry) => entry.name.replace(".jpg", "") === name);
+    }
 
     if (matched) {
       setImageUrl(`http://${HOST}:${PORT}/${matched.path.split("\\").slice(1).join("/")}`);
     } else {
       setImageUrl(null);
-      console.warn("Aucune image trouvée pour :", reference);
+      console.warn("Aucune image trouvée pour :", filename);
     }
   }, [fileSelected, previewList]);
 
@@ -48,7 +56,7 @@ function PreviewDeco({ fileSelected, show, client }) {
         src={imageUrl}
         alt="Aperçu déco"
         rounded
-        style={{ transform: client === "CASTO" ? "rotate(90deg)" : undefined }}
+        style={{ transform: client === "CASTO" || client === "BRICO" ? "rotate(90deg)" : undefined }}
       />
     </div>
   );

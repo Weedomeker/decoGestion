@@ -8,7 +8,7 @@ body {
 .container {
   display: grid;
   grid-template-columns: 0.5fr 2fr;
-  grid-template-rows: 150px 3fr auto 80px;
+  grid-template-rows: 135px 3fr auto 80px;
   column-gap: 20px;
   justify-content: space-between;
   height: 100vh;

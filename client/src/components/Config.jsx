@@ -6,13 +6,7 @@ const PORT = import.meta.env.VITE_PORT;
 
 function Config() {
   const [open, setOpen] = useState(false);
-  const [data, setData] = useState({
-    standards: "",
-    raccordables: "",
-    surMesures: "",
-    ecom: "",
-    preview: "",
-  });
+  const [data, setData] = useState({});
 
   // Fonction pour charger les données initiales
   const fetchInitialData = async () => {
@@ -120,6 +114,14 @@ function Config() {
               value={data.CASTO || ""}
               onChange={(e, v) => {
                 setData((prevData) => ({ ...prevData, CASTO: v.value }));
+              }}
+            />
+            <Input
+              fluid
+              label="BRICO:"
+              value={data.BRICO || ""}
+              onChange={(e, v) => {
+                setData((prevData) => ({ ...prevData, BRICO: v.value }));
               }}
             />
           </div>

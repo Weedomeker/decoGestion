@@ -21,7 +21,7 @@
 const fs = require("fs");
 const path = require("path");
 const logger = require("./logger/logger.js");
-const { placePanels } = require("./appCasto.js");
+const { placePanels } = require("./amalgameCredences.js");
 
 //cacluler metre lineaire
 function linearCutFile(dibondWidth, dibondHeight, cutSizes, millingMargin = 6, spacing = null) {

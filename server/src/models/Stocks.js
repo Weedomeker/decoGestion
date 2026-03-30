@@ -5,7 +5,7 @@ const stocksSchema = new mongoose.Schema(
     visuel: { type: String },
     finition: { type: String, default: "" },
     format: { type: String },
-    ref: { type: Number },
+    ref: { type: String },
     ex: { type: Number },
   },
   {

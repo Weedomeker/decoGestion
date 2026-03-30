@@ -1,15 +1,15 @@
 const mongoose = require("mongoose");
 
-const refDecoSchema = new mongoose.Schema(
+const refBricoSchema = new mongoose.Schema(
   {
     ref: { type: String },
     model: { type: String },
     finition: { type: String },
     format: { type: String },
   },
-  { collection: "lm_ref_deco" },
+  { collection: "brico_ref_deco" },
 ); // préciser le nom exact de la collection Mongo
 
-const RefDeco = mongoose.model("RefDeco", refDecoSchema);
+const RefBrico = mongoose.model("RefBrico", refBricoSchema);
 
-module.exports = RefDeco;
+module.exports = RefBrico;

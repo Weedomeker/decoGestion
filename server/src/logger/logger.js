@@ -10,7 +10,9 @@ const logFormat = winston.format.combine(
 // Transport fichier rotation quotidienne
 const fileRotateTransport = new winston.transports.DailyRotateFile({
   filename:
-    process.env.NODE_ENV === "production" ? "var/log/decoGestion/app-%DATE%.log" : "../decoGestion/logs/app-%DATE%.log",
+    process.env.NODE_ENV === "production"
+      ? "\\\\NASSYNORS1221\\production\\decoGestion\\logs\\decoGestion-%DATE%.log"
+      : "../decoGestion/logs/decoGestion-%DATE%.log",
   datePattern: "YYYY-MM-DD",
   zippedArchive: false,
   maxSize: "20m",
@@ -18,12 +20,16 @@ const fileRotateTransport = new winston.transports.DailyRotateFile({
 });
 
 // Transport console (dev)
-const consoleTransport =
-  process.env.NODE_ENV !== "production"
-    ? new winston.transports.Console({
-        format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
-      })
-    : null;
+// const consoleTransport =
+//   process.env.NODE_ENV !== "production"
+//     ? new winston.transports.Console({
+//         format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
+//       })
+//     : null;
+
+const consoleTransport = new winston.transports.Console({
+  format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
+});
 
 const logger = winston.createLogger({
   level: "info",

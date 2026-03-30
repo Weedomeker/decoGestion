@@ -29,7 +29,7 @@ const getPreview = async (ref, jpgName) => {
 
     return destPath;
   } catch (err) {
-    logger.info("Error in getPreview:", err);
+    logger.error("Error in getPreview:", err);
     return false;
   }
 };

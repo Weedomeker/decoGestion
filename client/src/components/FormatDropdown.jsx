@@ -6,7 +6,7 @@ function FormatDropdown({ data, isLoading, onSelectFormat, selectedFormat, error
 
   const formatOptions = data
     ?.map((format, index) => {
-      const match = format.name?.match(formatRegex)?.[0];
+      const match = format?.name?.match(formatRegex)?.[0];
       return match
         ? {
             text: match,
@@ -18,9 +18,10 @@ function FormatDropdown({ data, isLoading, onSelectFormat, selectedFormat, error
     .filter(Boolean) // Supprime les entrées où `match` est null
     .sort((a, b) => a.text.localeCompare(b.text));
 
-  const selectedText = selectedFormat?.match(formatRegex)?.[0] || selectedFormat; // Affiche le format brut si pas de match
+  // let selectedText = selectedFormat?.match(formatRegex)?.[0] || selectedFormat; // Affiche le format brut si pas de match
   return (
     <Dropdown
+      clearable
       compact
       fluid
       disabled={enabled}
@@ -32,9 +33,11 @@ function FormatDropdown({ data, isLoading, onSelectFormat, selectedFormat, error
       selection
       placeholder={`Format ${placeholder}`}
       value={selectedFormat}
-      text={selectedText}
+      //text={selectedText || ""}
       options={formatOptions}
-      onChange={(e, data) => onSelectFormat(e, data)}
+      onChange={(e, data) => {
+        onSelectFormat(e, data);
+      }}
     />
   );
 }

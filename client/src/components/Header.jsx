@@ -28,7 +28,7 @@ const Header = ({ appVersion }) => {
   );
   return (
     <div className="header">
-      <Image src={logo} />
+      <Image src={logo} size="small" />
       {textFinal}
     </div>
   );

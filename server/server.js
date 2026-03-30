@@ -11,7 +11,7 @@ const { performance } = require("perf_hooks");
 const { Worker, workerData } = require("worker_threads");
 const WebSocket = require("ws");
 const http = require("http");
-const PORT = process.env.PORT_HTTP || 8000;
+const PORT = process.env.PORT || 8000;
 const logger = require("./src/logger/logger");
 
 const serveIndex = require("serve-index");
@@ -19,7 +19,7 @@ const cors = require("cors");
 const morgan = require("morgan");
 const checkVersion = require("./src/checkVersion");
 const modifyPdf = require("./src/app");
-const modifyPdfCasto = require("./src/appCasto.js").modifyPdf;
+const amalgameCredences = require("./src/amalgameCredences.js").modifyPdf;
 const getFiles = require("./src/getFiles").getData;
 const createDec = require("./src/dec");
 const generateCutFile = require("./src/generateCutFile").generateCutFile;
@@ -28,6 +28,7 @@ const createJob = require("./src/jobsList");
 const createXlsx = require("./src/xlsx");
 const mongoose = require("./src/mongoose");
 const modelDeco = require("./src/models/Deco");
+const modelRefDeco = require("./src/models/RefDeco");
 const User = require("./src/models/User");
 const symlink = require("./src/symlink");
 const checkVernis = require("./src/checkVernis");
@@ -53,6 +54,7 @@ const dayDate = new Date()
 // Path Sources Deco
 let decoLM;
 let decoCASTO;
+let decoBRICO;
 let previewDeco;
 let jpgPath = "./server/public";
 let sessionPRINTSA = `PRINTSA#${dayDate}`;
@@ -80,6 +82,9 @@ async function LinkFolders(pathUpdate) {
       case "CASTO":
         decoCASTO = `./server/public/${key}`;
         break;
+      case "BRICO":
+        decoBRICO = `./server/public/${key}`;
+        break;
       case "preview":
         previewDeco = `./server/public/${key}`;
         break;
@@ -103,7 +108,7 @@ try {
   appVersion = packageJson.version;
   logger.info("Version de l'application: " + appVersion);
 } catch (err) {
-  logger.info("Erreur lors de la lecture du fichier package.json: ", err);
+  logger.error("Erreur lors de la lecture du fichier package.json: ", err);
 }
 const corsOptions = {
   origin: ["http://localhost:8000", "http://localhost:5173"],
@@ -194,31 +199,53 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "../client/dist/index.html"));
 });
 
+//get ref in stock
+
 app.patch("/edit_job", async (req, res) => {
   const updates = req.body;
 
-  // Rechercher l'objet par `_id`
-  const objIndex = jobList.jobs.findIndex((obj) => obj._id === updates._id);
+  console.log("UPDATED: ", updates);
+
+  if (!updates._id) {
+    return res.status(400).json({ error: "ID requis" });
+  }
+
+  const objIndex = jobList.jobs.findIndex((obj) => String(obj._id) === String(updates._id));
 
   if (objIndex === -1) {
     return res.status(404).json({ error: "Objet non trouvé" });
   }
 
-  // Mettre à jour l'objet avec les nouvelles valeurs
-  jobList.jobs[objIndex] = { ...jobList.jobs[objIndex], ...updates };
+  const allowedFields = ["ville", "ex", "format", "visuel", "stock", "use", "useStock"];
+
+  const filteredUpdates = Object.keys(updates)
+    .filter((key) => allowedFields.includes(key))
+    .reduce((obj, key) => {
+      obj[key] = updates[key];
+      return obj;
+    }, {});
+
+  jobList.jobs[objIndex] = {
+    ...jobList.jobs[objIndex],
+    ...filteredUpdates,
+  };
+
+  // WebSocket broadcast
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({ type: "update" }));
-    }
-  });
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({ type: "update" }));
+      client.send(
+        JSON.stringify({
+          type: "update",
+          object: jobList.jobs[objIndex],
+        }),
+      );
     }
   });
 
-  // Envoyer la réponse
-  res.status(200).json({ message: "Objet mis à jour avec succès", object: jobList.jobs[objIndex] });
+  res.status(200).json({
+    message: "Objet mis à jour avec succès",
+    object: jobList.jobs[objIndex],
+  });
 });
 
 app.post("/add_job", async (req, res) => {
@@ -232,31 +259,40 @@ app.post("/add_job", async (req, res) => {
     visuel: req.body.visuel,
     visuel2: req.body.visuel2,
     numCmd: req.body.numCmd,
-    numCmd2: req.body.numCmd2,
-    ville: req.body.ville != null ? req.body.ville.toUpperCase() : "",
+    numCmd2: req.body.numCmd2 ? req.body.numCmd2 : 0,
+    ville: req.body.ville != null ? req.body.ville?.toUpperCase() : "",
     ex: req.body.ex !== null ? req.body.ex : "",
+    perte: req.body.perte,
     regmarks: req.body.regmarks,
     cut: req.body.cut,
     teinteMasse: req.body.teinteMasse,
+    stock: req.body.stock,
   };
-  let client = data.client != null ? data.client.toUpperCase() : "";
-  let visuel = data.visuel.split("/").pop();
-  visuel = visuel.includes("-") ? visuel.split("-").pop() : visuel;
-
+  let client = data.client != null ? data.client?.toUpperCase() : "";
+  let visuel = data.visuel?.split("/")?.pop();
   let visuel2 = data.visuel2?.split("/").pop() || "";
-  visuel2 = visuel2?.includes("-") ? visuel2.split("-").pop() : visuel2;
+
+  if (client === "LM") {
+    visuel = visuel.includes("-") ? visuel.split("-")?.pop() : visuel;
+    visuel2 = visuel2.includes("-") ? visuel2.split("-")?.pop() : visuel2;
+  }
+
+  if (client === "BRICO") {
+    //visuel = visuel.split(/BRILLANT|MAT/)[0].trim();
+    visuel = visuel.replace(".pdf", "").trim();
+    visuel2 = visuel2.replace(".pdf", "").trim();
+  }
 
   let visuPath = data.visuel;
   let visuPath2 = data.visuel2;
   let formatTauro = data.formatTauro;
-  formatTauro = formatTauro.split("_").pop();
+  formatTauro = formatTauro.split("_")?.pop();
   let prodBlanc = data.prodBlanc;
   let allFormatTauro = data.allFormatTauro;
   let format = data.format;
   let format2 = data.format2;
   let reg = data.regmarks;
   let teinteMasse = data.teinteMasse;
-
   //Chemin sortie fichiers
   prodBlanc
     ? (writePath = path.join(saveFolder + "/Prod avec BLANC"))
@@ -268,14 +304,17 @@ app.post("/add_job", async (req, res) => {
     prefixClient = "";
   } else if (client === "LM") {
     prefixClient = "LM";
-  } else {
+  } else if (client === "CASTO") {
     prefixClient = "CASTO";
+  } else if (client === "BRICO") {
+    prefixClient = "BRICO";
   }
-  fileName = `${data.numCmd} - ${prefixClient} ${data.ville.toUpperCase()} - ${teinteMasse === true ? format?.split("_").pop() : formatTauro} - ${visuel.replace(
+  fileName = `${data.numCmd} - ${prefixClient} ${data.ville ? data.ville.toUpperCase() + " - " : ""}${teinteMasse === true ? format?.split("_").pop()?.replace("/", "") : formatTauro} - ${visuel.replace(
     /\.[^/.]+$/,
     "",
   )} ${data.ex}_EX`;
-  fileName2 = `${data.numCmd2} - ${prefixClient} ${data.ville.toUpperCase()} - ${teinteMasse === true ? format2?.split("_").pop() : formatTauro} - ${visuel2.replace(/\.[^/.]+$/, "")} ${data.ex}_EX`;
+
+  fileName2 = `${data.numCmd2 === 0 ? "" : data.numCmd2 + " - "}${prefixClient} ${data.ville ? data.ville.toUpperCase() + " - " : ""}${teinteMasse === true ? format2?.split("_").pop() : formatTauro} - ${visuel2.replace(/\.[^/.]+$/, "")} ${data.ex}_EX`;
 
   //Verifier si dossiers exist si pas le créer
   if (fs.existsSync(writePath) && fs.existsSync(`${jpgPath}/${sessionPRINTSA}`)) {
@@ -300,31 +339,52 @@ app.post("/add_job", async (req, res) => {
   const [widthVisu, heightVisu] = parseDimensions(format);
   const perteCalc = parseFloat(widthPlaque * heightPlaque - widthVisu * heightVisu) / 10000;
 
-  // JOBS LIST STANDBY
-  const matchRef = visuel.match(/\d{8,13}/);
-  const matchRef2 = visuel2.match(/\d{8,13}/);
+  // Extraire le format si défini
+  const exactFormat = format?.match(/\d{3}x\d{2,}/i)?.[0];
+
+  // Construire la query
+  const query = { $text: { $search: visuel } };
+  if (exactFormat) query.format = exactFormat;
+
+  // Faire la recherche avec score
+  const findRefTeinteMasse = data.teinteMasse
+    ? await modelRefDeco
+        .find(query, { score: { $meta: "textScore" } }) // projection : retourner le score
+        .sort({ score: { $meta: "textScore" } })
+        .limit(1)
+    : null;
+
+  let matchRef = data.teinteMasse ? findRefTeinteMasse?.[0]?.ref : visuel.match(/\d{8,13}/)?.[0];
+  let matchRef2 = visuel2.match(/\d{8,13}/)?.[0];
+  if (client === "BRICO") {
+    const regex = /[A-Z]+-\d+/g;
+    matchRef = visuel.match(regex)?.[0];
+    matchRef2 = visuel2.match(regex)?.[0];
+  }
+
   const newJob = createJob(
     client,
     data.numCmd,
     data.numCmd2,
     data.ville,
-    format,
-    format2,
+    format?.match(/\d{2,}x\d{2,}/i)?.[0],
+    format2?.match(/\d{2,}x\d{2,}/i)?.[0],
     formatTauro,
     visuel,
     visuel2,
-    matchRef ? matchRef[0] : 0,
-    matchRef2 ? matchRef2[0] : 0,
+    matchRef ? matchRef : 0,
+    matchRef2 ? matchRef2 : 0,
     data.ex,
     visuPath,
     visuPath2,
     writePath,
     jpgName,
     jpgName2,
+    data.perte,
     reg,
     data.cut,
     data.teinteMasse,
-    perteCalc,
+    data.stock,
   );
   // Fonction pour comparer et mettre à jour les tableaux
   function compareAndAddObject(originalArray, newObject) {
@@ -342,19 +402,28 @@ app.post("/add_job", async (req, res) => {
 
   const result = compareAndAddObject(jobList.jobs, newJob);
 
-  //Vérifier si model déjà en stock
-  const modelStock = [];
-  await findStock(matchRef[0]).then((stock) => {
-    if (!stock) return;
-    const { visuel, finition, format, ref, ex } = stock;
-    modelStock.push(visuel, ref, format, finition, ex);
-  });
+  // Vérifier si le modèle est déjà en stock
+  let modelStock = null;
+  if (matchRef) {
+    const stock = await findStock(matchRef);
+    if (stock) {
+      const { visuel, finition, format, ref, ex } = stock;
+      modelStock = { visuel, ref, format, finition, ex };
+    }
+  }
 
   if (result.exist) {
-    return res.status(200).json({ message: "Commande déjà existante", object: result.object });
-  } else {
-    return res.status(201).json({ message: "Commande ajoutée", object: result.object, stock: modelStock });
+    return res.status(200).json({
+      message: "Commande déjà existante",
+      object: result.object,
+    });
   }
+
+  return res.status(201).json({
+    message: "Commande ajoutée",
+    object: result.object,
+    stock: modelStock,
+  });
 });
 
 app.post("/run_jobs", async (req, res) => {
@@ -400,6 +469,9 @@ app.post("/run_jobs", async (req, res) => {
       }
     });
     for (const job of jobsToRun) {
+      const regexCredences = /^\d{3}x\d{2}$/i;
+      const isCredences = regexCredences.test(job.format_visu);
+
       // Date
       let time = new Date().toLocaleTimeString("fr-FR");
       let date = new Date()
@@ -416,10 +488,11 @@ app.post("/run_jobs", async (req, res) => {
         job.teinteMasse ? job.format_visu.split("_").pop() : job.format_Plaque.split("_").pop()
       } - ${job.visuel.replace(/\.[^/.]+$/, "")} ${job.ex}_EX`;
 
-      const fileName2 =
-        `${job.cmd} - ${job.client} ${job.ville.toUpperCase()} - ${
-          job.teinteMasse ? job.format2_visu.split("_").pop() : job.format_Plaque.split("_").pop()
-        } - ${job.visuel2.replace(/\.[^/.]+$/, "")} ${job.ex}_EX` || "";
+      const fileName2 = isCredences
+        ? `${job.cmd2 === 0 ? "" : job.cmd2 + " - "}${job.client} ${job.ville.toUpperCase()} - ${
+            job.teinteMasse ? job.format2_visu.split("_").pop() : job.format_Plaque.split("_").pop()
+          } - ${job.visuel2.replace(/\.[^/.]+$/, "")} ${job.ex}_EX` || ""
+        : "";
 
       // Vérifier si dossiers existent, sinon les créer
       const sortFolder = req.body.sortFolder;
@@ -445,63 +518,81 @@ app.post("/run_jobs", async (req, res) => {
           );
       }
 
+      const castoName = (name) => {
+        if (typeof name !== "string" || name === undefined) {
+          return;
+        }
+        return name
+          .replace(/\d{3}x\d{3}/gi, "")
+          .replace(/cm|CRED|-|\d{13}/gi, "")
+          .replace(/\s+/g, " ")
+          .trim();
+      };
+
       const pdfName = `${job.writePath}/${fileName}`;
       const pdfName2 = `${job.writePath}/${fileName2}` || "";
 
-      const jpgName = sortFolder
-        ? `${jpgPath}/${sessionPRINTSA}/${checkVernis(fileName) === "_S" ? "Satin" : checkVernis(fileName)}/${fileName}`
-        : `${jpgPath}/${sessionPRINTSA}/${fileName}`;
-      const jpgName2 = sortFolder
-        ? `${jpgPath}/${sessionPRINTSA}/${checkVernis(fileName2) === "_S" ? "Satin" : checkVernis(fileName2)}/${fileName2}`
-        : `${jpgPath}/${sessionPRINTSA}/${fileName2}` || "";
+      const jpgName = `${jpgPath}/${sessionPRINTSA}/${fileName}`;
+      const jpgName2 = isCredences ? `${jpgPath}/${sessionPRINTSA}/${fileName2}` || "" : "";
 
       // Edition pdf
       if (!job.teinteMasse) {
         try {
           let startPdf = performance.now();
-          if (job.client === "CASTO") {
-            await modifyPdfCasto(
+          if (isCredences) {
+            const visuals = [{ file: job.visuPath, name: fileName }];
+
+            if (job.visuPath2) {
+              visuals.push({
+                file: job.visuPath2,
+                name: fileName2,
+              });
+            }
+
+            await amalgameCredences(
               {
-                visuals: [
-                  { file: job.visuPath, name: fileName },
-                  { file: job.visuPath2, name: fileName2 },
-                ],
+                visuals,
                 plaque: job.format_Plaque,
               },
-              job.writePath,
+              path.join(
+                job.writePath,
+                `${castoName(fileName)}${job.ref2.length > 0 ? " + " + castoName(fileName2) : ""}.pdf`,
+              ),
             );
+
+            let endPdf = performance.now();
+            pdfTime = endPdf - startPdf;
           } else {
             await modifyPdf(job.visuPath, job.writePath, fileName, job.format_visu, job.format_Plaque, job.reg);
             let endPdf = performance.now();
             pdfTime = endPdf - startPdf;
-            logger.info(
-              `📁 ${date} ${time}:` +
-                `${fileName}.pdf (${pdfTime < 1000 ? pdfTime.toFixed(2) + "ms" : (pdfTime / 1000).toFixed(2) + "s"})`,
-            );
           }
         } catch (error) {
-          logger.error(`Error modifying PDF for job ${job.cmd}:`, error);
+          logger.error(`Erreur de modification du PDF pour le job ${job.cmd}: ${error}`);
         }
 
         // Générer image
         try {
           let startJpg = performance.now();
           if (job.ref) {
-            if (job.client === "CASTO") {
-              getPreview(job.ref2, jpgName2);
+            if (isCredences && job.ref2) {
+              await _useWorker({
+                pdf: path.join(
+                  job.writePath,
+                  `${castoName(pdfName.split("/").pop())} + ${castoName(pdfName2.split("/").pop())}.pdf`,
+                ),
+                jpg: path.join(
+                  `${jpgPath}/${sessionPRINTSA}/${castoName(jpgName.split("/").pop())} + ${castoName(jpgName2.split("/").pop())}.jpg`,
+                ),
+              });
+            } else {
+              getPreview(job.ref, jpgName);
             }
-            getPreview(job.ref, jpgName);
-            // await _useWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
           } else {
             await _useWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
-            logger.info("Image génerée");
           }
           let endJpg = performance.now();
           jpgTime = endJpg - startJpg;
-          logger.info(
-            `🖼️  ${date} ${time}:` +
-              `${fileName}.jpg (${jpgTime < 1000 ? jpgTime.toFixed(2) + "ms" : (jpgTime / 1000).toFixed(2) + "s"})`,
-          );
         } catch (error) {
           logger.error(`Error generating JPG for job ${job.cmd}:`, error);
         }
@@ -514,34 +605,95 @@ app.post("/run_jobs", async (req, res) => {
         }
       }
 
-      //Get all data
-      let matchName = job.visuel.match(/ \d{3}x\d{3}/i);
-      let matchRef = job.visuel.match(/\d{8}/);
-      const dataFileExport = [
-        {
+      // ===== VISUEL 1 =====
+      const matchName1 = isCredences ? job.visuel.match(/ \d{3}x\d{2}/i) : job.visuel.match(/ \d{3}x\d{3}/i);
+
+      let matchRef1;
+      if (isCredences) {
+        matchRef1 = job.visuel.match(/\d{13}/);
+      } else {
+        matchRef1 = job.visuel.match(/[A-Z]+-\d+/i) || job.ref;
+      }
+
+      const deco =
+        matchName1 && job.visuel.includes(matchName1[0])
+          ? job.client === "CASTO"
+            ? job.visuel
+                .split(matchName1[0])[1]
+                ?.replace(/cm/gi, "")
+                ?.replace(/\.pdf$/i, "")
+                ?.replace(matchRef1 ? matchRef1[0] : "", "")
+                ?.replace(" MAT", "")
+                .trim()
+            : job.visuel.split(matchName1[0])[0].trim()
+          : job.visuel;
+
+      // ===== VISUEL 2 (Credences) =====
+      const matchName2 = isCredences && job.visuel2 ? job.visuel2.match(/ \d{3}x\d{2}/i) : null;
+
+      const matchRef2 = job.visuel2
+        ? isCredences
+          ? job.visuel2.match(/\d{13}/)
+          : job.visuel2.match(/[A-Z]+-\d+/i)
+        : null;
+
+      const deco2 =
+        matchName2 && job.visuel2.includes(matchName2[0])
+          ? job.visuel2
+              .split(matchName2[0])[1]
+              ?.replace(/cm/gi, "")
+              ?.replace(/\.pdf$/i, "")
+              ?.replace(matchRef2 ? matchRef2[0] : "", "")
+              ?.replace(" MAT", "")
+              .trim()
+          : job.visuel2;
+
+      const saveDeco = async ({ cmd, visuel, formatVisu, ref, temps }) => {
+        const data = {
           date: job.date,
-          numCmd: job.cmd,
-          numCmd2: job.cmd2,
+          client: job.client,
+          numCmd: cmd,
           mag: job.ville,
           dibond: job.format_Plaque,
-          deco: matchName ? job.visuel.substring(0, job.visuel.indexOf(matchName[0])) : job.visuel,
-          ref: matchRef ? matchRef[0] : 0,
-          format: job.format_visu.split("_").pop(),
+          deco: visuel,
+          ref: ref || 0,
+          format: formatVisu?.split("_").pop().replace("/", ""),
           ex: parseInt(job.ex),
-          temps: parseFloat(((jpgTime + pdfTime) / 1000).toFixed(2)) || 0,
-          perte: parseFloat(job.perte),
+          temps,
+          perte: job.perte ? parseFloat(job.perte) : 0,
           status: "",
           app_version: `v${appVersion}`,
           ip: req.ip.split(":").pop() === "1" || req.hostname === "localhost" ? os.hostname() : req.ip.split(":").pop(),
-        },
-      ];
+        };
+
+        const newDeco = new modelDeco(data);
+        await newDeco.save();
+      };
 
       // SAVE DB
       try {
-        const newDeco = new modelDeco(dataFileExport[0]);
-        await newDeco.save();
+        const totalTime = parseFloat(((jpgTime + pdfTime) / 1000).toFixed(2)) || 0;
+        // Export principal
+        await saveDeco({
+          cmd: job.cmd,
+          visuel: deco,
+          formatVisu: job.format_visu,
+          ref: job.ref,
+          temps: totalTime,
+        });
+
+        // Export secondaire UNIQUEMENT si credences
+        if (isCredences && job.cmd2 && job.visuel2) {
+          await saveDeco({
+            cmd: job.cmd2,
+            visuel: deco2,
+            formatVisu: job.format2_visu,
+            ref: job.ref2,
+            temps: totalTime,
+          });
+        }
       } catch (error) {
-        logger.error(error);
+        console.log(error);
       }
 
       //Générer découpe
@@ -577,24 +729,7 @@ app.post("/run_jobs", async (req, res) => {
               pathCutFiles, // chemin du fichier de découpe
             );
           } catch (error) {
-            logger.error(error);
-          }
-        }
-        if (job.client === "CASTO") {
-          try {
-            generateCutFileTwoCuts(
-              hPlate * 10, // Dibond Width
-              wPlate * 10, // Dibond Height
-              [
-                { cutWidth: width * 10, cutHeight: height * 10 },
-                { cutWidth: width2 * 10, cutHeight: height2 * 10 },
-              ],
-              6, // millingMargin
-              pathCutFiles, // dossier
-            );
-            logger.info("✔️  Decoupe CASTO crée");
-          } catch (error) {
-            logger.error("Decoupe Casto échoué: ", error);
+            console.log(error);
           }
         }
       }
@@ -603,7 +738,15 @@ app.post("/run_jobs", async (req, res) => {
       jobList.completed.push(job);
       broadcastCompletedJob(job);
     }
-
+    logger.info("✅ Tous les jobs ont été traités avec succès.");
+    let resultsSummary = [];
+    jobList.completed.map((job) => {
+      const { cmd, cmd2 } = job;
+      resultsSummary.push([cmd, cmd2 > 0 ? cmd2 : ""]);
+    });
+    logger.info(
+      `📊 Résumé des commandes traitées :\n[${resultsSummary.map(([cmd, cmd2]) => `${cmd}${cmd2 ? " + " + cmd2 : ""}`).join(", ")}]`,
+    );
     // Supprimer tous les jobs traités de jobList.jobs
     jobList.jobs = jobList.jobs.filter(
       (job) => !jobList.completed.some((completedJob) => completedJob._id === job._id),
@@ -721,7 +864,12 @@ app.get("/public", async (req, res) => {
 });
 
 app.get("/path", async (req, res) => {
-  if (typeof decoLM === "string" || typeof decoCASTO === "string" || typeof previewDeco === "string") {
+  if (
+    typeof decoLM === "string" ||
+    typeof decoCASTO === "string" ||
+    typeof previewDeco === "string" ||
+    typeof decoBRICO === "string"
+  ) {
     let jpgFiles = [];
     if (fs.existsSync(previewDeco)) {
       const files = fs.readdirSync(previewDeco, { withFileTypes: true });
@@ -730,6 +878,7 @@ app.get("/path", async (req, res) => {
 
     const dirLM = await getFiles(decoLM);
     const dirCASTO = await getFiles(decoCASTO);
+    const dirBRICO = await getFiles(decoBRICO);
     const dirDecoPreview = jpgFiles.map((file) => ({
       name: file.name,
       path: path.join(previewDeco, file.name),
@@ -739,6 +888,7 @@ app.get("/path", async (req, res) => {
       {
         LM: dirLM,
         CASTO: dirCASTO,
+        BRICO: dirBRICO,
         Preview: dirDecoPreview,
       },
     ]);
@@ -889,8 +1039,24 @@ server.listen(PORT, async () => {
       parallelLimit: 5,
       verbose: false,
     });
+    await processAllPDFs({
+      pdfDirectory: path.join(decoCASTO),
+      jpgDirectory: path.join(previewDeco),
+      height: 1920,
+      density: 72,
+      parallelLimit: 5,
+      verbose: false,
+    });
+    await processAllPDFs({
+      pdfDirectory: path.join(decoBRICO),
+      jpgDirectory: path.join(previewDeco),
+      height: 1920,
+      density: 72,
+      parallelLimit: 5,
+      verbose: false,
+    });
   } catch (error) {
-    logger.error("Error:", error);
+    console.error("Error:", error);
   }
   logger.info(`Server start on port ${PORT}`);
   await mongoose().catch((err) => logger.info(err));

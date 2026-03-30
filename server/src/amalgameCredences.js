@@ -122,14 +122,15 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
     }
 
     // ---Insertion des noms des fichiers---
-    let xPosition = cmToPoints(2);
-    let textSize = 65;
+    const checkPlateSize = plateW < 4000;
+    let xPosition = checkPlateSize ? cmToPoints(0.1) : cmToPoints(2);
+    let textSize = checkPlateSize ? 35 : 65;
     const textFichiers = text.join(" + ");
     const textWidth = helveticaFont.widthOfTextAtSize(textFichiers, textSize);
 
     page.drawText(textFichiers, {
       x: -xPosition + plateW,
-      y: xPosition,
+      y: xPosition + cmToPoints(4),
       size: textSize,
       font: helveticaFont,
       color: rgb(0, 0, 0),
@@ -175,7 +176,7 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
 
     // --- Sauvegarde ---
     const pdfBytes = await pdfDoc.save();
-    await fs.promises.writeFile(`${writePath}/${textFichiers}.pdf`, pdfBytes);
+    await fs.promises.writeFile(writePath, pdfBytes);
     logger.info("PDF généré avec succès !");
   } catch (e) {
     logger.error("Erreur modifyPdf:", e);

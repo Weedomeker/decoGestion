@@ -28,7 +28,6 @@ function createProgressBar(totalFiles) {
   );
 
   //log verification jpg
-  logger.info("Check JPG files...");
   progressBar.start(totalFiles, 0, { generated: 0, skipped: 0, failure: 0 });
   return progressBar;
 }
@@ -73,12 +72,12 @@ async function processSinglePDF(
   const outputFilename = path.parse(pdfFilename).name;
 
   if (!pdfReference) {
-    sendLog(`⚠️ No reference found for ${pdfFilename}`, verbose);
-    counters.failure++;
-    progressBar.increment(1, { generated: counters.generated, skipped: counters.skipped, failure: counters.failure });
-    return;
+    sendLog(`⚠️ Aucune ref trouvée pour ${pdfFilename}`, verbose);
+    // counters.failure++;
+    // progressBar.increment(1, { generated: counters.generated, skipped: counters.skipped, failure: counters.failure });
+    //return;
   } else if (outputFilename === "" || outputFilename === null) {
-    sendLog(`⚠️ No valid output filename for ${pdfFilename}`, verbose);
+    sendLog(`⚠️ Aucun nom de fichier de sortie valide pour ${pdfFilename}`, verbose);
     counters.failure++;
     progressBar.increment(1, { generated: counters.generated, skipped: counters.skipped, failure: counters.failure });
     return;
@@ -89,7 +88,7 @@ async function processSinglePDF(
   } else if (existingNames.has(outputFilename)) {
     counters.skipped++;
   } else {
-    sendLog(`⚡ Generating JPG for reference ${pdfReference}...`, verbose);
+    sendLog(`Génération de la JPG pour la référence ${pdfReference}...`, verbose);
 
     const convert = fromPath(pdfPath, {
       density: density || 72,
@@ -147,8 +146,12 @@ async function processAllPDFs({
     const pdfsToGenerate = pdfFiles.filter((pdfPath) => {
       const ref = extractReference(path.basename(pdfPath));
       const name = path.parse(path.basename(pdfPath)).name;
+
       // Vérifier à la fois par référence et par nom de fichier
-      return ref && !existingReferences.has(ref) && !existingNames.has(name);
+      if (ref) {
+        return !existingReferences.has(ref) && !existingNames.has(name);
+      }
+      return !existingNames.has(name);
     });
 
     const counters = { generated: 0, skipped: pdfFiles.length - pdfsToGenerate.length, failure: 0 };
@@ -156,9 +159,9 @@ async function processAllPDFs({
     // 4. Progress bar basée uniquement sur les PDFs à générer
     const progressBar = createProgressBar(pdfsToGenerate.length);
 
-    sendLog(`🔍 Total PDFs: ${pdfFiles.length}`, verbose);
-    sendLog(`🖼️  Previews to generate: ${pdfsToGenerate.length}`, verbose);
-    sendLog(`✅ Already existing previews (skipped): ${counters.skipped}`, verbose);
+    sendLog(`Nombre total de PDFs: ${pdfFiles.length}`, verbose);
+    sendLog(`Pré-visualisations à générer: ${pdfsToGenerate.length}`, verbose);
+    sendLog(`Pré-visualisations déjà existantes (ignorées): ${counters.skipped}`, verbose);
 
     const limit = pLimit(parallelLimit);
     const pdfOptions = { jpgDirectory, width, height, density };
@@ -175,7 +178,7 @@ async function processAllPDFs({
     progressBar.stop();
 
     logger.info(
-      `🎯 Processing complete: 🖼️  ${counters.generated} generated | ✅ ${counters.skipped} skipped | ❌ ${counters.failure} failed.`,
+      `✅ Traitement terminé (${path.basename(pdfDirectory)}): 🖼️  ${counters.generated} générés | ✅ ${counters.skipped} ignorés | ❌ ${counters.failure} échoués.`,
     );
   } catch (error) {
     logger.error(`❌ Error: ${error.message}`);

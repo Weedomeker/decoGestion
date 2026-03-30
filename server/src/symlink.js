@@ -15,7 +15,7 @@ async function createSymlink(target, dir, pathUpdate) {
       fs.symlink(target, dir, (err) => {
         if (err) {
           if (err.code === "EEXIST") {
-            logger.info("✔️  Symlink: " + err.dest);
+            //logger.info("✔️  Symlink: " + err.dest);
           } else {
             logger.error(err);
           }

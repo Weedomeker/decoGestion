@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
-import { useRef, useState } from "react";
 import { StandaloneSearchBox, useJsApiLoader } from "@react-google-maps/api";
 import PropTypes from "prop-types";
+import { useRef, useState } from "react";
 
 const Place = ({ onValue, enabled }) => {
   const [libraries] = useState(["places"]);
@@ -26,6 +26,7 @@ const Place = ({ onValue, enabled }) => {
           name="ville"
           id="ville"
           placeholder="VILLE / MAG"
+          defaultValue=""
           onChange={(e) => {
             onValue(e.target.value);
           }}

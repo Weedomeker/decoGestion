@@ -81,6 +81,8 @@ function App() {
   const [modalInfoStock, setModalInfoStock] = useState({
     open: false,
     stock: [],
+    object: null,
+    use: false,
   });
 
   useEffect(() => {
@@ -173,7 +175,27 @@ function App() {
     setModalInfoStock({
       open: false,
       stock: [],
+      use: false,
     });
+  };
+
+  const handleValidateStock = async () => {
+    const jobToUpdate = modalInfoStock.object;
+    setModalInfoStock((prev) => ({ ...prev, open: false, stock: [], use: true }));
+
+    try {
+      const response = await fetch(`http://${HOST}:${PORT}/edit_job`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...jobToUpdate, useStock: true }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Une erreur est survenue");
+      }
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   const handleJobSubmit = async (e) => {
@@ -198,6 +220,7 @@ function App() {
       regmarks: checkGenerate.reg,
       cut: checkGenerate.cut,
       teinteMasse: checkGenerate.teinteMasse,
+      stock: modalInfoStock.use,
     };
 
     //POST data
@@ -222,10 +245,14 @@ function App() {
         });
       } else {
         setIsShowJobsList(true);
-        if (result.stock.length > 0) {
+
+        // Si un stock est trouvé, afficher le modal d'info stock
+        if (result.stock) {
           setModalInfoStock({
             open: true,
             stock: result.stock,
+            object: result.object,
+            use: false,
           });
         }
       }
@@ -379,7 +406,7 @@ function App() {
               />
 
               {/* GENERATE CUT */}
-              {checkFolder == "LM" && (
+              {checkFolder === "LM" && (
                 <Checkbox
                   className="decoupe"
                   name="Générer découpe"
@@ -395,15 +422,15 @@ function App() {
 
           <Form.Field>
             <Segment
-              color={checkFolder === "LM" ? "green" : "blue"}
+              color={checkFolder === "LM" ? "green" : checkFolder === "CASTO" ? "blue" : "orange"}
               style={{ marginTop: 0, marginBottom: 0, paddingBottom: 0 }}
             >
               <Label
-                color={checkFolder === "LM" ? "green" : "blue"}
+                color={checkFolder === "LM" ? "green" : checkFolder === "CASTO" ? "blue" : "orange"}
                 ribbon
                 style={{ position: "absolute", top: -8, left: -15 }}
               >
-                {checkFolder === "LM" ? "Leroy Merlin" : "Castorama"}
+                {checkFolder === "LM" ? "Leroy Merlin" : checkFolder === "CASTO" ? "Castorama" : "Brico"}
               </Label>
               <Form.Group style={{ marginTop: 10 }}>
                 <Form.Field>
@@ -428,176 +455,23 @@ function App() {
                       setCheckFolder(data.value);
                     }}
                   />
+                  <Checkbox
+                    name="folders_BRICO"
+                    label="Standards BRICO"
+                    value="BRICO"
+                    checked={checkFolder === "BRICO"}
+                    onChange={(e, data) => {
+                      handleResetForm();
+                      setCheckFolder(data.value);
+                    }}
+                  />
                 </Form.Field>
               </Form.Group>
             </Segment>
           </Form.Field>
 
-          {/* Format */}
-          <Form.Field required error={error.format}>
-            <FormatDropdown
-              placeholder={checkFolder}
-              enabled={enabled.format}
-              error={error.format}
-              id="format"
-              className="format"
-              isLoading={isLoading}
-              data={data[0][checkFolder] || []}
-              value={selectedFormat}
-              text={selectedFormat}
-              selectedFormat={selectedFormat}
-              onSelectFormat={(e, v) => {
-                const value = isLoading ? "Loading.." : data && data[0][checkFolder].find((x) => x.path === v.value);
-                setSelectedFormat(value.name);
-                setFiles(value.files);
-                setIsFile(true);
-                setSelectedFile(null);
-                setIsFooter(false);
-                setEnabled({ ...enabled, visu: false });
-
-                if (value.name == "" || value.name == undefined) {
-                  setError({ ...error, format: true });
-                } else {
-                  setError({ ...error, format: false });
-                }
-              }}
-            />
-          </Form.Field>
-
-          {/* Visu */}
-          <Form.Field required error={error.visuel}>
-            {!checkGenerate.teinteMasse ? (
-              <VisuelDropdown
-                enabled={enabled.visu}
-                error={error.visuel}
-                id="visuel"
-                className="visuel"
-                isFile={isFile}
-                files={files}
-                value={selectedFile}
-                text={selectedFile}
-                selectedFile={selectedFile}
-                onSelectedFile={(value) => {
-                  const name = value.name.split("/").pop().toLowerCase();
-                  const regexBlanc = /\bblanc\b/i;
-
-                  if (name.toLowerCase().includes("+blanc" || "+ blanc") || regexBlanc.test(name)) {
-                    setCheckProdBlanc(true);
-                  } else {
-                    setCheckProdBlanc(false);
-                  }
-                  setSelectedFile(value.name);
-                  setFileSize(value.size);
-                  setPreview(value.name);
-                  setIsShowPdf(true);
-                  setIsShowLouis(false);
-                  setIsShowJobsList(false);
-                  if (value.name == "" || value.name == undefined) {
-                    setError({ ...error, visuel: true });
-                  } else {
-                    setEnabled({ ...enabled, numCmd: false });
-                    setError({ ...error, visuel: false });
-                  }
-
-                  //Check checkFormats
-                  if (
-                    CheckFormats(selectedFormatTauro, value.name.split("/").pop()) &&
-                    CheckFormats(selectedFormatTauro, value.name.split("/").pop()).gap == true
-                  ) {
-                    setPerte(CheckFormats(selectedFormatTauro, value.name.split("/").pop()).surface);
-                    setWarnMsg({
-                      ...warnMsg,
-                      hidden: false,
-                      header: "Attention au format",
-                      msg: `Perte matière: ${CheckFormats(selectedFormatTauro, value.name.split("/").pop()).surface}/m2`,
-                      icon: "info circle",
-                      color: "yellow",
-                    });
-                  } else if (CheckFormats(selectedFormatTauro, value.name.split("/").pop()) == undefined) {
-                    setWarnMsg({
-                      ...warnMsg,
-                      hidden: false,
-                      header: "Problème format",
-                      msg: "Format du visuel introuvable. Attention au format de plaque choisit.",
-                      icon: "warning sign",
-                      color: "orange",
-                    });
-                  } else if (CheckFormats(selectedFormatTauro, value.name.split("/").pop()).isChecked == false) {
-                    setWarnMsg({
-                      ...warnMsg,
-                      hidden: false,
-                      header: "Problème format",
-                      msg: "Le format du visuel est plus grand que celui de la plaque.",
-                      icon: "warning sign",
-                      color: "red",
-                    });
-                  } else {
-                    setWarnMsg({ ...warnMsg, hidden: true });
-                  }
-                }}
-              />
-            ) : (
-              <TeinteMasseDropdown
-                value={selectedFile}
-                text={selectedFile}
-                selectedFile={selectedFile}
-                onSelectedFile={(value) => {
-                  setSelectedFile(value);
-                  if (!value) {
-                    setError({ ...error, visuel: true });
-                  } else {
-                    setEnabled({ ...enabled, numCmd: false });
-                    setError({ ...error, visuel: false });
-                  }
-                }}
-              />
-            )}
-            <p
-              style={{
-                fontSize: "10px",
-                textAlign: "right",
-                width: "300px",
-                marginTop: "2px",
-              }}
-            >
-              {fileSize}
-            </p>
-          </Form.Field>
-
-          <Form.Field required error={error.numCmd} inline>
-            <Input
-              disabled={enabled.numCmd}
-              error={error.numCmd}
-              id="numCmd"
-              name="numCmd"
-              type="number"
-              placeholder="N° commande"
-              onChange={(e, data) => {
-                const maxValidate = (string) => {
-                  return string.slice(0, 6);
-                };
-                if (data.value.length > 6 || data.value.length < 5) {
-                  setError({ ...error, numCmd: true });
-                } else {
-                  setEnabled({ ...enabled, ville: false });
-                  maxValidate(data.value);
-                  setError({ ...error, numCmd: false });
-                }
-              }}
-              onFocus={(e) =>
-                e.target.addEventListener(
-                  "wheel",
-                  function (e) {
-                    e.preventDefault();
-                  },
-                  { passive: false },
-                )
-              }
-            />
-          </Form.Field>
-
-          {/* Si on choisit Castorama */}
-          {checkFolder === "CASTO" && (
+          <Segment color={checkFolder === "LM" ? "green" : checkFolder === "CASTO" ? "blue" : "orange"}>
+            {/* Format */}
             <Form.Field required error={error.format}>
               <FormatDropdown
                 placeholder={checkFolder}
@@ -607,108 +481,135 @@ function App() {
                 className="format"
                 isLoading={isLoading}
                 data={data[0][checkFolder] || []}
-                value={selectedFormat2}
-                text={selectedFormat2}
-                selectedFormat={selectedFormat2}
+                value={selectedFormat}
+                //text={selectedFormat}
+                selectedFormat={selectedFormat}
                 onSelectFormat={(e, v) => {
-                  const value = isLoading ? "Loading.." : data && data[0][checkFolder].find((x) => x.path === v.value);
-                  setSelectedFormat2(value.name);
-                  setFiles2(value.files);
-                  setIsFile2(true);
-                  setSelectedFile2(null);
+                  // CLEAR
+                  if (v.value === null) {
+                    setSelectedFormat(null);
+                    setFiles([]);
+                    setIsFile(false);
+                    setSelectedFile(null);
+                    setError({ ...error, format: false });
+                    return;
+                  }
+
+                  if (v.value.match(/\d{3}x\d{3}/)) {
+                    setSelectedFormat2(null);
+                    setFiles2([]);
+                    setIsFile2(false);
+                    setSelectedFile2(null);
+                    setError({ ...error, format: false });
+                  }
+
+                  const selected = data[0][checkFolder].find((x) => x.path === v.value);
+
+                  setSelectedFormat(v.value); // ← path (IMPORTANT)
+
+                  setFiles(selected.files);
+                  setIsFile(true);
+                  setSelectedFile(null);
                   setIsFooter(false);
                   setEnabled({ ...enabled, visu: false });
 
-                  if (value.name == "" || value.name == undefined) {
-                    setError({ ...error, format: true });
-                  } else {
-                    setError({ ...error, format: false });
-                  }
+                  setError({ ...error, format: !selected?.name });
                 }}
               />
             </Form.Field>
-          )}
 
-          {checkFolder === "CASTO" && (
+            {/* Visu */}
             <Form.Field required error={error.visuel}>
-              <VisuelDropdown
-                enabled={enabled.visu}
-                error={error.visuel}
-                id="visuel"
-                className="visuel"
-                isFile={isFile2}
-                files={files2}
-                value={selectedFile2}
-                text={selectedFile2}
-                selectedFile={selectedFile2}
-                onSelectedFile={(value) => {
-                  const name = value.name.split("/").pop().toLowerCase();
-                  const regexBlanc = /\bblanc\b/i;
-                  if (name.toLowerCase().includes("+blanc" || "+ blanc" || "blanc+") || regexBlanc.test(name)) {
-                    setCheckProdBlanc(true);
-                  } else {
-                    setCheckProdBlanc(false);
-                  }
-                  setSelectedFile2(value.name);
-                  setPreview(value.name);
-                  setFileSize2(value.size);
-                  setIsShowPdf(true);
-                  setIsShowLouis(false);
-                  setIsShowJobsList(false);
-                  if (value.name == "" || value.name == undefined) {
-                    setError({ ...error, visuel: true });
-                  } else {
-                    setEnabled({ ...enabled, numCmd: false });
-                    setError({ ...error, visuel: false });
-                  }
+              {!checkGenerate.teinteMasse ? (
+                <VisuelDropdown
+                  enabled={enabled.visu}
+                  error={error.visuel}
+                  id="visuel"
+                  className="visuel"
+                  isFile={isFile}
+                  files={files}
+                  value={selectedFile}
+                  text={selectedFile}
+                  selectedFile={selectedFile}
+                  onSelectedFile={(value) => {
+                    const name = value.name.split("/").pop().toLowerCase();
+                    const regexBlanc = /\+\s*blanc\b/i;
 
-                  //Check checkFormats
-                  if (
-                    CheckFormats(selectedFormatTauro, value.name.split("/").pop(), selectedFile.split("/").pop()) &&
-                    CheckFormats(selectedFormatTauro, value.name.split("/").pop(), selectedFile.split("/").pop()).gap ==
-                      true
-                  ) {
-                    setPerte(
-                      CheckFormats(selectedFormatTauro, value.name.split("/").pop(), selectedFile.split("/").pop())
-                        .surface,
-                    );
-                    setWarnMsg({
-                      ...warnMsg,
-                      hidden: false,
-                      header: "Attention au format",
-                      msg: `Perte matière: ${CheckFormats(selectedFormatTauro, value.name.split("/").pop(), selectedFile.split("/").pop()).surface}/m2`,
-                      icon: "info circle",
-                      color: "yellow",
-                    });
-                  } else if (
-                    CheckFormats(selectedFormatTauro, value.name.split("/").pop(), selectedFile.split("/").pop()) ==
-                    undefined
-                  ) {
-                    setWarnMsg({
-                      ...warnMsg,
-                      hidden: false,
-                      header: "Problème format",
-                      msg: "Format du visuel introuvable. Attention au format de plaque choisit.",
-                      icon: "warning sign",
-                      color: "orange",
-                    });
-                  } else if (
-                    CheckFormats(selectedFormatTauro, value.name.split("/").pop(), selectedFile.split("/").pop())
-                      .isChecked == false
-                  ) {
-                    setWarnMsg({
-                      ...warnMsg,
-                      hidden: false,
-                      header: "Problème format",
-                      msg: "Le format du visuel est plus grand que celui de la plaque.",
-                      icon: "warning sign",
-                      color: "red",
-                    });
-                  } else {
-                    setWarnMsg({ ...warnMsg, hidden: true });
-                  }
-                }}
-              />
+                    if (name.toLowerCase().includes("+blanc" || "+ blanc") || regexBlanc.test(name)) {
+                      setCheckProdBlanc(true);
+                    } else {
+                      setCheckProdBlanc(false);
+                    }
+                    setSelectedFile(value.name);
+                    setFileSize(value.size);
+                    setPreview(value.name);
+                    setIsShowPdf(true);
+                    setIsShowLouis(false);
+                    setIsShowJobsList(false);
+                    if (value.name == "" || value.name == undefined) {
+                      setError({ ...error, visuel: true });
+                    } else {
+                      setEnabled({ ...enabled, numCmd: false });
+                      setError({ ...error, visuel: false });
+                    }
+
+                    //Check checkFormats
+                    if (
+                      CheckFormats(selectedFormatTauro, value.name.split("/").pop()) &&
+                      CheckFormats(selectedFormatTauro, value.name.split("/").pop()).gap == true
+                    ) {
+                      setPerte(CheckFormats(selectedFormatTauro, value.name.split("/").pop()).surface);
+                      console.log(
+                        "Perte Visu 1:",
+                        CheckFormats(selectedFormatTauro, value.name.split("/").pop()).surface,
+                      );
+                      setWarnMsg({
+                        ...warnMsg,
+                        hidden: false,
+                        header: "Attention au format",
+                        msg: `Perte matière: ${CheckFormats(selectedFormatTauro, value.name.split("/").pop()).surface}/m2`,
+                        icon: "info circle",
+                        color: "yellow",
+                      });
+                    } else if (CheckFormats(selectedFormatTauro, value.name.split("/").pop()) == undefined) {
+                      setWarnMsg({
+                        ...warnMsg,
+                        hidden: false,
+                        header: "Problème format",
+                        msg: "Format du visuel introuvable. Attention au format de plaque choisit.",
+                        icon: "warning sign",
+                        color: "orange",
+                      });
+                    } else if (CheckFormats(selectedFormatTauro, value.name.split("/").pop()).isChecked == false) {
+                      setWarnMsg({
+                        ...warnMsg,
+                        hidden: false,
+                        header: "Problème format",
+                        msg: "Le format du visuel est plus grand que celui de la plaque.",
+                        icon: "warning sign",
+                        color: "red",
+                      });
+                    } else {
+                      setWarnMsg({ ...warnMsg, hidden: true });
+                    }
+                  }}
+                />
+              ) : (
+                <TeinteMasseDropdown
+                  value={selectedFile}
+                  text={selectedFile}
+                  selectedFile={selectedFile}
+                  onSelectedFile={(value) => {
+                    setSelectedFile(value);
+                    if (!value) {
+                      setError({ ...error, visuel: true });
+                    } else {
+                      setEnabled({ ...enabled, numCmd: false });
+                      setError({ ...error, visuel: false });
+                    }
+                  }}
+                />
+              )}
               <p
                 style={{
                   fontSize: "10px",
@@ -717,22 +618,18 @@ function App() {
                   marginTop: "2px",
                 }}
               >
-                {fileSize2}
+                {fileSize}
               </p>
             </Form.Field>
-          )}
 
-          {/* Infos commande */}
-
-          {checkFolder === "CASTO" && (
             <Form.Field required error={error.numCmd} inline>
               <Input
                 disabled={enabled.numCmd}
                 error={error.numCmd}
-                id="numCmd2"
-                name="numCmd2"
+                id="numCmd"
+                name="numCmd"
                 type="number"
-                placeholder="N° commande 2"
+                placeholder="N° commande"
                 onChange={(e, data) => {
                   const maxValidate = (string) => {
                     return string.slice(0, 6);
@@ -756,6 +653,197 @@ function App() {
                 }
               />
             </Form.Field>
+          </Segment>
+
+          {/* Si format credence */}
+          {selectedFormat && (selectedFormat.includes("300x60") || selectedFormat.includes("255x60")) && (
+            <Segment color={checkFolder === "LM" ? "green" : checkFolder === "CASTO" ? "blue" : "orange"}>
+              <Form.Field required error={error.format}>
+                <FormatDropdown
+                  placeholder={checkFolder}
+                  enabled={enabled.format}
+                  error={error.format}
+                  id="format"
+                  className="format"
+                  isLoading={isLoading}
+                  data={
+                    selectedFormat.match(/\d{3}x\d{2}/)
+                      ? data[0][checkFolder].filter((x) => x.name.includes(selectedFormat.match(/\d{3}x\d{2}/)[0]))
+                      : data[0][checkFolder] || []
+                  }
+                  value={selectedFormat2}
+                  //text={selectedFormat2}
+                  selectedFormat={selectedFormat2}
+                  onSelectFormat={(e, v) => {
+                    // CLEAR
+                    if (v.value === null) {
+                      setSelectedFormat2(null);
+                      setFiles2([]);
+                      setIsFile2(false);
+                      setSelectedFile2(null);
+                      setError({ ...error, format: false });
+                      return;
+                    }
+
+                    const selected = data[0][checkFolder].find((x) => x.path === v.value);
+
+                    setSelectedFormat2(v.value); // ← path (IMPORTANT)
+                    setFiles2(selected.files);
+                    setIsFile2(true);
+                    setSelectedFile2(null);
+                    setIsFooter(false);
+                    setEnabled({ ...enabled, visu: false });
+
+                    setError({ ...error, format: !selected?.name });
+                  }}
+                />
+              </Form.Field>
+              <Form.Field required error={error.visuel}>
+                <VisuelDropdown
+                  enabled={enabled.visu}
+                  error={error.visuel}
+                  id="visuel"
+                  className="visuel"
+                  isFile={isFile2}
+                  files={files2}
+                  value={selectedFile2}
+                  text={selectedFile2}
+                  selectedFile={selectedFile2}
+                  onSelectedFile={(value) => {
+                    if (!value) {
+                      setSelectedFile2(null);
+                      setPreview(null);
+                      setFileSize2("");
+                      setIsShowPdf(false);
+                      setIsShowLouis(false);
+                      setIsShowJobsList(false);
+                      setCheckProdBlanc(false);
+                      //setError({ ...error, visuel: true });
+                      return;
+                    }
+                    const name = value.name.split("/").pop().toLowerCase();
+                    const regexBlanc = /\bblanc\b/i;
+                    if (name.toLowerCase().includes("+blanc" || "+ blanc" || "blanc+") || regexBlanc.test(name)) {
+                      setCheckProdBlanc(true);
+                    } else {
+                      setCheckProdBlanc(false);
+                    }
+                    setSelectedFile2(value.name);
+                    setPreview(value.name);
+                    setFileSize2(value.size);
+                    setIsShowPdf(true);
+                    setIsShowLouis(false);
+                    setIsShowJobsList(false);
+                    if (value.name == "" || value.name == undefined) {
+                      setError({ ...error, visuel: true });
+                    } else {
+                      setEnabled({ ...enabled, numCmd: false });
+                      setError({ ...error, visuel: false });
+                    }
+
+                    //Check checkFormats
+
+                    if (
+                      CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop()) &&
+                      CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop())
+                        .gap == true
+                    ) {
+                      setPerte(
+                        CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop())
+                          .surface,
+                      );
+
+                      console.log("GAP TRUE");
+
+                      setWarnMsg({
+                        ...warnMsg,
+                        hidden: false,
+                        header: "Attention au format",
+                        msg: `Perte matière: ${CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop()).surface}/m2`,
+                        icon: "info circle",
+                        color: "yellow",
+                      });
+                    } else if (
+                      CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop()) ==
+                      undefined
+                    ) {
+                      setWarnMsg({
+                        ...warnMsg,
+                        hidden: false,
+                        header: "Problème format",
+                        msg: "Format du visuel introuvable. Attention au format de plaque choisit.",
+                        icon: "warning sign",
+                        color: "orange",
+                      });
+                    } else if (
+                      CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop())
+                        .isChecked == false
+                    ) {
+                      setWarnMsg({
+                        ...warnMsg,
+                        hidden: false,
+                        header: "Problème format",
+                        msg: "Le format du visuel est plus grand que celui de la plaque.",
+                        icon: "warning sign",
+                        color: "red",
+                      });
+                    } else {
+                      setWarnMsg({ ...warnMsg, hidden: true });
+                      setPerte(
+                        CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop())
+                          .surface,
+                      );
+                      console.log(
+                        "Perte Visu 2:",
+                        CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop())
+                          .surface,
+                      );
+                    }
+                  }}
+                />
+                <p
+                  style={{
+                    fontSize: "10px",
+                    textAlign: "right",
+                    width: "300px",
+                    marginTop: "2px",
+                  }}
+                >
+                  {fileSize2}
+                </p>
+              </Form.Field>
+              <Form.Field required error={error.numCmd} inline>
+                <Input
+                  disabled={enabled.numCmd}
+                  error={error.numCmd}
+                  id="numCmd2"
+                  name="numCmd2"
+                  type="number"
+                  placeholder="N° commande 2"
+                  onChange={(e, data) => {
+                    const maxValidate = (string) => {
+                      return string.slice(0, 6);
+                    };
+                    if (data.value.length > 6 || data.value.length < 5) {
+                      setError({ ...error, numCmd: true });
+                    } else {
+                      setEnabled({ ...enabled, ville: false });
+                      maxValidate(data.value);
+                      setError({ ...error, numCmd: false });
+                    }
+                  }}
+                  onFocus={(e) =>
+                    e.target.addEventListener(
+                      "wheel",
+                      function (e) {
+                        e.preventDefault();
+                      },
+                      { passive: false },
+                    )
+                  }
+                />
+              </Form.Field>
+            </Segment>
           )}
 
           {/* Ville / Mag */}
@@ -775,7 +863,7 @@ function App() {
           </Form.Field>
           {/* Exemplaires */}
           <Form.Field>
-            <Input placeholder="Exemplaire(s)" disabled={enabled.ex} id="ex" name="ex" type="number" defaultValue={1} />
+            <Input placeholder="Exemplaire(s)" id="ex" name="ex" type="number" defaultValue={1} />
           </Form.Field>
         </Form>
         <div className="container-buttons">
@@ -846,7 +934,12 @@ function App() {
       />
 
       {/* Info Stock Modal */}
-      <InfoStockModal open={modalInfoStock.open} onClose={handleCloseStock} stock={modalInfoStock.stock} />
+      <InfoStockModal
+        open={modalInfoStock.open}
+        onClose={handleCloseStock}
+        onValidate={handleValidateStock}
+        stock={modalInfoStock.stock}
+      />
 
       {/* FOOTER */}
       <Footer active={!isFooter} />
