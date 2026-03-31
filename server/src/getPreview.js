@@ -1,7 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const { Jimp, loadFont } = require("jimp");
-const { SANS_32_BLACK } = require("jimp/fonts");
+const Jimp = require("jimp");
 const logger = require("./logger/logger");
 
 const getPreview = async (ref, jpgName, isStock) => {
@@ -21,14 +20,9 @@ const getPreview = async (ref, jpgName, isStock) => {
 
     // 🔄 Charger l'image et la tourner de 90° et si isStock ecrire Stock centrer dans l'image
     const image = await Jimp.read(sourcePath);
-    const font = await loadFont(SANS_32_BLACK);
 
     await new Promise((resolve, reject) => {
       image.rotate(90, false).write(destPath, (err) => {
-        if (isStock) {
-          console.log("DANS STOCK");
-          image.print(font, 150, 150, "EN STOCK");
-        }
         if (err) reject(err);
         else resolve();
       });
