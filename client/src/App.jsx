@@ -174,14 +174,13 @@ function App() {
   const handleCloseStock = () => {
     setModalInfoStock({
       open: false,
-      stock: [],
-      use: false,
     });
   };
 
   const handleValidateStock = async () => {
     const jobToUpdate = modalInfoStock.object;
-    setModalInfoStock((prev) => ({ ...prev, open: false, stock: [], use: true }));
+
+    setModalInfoStock((prev) => ({ ...prev, open: false }));
 
     try {
       const response = await fetch(`http://${HOST}:${PORT}/edit_job`, {
@@ -247,7 +246,7 @@ function App() {
         setIsShowJobsList(true);
 
         // Si un stock est trouvé, afficher le modal d'info stock
-        if (result.stock) {
+        if (result.stock && result.stock?.ex > 0) {
           setModalInfoStock({
             open: true,
             stock: result.stock,

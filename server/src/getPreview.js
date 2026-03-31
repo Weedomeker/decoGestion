@@ -1,9 +1,10 @@
 const fs = require("fs");
 const path = require("path");
-const { Jimp } = require("jimp");
+const { Jimp, loadFont } = require("jimp");
+const { SANS_32_BLACK } = require("jimp/fonts");
 const logger = require("./logger/logger");
 
-const getPreview = async (ref, jpgName) => {
+const getPreview = async (ref, jpgName, isStock) => {
   try {
     const previewDir = path.join(__dirname, "../public/preview");
     const files = fs.readdirSync(previewDir);
@@ -18,10 +19,16 @@ const getPreview = async (ref, jpgName) => {
     const sourcePath = path.join(previewDir, file);
     const destPath = path.resolve(`${jpgName}.jpg`);
 
-    // 🔄 Charger l'image et la tourner de 90°
+    // 🔄 Charger l'image et la tourner de 90° et si isStock ecrire Stock centrer dans l'image
     const image = await Jimp.read(sourcePath);
+    const font = await loadFont(SANS_32_BLACK);
+
     await new Promise((resolve, reject) => {
       image.rotate(90, false).write(destPath, (err) => {
+        if (isStock) {
+          console.log("DANS STOCK");
+          image.print(font, 150, 150, "EN STOCK");
+        }
         if (err) reject(err);
         else resolve();
       });

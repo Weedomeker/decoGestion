@@ -40,6 +40,7 @@ const { cmToPxl } = require("./src/convertUnits");
 const generateImages = require("./src/generateImages");
 const getPreview = require("./src/getPreview");
 const findStock = require("./src/findStock");
+const Stocks = require("./src/models/Stocks");
 
 const accessLogStream = fs.createWriteStream(path.join(__dirname, "server.log"), { flags: "a" });
 const dayDate = new Date()
@@ -199,12 +200,25 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "../client/dist/index.html"));
 });
 
+//post get ref stock
+
+app.post("/stock", async (req, res) => {
+  const { ref } = req.body;
+  if (!ref) return res.status(400).json({ error: "Ref required" });
+
+  try {
+    const stock = await findStock(ref);
+    if (stock) return res.status(200).json({ stock });
+    return res.status(404).json({ error: "Stock not found" });
+  } catch (error) {
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 //get ref in stock
 
 app.patch("/edit_job", async (req, res) => {
   const updates = req.body;
-
-  console.log("UPDATED: ", updates);
 
   if (!updates._id) {
     return res.status(400).json({ error: "ID requis" });
@@ -241,7 +255,6 @@ app.patch("/edit_job", async (req, res) => {
       );
     }
   });
-
   res.status(200).json({
     message: "Objet mis à jour avec succès",
     object: jobList.jobs[objIndex],
@@ -258,7 +271,7 @@ app.post("/add_job", async (req, res) => {
     format2: req.body.format2,
     visuel: req.body.visuel,
     visuel2: req.body.visuel2,
-    numCmd: req.body.numCmd,
+    numCmd: req.body.numCmd ? req.body.numCmd : 0,
     numCmd2: req.body.numCmd2 ? req.body.numCmd2 : 0,
     ville: req.body.ville != null ? req.body.ville?.toUpperCase() : "",
     ex: req.body.ex !== null ? req.body.ex : "",
@@ -384,7 +397,7 @@ app.post("/add_job", async (req, res) => {
     reg,
     data.cut,
     data.teinteMasse,
-    data.stock,
+    data.stock ? data.stock : false,
   );
   // Fonction pour comparer et mettre à jour les tableaux
   function compareAndAddObject(originalArray, newObject) {
@@ -462,15 +475,21 @@ app.post("/run_jobs", async (req, res) => {
     }
 
     const jobsToRun = [...jobList.jobs]; // Créer une copie pour éviter de modifier l'original pendant l'itération
+
     const startTime = performance.now();
     wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify({ type: "start", startTime }));
       }
     });
+
+    // Traiter les jobs un par un
     for (const job of jobsToRun) {
       const regexCredences = /^\d{3}x\d{2}$/i;
       const isCredences = regexCredences.test(job.format_visu);
+
+      //Verifier si en prit en stock
+      const isStock = job?.useStock;
 
       // Date
       let time = new Date().toLocaleTimeString("fr-FR");
@@ -536,7 +555,7 @@ app.post("/run_jobs", async (req, res) => {
       const jpgName2 = isCredences ? `${jpgPath}/${sessionPRINTSA}/${fileName2}` || "" : "";
 
       // Edition pdf
-      if (!job.teinteMasse) {
+      if (!job.teinteMasse && !isStock) {
         try {
           let startPdf = performance.now();
           if (isCredences) {
@@ -586,7 +605,7 @@ app.post("/run_jobs", async (req, res) => {
                 ),
               });
             } else {
-              getPreview(job.ref, jpgName);
+              getPreview(job.ref, jpgName, isStock);
             }
           } else {
             await _useWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
@@ -599,7 +618,7 @@ app.post("/run_jobs", async (req, res) => {
       } else {
         // Générer image
         try {
-          generateImages(job, previewDeco, `${jpgName}.jpg`);
+          generateImages(job, previewDeco, `${jpgName}.jpg`, isStock);
         } catch (error) {
           logger.error(`Error generating JPG for job ${job.cmd}:`, error);
         }
@@ -652,7 +671,7 @@ app.post("/run_jobs", async (req, res) => {
         const data = {
           date: job.date,
           client: job.client,
-          numCmd: cmd,
+          numCmd: cmd || 0,
           mag: job.ville,
           dibond: job.format_Plaque,
           deco: visuel,
@@ -675,7 +694,7 @@ app.post("/run_jobs", async (req, res) => {
         const totalTime = parseFloat(((jpgTime + pdfTime) / 1000).toFixed(2)) || 0;
         // Export principal
         await saveDeco({
-          cmd: job.cmd,
+          cmd: job.cmd || 0,
           visuel: deco,
           formatVisu: job.format_visu,
           ref: job.ref,
@@ -685,7 +704,7 @@ app.post("/run_jobs", async (req, res) => {
         // Export secondaire UNIQUEMENT si credences
         if (isCredences && job.cmd2 && job.visuel2) {
           await saveDeco({
-            cmd: job.cmd2,
+            cmd: job.cmd2 || 0,
             visuel: deco2,
             formatVisu: job.format2_visu,
             ref: job.ref2,
@@ -694,6 +713,19 @@ app.post("/run_jobs", async (req, res) => {
         }
       } catch (error) {
         console.log(error);
+      }
+
+      // Update quantité en stock si pris en stock
+      if (isStock) {
+        try {
+          const updatedStock = await Stocks.findOneAndUpdate({ ref: job.ref }, { $inc: { ex: -1 } }, { new: true });
+          logger.info(`Stock mis à jour pour la référence ${String(job.visuel)} ${job.ref} (1ex déduit)`);
+        } catch (error) {
+          logger.error(
+            `Erreur lors de la mise à jour du stock pour la référence ${String(job.visuel)} ${job.ref}:`,
+            error,
+          );
+        }
       }
 
       //Générer découpe
@@ -802,10 +834,6 @@ app.post("/run_jobs", async (req, res) => {
     } catch (error) {
       logger.error("❌ Erreur lors de la génération des étiquettes :", error);
     }
-
-    //Generer QRCode page
-    // const pathQRCodes = `./server/public/${sessionPRINTSA}/QRCodes/`;
-    // createQRCodePage(pathQRCodes, pathQRCodes + '/' + sessionPRINTSA + '.pdf');
 
     res.status(200).json({ message: "Jobs completed successfully" });
   } catch (error) {

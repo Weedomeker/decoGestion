@@ -5,7 +5,7 @@ import { Image } from "semantic-ui-react";
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
 
-function PreviewDeco({ fileSelected, show, client }) {
+function PreviewDeco({ fileSelected, show }) {
   const [previewList, setPreviewList] = useState([]);
   const [imageUrl, setImageUrl] = useState(null);
 
@@ -19,8 +19,16 @@ function PreviewDeco({ fileSelected, show, client }) {
   }, []);
 
   const extractReference = (filename) => {
-    const match = filename.match(/\b\d{7,}\b/);
+    const match = filename.match(/\b\d{7,}\b/ || /[A-Z]+-\d+/i);
     return match ? match[0] : null;
+  };
+
+  // Extraire le format et differencier type de format 3 digits x 3 digits ou 3 digits x 2 digits
+  // Si 3 digits x 2 digits return isCredence true sinon false et return format
+  const extractFormat = (filename) => {
+    const isCredence = filename.match(/\b\d{3}x\d{2}\b/i);
+    const format = filename.match(/\b\d{3}x\d{3}\b/i);
+    return isCredence ? { isCredence: true, format: isCredence[0] } : { isCredence: false, format: format[0] };
   };
 
   // 🔹 4. Chercher le bon visuel
@@ -56,7 +64,7 @@ function PreviewDeco({ fileSelected, show, client }) {
         src={imageUrl}
         alt="Aperçu déco"
         rounded
-        style={{ transform: client === "CASTO" || client === "BRICO" ? "rotate(90deg)" : undefined }}
+        style={{ transform: extractFormat(imageUrl).isCredence ? "rotate(90deg)" : undefined }}
       />
     </div>
   );

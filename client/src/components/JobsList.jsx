@@ -386,7 +386,7 @@ function JobsList({ show, formatTauro }) {
           {/* BODY */}
           <TableBody className="body-table-jobs">{newTableEntries}</TableBody>
 
-          {/* FOOTERS IDENTIQUES À TA VERSION (je ne les ai pas touchés) */}
+          {/* FOOTER */}
           {status === "jobs" && (
             <TableFooter className="sticky-footer">
               <TableRow>
@@ -455,7 +455,7 @@ function JobsList({ show, formatTauro }) {
           {status === "completed" && (
             <TableFooter className="sticky-footer">
               <TableRow>
-                <TableHeaderCell colSpan="10" collapsing>
+                <TableHeaderCell colSpan="11" collapsing>
                   <div className="sticky-footer-content">
                     <Button animated="fade" color="red" size="small" compact onClick={() => handleDeleteJobComplete()}>
                       <ButtonContent hidden content="Clear" />
