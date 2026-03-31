@@ -159,7 +159,7 @@ function JobsList({ show, formatTauro }) {
     if (find) {
       return find;
     } else {
-      return;
+      return "";
     }
   };
 
