@@ -21,6 +21,7 @@ const decoSchema = new mongoose.Schema({
   status: { type: String },
   app_version: { type: String },
   ip: { type: String },
+  comment: { type: String, default: "" },
 });
 
 // Hook avant save

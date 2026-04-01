@@ -13,6 +13,12 @@ const stocksSchema = new mongoose.Schema(
   },
 );
 
+stocksSchema.post("findOneAndUpdate", async function (doc) {
+  if (doc && doc.ex === 0) {
+    await doc.deleteOne();
+  }
+});
+
 const Stocks = mongoose.model("stocks", stocksSchema);
 
 module.exports = Stocks;

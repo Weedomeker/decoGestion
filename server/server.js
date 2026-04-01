@@ -683,6 +683,7 @@ app.post("/run_jobs", async (req, res) => {
           status: "",
           app_version: `v${appVersion}`,
           ip: req.ip.split(":").pop() === "1" || req.hostname === "localhost" ? os.hostname() : req.ip.split(":").pop(),
+          comment: isStock ? `Pris en stock le ${new Date().toLocaleString()}` : "",
         };
 
         const newDeco = new modelDeco(data);
@@ -719,10 +720,13 @@ app.post("/run_jobs", async (req, res) => {
       if (isStock) {
         try {
           const updatedStock = await Stocks.findOneAndUpdate({ ref: job.ref }, { $inc: { ex: -1 } }, { new: true });
-          logger.info(`Stock mis à jour pour la référence ${String(job.visuel)} ${job.ref} (1ex déduit)`);
+
+          logger.info(
+            `Stock mis à jour pour la référence: ${job.cmd} ${job.visuel?.replace(".pdf", "")} ${job.ref} ${job.format_visu} (1ex déduit)`,
+          );
         } catch (error) {
           logger.error(
-            `Erreur lors de la mise à jour du stock pour la référence ${String(job.visuel)} ${job.ref}:`,
+            `Erreur lors de la mise à jour du stock pour la référence:  ${job.cmd} ${job.visuel?.replace(".pdf", "")} ${job.ref} ${job.format_visu}: `,
             error,
           );
         }
