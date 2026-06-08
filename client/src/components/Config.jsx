@@ -110,6 +110,14 @@ function Config() {
             />
             <Input
               fluid
+              label="ECOM:"
+              value={data.ECOM || ""}
+              onChange={(e, v) => {
+                setData((prevData) => ({ ...prevData, ECOM: v.value }));
+              }}
+            />
+            <Input
+              fluid
               label="CASTO:"
               value={data.CASTO || ""}
               onChange={(e, v) => {

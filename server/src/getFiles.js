@@ -4,6 +4,8 @@ const { PDFDocument } = require("pdf-lib");
 const { cmToPoints, pointsToCm } = require("./convertUnits");
 
 const getFiles = (dir, files = [], directories = []) => {
+  if (!fs.existsSync(dir)) return { directories, files };
+
   const fileList = fs.readdirSync(dir);
   for (const file of fileList) {
     const name = `${dir}\\${file}`;

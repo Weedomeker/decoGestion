@@ -20,7 +20,7 @@ function PreviewDeco({ fileSelected, show }) {
 
   const extractReference = (filename) => {
     const match = filename.match(/\b\d{7,}\b/ || /[A-Z]+-\d+/i);
-    return match ? match[0] : null;
+    if (match && match[0] !== "00000000") return match ? match[0] : null;
   };
 
   // Extraire le format et differencier type de format 3 digits x 3 digits ou 3 digits x 2 digits
@@ -51,14 +51,18 @@ function PreviewDeco({ fileSelected, show }) {
       setImageUrl(`http://${HOST}:${PORT}/${matched.path.split("\\").slice(1).join("/")}`);
     } else {
       setImageUrl(null);
-      console.warn("Aucune image trouvée pour :", filename);
     }
   }, [fileSelected, previewList]);
 
-  if (!fileSelected || !show || !imageUrl) return null;
+  if (!fileSelected || !show || !imageUrl)
+    return (
+      <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", width: "100%", height: "100%" }}>
+        <p>Aucune image trouvée</p>
+      </div>
+    );
 
   return (
-    <div className="pdf-container">
+    <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", width: "100%", height: "100%" }}>
       {/* style rotation if reference is not null */}
       <Image
         src={imageUrl}

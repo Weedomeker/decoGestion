@@ -3,7 +3,7 @@ import { StandaloneSearchBox, useJsApiLoader } from "@react-google-maps/api";
 import PropTypes from "prop-types";
 import { useRef, useState } from "react";
 
-const Place = ({ onValue, enabled }) => {
+const Place = ({ value, onValue, enabled }) => {
   const [libraries] = useState(["places"]);
   const inputRef = useRef();
 
@@ -26,7 +26,7 @@ const Place = ({ onValue, enabled }) => {
           name="ville"
           id="ville"
           placeholder="VILLE / MAG"
-          defaultValue=""
+          value={value || ""}
           onChange={(e) => {
             onValue(e.target.value);
           }}

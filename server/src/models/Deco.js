@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const RefDeco = require("./RefDeco");
 const RefCasto = require("./RefCasto");
 const RefBrico = require("./RefBrico");
+const RefEcom = require("./RefEcom");
 const logger = require("../../src/logger/logger");
 
 // Schéma des commandes
@@ -28,7 +29,7 @@ const decoSchema = new mongoose.Schema({
 decoSchema.pre("save", async function (next) {
   try {
     if (this.isModified("ref") && this.ref) {
-      const refs = [RefDeco, RefCasto, RefBrico];
+      const refs = [RefDeco, RefCasto, RefBrico, RefEcom];
       let refData = null;
       for (const refModel of refs) {
         refData = await refModel.findOne({ ref: this.ref });
@@ -60,7 +61,7 @@ decoSchema.pre("findOneAndUpdate", async function (next) {
     const data = update.$set || update;
 
     if (data.ref) {
-      const refs = [RefDeco, RefCasto, RefBrico];
+      const refs = [RefDeco, RefCasto, RefBrico, RefEcom];
 
       const results = await Promise.all(refs.map((refModel) => refModel.findOne({ ref: data.ref })));
 

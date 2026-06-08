@@ -1,7 +1,9 @@
 const fs = require("fs");
 const path = require("path");
 
-const SOURCE_DIR = path.join(`\\\\NASSYNORS1221\\agence\\1-décokin\\ DECO-K-IN\\05 PHOTOS\\05 Photo BricoMarché`);
+const SOURCE_DIR = path.join(
+  `\\\\NASSYNORS1221\\agence\\1-décokin\\ DECO-K-IN\\05 PHOTOS\\01 Photo DecoKin\\01 VISUEL`,
+);
 const DEST_DIR = "./output";
 
 // Création dossier output
