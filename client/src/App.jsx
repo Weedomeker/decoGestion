@@ -1,9 +1,10 @@
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
 import { useEffect, useState } from "react";
-import { Button, ButtonContent, Checkbox, Form, Icon, Input, Label, Segment } from "semantic-ui-react";
+import { Button, Checkbox, Dropdown, Form, Icon, Input, Table } from "semantic-ui-react";
 import CheckFormats from "./CheckFormats";
 import Config from "./components/Config";
+import DossierAutocomplete from "./components/DossierAutocomplete";
 import Footer from "./components/Footer";
 import FormatDropdown from "./components/FormatDropdown";
 import FormatTauro from "./components/FormatTauro";
@@ -43,10 +44,16 @@ function App() {
   const [selectedFile2, setSelectedFile2] = useState("");
   const [fileSize, setFileSize] = useState("");
   const [fileSize2, setFileSize2] = useState("");
+  const [numCmd, setNumCmd] = useState("");
+  const [numCmd2, setNumCmd2] = useState("");
+  const [ville, setVille] = useState("");
+  const [ex, setEx] = useState(1);
   const [isFooter, setIsFooter] = useState(false);
-  const [isShowPdf, setIsShowPdf] = useState(false);
-  const [isShowLouis, setIsShowLouis] = useState(false);
-  const [isShowJobsList, setIsShowJobsList] = useState(true);
+  const [jobsRefresh, setJobsRefresh] = useState(0);
+  const [activeTab, setActiveTab] = useState("dossier");
+  const [activeView, setActiveView] = useState("form");
+  const [pendingCount, setPendingCount] = useState(0);
+  const [isLouisOpen, setIsLouisOpen] = useState(false);
   const [preview, setPreview] = useState(null);
   const [warnMsg, setWarnMsg] = useState({
     hidden: true,
@@ -72,6 +79,7 @@ function App() {
     validate: true,
   });
   const [perte, setPerte] = useState(0);
+  const [dossierJobs, setDossierJobs] = useState([]);
   const [modalData, setModalData] = useState({
     open: false,
     message: "",
@@ -84,6 +92,42 @@ function App() {
     object: null,
     use: false,
   });
+
+  function handleDossierAutoFill({ clearMode, manualMode, allJobs, client }) {
+    if (clearMode) {
+      handleResetForm();
+      setDossierJobs([]);
+      setEnabled({ format: true, visu: true, numCmd: true, ville: true, ex: true, validate: true });
+      setActiveTab("dossier");
+      return;
+    }
+
+    if (client) setCheckFolder(client);
+
+    if (manualMode) {
+      setEnabled((current) => ({ ...current, format: false, visu: false, numCmd: false, ville: false }));
+      setActiveTab("manuel");
+      return;
+    }
+
+    if (!allJobs || allJobs.length === 0) return;
+
+    setCheckProdBlanc(false);
+    setSelectedFormat2("");
+    setSelectedFile2("");
+    setPerte(0);
+    setModalInfoStock({ open: false, stock: null, object: null, use: false });
+    setActiveTab("dossier");
+    setDossierJobs(allJobs);
+  }
+
+  function updateDossierJob(index, updates) {
+    setDossierJobs((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], ...updates };
+      return next;
+    });
+  }
 
   useEffect(() => {
     const handleBeforeUnload = (e) => {
@@ -199,9 +243,45 @@ function App() {
 
   const handleJobSubmit = async (e) => {
     e.preventDefault();
-    const form = document.querySelector("form");
-    const formData = new FormData(form);
 
+    // Mode dossier : soumettre chaque job séparément
+    if (dossierJobs.length > 0) {
+      try {
+        for (const job of dossierJobs) {
+          const payload = {
+            client: job.client || checkFolder,
+            allFormatTauro: formatTauro,
+            formatTauro: job.formatTauroValue,
+            prodBlanc: checkProdBlanc,
+            format: job.formatPath,
+            format2: "",
+            visuel: job.selectedFileObject?.name || "",
+            visuel2: "",
+            numCmd: job.numCmd || "",
+            numCmd2: "",
+            ville: job.ville || "",
+            ex: job.ex || 1,
+            perte: 0,
+            regmarks: checkGenerate.reg,
+            cut: checkGenerate.cut,
+            teinteMasse: checkGenerate.teinteMasse,
+            stock: false,
+          };
+          await fetch(`http://${HOST}:${PORT}/add_job`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+        }
+        setDossierJobs([]);
+        setJobsRefresh((prev) => prev + 1);
+      } catch (err) {
+        setModalData({ open: true, message: "", object: null, error: err.message });
+      }
+      return;
+    }
+
+    // Mode normal : un seul job via le formulaire
     const data = {
       client: checkFolder,
       allFormatTauro: formatTauro,
@@ -211,10 +291,10 @@ function App() {
       format2: selectedFormat2,
       visuel: selectedFile,
       visuel2: selectedFile2,
-      numCmd: formData.get("numCmd"),
-      numCmd2: formData.get("numCmd2"),
-      ville: formData.get("ville"),
-      ex: formData.get("ex"),
+      numCmd: numCmd,
+      numCmd2: numCmd2,
+      ville: ville,
+      ex: ex,
       perte: perte,
       regmarks: checkGenerate.reg,
       cut: checkGenerate.cut,
@@ -222,7 +302,6 @@ function App() {
       stock: modalInfoStock.use,
     };
 
-    //POST data
     try {
       const response = await fetch(`http://${HOST}:${PORT}/add_job`, {
         method: "POST",
@@ -235,7 +314,7 @@ function App() {
         throw new Error(result.error || "Une erreur est survenue");
       }
       if (response.status === 200) {
-        setIsShowJobsList(true);
+        setJobsRefresh((prev) => prev + 1);
         setModalData({
           open: true,
           message: result.message,
@@ -243,7 +322,7 @@ function App() {
           error: null,
         });
       } else {
-        setIsShowJobsList(true);
+        setJobsRefresh((prev) => prev + 1);
 
         // Si un stock est trouvé, afficher le modal d'info stock
         if (result.stock && result.stock?.ex > 0) {
@@ -284,6 +363,10 @@ function App() {
     setSelectedFile2("");
     setFileSize("");
     setFileSize2("");
+    setNumCmd("");
+    setNumCmd2("");
+    setVille("");
+    setEx(1);
     setFiles([{ name: "", fileSize: "" }]);
     setFiles2([{ name: "", fileSize: "" }]);
     setIsFile(false);
@@ -291,6 +374,7 @@ function App() {
     setPerte("");
     setCheckProdBlanc(false);
     setPreview(null);
+    setDossierJobs([]);
     setCheckGenerate({
       cut: false,
       reg: true,
@@ -298,632 +382,723 @@ function App() {
     });
   };
 
+  const clientColor = (c) => {
+    if (c === "LM") return "green";
+    if (c === "CASTO") return "blue";
+    if (c === "ECOM") return "teal";
+    return "orange";
+  };
+
+  const CLIENT_ICONS = { LM: "leaf", CASTO: "home", BRICO: "wrench", ECOM: "shopping cart" };
+
   return (
     <div className="container">
-      {/* Header Logo */}
-      <Header appVersion={version} />
+      <Header
+        appVersion={version}
+        onFichiers={() => setIsLouisOpen(true)}
+        configNode={<Config />}
+        activeView={activeView}
+        onViewChange={setActiveView}
+        pendingCount={pendingCount}
+      />
 
-      {/* Session Input */}
-      <div className="main">
-        <Form className="form">
-          {/* Warning Message */}
-          <InfoMessage
-            isHidden={warnMsg.hidden}
-            title={warnMsg.header}
-            text={warnMsg.msg}
-            icon={warnMsg.icon}
-            color={warnMsg.color}
-          />
-          {/* Format Tauro */}
-          <Form.Field className="format-tauro" required error={error.formatTauro}>
-            <FormatTauro
-              error={error.formatTauro}
-              isLoading={isloadingFormatTauro}
-              value={selectedFormatTauro}
-              formatTauro={formatTauro}
-              onValue={(e, data) => {
-                setSelectedFormatTauro(data.value);
-                if (CheckFormats(data.value, selectedFormat) && CheckFormats(data.value, selectedFormat).gap == true) {
-                  setWarnMsg({
-                    ...warnMsg,
-                    hidden: false,
-                    header: "Attention au format",
-                    msg: `Perte matère: (${CheckFormats(data.value, selectedFormat).surface}/m2)`,
-                    icon: "info circle",
-                    color: "yellow",
-                  });
-                } else if (
-                  selectedFormat &&
-                  CheckFormats(data.value, selectedFormat) &&
-                  CheckFormats(data.value, selectedFormat).isChecked == false
-                ) {
-                  //alerte
-                  setWarnMsg({
-                    ...warnMsg,
-                    hidden: false,
-                    header: "Problème format",
-                    msg: "Le format du visuel est plus grand que celui de la plaque.",
-                    icon: "warning sign",
-                    color: "red",
-                  });
-                } else {
-                  setWarnMsg({ ...warnMsg, hidden: true });
-                }
-
-                if (data.value == "") {
-                  setEnabled({ ...enabled, format: false });
-                  setError({ ...error, formatTauro: true });
-                } else {
-                  setEnabled({ ...enabled, format: false });
-                  setError({ ...error, formatTauro: false });
-                }
-              }}
+      <div className="view-area">
+      <div className={`main-area${activeView !== "form" ? " hidden" : ""}`}>
+        <div className="form-panel">
+          {/* Onglets de mode */}
+          <div className="mode-tabs">
+            <Button
+              toggle
+              type="button"
+              active={activeTab === "dossier"}
+              onClick={() => setActiveTab("dossier")}
+              icon="search"
+              content="Dossier API"
             />
             <Button
-              attached="bottom"
-              className="add-button"
+              toggle
               type="button"
-              icon="add"
-              color="grey"
-              size="mini"
-              onClick={handleToggleAddFormat}
-            />
-
-            {showAddFormat && <Input id="addFormatTauro" size="small" label="Add format" placeholder="ex: 101x215" />}
-          </Form.Field>
-
-          <Form.Field style={{ display: "flex", justifyContent: "space-between" }}>
-            {/* PROD AVEC BLANC */}
-            <Form.Field>
-              <Checkbox
-                name="Prod avec blanc"
-                label="Prod avec blanc"
-                checked={checkProdBlanc}
-                onChange={(e, data) => setCheckProdBlanc(data.checked)}
-              />
-              {checkFolder == "LM" && (
-                <Checkbox
-                  name="Teinte Masse"
-                  label="Teinte Masse"
-                  checked={checkGenerate.teinteMasse}
-                  onChange={(e, data) => {
-                    setCheckGenerate({ ...checkGenerate, teinteMasse: data.checked });
-                  }}
-                />
-              )}
-            </Form.Field>
-
-            {/* GENERATE REGMARKS */}
-            <Form.Field inline>
-              <Checkbox
-                name="Générer regmarks"
-                label="Générer regmarks"
-                checked={checkGenerate.reg}
-                onChange={(e, data) => {
-                  setCheckGenerate({ ...checkGenerate, reg: data.checked });
-                }}
-              />
-
-              {/* GENERATE CUT */}
-              {checkFolder === "LM" && (
-                <Checkbox
-                  className="decoupe"
-                  name="Générer découpe"
-                  label="Générer découpe"
-                  checked={checkGenerate.cut}
-                  onChange={(e, data) => {
-                    setCheckGenerate({ cut: data.checked, reg: data.checked });
-                  }}
-                />
-              )}
-            </Form.Field>
-          </Form.Field>
-
-          <Form.Field>
-            <Segment
-              color={checkFolder === "LM" ? "green" : checkFolder === "CASTO" ? "blue" : "orange"}
-              style={{ marginTop: 0, marginBottom: 0, paddingBottom: 0 }}
-            >
-              <Label
-                color={checkFolder === "LM" ? "green" : checkFolder === "CASTO" ? "blue" : "orange"}
-                ribbon
-                style={{ position: "absolute", top: -8, left: -15 }}
-              >
-                {checkFolder === "LM" ? "Leroy Merlin" : checkFolder === "CASTO" ? "Castorama" : "Brico"}
-              </Label>
-              <Form.Group style={{ marginTop: 10 }}>
-                <Form.Field>
-                  <Checkbox
-                    style={{ marginRight: 14 }}
-                    name="folders_LM"
-                    label="Standards LM"
-                    value="LM"
-                    checked={checkFolder === "LM"}
-                    onChange={(e, data) => {
-                      handleResetForm();
-                      setCheckFolder(data.value);
-                    }}
-                  />
-                  <Checkbox
-                    name="folders_CASTO"
-                    label="Credences CASTO"
-                    value="CASTO"
-                    checked={checkFolder === "CASTO"}
-                    onChange={(e, data) => {
-                      handleResetForm();
-                      setCheckFolder(data.value);
-                    }}
-                  />
-                  <Checkbox
-                    name="folders_BRICO"
-                    label="Standards BRICO"
-                    value="BRICO"
-                    checked={checkFolder === "BRICO"}
-                    onChange={(e, data) => {
-                      handleResetForm();
-                      setCheckFolder(data.value);
-                    }}
-                  />
-                </Form.Field>
-              </Form.Group>
-            </Segment>
-          </Form.Field>
-
-          <Segment color={checkFolder === "LM" ? "green" : checkFolder === "CASTO" ? "blue" : "orange"}>
-            {/* Format */}
-            <Form.Field required error={error.format}>
-              <FormatDropdown
-                placeholder={checkFolder}
-                enabled={enabled.format}
-                error={error.format}
-                id="format"
-                className="format"
-                isLoading={isLoading}
-                data={data[0][checkFolder] || []}
-                value={selectedFormat}
-                //text={selectedFormat}
-                selectedFormat={selectedFormat}
-                onSelectFormat={(e, v) => {
-                  // CLEAR
-                  if (v.value === null) {
-                    setSelectedFormat(null);
-                    setFiles([]);
-                    setIsFile(false);
-                    setSelectedFile(null);
-                    setError({ ...error, format: false });
-                    return;
-                  }
-
-                  if (v.value.match(/\d{3}x\d{3}/)) {
-                    setSelectedFormat2(null);
-                    setFiles2([]);
-                    setIsFile2(false);
-                    setSelectedFile2(null);
-                    setError({ ...error, format: false });
-                  }
-
-                  const selected = data[0][checkFolder].find((x) => x.path === v.value);
-
-                  setSelectedFormat(v.value); // ← path (IMPORTANT)
-
-                  setFiles(selected.files);
-                  setIsFile(true);
-                  setSelectedFile(null);
-                  setIsFooter(false);
-                  setEnabled({ ...enabled, visu: false });
-
-                  setError({ ...error, format: !selected?.name });
-                }}
-              />
-            </Form.Field>
-
-            {/* Visu */}
-            <Form.Field required error={error.visuel}>
-              {!checkGenerate.teinteMasse ? (
-                <VisuelDropdown
-                  enabled={enabled.visu}
-                  error={error.visuel}
-                  id="visuel"
-                  className="visuel"
-                  isFile={isFile}
-                  files={files}
-                  value={selectedFile}
-                  text={selectedFile}
-                  selectedFile={selectedFile}
-                  onSelectedFile={(value) => {
-                    const name = value.name.split("/").pop().toLowerCase();
-                    const regexBlanc = /\+\s*blanc\b/i;
-
-                    if (name.toLowerCase().includes("+blanc" || "+ blanc") || regexBlanc.test(name)) {
-                      setCheckProdBlanc(true);
-                    } else {
-                      setCheckProdBlanc(false);
-                    }
-                    setSelectedFile(value.name);
-                    setFileSize(value.size);
-                    setPreview(value.name);
-                    setIsShowPdf(true);
-                    setIsShowLouis(false);
-                    setIsShowJobsList(false);
-                    if (value.name == "" || value.name == undefined) {
-                      setError({ ...error, visuel: true });
-                    } else {
-                      setEnabled({ ...enabled, numCmd: false });
-                      setError({ ...error, visuel: false });
-                    }
-
-                    //Check checkFormats
-                    if (
-                      CheckFormats(selectedFormatTauro, value.name.split("/").pop()) &&
-                      CheckFormats(selectedFormatTauro, value.name.split("/").pop()).gap == true
-                    ) {
-                      setPerte(CheckFormats(selectedFormatTauro, value.name.split("/").pop()).surface);
-                      console.log(
-                        "Perte Visu 1:",
-                        CheckFormats(selectedFormatTauro, value.name.split("/").pop()).surface,
-                      );
-                      setWarnMsg({
-                        ...warnMsg,
-                        hidden: false,
-                        header: "Attention au format",
-                        msg: `Perte matière: ${CheckFormats(selectedFormatTauro, value.name.split("/").pop()).surface}/m2`,
-                        icon: "info circle",
-                        color: "yellow",
-                      });
-                    } else if (CheckFormats(selectedFormatTauro, value.name.split("/").pop()) == undefined) {
-                      setWarnMsg({
-                        ...warnMsg,
-                        hidden: false,
-                        header: "Problème format",
-                        msg: "Format du visuel introuvable. Attention au format de plaque choisit.",
-                        icon: "warning sign",
-                        color: "orange",
-                      });
-                    } else if (CheckFormats(selectedFormatTauro, value.name.split("/").pop()).isChecked == false) {
-                      setWarnMsg({
-                        ...warnMsg,
-                        hidden: false,
-                        header: "Problème format",
-                        msg: "Le format du visuel est plus grand que celui de la plaque.",
-                        icon: "warning sign",
-                        color: "red",
-                      });
-                    } else {
-                      setWarnMsg({ ...warnMsg, hidden: true });
-                    }
-                  }}
-                />
-              ) : (
-                <TeinteMasseDropdown
-                  value={selectedFile}
-                  text={selectedFile}
-                  selectedFile={selectedFile}
-                  onSelectedFile={(value) => {
-                    setSelectedFile(value);
-                    if (!value) {
-                      setError({ ...error, visuel: true });
-                    } else {
-                      setEnabled({ ...enabled, numCmd: false });
-                      setError({ ...error, visuel: false });
-                    }
-                  }}
-                />
-              )}
-              <p
-                style={{
-                  fontSize: "10px",
-                  textAlign: "right",
-                  width: "300px",
-                  marginTop: "2px",
-                }}
-              >
-                {fileSize}
-              </p>
-            </Form.Field>
-
-            <Form.Field required error={error.numCmd} inline>
-              <Input
-                disabled={enabled.numCmd}
-                error={error.numCmd}
-                id="numCmd"
-                name="numCmd"
-                type="number"
-                placeholder="N° commande"
-                onChange={(e, data) => {
-                  const maxValidate = (string) => {
-                    return string.slice(0, 6);
-                  };
-                  if (data.value.length > 6 || data.value.length < 5) {
-                    setError({ ...error, numCmd: true });
-                  } else {
-                    setEnabled({ ...enabled, ville: false });
-                    maxValidate(data.value);
-                    setError({ ...error, numCmd: false });
-                  }
-                }}
-                onFocus={(e) =>
-                  e.target.addEventListener(
-                    "wheel",
-                    function (e) {
-                      e.preventDefault();
-                    },
-                    { passive: false },
-                  )
-                }
-              />
-            </Form.Field>
-          </Segment>
-
-          {/* Si format credence */}
-          {selectedFormat && (selectedFormat.includes("300x60") || selectedFormat.includes("255x60")) && (
-            <Segment color={checkFolder === "LM" ? "green" : checkFolder === "CASTO" ? "blue" : "orange"}>
-              <Form.Field required error={error.format}>
-                <FormatDropdown
-                  placeholder={checkFolder}
-                  enabled={enabled.format}
-                  error={error.format}
-                  id="format"
-                  className="format"
-                  isLoading={isLoading}
-                  data={
-                    selectedFormat.match(/\d{3}x\d{2}/)
-                      ? data[0][checkFolder].filter((x) => x.name.includes(selectedFormat.match(/\d{3}x\d{2}/)[0]))
-                      : data[0][checkFolder] || []
-                  }
-                  value={selectedFormat2}
-                  //text={selectedFormat2}
-                  selectedFormat={selectedFormat2}
-                  onSelectFormat={(e, v) => {
-                    // CLEAR
-                    if (v.value === null) {
-                      setSelectedFormat2(null);
-                      setFiles2([]);
-                      setIsFile2(false);
-                      setSelectedFile2(null);
-                      setError({ ...error, format: false });
-                      return;
-                    }
-
-                    const selected = data[0][checkFolder].find((x) => x.path === v.value);
-
-                    setSelectedFormat2(v.value); // ← path (IMPORTANT)
-                    setFiles2(selected.files);
-                    setIsFile2(true);
-                    setSelectedFile2(null);
-                    setIsFooter(false);
-                    setEnabled({ ...enabled, visu: false });
-
-                    setError({ ...error, format: !selected?.name });
-                  }}
-                />
-              </Form.Field>
-              <Form.Field required error={error.visuel}>
-                <VisuelDropdown
-                  enabled={enabled.visu}
-                  error={error.visuel}
-                  id="visuel"
-                  className="visuel"
-                  isFile={isFile2}
-                  files={files2}
-                  value={selectedFile2}
-                  text={selectedFile2}
-                  selectedFile={selectedFile2}
-                  onSelectedFile={(value) => {
-                    if (!value) {
-                      setSelectedFile2(null);
-                      setPreview(null);
-                      setFileSize2("");
-                      setIsShowPdf(false);
-                      setIsShowLouis(false);
-                      setIsShowJobsList(false);
-                      setCheckProdBlanc(false);
-                      //setError({ ...error, visuel: true });
-                      return;
-                    }
-                    const name = value.name.split("/").pop().toLowerCase();
-                    const regexBlanc = /\bblanc\b/i;
-                    if (name.toLowerCase().includes("+blanc" || "+ blanc" || "blanc+") || regexBlanc.test(name)) {
-                      setCheckProdBlanc(true);
-                    } else {
-                      setCheckProdBlanc(false);
-                    }
-                    setSelectedFile2(value.name);
-                    setPreview(value.name);
-                    setFileSize2(value.size);
-                    setIsShowPdf(true);
-                    setIsShowLouis(false);
-                    setIsShowJobsList(false);
-                    if (value.name == "" || value.name == undefined) {
-                      setError({ ...error, visuel: true });
-                    } else {
-                      setEnabled({ ...enabled, numCmd: false });
-                      setError({ ...error, visuel: false });
-                    }
-
-                    //Check checkFormats
-
-                    if (
-                      CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop()) &&
-                      CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop())
-                        .gap == true
-                    ) {
-                      setPerte(
-                        CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop())
-                          .surface,
-                      );
-
-                      console.log("GAP TRUE");
-
-                      setWarnMsg({
-                        ...warnMsg,
-                        hidden: false,
-                        header: "Attention au format",
-                        msg: `Perte matière: ${CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop()).surface}/m2`,
-                        icon: "info circle",
-                        color: "yellow",
-                      });
-                    } else if (
-                      CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop()) ==
-                      undefined
-                    ) {
-                      setWarnMsg({
-                        ...warnMsg,
-                        hidden: false,
-                        header: "Problème format",
-                        msg: "Format du visuel introuvable. Attention au format de plaque choisit.",
-                        icon: "warning sign",
-                        color: "orange",
-                      });
-                    } else if (
-                      CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop())
-                        .isChecked == false
-                    ) {
-                      setWarnMsg({
-                        ...warnMsg,
-                        hidden: false,
-                        header: "Problème format",
-                        msg: "Le format du visuel est plus grand que celui de la plaque.",
-                        icon: "warning sign",
-                        color: "red",
-                      });
-                    } else {
-                      setWarnMsg({ ...warnMsg, hidden: true });
-                      setPerte(
-                        CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop())
-                          .surface,
-                      );
-                      console.log(
-                        "Perte Visu 2:",
-                        CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop())
-                          .surface,
-                      );
-                    }
-                  }}
-                />
-                <p
-                  style={{
-                    fontSize: "10px",
-                    textAlign: "right",
-                    width: "300px",
-                    marginTop: "2px",
-                  }}
-                >
-                  {fileSize2}
-                </p>
-              </Form.Field>
-              <Form.Field required error={error.numCmd} inline>
-                <Input
-                  disabled={enabled.numCmd}
-                  error={error.numCmd}
-                  id="numCmd2"
-                  name="numCmd2"
-                  type="number"
-                  placeholder="N° commande 2"
-                  onChange={(e, data) => {
-                    const maxValidate = (string) => {
-                      return string.slice(0, 6);
-                    };
-                    if (data.value.length > 6 || data.value.length < 5) {
-                      setError({ ...error, numCmd: true });
-                    } else {
-                      setEnabled({ ...enabled, ville: false });
-                      maxValidate(data.value);
-                      setError({ ...error, numCmd: false });
-                    }
-                  }}
-                  onFocus={(e) =>
-                    e.target.addEventListener(
-                      "wheel",
-                      function (e) {
-                        e.preventDefault();
-                      },
-                      { passive: false },
-                    )
-                  }
-                />
-              </Form.Field>
-            </Segment>
-          )}
-
-          {/* Ville / Mag */}
-          <Form.Field required error={error.ville}>
-            <Place
-              enabled={enabled.ville}
-              onValue={(value) => {
-                value;
-                if (value.length < 1) {
-                  setError({ ...error, ville: true });
-                } else {
-                  setEnabled({ ...enabled, ex: false, validate: false });
-                  setError({ ...error, ville: false });
-                }
+              active={activeTab === "manuel"}
+              onClick={() => {
+                setActiveTab("manuel");
+                setDossierJobs([]);
               }}
+              icon="edit"
+              content="Saisie manuelle"
             />
-          </Form.Field>
-          {/* Exemplaires */}
-          <Form.Field>
-            <Input placeholder="Exemplaire(s)" id="ex" name="ex" type="number" defaultValue={1} />
-          </Form.Field>
-        </Form>
-        <div className="container-buttons">
-          <Button
-            animated="fade"
-            compact
-            type="button"
-            color="vk"
-            onClick={(e) => {
-              handleJobSubmit(e);
-              if (!isShowJobsList) {
-                setIsShowJobsList(true);
-                setIsShowLouis(false);
-                setIsShowPdf(false);
-              } else {
-                setIsShowJobsList(false);
-              }
-            }}
-          >
-            <ButtonContent visible>Ajouter</ButtonContent>
-            <ButtonContent hidden>
-              <Icon name="add" />
-            </ButtonContent>
-          </Button>
-          <Button
-            animated="fade"
-            compact
-            color="vk"
-            type="button"
-            onClick={() => {
-              if (!isShowLouis) {
-                setIsShowLouis(true);
-                setIsShowPdf(false);
-                setIsShowJobsList(false);
-              } else {
-                setIsShowLouis(false);
-                setIsShowJobsList(true);
-              }
-            }}
-          >
-            <ButtonContent visible>Fichiers</ButtonContent>
-            <ButtonContent hidden>
-              <Icon name="file" fitted />
-            </ButtonContent>
-          </Button>
-          <Config />
+          </div>
+
+          <Form onSubmit={handleJobSubmit}>
+            {/* Mode dossier */}
+            {activeTab === "dossier" && (
+              <>
+                <DossierAutocomplete
+                  host={HOST}
+                  port={PORT}
+                  pathData={data[0] || {}}
+                  formatTauro={formatTauro}
+                  onAutoFill={handleDossierAutoFill}
+                />
+                {dossierJobs.length > 0 && (
+                  <Table
+                    compact="very"
+                    size="small"
+                    className="dossier-table"
+                    color={
+                      dossierJobs[0]?.client === "LM"
+                        ? "green"
+                        : dossierJobs[0]?.client === "CASTO"
+                          ? "blue"
+                          : dossierJobs[0]?.client === "ECOM"
+                            ? "teal"
+                            : "orange"
+                    }
+                  >
+                    <Table.Header>
+                      <Table.Row>
+                        <Table.HeaderCell>Format Tauro</Table.HeaderCell>
+                        <Table.HeaderCell>Format</Table.HeaderCell>
+                        <Table.HeaderCell>Visuel</Table.HeaderCell>
+                        <Table.HeaderCell>N° Cmd</Table.HeaderCell>
+                        <Table.HeaderCell>Ville</Table.HeaderCell>
+                        <Table.HeaderCell>Ex</Table.HeaderCell>
+                      </Table.Row>
+                    </Table.Header>
+                    <Table.Body>
+                      {dossierJobs.map((job, i) => {
+                        const folders = data[0]?.[job.client] || [];
+                        const rowFiles = folders.find((f) => f.path === job.formatPath)?.files || [];
+                        return (
+                          <Table.Row key={job.id || i}>
+                            <Table.Cell>
+                              <Dropdown
+                                compact
+                                selection
+                                search
+                                options={formatTauro.map((v) => ({ key: v, text: v, value: v }))}
+                                value={job.formatTauroValue || ""}
+                                onChange={(_, d) => updateDossierJob(i, { formatTauroValue: d.value })}
+                              />
+                            </Table.Cell>
+                            <Table.Cell>
+                              <Dropdown
+                                compact
+                                selection
+                                search
+                                options={folders.map((f) => ({ key: f.path, text: f.name, value: f.path }))}
+                                value={job.formatPath || ""}
+                                onChange={(_, d) => {
+                                  const sel = folders.find((f) => f.path === d.value);
+                                  updateDossierJob(i, { formatPath: d.value, selectedFileObject: sel?.files?.[0] || null });
+                                }}
+                              />
+                            </Table.Cell>
+                            <Table.Cell>
+                              <Dropdown
+                                compact
+                                selection
+                                search
+                                options={rowFiles.map((f) => ({ key: f.name, text: f.name.split("/").pop().replace(/\.[^/.]+$/, ""), value: f.name }))}
+                                value={job.selectedFileObject?.name || ""}
+                                onChange={(_, d) => {
+                                  const sel = rowFiles.find((f) => f.name === d.value);
+                                  updateDossierJob(i, { selectedFileObject: sel || null });
+                                }}
+                              />
+                            </Table.Cell>
+                            <Table.Cell>
+                              <Input
+                                size="small"
+                                type="number"
+                                value={job.numCmd || ""}
+                                onChange={(_, d) => updateDossierJob(i, { numCmd: d.value })}
+                              />
+                            </Table.Cell>
+                            <Table.Cell>
+                              <Input
+                                size="small"
+                                value={job.ville || ""}
+                                onChange={(_, d) => updateDossierJob(i, { ville: d.value.toUpperCase() })}
+                              />
+                            </Table.Cell>
+                            <Table.Cell>
+                              <Input
+                                size="small"
+                                type="number"
+                                min={1}
+                                value={job.ex || 1}
+                                onChange={(_, d) => updateDossierJob(i, { ex: Number(d.value) })}
+                              />
+                            </Table.Cell>
+                          </Table.Row>
+                        );
+                      })}
+                    </Table.Body>
+                  </Table>
+                )}
+              </>
+            )}
+
+            {/* Mode manuel */}
+            {activeTab === "manuel" && (
+              <>
+                <div className="form-section">
+                  <span className="form-section-label">Plaque Tauro</span>
+                <Form.Field className="format-tauro" required error={error.formatTauro}>
+                  <FormatTauro
+                    error={error.formatTauro}
+                    isLoading={isloadingFormatTauro}
+                    value={selectedFormatTauro}
+                    formatTauro={formatTauro}
+                    onValue={(e, data) => {
+                      setSelectedFormatTauro(data.value);
+                      if (CheckFormats(data.value, selectedFormat) && CheckFormats(data.value, selectedFormat).gap == true) {
+                        setWarnMsg({
+                          ...warnMsg,
+                          hidden: false,
+                          header: "Attention au format",
+                          msg: `Perte matère: (${CheckFormats(data.value, selectedFormat).surface}/m2)`,
+                          icon: "info circle",
+                          color: "yellow",
+                        });
+                      } else if (
+                        selectedFormat &&
+                        CheckFormats(data.value, selectedFormat) &&
+                        CheckFormats(data.value, selectedFormat).isChecked == false
+                      ) {
+                        setWarnMsg({
+                          ...warnMsg,
+                          hidden: false,
+                          header: "Problème format",
+                          msg: "Le format du visuel est plus grand que celui de la plaque.",
+                          icon: "warning sign",
+                          color: "red",
+                        });
+                      } else {
+                        setWarnMsg({ ...warnMsg, hidden: true });
+                      }
+
+                      if (data.value == "") {
+                        setEnabled({ ...enabled, format: false });
+                        setError({ ...error, formatTauro: true });
+                      } else {
+                        setEnabled({ ...enabled, format: false });
+                        setError({ ...error, formatTauro: false });
+                      }
+                    }}
+                  />
+                  <Button
+                    attached="bottom"
+                    className="add-button"
+                    type="button"
+                    icon="add"
+                    color="grey"
+                    size="mini"
+                    onClick={handleToggleAddFormat}
+                  />
+                  {showAddFormat && <Input id="addFormatTauro" size="small" label="Add format" placeholder="ex: 101x215" />}
+                  {error.formatTauro && <span className="field-error-msg">Sélectionne un format de plaque Tauro</span>}
+                </Form.Field>
+                </div>
+
+                {/* Sélecteur client */}
+                <div className="form-section">
+                  <span className="form-section-label">Client</span>
+                  <Button.Group size="small" className="client-selector">
+                    {["LM", "CASTO", "BRICO", "ECOM"].map((c) => (
+                      <Button
+                        key={c}
+                        toggle
+                        type="button"
+                        active={checkFolder === c}
+                        color={checkFolder === c ? clientColor(c) : undefined}
+                        onClick={() => {
+                          handleResetForm();
+                          setCheckFolder(c);
+                        }}
+                        icon={CLIENT_ICONS[c]}
+                        content={c}
+                      />
+                    ))}
+                  </Button.Group>
+                </div>
+
+                {/* Format + Visuel + N° Cmd */}
+                <div className="form-section form-section--accented" data-client={checkFolder}>
+                  <span className="form-section-label">Format & Visuel</span>
+                  <Form.Field required error={error.format}>
+                    <FormatDropdown
+                      placeholder={checkFolder}
+                      enabled={enabled.format}
+                      error={error.format}
+                      id="format"
+                      className="format"
+                      isLoading={isLoading}
+                      data={data[0][checkFolder] || []}
+                      value={selectedFormat}
+                      selectedFormat={selectedFormat}
+                      onSelectFormat={(e, v) => {
+                        if (v.value === null) {
+                          setSelectedFormat(null);
+                          setFiles([]);
+                          setIsFile(false);
+                          setSelectedFile(null);
+                          setError({ ...error, format: false });
+                          return;
+                        }
+
+                        if (v.value.match(/\d{3}x\d{3}/)) {
+                          setSelectedFormat2(null);
+                          setFiles2([]);
+                          setIsFile2(false);
+                          setSelectedFile2(null);
+                          setError({ ...error, format: false });
+                        }
+
+                        const selected = data[0][checkFolder].find((x) => x.path === v.value);
+
+                        setSelectedFormat(v.value);
+
+                        setFiles(selected.files);
+                        setIsFile(true);
+                        setSelectedFile(null);
+                        setIsFooter(false);
+                        setEnabled({ ...enabled, visu: false });
+
+                        setError({ ...error, format: !selected?.name });
+                      }}
+                    />
+                    {error.format && <span className="field-error-msg">Sélectionne un format {checkFolder}</span>}
+                  </Form.Field>
+
+                  <Form.Field required error={error.visuel}>
+                    {!checkGenerate.teinteMasse ? (
+                      <VisuelDropdown
+                        enabled={enabled.visu}
+                        error={error.visuel}
+                        id="visuel"
+                        className="visuel"
+                        isFile={isFile}
+                        files={files}
+                        value={selectedFile}
+                        text={selectedFile}
+                        selectedFile={selectedFile}
+                        onSelectedFile={(value) => {
+                          const name = value.name.split("/").pop().toLowerCase();
+                          const regexBlanc = /\+\s*blanc\b/i;
+
+                          if (name.toLowerCase().includes("+blanc" || "+ blanc") || regexBlanc.test(name)) {
+                            setCheckProdBlanc(true);
+                          } else {
+                            setCheckProdBlanc(false);
+                          }
+                          setSelectedFile(value.name);
+                          setFileSize(value.size);
+                          setPreview(value.name);
+                          if (value.name == "" || value.name == undefined) {
+                            setError({ ...error, visuel: true });
+                          } else {
+                            setEnabled({ ...enabled, numCmd: false });
+                            setError({ ...error, visuel: false });
+                          }
+
+                          if (
+                            CheckFormats(selectedFormatTauro, value.name.split("/").pop()) &&
+                            CheckFormats(selectedFormatTauro, value.name.split("/").pop()).gap == true
+                          ) {
+                            setPerte(CheckFormats(selectedFormatTauro, value.name.split("/").pop()).surface);
+                            console.log(
+                              "Perte Visu 1:",
+                              CheckFormats(selectedFormatTauro, value.name.split("/").pop()).surface,
+                            );
+                            setWarnMsg({
+                              ...warnMsg,
+                              hidden: false,
+                              header: "Attention au format",
+                              msg: `Perte matière: ${CheckFormats(selectedFormatTauro, value.name.split("/").pop()).surface}/m2`,
+                              icon: "info circle",
+                              color: "yellow",
+                            });
+                          } else if (CheckFormats(selectedFormatTauro, value.name.split("/").pop()) == undefined) {
+                            setWarnMsg({
+                              ...warnMsg,
+                              hidden: false,
+                              header: "Problème format",
+                              msg: "Format du visuel introuvable. Attention au format de plaque choisit.",
+                              icon: "warning sign",
+                              color: "orange",
+                            });
+                          } else if (CheckFormats(selectedFormatTauro, value.name.split("/").pop()).isChecked == false) {
+                            setWarnMsg({
+                              ...warnMsg,
+                              hidden: false,
+                              header: "Problème format",
+                              msg: "Le format du visuel est plus grand que celui de la plaque.",
+                              icon: "warning sign",
+                              color: "red",
+                            });
+                          } else {
+                            setWarnMsg({ ...warnMsg, hidden: true });
+                          }
+                        }}
+                      />
+                    ) : (
+                      <TeinteMasseDropdown
+                        value={selectedFile}
+                        text={selectedFile}
+                        selectedFile={selectedFile}
+                        onSelectedFile={(value) => {
+                          setSelectedFile(value);
+                          if (!value) {
+                            setError({ ...error, visuel: true });
+                          } else {
+                            setEnabled({ ...enabled, numCmd: false });
+                            setError({ ...error, visuel: false });
+                          }
+                        }}
+                      />
+                    )}
+
+                    {error.visuel && <span className="field-error-msg">Sélectionne un visuel</span>}
+                    {fileSize && <p style={{ fontSize: "10px", textAlign: "right", marginTop: "2px" }}>{fileSize}</p>}
+                  </Form.Field>
+
+                  <Form.Field required error={error.numCmd} inline>
+                    <Input
+                      disabled={enabled.numCmd}
+                      error={error.numCmd}
+                      id="numCmd"
+                      name="numCmd"
+                      type="number"
+                      placeholder="N° commande"
+                      value={numCmd}
+                      onChange={(e, data) => {
+                        const value = data.value;
+                        setNumCmd(value);
+                        const maxValidate = (string) => string.slice(0, 6);
+                        if (value.length > 6 || value.length < 5) {
+                          setError({ ...error, numCmd: true });
+                        } else {
+                          setEnabled({ ...enabled, ville: false });
+                          maxValidate(value);
+                          setError({ ...error, numCmd: false });
+                        }
+                      }}
+                      onFocus={(e) =>
+                        e.target.addEventListener(
+                          "wheel",
+                          function (e) {
+                            e.preventDefault();
+                          },
+                          { passive: false },
+                        )
+                      }
+                    />
+                    {error.numCmd && <span className="field-error-msg">N° commande : 5 ou 6 chiffres requis</span>}
+                  </Form.Field>
+                </div>
+
+                {/* Si format crédence */}
+                {selectedFormat && (selectedFormat.includes("300x60") || selectedFormat.includes("255x60")) && (
+                  <div className="form-section form-section--accented" data-client={checkFolder}>
+                    <span className="form-section-label"><Icon name="clone" size="small" /> Crédence — 2e partie</span>
+                    <Form.Field required error={error.format}>
+                      <FormatDropdown
+                        placeholder={checkFolder}
+                        enabled={enabled.format}
+                        error={error.format}
+                        id="format"
+                        className="format"
+                        isLoading={isLoading}
+                        data={
+                          selectedFormat.match(/\d{3}x\d{2}/)
+                            ? data[0][checkFolder].filter((x) => x.name.includes(selectedFormat.match(/\d{3}x\d{2}/)[0]))
+                            : data[0][checkFolder] || []
+                        }
+                        value={selectedFormat2}
+                        selectedFormat={selectedFormat2}
+                        onSelectFormat={(e, v) => {
+                          if (v.value === null) {
+                            setSelectedFormat2(null);
+                            setFiles2([]);
+                            setIsFile2(false);
+                            setSelectedFile2(null);
+                            setError({ ...error, format: false });
+                            return;
+                          }
+
+                          const selected = data[0][checkFolder].find((x) => x.path === v.value);
+
+                          setSelectedFormat2(v.value);
+                          setFiles2(selected.files);
+                          setIsFile2(true);
+                          setSelectedFile2(null);
+                          setIsFooter(false);
+                          setEnabled({ ...enabled, visu: false });
+
+                          setError({ ...error, format: !selected?.name });
+                        }}
+                      />
+                    </Form.Field>
+                    <Form.Field required error={error.visuel}>
+                      <VisuelDropdown
+                        enabled={enabled.visu}
+                        error={error.visuel}
+                        id="visuel"
+                        className="visuel"
+                        isFile={isFile2}
+                        files={files2}
+                        value={selectedFile2}
+                        text={selectedFile2}
+                        selectedFile={selectedFile2}
+                        onSelectedFile={(value) => {
+                          if (!value) {
+                            setSelectedFile2(null);
+                            setPreview(null);
+                            setFileSize2("");
+                            setCheckProdBlanc(false);
+                            return;
+                          }
+                          const name = value.name.split("/").pop().toLowerCase();
+                          const regexBlanc = /\bblanc\b/i;
+                          if (name.toLowerCase().includes("+blanc" || "+ blanc" || "blanc+") || regexBlanc.test(name)) {
+                            setCheckProdBlanc(true);
+                          } else {
+                            setCheckProdBlanc(false);
+                          }
+                          setSelectedFile2(value.name);
+                          setPreview(value.name);
+                          setFileSize2(value.size);
+                          if (value.name == "" || value.name == undefined) {
+                            setError({ ...error, visuel: true });
+                          } else {
+                            setEnabled({ ...enabled, numCmd: false });
+                            setError({ ...error, visuel: false });
+                          }
+
+                          if (
+                            CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop()) &&
+                            CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop())
+                              .gap == true
+                          ) {
+                            setPerte(
+                              CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop())
+                                .surface,
+                            );
+
+                            console.log("GAP TRUE");
+
+                            setWarnMsg({
+                              ...warnMsg,
+                              hidden: false,
+                              header: "Attention au format",
+                              msg: `Perte matière: ${CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop()).surface}/m2`,
+                              icon: "info circle",
+                              color: "yellow",
+                            });
+                          } else if (
+                            CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop()) ==
+                            undefined
+                          ) {
+                            setWarnMsg({
+                              ...warnMsg,
+                              hidden: false,
+                              header: "Problème format",
+                              msg: "Format du visuel introuvable. Attention au format de plaque choisit.",
+                              icon: "warning sign",
+                              color: "orange",
+                            });
+                          } else if (
+                            CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop())
+                              .isChecked == false
+                          ) {
+                            setWarnMsg({
+                              ...warnMsg,
+                              hidden: false,
+                              header: "Problème format",
+                              msg: "Le format du visuel est plus grand que celui de la plaque.",
+                              icon: "warning sign",
+                              color: "red",
+                            });
+                          } else {
+                            setWarnMsg({ ...warnMsg, hidden: true });
+                            setPerte(
+                              CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop())
+                                .surface,
+                            );
+                            console.log(
+                              "Perte Visu 2:",
+                              CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop())
+                                .surface,
+                            );
+                          }
+                        }}
+                      />
+                      <p
+                        style={{
+                          fontSize: "10px",
+                          textAlign: "right",
+                          width: "300px",
+                          marginTop: "2px",
+                        }}
+                      >
+                        {fileSize2}
+                      </p>
+                    </Form.Field>
+                    <Form.Field required error={error.numCmd} inline>
+                      <Input
+                        disabled={enabled.numCmd}
+                        error={error.numCmd}
+                        id="numCmd2"
+                        name="numCmd2"
+                        type="number"
+                        placeholder="N° commande 2"
+                        value={numCmd2}
+                        onChange={(e, data) => {
+                          const value = data.value;
+                          setNumCmd2(value);
+                          const maxValidate = (string) => string.slice(0, 6);
+                          if (value.length > 6 || value.length < 5) {
+                            setError({ ...error, numCmd: true });
+                          } else {
+                            setEnabled({ ...enabled, ville: false });
+                            maxValidate(value);
+                            setError({ ...error, numCmd: false });
+                          }
+                        }}
+                        onFocus={(e) =>
+                          e.target.addEventListener(
+                            "wheel",
+                            function (e) {
+                              e.preventDefault();
+                            },
+                            { passive: false },
+                          )
+                        }
+                      />
+                    </Form.Field>
+                  </div>
+                )}
+
+                {/* Ville / Mag */}
+                <div className="form-section">
+                  <span className="form-section-label">Magasin / Ville</span>
+                <Form.Field required error={error.ville}>
+                  <Place
+                    enabled={enabled.ville}
+                    value={ville}
+                    onValue={(value) => {
+                      setVille(value);
+                      if (value.length < 1) {
+                        setError({ ...error, ville: true });
+                      } else {
+                        setEnabled({ ...enabled, ex: false, validate: false });
+                        setError({ ...error, ville: false });
+                      }
+                    }}
+                  />
+                  {error.ville && <span className="field-error-msg">Saisis la ville ou le magasin</span>}
+                </Form.Field>
+                </div>
+                {/* Exemplaires */}
+                <div className="form-section">
+                  <span className="form-section-label">Exemplaires</span>
+                  <Form.Field>
+                    <Input
+                      placeholder="Exemplaire(s)"
+                      id="ex"
+                      name="ex"
+                      type="number"
+                      value={ex}
+                      onChange={(e, data) => {
+                        const value = data.value;
+                        setEx(value);
+                      }}
+                    />
+                  </Form.Field>
+                </div>
+              </>
+            )}
+
+            {/* Options partagées */}
+            <div className="form-section">
+              <span className="form-section-label">Options de production</span>
+              <div className="options-grid">
+                <div className="options-col">
+                  <Checkbox
+                    name="Prod avec blanc"
+                    label="Prod avec blanc"
+                    checked={checkProdBlanc}
+                    onChange={(e, data) => setCheckProdBlanc(data.checked)}
+                  />
+                  {checkFolder == "LM" && (
+                    <Checkbox
+                      name="Teinte Masse"
+                      label="Teinte Masse"
+                      checked={checkGenerate.teinteMasse}
+                      onChange={(e, data) => {
+                        setCheckGenerate({ ...checkGenerate, teinteMasse: data.checked });
+                      }}
+                    />
+                  )}
+                </div>
+                <div className="options-col">
+                  <Checkbox
+                    name="Générer regmarks"
+                    label="Générer regmarks"
+                    checked={checkGenerate.reg}
+                    onChange={(e, data) => {
+                      setCheckGenerate({ ...checkGenerate, reg: data.checked });
+                    }}
+                  />
+                  {checkFolder === "LM" && (
+                    <Checkbox
+                      className="decoupe"
+                      name="Générer découpe"
+                      label="Générer découpe"
+                      checked={checkGenerate.cut}
+                      onChange={(e, data) => {
+                        setCheckGenerate({ cut: data.checked, reg: data.checked });
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <InfoMessage
+              isHidden={warnMsg.hidden}
+              title={warnMsg.header}
+              text={warnMsg.msg}
+              icon={warnMsg.icon}
+              color={warnMsg.color}
+            />
+
+            <Button
+              type="submit"
+              color="vk"
+              fluid
+              content={dossierJobs.length > 0 ? `Ajouter (${dossierJobs.length})` : "Ajouter"}
+            />
+          </Form>
+        </div>
+
+        {/* Panneau preview — apparaît automatiquement quand un visuel est sélectionné */}
+        <div className={`preview-panel${preview ? " visible" : ""}`}>
+          <p className="preview-label">Aperçu visuel</p>
+          <PreviewDeco fileSelected={preview} show={!!preview} client={checkFolder} />
         </div>
       </div>
 
-      {/* Preview visu */}
-      <div className="preview-deco">
-        <PreviewDeco fileSelected={preview} show={isShowPdf} client={checkFolder} />
+      <div className={`jobs-view${activeView !== "jobs" ? " hidden" : ""}`}>
+        <JobsList formatTauro={formatTauro} refreshToken={jobsRefresh} onPendingCountChange={setPendingCount} />
+      </div>
       </div>
 
-      {/*  FolderFiles Files */}
-      <LouisPreview show={isShowLouis} />
+      <Footer active={!isFooter} />
 
-      {/* JobsList */}
-      <JobsList show={isShowJobsList} formatTauro={formatTauro} />
+      <LouisPreview open={isLouisOpen} onClose={() => setIsLouisOpen(false)} />
 
-      {/* InfoModal */}
       <InfoModal
         open={modalData.open}
         onClose={handleClose}
@@ -932,16 +1107,12 @@ function App() {
         error={modalData.error}
       />
 
-      {/* Info Stock Modal */}
       <InfoStockModal
         open={modalInfoStock.open}
         onClose={handleCloseStock}
         onValidate={handleValidateStock}
         stock={modalInfoStock.stock}
       />
-
-      {/* FOOTER */}
-      <Footer active={!isFooter} />
     </div>
   );
 }

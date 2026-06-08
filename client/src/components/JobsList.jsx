@@ -20,10 +20,10 @@ import "./InfoModal";
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
 
-function JobsList({ show, formatTauro }) {
+function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
   const [data, setData] = useState([]);
   const [isLoading, setLoading] = useState(true);
-  const [refreshFlag, setRefreshFlag] = useState(false);
+  const [refreshFlag, setRefreshFlag] = useState(0);
   const [startTime, setStartTime] = useState(null);
   const [endTime, setEndTime] = useState(null);
   const [onLoading, setOnLoading] = useState(false);
@@ -39,9 +39,71 @@ function JobsList({ show, formatTauro }) {
       if (totalJobs > 0) {
         setProgress((data[0].completed.length / totalJobs) * 100);
       }
+      onPendingCountChange?.(data[0].jobs.length);
     }
   }, [data]);
 
+  // WebSocket : connexion avec reconnexion automatique
+  useEffect(() => {
+    let ws;
+    let reconnectTimer;
+    let unmounted = false;
+
+    function handleMessage(event) {
+      const message = JSON.parse(event.data);
+
+      if (message.type === "update") {
+        setRefreshFlag((prev) => prev + 1);
+      }
+
+      if (message.type === "start") {
+        setStartTime(message.startTime);
+        setOnLoading(true);
+      }
+
+      if (message.completedJob) {
+        setData((prevData) => {
+          const prev = prevData[0];
+          if (!prev) return prevData;
+          const completedJobs = Array.isArray(message.completedJob) ? message.completedJob : [message.completedJob];
+          const updatedCompleted = [...prev.completed, ...completedJobs];
+          const updatedJobs = prev.jobs.filter((job) => !completedJobs.some((cj) => cj._id === job._id));
+          const total = updatedCompleted.length + updatedJobs.length;
+          setProgress((updatedCompleted.length / total) * 100);
+          return [{ jobs: updatedJobs, completed: updatedCompleted }];
+        });
+      }
+
+      if (message.type === "end") {
+        setEndTime(message.endTime);
+        setOnLoading(false);
+        setProgress(100);
+      }
+    }
+
+    function connect() {
+      ws = new WebSocket(`ws://${HOST}:${PORT}`);
+      ws.onopen = () => console.log("Connected to WebSocket server");
+      ws.onmessage = handleMessage;
+      ws.onerror = (error) => console.error("WebSocket error:", error);
+      ws.onclose = () => {
+        if (!unmounted) {
+          console.log("WebSocket disconnected — reconnecting in 2s");
+          reconnectTimer = setTimeout(connect, 2000);
+        }
+      };
+    }
+
+    connect();
+
+    return () => {
+      unmounted = true;
+      clearTimeout(reconnectTimer);
+      ws.close();
+    };
+  }, []);
+
+  // Fetch des données : déclenché au montage, quand show change, ou quand refreshFlag s'incrémente
   useEffect(() => {
     const dataFetch = async () => {
       try {
@@ -55,65 +117,7 @@ function JobsList({ show, formatTauro }) {
       }
     };
     dataFetch();
-
-    const ws = new WebSocket(`ws://${HOST}:${PORT}`);
-    ws.onopen = () => {
-      console.log("Connected to WebSocket server");
-    };
-
-    ws.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-
-      if (message.type === "update") {
-        setRefreshFlag((prev) => !prev);
-      }
-
-      if (message.type === "start") {
-        setStartTime(message.startTime);
-        setOnLoading(true);
-      }
-
-      if (message.completedJob) {
-        setData((prevData) => {
-          const prev = prevData[0];
-
-          // Toujours transformer recu en tableau
-          const completedJobs = Array.isArray(message.completedJob) ? message.completedJob : [message.completedJob];
-
-          // Ajouter les jobs complétés au tableau completed
-          const updatedCompleted = [...prev.completed, ...completedJobs];
-
-          // Supprimer ces jobs de la liste jobs
-          const updatedJobs = prev.jobs.filter((job) => !completedJobs.some((cj) => cj._id === job._id));
-
-          // Mise à jour de la progression
-          const total = updatedCompleted.length + updatedJobs.length;
-          const newProgress = (updatedCompleted.length / total) * 100;
-          setProgress(newProgress);
-
-          return [{ jobs: updatedJobs, completed: updatedCompleted }];
-        });
-      }
-
-      if (message.type === "end") {
-        setEndTime(message.endTime);
-        setOnLoading(false);
-        setProgress(100); // S'assurer que la barre affiche bien 100% à la fin
-      }
-    };
-
-    ws.onclose = () => {
-      console.log("Disconnected from WebSocket server");
-    };
-
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-    };
-
-    return () => {
-      ws.close();
-    };
-  }, [show, refreshFlag]);
+  }, [refreshFlag, refreshToken]);
 
   useEffect(() => {
     const dataFetch = async () => {
@@ -181,7 +185,7 @@ function JobsList({ show, formatTauro }) {
         console.error("Failed to run jobs:", response.statusText);
         return;
       }
-      setRefreshFlag((prev) => !prev);
+      setRefreshFlag((prev) => prev + 1);
     } catch (error) {
       console.error("Error running jobs:", error);
     }
@@ -273,7 +277,7 @@ function JobsList({ show, formatTauro }) {
             },
           ];
           // Si credences → ajouter la deuxième ligne
-          if (value.format_visu.match(/\d{3}x\d{2,}/i) && value.visuel2) {
+          if (value.format_visu && value.format_visu.match(/\d{3}x\d{2,}/i) && value.visuel2) {
             entries.push({
               ...baseEntry,
               cmd: value.cmd2,
@@ -320,6 +324,7 @@ function JobsList({ show, formatTauro }) {
                 key={`${i}-${idx}`}
                 disabled={status === "jobs" ? onLoading : null}
                 className="table-row"
+                data-client={entry.client}
                 style={value.teinteMasse ? { color: "#fc7703", fontWeight: "bold" } : null}
               >
                 <TableCell>{entry.client}</TableCell>
@@ -367,6 +372,19 @@ function JobsList({ show, formatTauro }) {
     const newTable = !isLoading && (
       <div className="jobs-table-container">
         <Table size="small" compact columns={"11"} className="jobs-table" striped>
+          <colgroup>
+            <col style={{ width: "60px" }} />
+            <col style={{ width: "130px" }} />
+            <col style={{ width: "80px" }} />
+            <col style={{ width: "100px" }} />
+            <col style={{ width: "auto" }} />
+            <col style={{ width: "40px" }} />
+            <col style={{ width: "70px" }} />
+            <col style={{ width: "70px" }} />
+            <col style={{ width: "30px" }} />
+            <col style={{ width: "20px" }} />
+            <col style={{ width: "44px" }} />
+          </colgroup>
           <TableHeader className="sticky-header">
             <TableRow className="table-row">
               <TableHeaderCell>Clients</TableHeaderCell>
@@ -487,21 +505,27 @@ function JobsList({ show, formatTauro }) {
   const jobs = ItemsJob("jobs");
   const completed = ItemsJob("completed");
 
-  if (show) {
-    return (
-      <div className="preview-deco">
-        {jobs}
-        {completed}
-      </div>
-    );
-  } else {
-    return null;
-  }
+  const nbJobs = data?.[0]?.jobs?.length ?? 0;
+  const nbCompleted = data?.[0]?.completed?.length ?? 0;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+      <div className="jobs-section-label">File en attente ({nbJobs})</div>
+      {jobs}
+      {nbCompleted > 0 && (
+        <div className="jobs-section-label jobs-section-label--completed">
+          Traités ({nbCompleted})
+        </div>
+      )}
+      {completed}
+    </div>
+  );
 }
 
 JobsList.propTypes = {
-  show: PropTypes.bool,
   formatTauro: PropTypes.array,
+  refreshToken: PropTypes.number,
+  onPendingCountChange: PropTypes.func,
 };
 
 export default JobsList;
