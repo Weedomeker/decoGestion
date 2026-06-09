@@ -9,7 +9,7 @@ const Header = ({ appVersion, onFichiers, configNode, activeView, onViewChange, 
   return (
     <div className="header">
       <div className="header-brand">
-        <Image src={logo} size="small" />
+        <Image src={logo} size="small" className="header-logo" />
         {numVersion && <span className="header-version">v{numVersion}</span>}
       </div>
       <div className="header-tabs">

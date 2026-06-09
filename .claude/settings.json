@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__click",
+      "Bash(powershell -Command \"Get-Content 'C:\\\\Users\\\\KONGSB~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-Kongsberg-Desktop-JOE-DEV-decoGestion\\\\c07a0b63-6e28-4819-8a34-f18894320e4f\\\\tasks\\\\bf044aa92.output'\")",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_pages",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__fill",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__handle_dialog"
+    ]
+  }
+}

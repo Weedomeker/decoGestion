@@ -1,6 +1,7 @@
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
-import { useEffect, useState } from "react";
+const REGEX_BLANC = /\+\s*blanc\b/i;
+import { Fragment, useEffect, useState } from "react";
 import { Button, Checkbox, Dropdown, Form, Icon, Input, Table } from "semantic-ui-react";
 import CheckFormats from "./CheckFormats";
 import Config from "./components/Config";
@@ -80,6 +81,7 @@ function App() {
   });
   const [perte, setPerte] = useState(0);
   const [dossierJobs, setDossierJobs] = useState([]);
+  const [selectedJobIds, setSelectedJobIds] = useState(new Set());
   const [modalData, setModalData] = useState({
     open: false,
     message: "",
@@ -97,6 +99,7 @@ function App() {
     if (clearMode) {
       handleResetForm();
       setDossierJobs([]);
+      setSelectedJobIds(new Set());
       setEnabled({ format: true, visu: true, numCmd: true, ville: true, ex: true, validate: true });
       setActiveTab("dossier");
       return;
@@ -119,12 +122,42 @@ function App() {
     setModalInfoStock({ open: false, stock: null, object: null, use: false });
     setActiveTab("dossier");
     setDossierJobs(allJobs);
+
+    // Auto-sélectionne les nouveaux jobs valides, préserve les sélections existantes
+    setSelectedJobIds((prev) => {
+      const next = new Set(prev);
+      const incomingIds = new Set(allJobs.map((j) => j.id));
+      // Retire les IDs disparus (dossier supprimé)
+      prev.forEach((id) => { if (!incomingIds.has(id)) next.delete(id); });
+      // Ajoute les nouveaux jobs valides
+      allJobs.forEach((j) => { if (!prev.has(j.id) && j.selectedFileObject) next.add(j.id); });
+      return next;
+    });
   }
 
   function updateDossierJob(index, updates) {
     setDossierJobs((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], ...updates };
+      return next;
+    });
+  }
+
+  function toggleJobSelection(jobId) {
+    setSelectedJobIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(jobId)) next.delete(jobId);
+      else next.add(jobId);
+      return next;
+    });
+  }
+
+  function toggleGroupSelection(dossierNumero) {
+    const groupJobs = dossierJobs.filter((j) => j.dossierNumero === dossierNumero);
+    const allSelected = groupJobs.length > 0 && groupJobs.every((j) => selectedJobIds.has(j.id));
+    setSelectedJobIds((prev) => {
+      const next = new Set(prev);
+      groupJobs.forEach((j) => { if (allSelected) next.delete(j.id); else next.add(j.id); });
       return next;
     });
   }
@@ -244,15 +277,17 @@ function App() {
   const handleJobSubmit = async (e) => {
     e.preventDefault();
 
-    // Mode dossier : soumettre chaque job séparément
+    // Mode dossier : soumettre uniquement les jobs sélectionnés
     if (dossierJobs.length > 0) {
+      const jobsToSubmit = dossierJobs.filter((j) => selectedJobIds.has(j.id));
+      if (jobsToSubmit.length === 0) return;
       try {
-        for (const job of dossierJobs) {
+        for (const job of jobsToSubmit) {
           const payload = {
             client: job.client || checkFolder,
             allFormatTauro: formatTauro,
             formatTauro: job.formatTauroValue,
-            prodBlanc: checkProdBlanc,
+            prodBlanc: job.prodBlanc ?? false,
             format: job.formatPath,
             format2: "",
             visuel: job.selectedFileObject?.name || "",
@@ -264,7 +299,7 @@ function App() {
             perte: 0,
             regmarks: checkGenerate.reg,
             cut: checkGenerate.cut,
-            teinteMasse: checkGenerate.teinteMasse,
+            teinteMasse: job.teinteMasse ?? false,
             stock: false,
           };
           await fetch(`http://${HOST}:${PORT}/add_job`, {
@@ -274,6 +309,7 @@ function App() {
           });
         }
         setDossierJobs([]);
+        setSelectedJobIds(new Set());
         setJobsRefresh((prev) => prev + 1);
       } catch (err) {
         setModalData({ open: true, message: "", object: null, error: err.message });
@@ -380,6 +416,7 @@ function App() {
       reg: true,
       teinteMasse: false,
     });
+    setSelectedJobIds(new Set());
   };
 
   const clientColor = (c) => {
@@ -439,103 +476,173 @@ function App() {
                   formatTauro={formatTauro}
                   onAutoFill={handleDossierAutoFill}
                 />
-                {dossierJobs.length > 0 && (
-                  <Table
-                    compact="very"
-                    size="small"
-                    className="dossier-table"
-                    color={
-                      dossierJobs[0]?.client === "LM"
-                        ? "green"
-                        : dossierJobs[0]?.client === "CASTO"
-                          ? "blue"
-                          : dossierJobs[0]?.client === "ECOM"
-                            ? "teal"
-                            : "orange"
-                    }
-                  >
-                    <Table.Header>
-                      <Table.Row>
-                        <Table.HeaderCell>Format Tauro</Table.HeaderCell>
-                        <Table.HeaderCell>Format</Table.HeaderCell>
-                        <Table.HeaderCell>Visuel</Table.HeaderCell>
-                        <Table.HeaderCell>N° Cmd</Table.HeaderCell>
-                        <Table.HeaderCell>Ville</Table.HeaderCell>
-                        <Table.HeaderCell>Ex</Table.HeaderCell>
-                      </Table.Row>
-                    </Table.Header>
-                    <Table.Body>
-                      {dossierJobs.map((job, i) => {
-                        const folders = data[0]?.[job.client] || [];
-                        const rowFiles = folders.find((f) => f.path === job.formatPath)?.files || [];
-                        return (
-                          <Table.Row key={job.id || i}>
-                            <Table.Cell>
-                              <Dropdown
-                                compact
-                                selection
-                                search
-                                options={formatTauro.map((v) => ({ key: v, text: v, value: v }))}
-                                value={job.formatTauroValue || ""}
-                                onChange={(_, d) => updateDossierJob(i, { formatTauroValue: d.value })}
-                              />
-                            </Table.Cell>
-                            <Table.Cell>
-                              <Dropdown
-                                compact
-                                selection
-                                search
-                                options={folders.map((f) => ({ key: f.path, text: f.name, value: f.path }))}
-                                value={job.formatPath || ""}
-                                onChange={(_, d) => {
-                                  const sel = folders.find((f) => f.path === d.value);
-                                  updateDossierJob(i, { formatPath: d.value, selectedFileObject: sel?.files?.[0] || null });
+                {dossierJobs.length > 0 && (() => {
+                  const groups = dossierJobs.reduce((acc, job, i) => {
+                    const key = job.dossierNumero || "?";
+                    if (!acc[key]) acc[key] = { client: job.client, jobs: [] };
+                    acc[key].jobs.push({ ...job, _idx: i });
+                    return acc;
+                  }, {});
+                  const allSelected = selectedJobIds.size === dossierJobs.length && dossierJobs.length > 0;
+                  const someSelected = selectedJobIds.size > 0 && !allSelected;
+                  return (
+                    <div className="dossier-table-wrapper">
+                      <Table compact="very" size="small" className="dossier-table">
+                        <Table.Header>
+                          <Table.Row>
+                            <Table.HeaderCell className="col-check">
+                              <Checkbox
+                                checked={allSelected}
+                                indeterminate={someSelected}
+                                onChange={() => {
+                                  if (allSelected || someSelected) setSelectedJobIds(new Set());
+                                  else setSelectedJobIds(new Set(dossierJobs.map((j) => j.id)));
                                 }}
                               />
-                            </Table.Cell>
-                            <Table.Cell>
-                              <Dropdown
-                                compact
-                                selection
-                                search
-                                options={rowFiles.map((f) => ({ key: f.name, text: f.name.split("/").pop().replace(/\.[^/.]+$/, ""), value: f.name }))}
-                                value={job.selectedFileObject?.name || ""}
-                                onChange={(_, d) => {
-                                  const sel = rowFiles.find((f) => f.name === d.value);
-                                  updateDossierJob(i, { selectedFileObject: sel || null });
-                                }}
-                              />
-                            </Table.Cell>
-                            <Table.Cell>
-                              <Input
-                                size="small"
-                                type="number"
-                                value={job.numCmd || ""}
-                                onChange={(_, d) => updateDossierJob(i, { numCmd: d.value })}
-                              />
-                            </Table.Cell>
-                            <Table.Cell>
-                              <Input
-                                size="small"
-                                value={job.ville || ""}
-                                onChange={(_, d) => updateDossierJob(i, { ville: d.value.toUpperCase() })}
-                              />
-                            </Table.Cell>
-                            <Table.Cell>
-                              <Input
-                                size="small"
-                                type="number"
-                                min={1}
-                                value={job.ex || 1}
-                                onChange={(_, d) => updateDossierJob(i, { ex: Number(d.value) })}
-                              />
-                            </Table.Cell>
+                            </Table.HeaderCell>
+                            <Table.HeaderCell>Format Tauro</Table.HeaderCell>
+                            <Table.HeaderCell>Format</Table.HeaderCell>
+                            <Table.HeaderCell>Visuel</Table.HeaderCell>
+                            <Table.HeaderCell>N° Cmd</Table.HeaderCell>
+                            <Table.HeaderCell>Ville</Table.HeaderCell>
+                            <Table.HeaderCell>Ex</Table.HeaderCell>
+                            <Table.HeaderCell title="Prod avec blanc" style={{ textAlign: "center" }}>
+                              <Icon name="adjust" size="small" />
+                            </Table.HeaderCell>
+                            <Table.HeaderCell title="Teinte masse" style={{ textAlign: "center" }}>
+                              <Icon name="tint" size="small" />
+                            </Table.HeaderCell>
                           </Table.Row>
-                        );
-                      })}
-                    </Table.Body>
-                  </Table>
-                )}
+                        </Table.Header>
+                        <Table.Body>
+                          {Object.entries(groups).map(([dossierNumero, group]) => {
+                            const groupJobs = group.jobs;
+                            const allGroupSel = groupJobs.every((j) => selectedJobIds.has(j.id));
+                            const someGroupSel = groupJobs.some((j) => selectedJobIds.has(j.id)) && !allGroupSel;
+                            return (
+                              <Fragment key={`grp-${dossierNumero}`}>
+                                <Table.Row className="dossier-group-header">
+                                  <Table.Cell>
+                                    <Checkbox
+                                      checked={allGroupSel}
+                                      indeterminate={someGroupSel}
+                                      onChange={() => toggleGroupSelection(dossierNumero)}
+                                    />
+                                  </Table.Cell>
+                                  <Table.Cell colSpan={8} className="dossier-group-label" data-client={group.client}>
+                                    <span className={`client-badge client-badge--${group.client?.toLowerCase()}`}>
+                                      {group.client}
+                                    </span>
+                                    Dossier {dossierNumero} — {groupJobs.length} job{groupJobs.length > 1 ? "s" : ""}
+                                  </Table.Cell>
+                                </Table.Row>
+                                {groupJobs.map((job) => {
+                                  const folders = data[0]?.[job.client] || [];
+                                  const rowFiles = folders.find((f) => f.path === job.formatPath)?.files || [];
+                                  const isSelected = selectedJobIds.has(job.id);
+                                  return (
+                                    <Table.Row
+                                      key={job.id || job._idx}
+                                      className={isSelected ? "" : "job-row-deselected"}
+                                    >
+                                      <Table.Cell>
+                                        <Checkbox
+                                          checked={isSelected}
+                                          onChange={() => toggleJobSelection(job.id)}
+                                        />
+                                      </Table.Cell>
+                                      <Table.Cell>
+                                        <Dropdown
+                                          compact selection search
+                                          options={formatTauro.map((v) => ({ key: v, text: v.split("_").pop(), value: v }))}
+                                          value={job.formatTauroValue || ""}
+                                          onChange={(_, d) => updateDossierJob(job._idx, { formatTauroValue: d.value })}
+                                        />
+                                      </Table.Cell>
+                                      <Table.Cell>
+                                        <Dropdown
+                                          compact selection search
+                                          options={folders.map((f) => ({ key: f.path, text: f.name.match(/\d{3}x\d{2,3}/i)?.[0] || f.name, value: f.path }))}
+                                          value={job.formatPath || ""}
+                                          onChange={(_, d) => {
+                                            const sel = folders.find((f) => f.path === d.value);
+                                            updateDossierJob(job._idx, { formatPath: d.value, selectedFileObject: sel?.files?.[0] || null });
+                                          }}
+                                        />
+                                      </Table.Cell>
+                                      <Table.Cell>
+                                        {job.teinteMasse ? (
+                                          <TeinteMasseDropdown
+                                            selectedFile={job.selectedFileObject?.name || ""}
+                                            onSelectedFile={(value) =>
+                                              updateDossierJob(job._idx, { selectedFileObject: value ? { name: value } : null })
+                                            }
+                                          />
+                                        ) : (
+                                          <Dropdown
+                                            compact selection search
+                                            options={rowFiles.map((f) => ({ key: f.name, text: f.name.split("/").pop().replace(/\.[^/.]+$/, ""), value: f.name }))}
+                                            value={job.selectedFileObject?.name || ""}
+                                            onChange={(_, d) => {
+                                              const sel = rowFiles.find((f) => f.name === d.value);
+                                              updateDossierJob(job._idx, {
+                                                selectedFileObject: sel || null,
+                                                prodBlanc: REGEX_BLANC.test((sel?.name || "").split("/").pop()),
+                                              });
+                                            }}
+                                          />
+                                        )}
+                                      </Table.Cell>
+                                      <Table.Cell>
+                                        <Input size="small" type="number"
+                                          value={job.numCmd || ""}
+                                          onChange={(_, d) => updateDossierJob(job._idx, { numCmd: d.value })}
+                                        />
+                                      </Table.Cell>
+                                      <Table.Cell>
+                                        <Input size="small"
+                                          value={job.ville || ""}
+                                          onChange={(_, d) => updateDossierJob(job._idx, { ville: d.value.toUpperCase() })}
+                                        />
+                                      </Table.Cell>
+                                      <Table.Cell>
+                                        <Input size="small" type="number" min={1}
+                                          value={job.ex || 1}
+                                          onChange={(_, d) => updateDossierJob(job._idx, { ex: Number(d.value) })}
+                                        />
+                                      </Table.Cell>
+                                      <Table.Cell style={{ textAlign: "center" }}>
+                                        <Icon
+                                          name={job.prodBlanc ? "adjust" : "circle outline"}
+                                          color={job.prodBlanc ? "yellow" : "grey"}
+                                          link
+                                          title={job.prodBlanc ? "Prod avec blanc : ON" : "Prod avec blanc : OFF"}
+                                          onClick={() => updateDossierJob(job._idx, { prodBlanc: !job.prodBlanc })}
+                                        />
+                                      </Table.Cell>
+                                      <Table.Cell style={{ textAlign: "center" }}>
+                                        <Icon
+                                          name="tint"
+                                          color={job.teinteMasse ? "blue" : "grey"}
+                                          link
+                                          title={job.teinteMasse ? "Teinte masse : ON" : "Teinte masse : OFF"}
+                                          onClick={() => updateDossierJob(job._idx, {
+                                            teinteMasse: !job.teinteMasse,
+                                            selectedFileObject: null,
+                                          })}
+                                        />
+                                      </Table.Cell>
+                                    </Table.Row>
+                                  );
+                                })}
+                              </Fragment>
+                            );
+                          })}
+                        </Table.Body>
+                      </Table>
+                    </div>
+                  );
+                })()}
               </>
             )}
 
@@ -684,14 +791,8 @@ function App() {
                         text={selectedFile}
                         selectedFile={selectedFile}
                         onSelectedFile={(value) => {
-                          const name = value.name.split("/").pop().toLowerCase();
-                          const regexBlanc = /\+\s*blanc\b/i;
-
-                          if (name.toLowerCase().includes("+blanc" || "+ blanc") || regexBlanc.test(name)) {
-                            setCheckProdBlanc(true);
-                          } else {
-                            setCheckProdBlanc(false);
-                          }
+                          const name = value.name.split("/").pop();
+                          setCheckProdBlanc(REGEX_BLANC.test(name));
                           setSelectedFile(value.name);
                           setFileSize(value.size);
                           setPreview(value.name);
@@ -1025,13 +1126,15 @@ function App() {
               <span className="form-section-label">Options de production</span>
               <div className="options-grid">
                 <div className="options-col">
-                  <Checkbox
-                    name="Prod avec blanc"
-                    label="Prod avec blanc"
-                    checked={checkProdBlanc}
-                    onChange={(e, data) => setCheckProdBlanc(data.checked)}
-                  />
-                  {checkFolder == "LM" && (
+                  {!(activeTab === "dossier" && dossierJobs.length > 0) && (
+                    <Checkbox
+                      name="Prod avec blanc"
+                      label="Prod avec blanc"
+                      checked={checkProdBlanc}
+                      onChange={(e, data) => setCheckProdBlanc(data.checked)}
+                    />
+                  )}
+                  {checkFolder == "LM" && !(activeTab === "dossier" && dossierJobs.length > 0) && (
                     <Checkbox
                       name="Teinte Masse"
                       label="Teinte Masse"
@@ -1078,7 +1181,12 @@ function App() {
               type="submit"
               color="vk"
               fluid
-              content={dossierJobs.length > 0 ? `Ajouter (${dossierJobs.length})` : "Ajouter"}
+              disabled={dossierJobs.length > 0 && selectedJobIds.size === 0}
+              content={
+                dossierJobs.length > 0
+                  ? `Ajouter (${selectedJobIds.size} sélectionné${selectedJobIds.size > 1 ? "s" : ""})`
+                  : "Ajouter"
+              }
             />
           </Form>
         </div>

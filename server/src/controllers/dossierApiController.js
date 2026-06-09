@@ -1,6 +1,4 @@
-const fetch = require("node-fetch");
-
-const DEFAULT_DOSSIER_API_BASE_URL = "http://localhost:3000/api/dossiers";
+const dossierService = require("../gamesys/services/dossierService");
 
 function parseFormat(value) {
   if (!value) return "";
@@ -66,7 +64,7 @@ function normalizeDossierApiPayload(payload) {
         commande,
         sousNumero,
         numCmd: String(payload?.numero || ""),
-        ville: livraison?.bo_ville || "",
+        ville: livraison?.bo_ville || livraison?.bo_adlivr_nom_1 || livraison?.bo_ref_de_livraison || "",
         ex: entete?.endv_quant || livraison?.bo_quant_livree_total || 1,
         reference: visualRef?.reference || visualRef?.articleReference || visualRef?.modele || "",
         articleReference: visualRef?.articleReference || "",
@@ -97,27 +95,12 @@ async function getDossierApi(req, res) {
     return res.status(400).json({ error: "Numéro de dossier invalide" });
   }
 
-  const baseUrl = process.env.DOSSIER_API_BASE_URL || DEFAULT_DOSSIER_API_BASE_URL;
-  const url = `${baseUrl.replace(/\/$/, "")}/${numero}`;
-
   try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: { Accept: "application/json" },
-    });
-
-    if (!response.ok) {
-      return res.status(response.status).json({
-        error: `API dossier indisponible ou dossier introuvable (${response.status})`,
-      });
-    }
-
-    const payload = await response.json();
+    const payload = await dossierService.getDossierDetail({ numero, view: "summary" });
     return res.json(normalizeDossierApiPayload(payload));
   } catch (error) {
-    return res.status(502).json({
-      error: "Impossible de joindre l'API dossier",
-      details: error.message,
+    return res.status(error.status || 500).json({
+      error: error.message || "Erreur lors de la récupération du dossier",
     });
   }
 }

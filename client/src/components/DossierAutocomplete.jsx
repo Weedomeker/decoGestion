@@ -1,5 +1,5 @@
 import PropTypes from "prop-types";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, Icon, Input, Label, Message, Segment } from "semantic-ui-react";
 
 const CLIENTS = ["LM", "CASTO", "ECOM", "BRICO"];
@@ -15,13 +15,6 @@ function normalizeText(value) {
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
-}
-
-function canonicalClient(client) {
-  const normalized = normalizeText(client);
-  return (
-    CLIENTS.find((value) => CLIENT_ALIASES[value].some((alias) => normalized.includes(alias))) || "LM"
-  );
 }
 
 function findKnownClient(client) {
@@ -68,11 +61,52 @@ function findFileCandidates(files, job) {
     .slice(0, 10);
 }
 
+const REGEX_BLANC = /\+\s*blanc\b/i;
+
+const TEINTE_MASSE_OPTIONS = [
+  "NOIR ZERO MAT",
+  "BLANC ZERO MAT",
+  "GRANIT 3 MAT",
+  "ALU BROSSE",
+  "BRONZE BROSSE",
+  "CUIVRE BROSSE",
+  "NOIR BROSSE",
+  "OR BROSSE",
+];
+
+function detectTeinteMasse(job) {
+  // Pad with spaces for word-boundary matching (ex: "DECOR BROSSE" ne matche pas "OR BROSSE")
+  const text = ` ${normalizeText(`${job.libelle || ""} ${job.reference || ""}`)} `;
+  return TEINTE_MASSE_OPTIONS.find((t) => text.includes(` ${normalizeText(t)} `)) || null;
+}
+
 function buildRows(payload, pathData, formatTauro) {
   const client = findKnownClient(payload.client) || "";
   const folders = pathData?.[client] || [];
 
   return payload.visualJobs.map((job, index) => {
+    const baseId = job.id || `${job.numCmd || job.libelle || "row"}-${index}`;
+    const formatTauroValue = findFormatTauro(formatTauro, job.formatTauro);
+
+    const detectedTeinte = detectTeinteMasse(job);
+    if (detectedTeinte) {
+      return {
+        id: baseId,
+        ...job,
+        client,
+        dossierNumero: payload.numero,
+        checked: true,
+        formatPath: "",
+        formatTauroValue,
+        candidates: [],
+        selectedFile: detectedTeinte,
+        selectedFileObject: { name: detectedTeinte },
+        prodBlanc: false,
+        teinteMasse: true,
+        status: "Prêt",
+      };
+    }
+
     const formatFolder = findFormatFolder(folders, job.formatVisu);
     const files = formatFolder?.files || [];
     const candidates = findFileCandidates(files, job);
@@ -84,15 +118,18 @@ function buildRows(payload, pathData, formatTauro) {
       (candidates.length > 1 && candidates[0].score > (candidates[1]?.score || 0) + 20);
 
     return {
-      id: job.id || `${job.numCmd || job.libelle || "row"}-${index}`,
+      id: baseId,
       ...job,
       client,
+      dossierNumero: payload.numero,
       checked: Boolean(selectedFile && hasStrongMatch),
       formatPath: formatFolder?.path || "",
-      formatTauroValue: findFormatTauro(formatTauro, job.formatTauro),
+      formatTauroValue,
       candidates,
       selectedFile,
       selectedFileObject,
+      prodBlanc: REGEX_BLANC.test(selectedFile.split("/").pop()),
+      teinteMasse: false,
       status:
         candidates.length === 0
           ? "Aucun fichier local trouvé"
@@ -103,119 +140,243 @@ function buildRows(payload, pathData, formatTauro) {
   });
 }
 
-function DossierAutocomplete({ host, port, pathData, formatTauro, onAutoFill }) {
-  const [numero, setNumero] = useState("");
-  const [message, setMessage] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [filledFrom, setFilledFrom] = useState(null);
-  const [multipleJobs, setMultipleJobs] = useState([]);
-  const [apiClient, setApiClient] = useState("");
+function parseNumbers(value) {
+  const tokens = value.split(/[\s,;\n]+/).map((s) => s.trim()).filter(Boolean);
+  const numbers = tokens.map((token) => {
+    if (/^\d+$/.test(token)) return token;
+    // Code-barre type D165619/00 → 165619
+    const m = token.match(/^[A-Za-z]*(\d+)\/\d+$/);
+    return m ? m[1] : null;
+  }).filter(Boolean);
+  return [...new Set(numbers)];
+}
 
-  function handleClear() {
-    setFilledFrom(null);
-    setMultipleJobs([]);
+function getLastToken(value) {
+  const tokens = value.split(/[\s,;\n]+/);
+  return tokens[tokens.length - 1] || "";
+}
+
+function replaceLastToken(value, replacement) {
+  const tokens = value.split(/[\s,;\n]+/);
+  tokens[tokens.length - 1] = replacement;
+  return tokens.join(" ").trim();
+}
+
+function DossierAutocomplete({ host, port, pathData, formatTauro, onAutoFill }) {
+  const [inputValue, setInputValue] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadedDossiers, setLoadedDossiers] = useState([]);
+  const [message, setMessage] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestionIndex, setSuggestionIndex] = useState(-1);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const debounceRef = useRef(null);
+
+  useEffect(() => {
+    const token = getLastToken(inputValue);
+    if (token.length < 3 || !/^\d+$/.test(token)) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`http://${host}:${port}/api/dossiers/search?q=${token}&limit=8`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setSuggestions(Array.isArray(data) ? data : []);
+        setShowSuggestions(true);
+        setSuggestionIndex(-1);
+      } catch {
+        setSuggestions([]);
+      }
+    }, 280);
+    return () => clearTimeout(debounceRef.current);
+  }, [inputValue, host, port]);
+
+  function emitJobs(dossiers) {
+    if (!onAutoFill) return;
+    const allJobs = dossiers.flatMap((d) => d.jobs);
+    if (allJobs.length === 0) {
+      onAutoFill({ clearMode: true });
+    } else {
+      onAutoFill({ allJobs, client: dossiers[0]?.clientKey });
+    }
+  }
+
+  function handleClearDossier(numero) {
+    const next = loadedDossiers.filter((d) => d.numero !== numero);
+    setLoadedDossiers(next);
+    emitJobs(next);
+    if (next.length === 0) setMessage(null);
+  }
+
+  function handleClearAll() {
+    setLoadedDossiers([]);
+    setInputValue("");
     setMessage(null);
-    setNumero("");
-    setApiClient("");
     if (onAutoFill) onAutoFill({ clearMode: true });
   }
 
+  function handleSelectSuggestion(suggestion) {
+    setShowSuggestions(false);
+    setSuggestions([]);
+    const newValue = replaceLastToken(inputValue, suggestion.numero);
+    setInputValue(newValue);
+  }
+
   async function handleSearch() {
-    const trimmedNumero = numero.trim();
-    if (!trimmedNumero) {
-      setMessage({ type: "error", text: "Saisis un numéro de dossier." });
+    setSuggestions([]);
+    setShowSuggestions(false);
+    const numbers = parseNumbers(inputValue);
+    if (numbers.length === 0) {
+      setMessage({ type: "error", text: "Saisis au moins un numéro de dossier." });
+      return;
+    }
+
+    const alreadyLoaded = new Set(loadedDossiers.map((d) => d.numero));
+    const newNumbers = numbers.filter((n) => !alreadyLoaded.has(n));
+
+    if (newNumbers.length === 0) {
+      setMessage({ type: "info", text: "Ces dossiers sont déjà chargés." });
       return;
     }
 
     setIsLoading(true);
     setMessage(null);
-    setFilledFrom(null);
-    setMultipleJobs([]);
 
-    try {
-      const response = await fetch(`http://${host}:${port}/dossier-api/${trimmedNumero}`, {
-        method: "GET",
-        headers: { Accept: "application/json" },
-      });
-      const result = await response.json();
+    const results = await Promise.allSettled(
+      newNumbers.map((numero) =>
+        fetch(`http://${host}:${port}/dossier-api/${numero}`, {
+          method: "GET",
+          headers: { Accept: "application/json" },
+        }).then((res) => res.json().then((body) => ({ ok: res.ok, numero, body })))
+      )
+    );
 
-      if (!response.ok) {
-        throw new Error(result.error || "Impossible de charger le dossier.");
+    setIsLoading(false);
+
+    const newDossiers = [];
+    const errors = [];
+
+    for (const result of results) {
+      if (result.status === "rejected") {
+        errors.push(result.reason?.message || "Erreur réseau");
+        continue;
+      }
+      const { ok, numero, body } = result.value;
+      if (!ok) {
+        errors.push(`${numero} : ${body.error || "Erreur serveur"}`);
+        continue;
       }
 
-      const apiClientName = result.client || "";
-      setApiClient(apiClientName);
-      const apiClientKey = findKnownClient(apiClientName) || "";
-
-      const nextRows = buildRows(result, pathData, formatTauro);
-      const validRows = nextRows.filter((r) => r.formatPath && r.formatTauroValue && r.selectedFileObject);
+      const clientKey = findKnownClient(body.client) || "";
+      const rows = buildRows(body, pathData, formatTauro);
+      const validRows = rows.filter((r) => (r.formatPath || r.teinteMasse) && r.formatTauroValue && r.selectedFileObject);
 
       if (validRows.length === 0) {
-        setMessage({
-          type: "warning",
-          text: `Aucun visuel exploitable trouvé pour le dossier ${result.numero}.`,
-        });
-        if (onAutoFill) onAutoFill({ client: apiClientKey, clientName: apiClientName });
-        return;
+        errors.push(`${numero} : Aucun visuel exploitable.`);
+        continue;
       }
 
-      const jobs = validRows.map((row) => ({
-        id: row.id,
-        label: `${row.commande || row.numCmd} — ${row.formatVisu || "?"} — ${row.ville || "?"} × ${row.ex || 1}`,
-        data: row,
-      }));
+      newDossiers.push({
+        numero: body.numero,
+        client: body.client,
+        clientKey,
+        jobs: validRows.map((row) => ({ ...row, dossierNumero: body.numero })),
+      });
+    }
 
-      setMultipleJobs(jobs);
-      setFilledFrom({ numero: trimmedNumero });
+    if (newDossiers.length > 0) {
+      setInputValue("");
+      const allDossiers = [...loadedDossiers, ...newDossiers];
+      setLoadedDossiers(allDossiers);
+      emitJobs(allDossiers);
+    }
 
-      if (onAutoFill) {
-        onAutoFill({
-          clientName: apiClientName,
-          client: apiClientKey,
-          allJobs: jobs.map((j) => j.data),
-          formatTauro: jobs[0].data.formatTauroValue,
-          format: jobs[0].data.formatPath,
-          file: jobs[0].data.selectedFileObject,
-          numCmd: jobs[0].data.numCmd,
-          ville: jobs[0].data.ville,
-          ex: jobs[0].data.ex,
-        });
-      }
-    } catch (error) {
-      setApiClient("");
-      setMessage({ type: "error", text: error.message });
-      if (onAutoFill) onAutoFill({ manualMode: true });
-    } finally {
-      setIsLoading(false);
+    if (errors.length > 0) {
+      setMessage({
+        type: errors.length === newNumbers.length ? "error" : "warning",
+        text: errors.join(" · "),
+      });
     }
   }
 
   return (
     <Segment className="dossier-autocomplete" color="grey">
       <div className="dossier-autocomplete-search">
-        <Input
-          placeholder="N° Dossier API"
-          value={numero}
-          onChange={(e, data) => setNumero(data.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              handleSearch();
-            }
-          }}
-        />
+        <div className="dossier-input-wrapper">
+          <Input
+            placeholder="N° Dossier(s) — ex: 164629 164630"
+            value={inputValue}
+            onChange={(e, d) => setInputValue(d.value)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                setSuggestionIndex((i) => Math.min(i + 1, suggestions.length - 1));
+              } else if (event.key === "ArrowUp") {
+                event.preventDefault();
+                setSuggestionIndex((i) => Math.max(i - 1, -1));
+              } else if (event.key === "Escape") {
+                setShowSuggestions(false);
+              } else if (event.key === "Enter") {
+                event.preventDefault();
+                if (showSuggestions && suggestionIndex >= 0 && suggestions[suggestionIndex]) {
+                  handleSelectSuggestion(suggestions[suggestionIndex]);
+                } else {
+                  handleSearch();
+                }
+              }
+            }}
+          />
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="dossier-suggestions">
+              {suggestions.map((s, i) => (
+                <div
+                  key={s.numero}
+                  className={`dossier-suggestion-item${i === suggestionIndex ? " active" : ""}`}
+                  onMouseDown={(e) => { e.preventDefault(); handleSelectSuggestion(s); }}
+                >
+                  <span className="suggestion-numero">{s.numero}</span>
+                  {(s.magasin || s.ville || s.client) && (
+                    <span className="suggestion-label">{s.magasin || s.ville || s.client}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         <Button type="button" color="vk" loading={isLoading} disabled={isLoading} onClick={handleSearch}>
           Rechercher
         </Button>
-        {filledFrom && (
-          <Label color="green" size="small" style={{ alignSelf: "center" }}>
-            <Icon name="check circle" />
-            Dossier {filledFrom.numero}
-            {multipleJobs.length > 1 && ` — ${multipleJobs.length} visuels`}
-            <Icon name="delete" link style={{ marginLeft: 6 }} onClick={handleClear} />
-          </Label>
+        {loadedDossiers.length > 0 && (
+          <Button
+            type="button"
+            size="mini"
+            basic
+            color="red"
+            icon="trash alternate"
+            onClick={handleClearAll}
+            title="Vider tous les dossiers"
+          />
         )}
       </div>
+
+      {loadedDossiers.length > 0 && (
+        <div className="dossier-chips">
+          {loadedDossiers.map((d) => (
+            <Label key={d.numero} color="green" size="small">
+              <Icon name="check circle" />
+              {d.numero}
+              <span style={{ opacity: 0.7, marginLeft: 3 }}>({d.jobs.length})</span>
+              <Icon name="delete" link style={{ marginLeft: 4 }} onClick={() => handleClearDossier(d.numero)} />
+            </Label>
+          ))}
+        </div>
+      )}
 
       {message && (
         <Message
@@ -227,7 +388,6 @@ function DossierAutocomplete({ host, port, pathData, formatTauro, onAutoFill }) 
           style={{ marginTop: 6 }}
         />
       )}
-
     </Segment>
   );
 }

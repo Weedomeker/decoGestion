@@ -1,9 +1,12 @@
+/* ===================== JOBS TABLE — COMMAND CENTER ===================== */
+
 .jobs-table-container {
   overflow: auto;
   width: 100%;
   flex: 1;
   min-height: 0;
 }
+
 .jobs-table {
   width: 100%;
   display: table;
@@ -11,34 +14,42 @@
   border-collapse: collapse;
 }
 
+/* Sticky header & footer */
 .sticky-header,
 .sticky-footer {
   position: sticky;
-  z-index: 1;
+  z-index: 2;
   width: 100%;
 }
 
 .sticky-header {
-  background-color: var(--table-header-bg, #f3f4f6) !important;
   top: 0;
   display: table-header-group;
+  background: var(--table-header-bg, #090910) !important;
 }
 
 .sticky-header th {
-  color: var(--table-header-color, #374151) !important;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  background: var(--table-header-bg, #090910) !important;
+  color: var(--table-header-color, #44446a) !important;
+  font-family: 'Barlow Condensed', sans-serif !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+  border-bottom: 1px solid var(--border-default, #1e1e32) !important;
+  padding: 8px !important;
 }
 
 .sticky-footer {
-  background-color: var(--table-header-bg, #f3f4f6) !important;
   bottom: 0;
   display: table-footer-group;
+  background: var(--bg-base, #08080d) !important;
 }
 
 .sticky-footer th {
-  color: var(--table-header-color, #374151) !important;
+  background: var(--bg-base, #08080d) !important;
+  border-top: 1px solid var(--border-default, #1e1e32) !important;
+  padding: 6px 8px !important;
 }
 
 .sticky-footer-content {
@@ -46,7 +57,6 @@
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  vertical-align: middle;
   width: 100%;
   gap: 8px;
 }
@@ -59,59 +69,90 @@
 }
 
 .sticky-footer-content .ui.button {
-  margin-right: 10px;
-}
-
-.sticky-header-content .checkbox-footer {
-  display: flex;
-  min-width: 350px;
-  vertical-align: middle;
+  margin-right: 0 !important;
 }
 
 .body-table-jobs {
-  display: table-row-group; /* Utiliser table-row-group pour garder la structure de la table */
+  display: table-row-group;
 }
 
+/* Table rows */
 .table-row {
   display: table-row;
-  height: var(--table-row-height, 36px) !important;
-  max-height: var(--table-row-height, 36px);
+  height: var(--table-row-height, 34px) !important;
+  max-height: var(--table-row-height, 34px);
+  transition: background 0.1s;
 }
 
-.table-row[data-client="LM"]    > td:first-child { border-left: 4px solid var(--color-lm, #21ba45) !important; }
-.table-row[data-client="CASTO"] > td:first-child { border-left: 4px solid var(--color-casto, #2185d0) !important; }
-.table-row[data-client="ECOM"]  > td:first-child { border-left: 4px solid var(--color-ecom, #00b5ad) !important; }
-.table-row[data-client="BRICO"] > td:first-child { border-left: 4px solid var(--color-brico, #f2711c) !important; }
+/* Client color accent — left border */
+.table-row[data-client="LM"]    > td:first-child { border-left: 3px solid var(--color-lm, #00ff88) !important; }
+.table-row[data-client="CASTO"] > td:first-child { border-left: 3px solid var(--color-casto, #3b9eff) !important; }
+.table-row[data-client="ECOM"]  > td:first-child { border-left: 3px solid var(--color-ecom, #00e5cc) !important; }
+.table-row[data-client="BRICO"] > td:first-child { border-left: 3px solid var(--color-brico, #ff6a00) !important; }
 
+/* Table cells */
 .table-cell {
-  height: var(--table-row-height, 36px) !important;
-  max-height: none;
-  font-size: 13px;
+  height: var(--table-row-height, 34px) !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 12px !important;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   display: table-cell;
   vertical-align: middle;
   padding: 0 8px;
+  color: var(--text-secondary, #7878a0);
+}
+
+/* Link style in completed rows */
+.table-row a {
+  color: var(--color-ecom, #00e5cc) !important;
+  text-decoration: none !important;
+  transition: text-shadow 0.15s;
+}
+.table-row a:hover {
+  text-shadow: 0 0 10px rgba(0,229,204,0.6);
+}
+
+/* ===================== PROCESS BUTTON ANIMATION ===================== */
+
+/* "Traiter la file" — pulse when idle */
+.jobs-view .ui.red.button:not(:disabled) {
+  animation: pulse-danger 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse-danger {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 58, 58, 0.5); }
+  50%       { box-shadow: 0 0 0 8px rgba(255, 58, 58, 0); }
+}
+
+/* Stickers button — green pulse */
+.jobs-view .ui.green.button:not(:disabled) {
+  animation: pulse-success 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse-success {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.5); }
+  50%       { box-shadow: 0 0 0 8px rgba(0, 255, 136, 0); }
+}
+
+/* ===================== CHECKBOX FOOTER ===================== */
+
+.checkbox-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.checkbox-footer .ui.checkbox {
+  margin: 0;
+}
+
+.checkbox-footer .ui.dropdown {
+  z-index: 35;
 }
 
 .progress {
   overflow: hidden;
   width: 100%;
-}
-
-.checkbox-footer {
-  display: flex;
-  align-content: space-between;
-  align-items: center;
-
-  vertical-align: middle;
-}
-
-.checkbox-footer .ui.checkbox {
-  margin: 0 8px;
-}
-
-.checkbox-footer .ui.dropdown {
-  z-index: 35;
 }

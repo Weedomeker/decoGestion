@@ -3,6 +3,8 @@ const configRoutes = require("./configRoutes");
 const dossierApiRoutes = require("./dossierApiRoutes");
 const stockRoutes = require("./stockRoutes");
 const systemRoutes = require("./systemRoutes");
+const gamesysDossierRoutes = require("../gamesys/routes/dossierRoutes");
+const gamesysOrderRoutes = require("../gamesys/routes/orderRoutes");
 
 function registerRoutes(app) {
   app.use(jobsRoutes);
@@ -10,6 +12,8 @@ function registerRoutes(app) {
   app.use(dossierApiRoutes);
   app.use(stockRoutes);
   app.use(systemRoutes);
+  app.use("/api/dossiers", gamesysDossierRoutes);
+  app.use("/api/orders", gamesysOrderRoutes);
 }
 
 module.exports = registerRoutes;
