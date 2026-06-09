@@ -35,7 +35,7 @@ function findFormatFolder(folders, format) {
 function findFormatTauro(formatTauro, format) {
   const token = formatToken(format);
   if (!token) return "";
-  return formatTauro.find((value) => normalizeText(value).includes(token)) || `Deco_Std_${format}`;
+  return formatTauro.find((value) => normalizeText(value).includes(token)) || "";
 }
 
 function scoreFile(file, job) {
@@ -95,7 +95,7 @@ function buildRows(payload, pathData, formatTauro) {
         ...job,
         client,
         dossierNumero: payload.numero,
-        checked: true,
+        checked: Boolean(formatTauroValue),
         formatPath: "",
         formatTauroValue,
         candidates: [],
@@ -103,7 +103,7 @@ function buildRows(payload, pathData, formatTauro) {
         selectedFileObject: { name: detectedTeinte },
         prodBlanc: false,
         teinteMasse: true,
-        status: "Prêt",
+        status: formatTauroValue ? "Prêt" : "Format Tauro requis",
       };
     }
 
@@ -131,11 +131,13 @@ function buildRows(payload, pathData, formatTauro) {
       prodBlanc: REGEX_BLANC.test(selectedFile.split("/").pop()),
       teinteMasse: false,
       status:
-        candidates.length === 0
-          ? "Aucun fichier local trouvé"
-          : hasStrongMatch
-            ? "Prêt"
-            : "Choix requis",
+        !formatTauroValue
+          ? "Format Tauro requis"
+          : candidates.length === 0
+            ? "Aucun fichier local trouvé"
+            : hasStrongMatch
+              ? "Prêt"
+              : "Choix requis",
     };
   });
 }
@@ -179,20 +181,26 @@ function DossierAutocomplete({ host, port, pathData, formatTauro, onAutoFill }) 
       setShowSuggestions(false);
       return;
     }
+    const controller = new AbortController();
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`http://${host}:${port}/api/dossiers/search?q=${token}&limit=8`);
+        const res = await fetch(`http://${host}:${port}/api/dossiers/search?q=${token}&limit=8`, {
+          signal: controller.signal,
+        });
         if (!res.ok) return;
         const data = await res.json();
         setSuggestions(Array.isArray(data) ? data : []);
         setShowSuggestions(true);
         setSuggestionIndex(-1);
-      } catch {
-        setSuggestions([]);
+      } catch (err) {
+        if (err.name !== "AbortError") setSuggestions([]);
       }
     }, 280);
-    return () => clearTimeout(debounceRef.current);
+    return () => {
+      clearTimeout(debounceRef.current);
+      controller.abort();
+    };
   }, [inputValue, host, port]);
 
   function emitJobs(dossiers) {
@@ -273,7 +281,7 @@ function DossierAutocomplete({ host, port, pathData, formatTauro, onAutoFill }) 
 
       const clientKey = findKnownClient(body.client) || "";
       const rows = buildRows(body, pathData, formatTauro);
-      const validRows = rows.filter((r) => (r.formatPath || r.teinteMasse) && r.formatTauroValue && r.selectedFileObject);
+      const validRows = rows.filter((r) => (r.formatPath || r.teinteMasse) && r.selectedFileObject);
 
       if (validRows.length === 0) {
         errors.push(`${numero} : Aucun visuel exploitable.`);

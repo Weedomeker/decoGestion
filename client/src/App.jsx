@@ -97,7 +97,6 @@ function App() {
 
   function handleDossierAutoFill({ clearMode, manualMode, allJobs, client }) {
     if (clearMode) {
-      handleResetForm();
       setDossierJobs([]);
       setSelectedJobIds(new Set());
       setEnabled({ format: true, visu: true, numCmd: true, ville: true, ex: true, validate: true });
@@ -282,6 +281,7 @@ function App() {
       const jobsToSubmit = dossierJobs.filter((j) => selectedJobIds.has(j.id));
       if (jobsToSubmit.length === 0) return;
       try {
+        const errors = [];
         for (const job of jobsToSubmit) {
           const payload = {
             client: job.client || checkFolder,
@@ -302,14 +302,22 @@ function App() {
             teinteMasse: job.teinteMasse ?? false,
             stock: false,
           };
-          await fetch(`http://${HOST}:${PORT}/add_job`, {
+          const response = await fetch(`http://${HOST}:${PORT}/add_job`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           });
+          if (!response.ok) {
+            const result = await response.json().catch(() => ({}));
+            errors.push(result.error || `Erreur ${response.status} (job ${job.numCmd || job.id})`);
+          }
         }
-        setDossierJobs([]);
-        setSelectedJobIds(new Set());
+        if (errors.length === 0) {
+          setDossierJobs([]);
+          setSelectedJobIds(new Set());
+        } else {
+          setModalData({ open: true, message: "", object: null, error: errors.join(" · ") });
+        }
         setJobsRefresh((prev) => prev + 1);
       } catch (err) {
         setModalData({ open: true, message: "", object: null, error: err.message });
@@ -960,13 +968,8 @@ function App() {
                             setCheckProdBlanc(false);
                             return;
                           }
-                          const name = value.name.split("/").pop().toLowerCase();
-                          const regexBlanc = /\bblanc\b/i;
-                          if (name.toLowerCase().includes("+blanc" || "+ blanc" || "blanc+") || regexBlanc.test(name)) {
-                            setCheckProdBlanc(true);
-                          } else {
-                            setCheckProdBlanc(false);
-                          }
+                          const name = value.name.split("/").pop();
+                          setCheckProdBlanc(REGEX_BLANC.test(name));
                           setSelectedFile2(value.name);
                           setPreview(value.name);
                           setFileSize2(value.size);

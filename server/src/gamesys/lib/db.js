@@ -19,6 +19,10 @@ function escapeSqlValue(value) {
   return String(value || "").replace(/'/g, "''");
 }
 
+function escapeSqlLike(value) {
+  return String(value || "").replace(/'/g, "''").replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
+
 function sqlTextList(values) {
   return values.filter(Boolean).map((value) => `'${escapeSqlValue(value)}'`).join(", ");
 }
@@ -39,6 +43,7 @@ async function withDbConnection(callback) {
 module.exports = {
   query,
   escapeSqlValue,
+  escapeSqlLike,
   sqlTextList,
   closeConnection,
   withDbConnection,

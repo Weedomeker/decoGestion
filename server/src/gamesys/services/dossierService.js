@@ -10,6 +10,7 @@ const {
   getVisualReferenceFromEntete,
 } = require("../utils/reference");
 const { cleanDbValue, pickFields, uniqueBy, countRows } = require("../utils/data");
+const { escapeSqlLike } = require("../lib/db");
 
 async function findStockReferences(connection, enteteDevis) {
   const identif = enteteDevis[0]?.endv_identif || "";
@@ -61,7 +62,7 @@ async function findStockReferences(connection, enteteDevis) {
   const where = usefulTerms
     .map(
       (term) =>
-        `(upper(st_lib_1_conso) like '%${escapeSqlValue(term)}%' or upper(st_lib_2_conso) like '%${escapeSqlValue(term)}%' or upper(st_art_ref_client) like '%${escapeSqlValue(term)}%' or upper(st_modele) like '%${escapeSqlValue(term)}%')`
+        `(upper(st_lib_1_conso) like '%${escapeSqlLike(term)}%' ESCAPE '\\' or upper(st_lib_2_conso) like '%${escapeSqlLike(term)}%' ESCAPE '\\' or upper(st_art_ref_client) like '%${escapeSqlLike(term)}%' ESCAPE '\\' or upper(st_modele) like '%${escapeSqlLike(term)}%' ESCAPE '\\')`
     )
     .join(" and ");
 
@@ -398,7 +399,7 @@ function buildGroupedResponse(details, view) {
   let clientName;
   if (first.dossier?.dos_client || first.enteteDevis?.[0]?.endv_cclient) {
     let client = first.dossier?.dos_client || first.enteteDevis?.[0]?.endv_cclient;
-    let client_name = ['LM', 'BM', 'CAS', 'PRO', 'ECOM'];
+    let client_name = ['LM', 'BM', 'CAS', 'ECOM'];
     for (const name of client_name) {
       if (String(client).startsWith(name)) {
         clientName = name;
@@ -500,6 +501,7 @@ async function buildDetail(connection, dossier) {
   const dossierCommande = dossier?.dos_no_cmde || "";
   const dossierCode = dossier?.dos_codeuniq || "";
   const escapedCommande = escapeSqlValue(dossierCommande);
+  const escapedCommandeLike = escapeSqlLike(dossierCommande);
   const escapedCode = escapeSqlValue(dossierCode);
   const textValues = sqlTextList([dossierCommande, dossierCode]);
 
@@ -550,7 +552,7 @@ async function buildDetail(connection, dossier) {
     ["impositions", `select * from public.fi_sol_imposition where impo_code_devis = '${escapedCode}'`],
     ["agendaProduction", `select * from public.fp_agenda_prod where ag_dossier = '${escapedCommande}'`],
     ["etatsDossier", `select * from public.fp_lien_etat_dossier where fled_num_dossier = '${escapedCommande}'`],
-    ["suiviOperations", `select * from public.fp_opera_suivi where suivi_dossier = '${escapedCommande}' or suivi_dossier_element like '${escapedCommande.replace("/", "/")}% '`.replace("% '", "%'")],
+    ["suiviOperations", `select * from public.fp_opera_suivi where suivi_dossier = '${escapedCommande}' or suivi_dossier_element like '${escapedCommandeLike}%' ESCAPE '\\'`],
     ["pages", `select * from public.fp_pages where pages_dossier = '${escapedCommande}'`],
   ];
 
