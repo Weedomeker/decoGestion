@@ -1,4 +1,18 @@
 {
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -NonInteractive -File \"X:/Dev/decoGestion/.claude/notify-stop.ps1\"",
+            "shell": "powershell",
+            "async": true
+          }
+        ]
+      }
+    ]
+  },
   "permissions": {
     "allow": [
       "mcp__plugin_chrome-devtools-mcp_chrome-devtools__click",
@@ -10,6 +24,6 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "bash X:/Dev/decoGestion/.claude/statusline-command.sh"
+    "command": "powershell -NoProfile -NonInteractive -File X:/Dev/decoGestion/.claude/statusline.ps1"
   }
 }
