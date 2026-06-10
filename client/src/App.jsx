@@ -301,6 +301,21 @@ function App() {
     if (dossierJobs.length > 0) {
       const jobsToSubmit = dossierJobs.filter((j) => selectedJobIds.has(j.id) && !j._absorbedBy);
       if (jobsToSubmit.length === 0) return;
+
+      const unpairedCredences = jobsToSubmit.filter(
+        (j) => j.isCredence && !j.credence2 && (j.client === "BRICO" || j.client === "CASTO"),
+      );
+      if (unpairedCredences.length > 0) {
+        const details = unpairedCredences.map((j) => `N°${j.numCmd || j.id}`).join(", ");
+        setModalData({
+          open: true,
+          message: "",
+          object: null,
+          error: `${unpairedCredences.length} crédence${unpairedCredences.length > 1 ? "s" : ""} sans 2e panneau : ${details}. Les crédences BRICO/CASTO doivent être amalgamées.`,
+        });
+        return;
+      }
+
       try {
         const errors = [];
         for (const job of jobsToSubmit) {
@@ -347,6 +362,19 @@ function App() {
     }
 
     // Mode normal : un seul job via le formulaire
+    const _isCredenceFormat =
+      selectedFormat &&
+      (selectedFormat.includes("300x60") || selectedFormat.includes("255x60"));
+    if (_isCredenceFormat && (checkFolder === "BRICO" || checkFolder === "CASTO") && !selectedFile2) {
+      setModalData({
+        open: true,
+        message: "",
+        object: null,
+        error: "Cette crédence doit être amalgamée avec un 2e visuel. Renseignez le 2e panneau avant de soumettre.",
+      });
+      return;
+    }
+
     const data = {
       client: checkFolder,
       allFormatTauro: formatTauro,
@@ -680,7 +708,13 @@ function App() {
                                             <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
                                               <Label
                                                 size="mini"
-                                                color={job.credence2 ? "green" : "yellow"}
+                                                color={
+                                                  job.credence2
+                                                    ? "green"
+                                                    : job.client === "BRICO" || job.client === "CASTO"
+                                                    ? "red"
+                                                    : "yellow"
+                                                }
                                               >
                                                 {job.credence2 ? "2 panneaux" : "1 panneau"}
                                               </Label>
