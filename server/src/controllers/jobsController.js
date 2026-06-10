@@ -108,6 +108,14 @@ async function addJob(req, res) {
   const reg = data.regmarks;
   const teinteMasse = data.teinteMasse;
 
+  // Crédences BRICO/CASTO : le 2e visuel est obligatoire
+  const _formatVisuCheck = format?.match(/\d{3}x\d{2}/i)?.[0] || "";
+  if (/^\d{3}x\d{2}$/i.test(_formatVisuCheck) && (client === "BRICO" || client === "CASTO") && !data.visuel2) {
+    return res.status(400).json({
+      error: "Les crédences BRICO/CASTO doivent être amalgamées avec un 2e visuel.",
+    });
+  }
+
   state.process.writePath = prodBlanc
     ? path.join(state.paths.saveFolder + "/Prod avec BLANC")
     : path.join(state.paths.saveFolder + "/Deco_Std_" + formatTauro);
