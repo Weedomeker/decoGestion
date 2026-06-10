@@ -2,7 +2,12 @@ node_modules
 .vscode/*
 !.vscode/extensions.json
 dist/
-test/
+test/visu
+test/previews
+test/STANDARDS
+test/*.pdf
+test/*.dxf
+test/*.svg
 logs/
 !server/public/*.html
 !server/public/icons
@@ -13,6 +18,7 @@ server/public/ECOM
 server/public/CASTO
 server/public/TAURO
 server/public/tmp
+server/public/PRINTSA*
 server/public/PREVIEW
 *.csv
 *.log

@@ -5,10 +5,11 @@
   "description": "Permet de produire plus facilement l'imposition des visuels sur les plaques à imprimer.",
   "scripts": {
     "start": "set NODE_ENV=production&& node ./server/server.js -e js,css,html",
-    "server": "set NODE_ENV=development&& nodemon ./server/server.js -e js,css,html",
+    "server": "set NODE_ENV=development&& nodemon ./server/server.js -e js,css,html --ignore server/public/",
     "format": "prettier-eslint \"./server/**/*.js\" --write && prettier-eslint \"./client/src/**/*.{js,jsx}\" --write",
     "client": "set NODE_ENV=development&& cd client && npm run dev",
-    "build": "set NODE_ENV=production&& cd client && npm run build"
+    "build": "set NODE_ENV=production&& cd client && npm run build",
+    "test": "mocha \"test/**/*.test.js\" --timeout 10000 --exit"
   },
   "keywords": [],
   "author": "Weedomeker",
@@ -62,8 +63,10 @@
     "eslint": "^8.52.0",
     "isdev": "^1.0.1",
     "mocha": "^11.1.0",
+    "mongodb-memory-server": "^9.5.0",
     "prettier": "^3.1.0",
     "prettier-eslint": "^16.1.2",
-    "prettier-eslint-cli": "^8.0.1"
+    "prettier-eslint-cli": "^8.0.1",
+    "sinon": "^17.0.1"
   }
 }

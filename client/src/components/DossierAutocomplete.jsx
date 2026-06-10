@@ -62,6 +62,7 @@ function findFileCandidates(files, job) {
 }
 
 const REGEX_BLANC = /\+\s*blanc\b/i;
+const CREDENCES_RE = /^\d{3}x\d{2}$/i;
 
 const TEINTE_MASSE_OPTIONS = [
   "NOIR ZERO MAT",
@@ -77,7 +78,18 @@ const TEINTE_MASSE_OPTIONS = [
 function detectTeinteMasse(job) {
   // Pad with spaces for word-boundary matching (ex: "DECOR BROSSE" ne matche pas "OR BROSSE")
   const text = ` ${normalizeText(`${job.libelle || ""} ${job.reference || ""}`)} `;
-  return TEINTE_MASSE_OPTIONS.find((t) => text.includes(` ${normalizeText(t)} `)) || null;
+  return (
+    TEINTE_MASSE_OPTIONS.find((t) => {
+      if (text.includes(` ${normalizeText(t)} `)) return true;
+      // Les libellés DB peuvent omettre "MAT" (ex: "NOIR ZÉRO 100x255cm" au lieu de "NOIR ZERO MAT 100x255cm")
+      // Pour les options à 3+ mots se terminant par "MAT", accepter aussi le préfixe sans "MAT"
+      const words = t.split(" ");
+      if (words[words.length - 1] === "MAT" && words.length >= 3) {
+        return text.includes(` ${normalizeText(words.slice(0, -1).join(" "))} `);
+      }
+      return false;
+    }) || null
+  );
 }
 
 function buildRows(payload, pathData, formatTauro) {
@@ -90,19 +102,23 @@ function buildRows(payload, pathData, formatTauro) {
 
     const detectedTeinte = detectTeinteMasse(job);
     if (detectedTeinte) {
+      const teinteFormatFolder = findFormatFolder(folders, job.formatVisu);
       return {
         id: baseId,
         ...job,
         client,
         dossierNumero: payload.numero,
         checked: Boolean(formatTauroValue),
-        formatPath: "",
+        formatPath: teinteFormatFolder?.path || job.formatVisu || "",
         formatTauroValue,
         candidates: [],
         selectedFile: detectedTeinte,
         selectedFileObject: { name: detectedTeinte },
         prodBlanc: false,
         teinteMasse: true,
+        isCredence: false,
+        credence2: null,
+        _absorbedBy: null,
         status: formatTauroValue ? "Prêt" : "Format Tauro requis",
       };
     }
@@ -117,6 +133,7 @@ function buildRows(payload, pathData, formatTauro) {
       candidates.length === 1 ||
       (candidates.length > 1 && candidates[0].score > (candidates[1]?.score || 0) + 20);
 
+    const isCredence = CREDENCES_RE.test(job.formatVisu);
     return {
       id: baseId,
       ...job,
@@ -130,6 +147,9 @@ function buildRows(payload, pathData, formatTauro) {
       selectedFileObject,
       prodBlanc: REGEX_BLANC.test(selectedFile.split("/").pop()),
       teinteMasse: false,
+      isCredence,
+      credence2: null,
+      _absorbedBy: null,
       status:
         !formatTauroValue
           ? "Format Tauro requis"

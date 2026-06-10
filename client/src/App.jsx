@@ -2,7 +2,7 @@ const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
 const REGEX_BLANC = /\+\s*blanc\b/i;
 import { Fragment, useEffect, useState } from "react";
-import { Button, Checkbox, Dropdown, Form, Icon, Input, Table } from "semantic-ui-react";
+import { Button, Checkbox, Dropdown, Form, Icon, Input, Label, Table } from "semantic-ui-react";
 import CheckFormats from "./CheckFormats";
 import Config from "./components/Config";
 import DossierAutocomplete from "./components/DossierAutocomplete";
@@ -152,11 +152,32 @@ function App() {
   }
 
   function toggleGroupSelection(dossierNumero) {
-    const groupJobs = dossierJobs.filter((j) => j.dossierNumero === dossierNumero);
+    const groupJobs = dossierJobs.filter((j) => j.dossierNumero === dossierNumero && !j._absorbedBy);
     const allSelected = groupJobs.length > 0 && groupJobs.every((j) => selectedJobIds.has(j.id));
     setSelectedJobIds((prev) => {
       const next = new Set(prev);
       groupJobs.forEach((j) => { if (allSelected) next.delete(j.id); else next.add(j.id); });
+      return next;
+    });
+  }
+
+  function pairCredence(primaryId, partnerId) {
+    setDossierJobs((prev) => {
+      const primary = prev.find((r) => r.id === primaryId);
+      const prevPartnerId = primary?.credence2?.id || null;
+      return prev.map((r) => {
+        if (r.id === primaryId) {
+          const partner = partnerId ? prev.find((x) => x.id === partnerId) : null;
+          return { ...r, credence2: partner || null };
+        }
+        if (prevPartnerId && r.id === prevPartnerId) return { ...r, _absorbedBy: null };
+        if (partnerId && r.id === partnerId) return { ...r, _absorbedBy: primaryId, credence2: null };
+        return r;
+      });
+    });
+    setSelectedJobIds((prev) => {
+      const next = new Set(prev);
+      if (partnerId) next.delete(partnerId);
       return next;
     });
   }
@@ -278,7 +299,7 @@ function App() {
 
     // Mode dossier : soumettre uniquement les jobs sélectionnés
     if (dossierJobs.length > 0) {
-      const jobsToSubmit = dossierJobs.filter((j) => selectedJobIds.has(j.id));
+      const jobsToSubmit = dossierJobs.filter((j) => selectedJobIds.has(j.id) && !j._absorbedBy);
       if (jobsToSubmit.length === 0) return;
       try {
         const errors = [];
@@ -289,11 +310,11 @@ function App() {
             formatTauro: job.formatTauroValue,
             prodBlanc: job.prodBlanc ?? false,
             format: job.formatPath,
-            format2: "",
+            format2: job.credence2?.formatPath || "",
             visuel: job.selectedFileObject?.name || "",
-            visuel2: "",
+            visuel2: job.credence2?.selectedFileObject?.name || "",
             numCmd: job.numCmd || "",
-            numCmd2: "",
+            numCmd2: job.credence2?.numCmd || "",
             ville: job.ville || "",
             ex: job.ex || 1,
             perte: 0,
@@ -486,13 +507,17 @@ function App() {
                 />
                 {dossierJobs.length > 0 && (() => {
                   const groups = dossierJobs.reduce((acc, job, i) => {
+                    if (job._absorbedBy) return acc;
                     const key = job.dossierNumero || "?";
                     if (!acc[key]) acc[key] = { client: job.client, jobs: [] };
                     acc[key].jobs.push({ ...job, _idx: i });
                     return acc;
                   }, {});
-                  const allSelected = selectedJobIds.size === dossierJobs.length && dossierJobs.length > 0;
-                  const someSelected = selectedJobIds.size > 0 && !allSelected;
+                  const visibleJobs = dossierJobs.filter((j) => !j._absorbedBy);
+                  const visibleSelectedCount = visibleJobs.filter((j) => selectedJobIds.has(j.id)).length;
+                  const allSelected = visibleJobs.length > 0 && visibleSelectedCount === visibleJobs.length;
+                  const someSelected = visibleSelectedCount > 0 && !allSelected;
+                  const hasCredences = dossierJobs.some((j) => j.isCredence);
                   return (
                     <div className="dossier-table-wrapper">
                       <Table compact="very" size="small" className="dossier-table">
@@ -504,7 +529,7 @@ function App() {
                                 indeterminate={someSelected}
                                 onChange={() => {
                                   if (allSelected || someSelected) setSelectedJobIds(new Set());
-                                  else setSelectedJobIds(new Set(dossierJobs.map((j) => j.id)));
+                                  else setSelectedJobIds(new Set(visibleJobs.map((j) => j.id)));
                                 }}
                               />
                             </Table.HeaderCell>
@@ -520,6 +545,11 @@ function App() {
                             <Table.HeaderCell title="Teinte masse" style={{ textAlign: "center" }}>
                               <Icon name="tint" size="small" />
                             </Table.HeaderCell>
+                            {hasCredences && (
+                              <Table.HeaderCell title="Crédence — 2e panneau">
+                                <Icon name="clone" size="small" /> 2e panneau
+                              </Table.HeaderCell>
+                            )}
                           </Table.Row>
                         </Table.Header>
                         <Table.Body>
@@ -537,7 +567,7 @@ function App() {
                                       onChange={() => toggleGroupSelection(dossierNumero)}
                                     />
                                   </Table.Cell>
-                                  <Table.Cell colSpan={8} className="dossier-group-label" data-client={group.client}>
+                                  <Table.Cell colSpan={hasCredences ? 9 : 8} className="dossier-group-label" data-client={group.client}>
                                     <span className={`client-badge client-badge--${group.client?.toLowerCase()}`}>
                                       {group.client}
                                     </span>
@@ -573,8 +603,12 @@ function App() {
                                           options={folders.map((f) => ({ key: f.path, text: f.name.match(/\d{3}x\d{2,3}/i)?.[0] || f.name, value: f.path }))}
                                           value={job.formatPath || ""}
                                           onChange={(_, d) => {
-                                            const sel = folders.find((f) => f.path === d.value);
-                                            updateDossierJob(job._idx, { formatPath: d.value, selectedFileObject: sel?.files?.[0] || null });
+                                            if (job.teinteMasse) {
+                                              updateDossierJob(job._idx, { formatPath: d.value });
+                                            } else {
+                                              const sel = folders.find((f) => f.path === d.value);
+                                              updateDossierJob(job._idx, { formatPath: d.value, selectedFileObject: sel?.files?.[0] || null });
+                                            }
                                           }}
                                         />
                                       </Table.Cell>
@@ -640,6 +674,35 @@ function App() {
                                           })}
                                         />
                                       </Table.Cell>
+                                      {hasCredences && (
+                                        <Table.Cell>
+                                          {job.isCredence && (
+                                            <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
+                                              <Label
+                                                size="mini"
+                                                color={job.credence2 ? "green" : "yellow"}
+                                              >
+                                                {job.credence2 ? "2 panneaux" : "1 panneau"}
+                                              </Label>
+                                              <Dropdown
+                                                compact selection clearable
+                                                placeholder="— seul —"
+                                                options={dossierJobs
+                                                  .filter((j) =>
+                                                    j.isCredence &&
+                                                    j.id !== job.id &&
+                                                    !j._absorbedBy &&
+                                                    j.formatVisu === job.formatVisu &&
+                                                    j.dossierNumero === job.dossierNumero
+                                                  )
+                                                  .map((j) => ({ key: j.id, value: j.id, text: j.libelle || j.id }))}
+                                                value={job.credence2?.id || null}
+                                                onChange={(_, d) => pairCredence(job.id, d.value || null)}
+                                              />
+                                            </div>
+                                          )}
+                                        </Table.Cell>
+                                      )}
                                     </Table.Row>
                                   );
                                 })}

@@ -153,9 +153,18 @@ async function addJob(req, res) {
   const query = { $text: { $search: visuel } };
   if (exactFormat) query.format = exactFormat;
 
-  const findRefTeinteMasse = data.teinteMasse
-    ? await modelRefDeco.find(query, { score: { $meta: "textScore" } }).sort({ score: { $meta: "textScore" } }).limit(1)
-    : null;
+  let findRefTeinteMasse = null;
+  if (data.teinteMasse) {
+    try {
+      findRefTeinteMasse = await modelRefDeco
+        .find(query, { score: { $meta: "textScore" } })
+        .sort({ score: { $meta: "textScore" } })
+        .limit(1);
+    } catch (err) {
+      logger.warn(`Recherche RefDeco teinte masse échouée (index texte manquant ?) : ${err.message}`);
+      findRefTeinteMasse = [];
+    }
+  }
 
   let matchRef = data.teinteMasse ? findRefTeinteMasse?.[0]?.ref : visuel.match(/\d{8,13}/)?.[0];
   let matchRef2 = visuel2.match(/\d{8,13}/)?.[0];

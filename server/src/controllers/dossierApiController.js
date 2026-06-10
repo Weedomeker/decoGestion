@@ -64,7 +64,9 @@ function normalizeDossierApiPayload(payload) {
         commande,
         sousNumero,
         numCmd: String(payload?.numero || ""),
-        ville: livraison?.bo_ville || livraison?.bo_adlivr_nom_1 || livraison?.bo_ref_de_livraison || "",
+        ville: payload.clientName === "ECOM"
+          ? livraison?.bo_adlivr_nom_1 || livraison?.bo_ref_de_livraison || livraison?.bo_ville || ""
+          : livraison?.bo_ville || livraison?.bo_adlivr_nom_1 || livraison?.bo_ref_de_livraison || "",
         ex: entete?.endv_quant ?? livraison?.bo_quant_livree_total ?? 1,
         reference: visualRef?.reference || visualRef?.articleReference || visualRef?.modele || "",
         articleReference: visualRef?.articleReference || "",
