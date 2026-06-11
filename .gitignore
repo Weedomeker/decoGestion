@@ -43,3 +43,6 @@ visu_casto/
 *.pdf
 *.stackdump
 .claude/statusline-command.sh
+.claude/settings.local.json
+.claude/statusline.ps1
+.claude/notify-stop.ps1
