@@ -85,16 +85,21 @@ async function addJob(req, res) {
     stock: req.body.stock,
   };
   let client = data.client != null ? data.client?.toUpperCase() : "";
+  const client2 = (req.body.client2 || data.client)?.toUpperCase();
   let visuel = data.visuel?.split("/")?.pop();
   let visuel2 = data.visuel2?.split("/").pop() || "";
 
   if (client === "LM") {
     visuel = visuel.includes("-") ? visuel.split("-")?.pop() : visuel;
+  }
+  if (client2 === "LM") {
     visuel2 = visuel2.includes("-") ? visuel2.split("-")?.pop() : visuel2;
   }
 
   if (client === "BRICO") {
     visuel = visuel.replace(".pdf", "").trim();
+  }
+  if (client2 === "BRICO") {
     visuel2 = visuel2.replace(".pdf", "").trim();
   }
 
@@ -109,8 +114,9 @@ async function addJob(req, res) {
   const teinteMasse = data.teinteMasse;
 
   // Crédences BRICO/CASTO : le 2e visuel est obligatoire
-  const _formatVisuCheck = format?.match(/\d{3}x\d{2}/i)?.[0] || "";
-  if (/^\d{3}x\d{2}$/i.test(_formatVisuCheck) && (client === "BRICO" || client === "CASTO") && !data.visuel2) {
+  // (?!\d) évite de capturer "100x25" dans "100x255" — seules "300x60" / "255x60" matchent
+  const _formatVisuCheck = format?.match(/\d{3}x\d{2}(?!\d)/i)?.[0] || "";
+  if (_formatVisuCheck && (client === "BRICO" || client === "CASTO") && !data.visuel2) {
     return res.status(400).json({
       error: "Les crédences BRICO/CASTO doivent être amalgamées avec un 2e visuel.",
     });
@@ -133,6 +139,12 @@ async function addJob(req, res) {
     prefixClient = "ECOM";
   }
 
+  let prefixClient2 = "";
+  if (client2 === "LM") prefixClient2 = "LM";
+  else if (client2 === "CASTO") prefixClient2 = "CASTO";
+  else if (client2 === "BRICO") prefixClient2 = "BRICO";
+  else if (client2 === "ECOM") prefixClient2 = "ECOM";
+
   state.process.fileName = `${data.numCmd} - ${prefixClient} ${
     data.ville ? data.ville.toUpperCase() + " - " : ""
   }${teinteMasse === true ? format?.split("_").pop()?.replace("/", "") : formatTauro} - ${visuel.replace(
@@ -140,7 +152,7 @@ async function addJob(req, res) {
     "",
   )} ${data.ex}_EX`;
 
-  state.process.fileName2 = `${data.numCmd2 === 0 ? "" : data.numCmd2 + " - "}${prefixClient} ${
+  state.process.fileName2 = `${data.numCmd2 === 0 ? "" : data.numCmd2 + " - "}${prefixClient2} ${
     data.ville ? data.ville.toUpperCase() + " - " : ""
   }${teinteMasse === true ? format2?.split("_").pop() : formatTauro} - ${visuel2.replace(/\.[^/.]+$/, "")} ${
     data.ex
@@ -175,16 +187,10 @@ async function addJob(req, res) {
   }
 
   let matchRef = data.teinteMasse ? findRefTeinteMasse?.[0]?.ref : visuel.match(/\d{8,13}/)?.[0];
+  if (client === "BRICO" || client === "ECOM") matchRef = visuel.match(/[A-Z]+-\d+/g)?.[0];
+
   let matchRef2 = visuel2.match(/\d{8,13}/)?.[0];
-  if (client === "BRICO") {
-    const regex = /[A-Z]+-\d+/g;
-    matchRef = visuel.match(regex)?.[0];
-    matchRef2 = visuel2.match(regex)?.[0];
-  }
-  if (client === "ECOM") {
-    const regex = /[A-Z]+-\d+/g;
-    matchRef = visuel.match(regex)?.[0];
-  }
+  if (client2 === "BRICO" || client2 === "ECOM") matchRef2 = visuel2.match(/[A-Z]+-\d+/g)?.[0];
 
   const newJob = createJob(
     client,
@@ -461,7 +467,7 @@ async function runJobs(req, res) {
           });
         }
       } catch (error) {
-        console.log(error);
+        logger.error(`Erreur sauvegarde dossier pour le job ${job.cmd}: ${error.message}`);
       }
 
       if (isStock) {
@@ -500,7 +506,7 @@ async function runJobs(req, res) {
             createDec(wPlate, hPlate, width, height, pathCutFiles);
             generateCutFile(hPlate * 10, wPlate * 10, height * 10, width * 10, 6, pathCutFiles);
           } catch (error) {
-            console.log(error);
+            logger.error(`Erreur génération fichier de coupe pour le job ${job.cmd}: ${error.message}`);
           }
         }
       }

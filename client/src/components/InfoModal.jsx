@@ -5,14 +5,17 @@ import { useEffect, useState } from "react";
 import { Button, Input, Message, Modal } from "semantic-ui-react";
 const InfoModal = ({ open, onClose, message, object, error }) => {
   const [data, setData] = useState(object);
+  const [saveError, setSaveError] = useState(null);
   const visuel = object && object.visuel ? object.visuel?.split("/")?.pop()?.split("-")?.pop()?.split(" ")[0] : "";
 
   useEffect(() => {
     setData(object);
+    setSaveError(null);
   }, [object]);
 
   //POST data
   const updateJob = async () => {
+    setSaveError(null);
     try {
       const response = await fetch(`http://${HOST}:${PORT}/edit_job`, {
         method: "PATCH",
@@ -24,9 +27,10 @@ const InfoModal = ({ open, onClose, message, object, error }) => {
         throw new Error(result.error || "Une erreur est survenue");
       }
 
-      onClose(); // Fermer le modal après une mise à jour réussie
+      onClose();
     } catch (err) {
-      console.log(err);
+      console.error(err);
+      setSaveError(err.message || "Erreur lors de la sauvegarde.");
     }
   };
 
@@ -48,6 +52,14 @@ const InfoModal = ({ open, onClose, message, object, error }) => {
           </Message>
         )}
       </Modal.Content>
+      {saveError && (
+        <Modal.Content>
+          <Message negative>
+            <Message.Header>Erreur de sauvegarde</Message.Header>
+            <p>{saveError}</p>
+          </Message>
+        </Modal.Content>
+      )}
       <Modal.Actions>
         <Input
           content={object && object.ex}

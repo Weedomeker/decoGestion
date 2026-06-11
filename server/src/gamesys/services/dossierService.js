@@ -1,5 +1,6 @@
 const { getDbConnection } = require("../config/db");
 const { query, escapeSqlValue, sqlTextList, closeConnection } = require("../lib/db");
+const logger = require("../../logger/logger");
 const {
   normalizeSearchText,
   getSearchTerms,
@@ -428,7 +429,7 @@ function buildGroupedResponse(details, view) {
 
   if (view === "summary") {
     grouped.resume = {
-      nbLivraisons: sortedDetails.reduce((total, detail) => total + (detail.livraisons?.length || 0), 0),
+      nbLivraisons: sortedDetails.reduce((total, detail) => total + (detail.livraison?.length || 0), 0),
       nbEtapesProduction: sortedDetails.reduce((total, detail) => total + (detail.production?.agenda?.length || 0), 0),
       nbOperationsSuivi: sortedDetails.reduce((total, detail) => total + (detail.production?.suivi?.length || 0), 0),
     };
@@ -483,7 +484,7 @@ async function fetchEnteteDevis(connection, escapedCommande, escapedCode) {
       `select * from public.fd_entete_devi where endv_no_dossier = '${escapedCommande}' or endv_no_commande = '${escapedCommande}' or endv_no_cmde_globale = '${escapedCommande}' or endv_no_dossier_site_donneur = '${escapedCommande}' or endv_coduniq = '${escapedCode}'`
     );
   } catch (error) {
-    console.warn(`Erreur entête devis: ${error.message}`);
+    logger.warn(`Erreur entête devis: ${error.message}`);
     return [];
   }
 }
@@ -492,7 +493,7 @@ async function fetchOptionalRows(connection, sql) {
   try {
     return await query(connection, sql);
   } catch (error) {
-    console.warn(`Erreur requête liée: ${error.message}`);
+    logger.warn(`Erreur requête liée: ${error.message}`);
     return [];
   }
 }
@@ -596,7 +597,7 @@ async function buildDetail(connection, dossier) {
     profileReferences = buildProfileReferences(enteteDevis, categorizedReferences.profiles);
     kitPosesReferences = buildKitPoseReferences(enteteDevis, categorizedReferences.kitPoses);
   } catch (error) {
-    console.warn(`Erreur références stock pour seq ${dossier.dos_seq}: ${error.message}`);
+    logger.warn(`Erreur références stock pour seq ${dossier.dos_seq}: ${error.message}`);
   }
 
   return {

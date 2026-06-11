@@ -660,6 +660,34 @@ img.ui.image:not(.header-logo) {
 .dossier-table th:nth-child(9),
 .dossier-table td:nth-child(9) { width: 4% !important; text-align: center !important; padding: 4px 2px !important; }
 
+/* Largeurs rebalancées quand la colonne "2e panneau" est présente (10 colonnes) */
+.dossier-table--credences th:nth-child(2),
+.dossier-table--credences td:nth-child(2) { width: 13% !important; }
+
+.dossier-table--credences th:nth-child(3),
+.dossier-table--credences td:nth-child(3) { width: 9% !important; }
+
+.dossier-table--credences th:nth-child(4),
+.dossier-table--credences td:nth-child(4) { width: 22% !important; }
+
+.dossier-table--credences th:nth-child(5),
+.dossier-table--credences td:nth-child(5) { width: 9% !important; }
+
+.dossier-table--credences th:nth-child(6),
+.dossier-table--credences td:nth-child(6) { width: 12% !important; }
+
+.dossier-table--credences th:nth-child(7),
+.dossier-table--credences td:nth-child(7) { width: 5% !important; }
+
+.dossier-table--credences th:nth-child(8),
+.dossier-table--credences td:nth-child(8) { width: 3% !important; }
+
+.dossier-table--credences th:nth-child(9),
+.dossier-table--credences td:nth-child(9) { width: 3% !important; }
+
+.dossier-table--credences th:nth-child(10),
+.dossier-table--credences td:nth-child(10) { width: 21% !important; }
+
 /* Ligne de groupe : séparateur entre dossiers */
 .dossier-table .dossier-group-header td {
   background: #0c0c18 !important;
@@ -790,6 +818,32 @@ img.ui.image:not(.header-logo) {
 }
 
 .content .header { padding: 0; }
+
+/* Bandeau d'avertissement crédences sans 2e panneau */
+.credence-unpaired-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  background: rgba(255, 165, 0, 0.1);
+  border: 1px solid rgba(255, 165, 0, 0.35);
+  border-radius: var(--radius);
+  font-size: 12px;
+  color: #e8a020;
+  font-family: 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.3px;
+}
+
+/* Ligne inline de complétion crédence */
+.dossier-table.ui.table .credence-inline-form td {
+  background: rgba(255, 230, 120, 0.06) !important;
+  border-top: 1px dashed rgba(255, 165, 0, 0.3) !important;
+}
+
+.dossier-table .credence-inline-form label {
+  color: #e8a020 !important;
+}
 
 /* ===================== SEMANTIC UI OVERRIDES ===================== */
 

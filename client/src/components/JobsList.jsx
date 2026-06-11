@@ -32,6 +32,8 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
   // const [stickersData, setStickersData] = useState(true);
   // const [paperSticker, setPaperSticker] = useState('A4');
   const [filter, setFilter] = useState([]);
+  const [wsConnected, setWsConnected] = useState(false);
+  const [actionError, setActionError] = useState(null);
 
   useEffect(() => {
     if (data.length > 0) {
@@ -83,12 +85,17 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
 
     function connect() {
       ws = new WebSocket(`ws://${HOST}:${PORT}`);
-      ws.onopen = () => console.log("Connected to WebSocket server");
+      ws.onopen = () => {
+        setWsConnected(true);
+      };
       ws.onmessage = handleMessage;
-      ws.onerror = (error) => console.error("WebSocket error:", error);
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        setWsConnected(false);
+      };
       ws.onclose = () => {
+        setWsConnected(false);
         if (!unmounted) {
-          console.log("WebSocket disconnected — reconnecting in 2s");
           reconnectTimer = setTimeout(connect, 2000);
         }
       };
@@ -133,6 +140,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
   }, []);
 
   const handleGenerateStickers = async () => {
+    setActionError(null);
     try {
       const response = await fetch(`http://${HOST}:${PORT}/generate_stickers`, {
         method: "POST",
@@ -140,13 +148,12 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
       });
 
       if (!response.ok) {
-        console.error("Failed to generate stickers:", response.statusText);
-        return;
+        const result = await response.json().catch(() => ({}));
+        setActionError(result.error || `Erreur génération stickers (${response.status})`);
       }
-
-      console.log("Stickers generated successfully");
     } catch (error) {
-      console.error("Error deleting jobs:", error);
+      console.error("Error generating stickers:", error);
+      setActionError("Impossible de contacter le serveur.");
     }
   };
 
@@ -168,6 +175,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
   };
 
   const runJobsList = async () => {
+    setActionError(null);
     try {
       const response = await fetch(`http://${HOST}:${PORT}/run_jobs`, {
         method: "POST",
@@ -182,52 +190,45 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
       });
 
       if (!response.ok) {
-        console.error("Failed to run jobs:", response.statusText);
+        const result = await response.json().catch(() => ({}));
+        setActionError(result.error || `Erreur traitement des jobs (${response.status})`);
         return;
       }
       setRefreshFlag((prev) => prev + 1);
     } catch (error) {
       console.error("Error running jobs:", error);
+      setActionError("Impossible de contacter le serveur.");
     }
   };
 
   const handleDeleteJob = async (id) => {
+    setActionError(null);
     try {
       const response = await fetch(`http://${HOST}:${PORT}/delete_job`, {
         method: "DELETE",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
-        body: JSON.stringify({ _id: id }), // Envoie l'ID du job à supprimer
+        body: JSON.stringify({ _id: id }),
       });
 
-      // Gestion de la réponse de suppression
       if (!response.ok) {
-        console.error("Failed to delete job:", response.statusText);
+        const result = await response.json().catch(() => ({}));
+        setActionError(result.error || `Erreur suppression du job (${response.status})`);
         return;
       }
 
-      console.log("Job deleted successfully");
-
       // Mise à jour de l'état après la suppression réussie
       const updateJobs = data[0].jobs.filter((item) => item._id !== id);
-
-      setData((prevData) => [
-        {
-          ...prevData[0],
-          jobs: updateJobs,
-        },
-      ]);
+      setData((prevData) => [{ ...prevData[0], jobs: updateJobs }]);
     } catch (error) {
       console.error("Error deleting job:", error);
+      setActionError("Impossible de contacter le serveur.");
     }
   };
 
   const handleDeleteJobComplete = async () => {
-    setData((prevData) => [
-      {
-        ...prevData[0],
-        completed: [],
-      },
-    ]);
+    setActionError(null);
+    const snapshot = data[0]?.completed ?? [];
+    setData((prevData) => [{ ...prevData[0], completed: [] }]);
     try {
       const response = await fetch(`http://${HOST}:${PORT}/delete_job_completed`, {
         method: "DELETE",
@@ -236,13 +237,15 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
       });
 
       if (!response.ok) {
-        console.error("Failed to delete all jobs:", response.statusText);
-        return;
+        // Restaurer l'état si l'appel a échoué
+        setData((prevData) => [{ ...prevData[0], completed: snapshot }]);
+        const result = await response.json().catch(() => ({}));
+        setActionError(result.error || `Erreur suppression des jobs terminés (${response.status})`);
       }
-
-      console.log("Jobs deleted successfully");
     } catch (error) {
       console.error("Error deleting jobs:", error);
+      setData((prevData) => [{ ...prevData[0], completed: snapshot }]);
+      setActionError("Impossible de contacter le serveur.");
     }
   };
 
@@ -510,6 +513,16 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+      {!wsConnected && (
+        <div style={{ background: "#fff3cd", color: "#856404", padding: "4px 10px", fontSize: "0.85em", borderBottom: "1px solid #ffc107" }}>
+          ⚠ Temps réel déconnecté — reconnexion en cours…
+        </div>
+      )}
+      {actionError && (
+        <div style={{ background: "#f8d7da", color: "#721c24", padding: "4px 10px", fontSize: "0.85em", borderBottom: "1px solid #f5c6cb", cursor: "pointer" }} onClick={() => setActionError(null)}>
+          ✕ {actionError}
+        </div>
+      )}
       <div className="jobs-section-label">File en attente ({nbJobs})</div>
       {jobs}
       {nbCompleted > 0 && (

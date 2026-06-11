@@ -22,6 +22,8 @@ server/public/PRINTSA*
 server/public/PREVIEW
 *.csv
 *.log
+*.jpg
+*.jpeg
 client/dist
 .env
 *.log

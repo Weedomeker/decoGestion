@@ -94,6 +94,11 @@ function App() {
     object: null,
     use: false,
   });
+  const [credenceEditId, setCredenceEditId] = useState(null);
+  const [credence2NumCmd, setCredence2NumCmd] = useState("");
+  const [credence2File, setCredence2File] = useState(null);
+  const [credence2Client, setCredence2Client] = useState("");
+  const [credence2Format, setCredence2Format] = useState("");
 
   function handleDossierAutoFill({ clearMode, manualMode, allJobs, client }) {
     if (clearMode) {
@@ -101,6 +106,11 @@ function App() {
       setSelectedJobIds(new Set());
       setEnabled({ format: true, visu: true, numCmd: true, ville: true, ex: true, validate: true });
       setActiveTab("dossier");
+      setCredenceEditId(null);
+      setCredence2NumCmd("");
+      setCredence2File(null);
+      setCredence2Client("");
+      setCredence2Format("");
       return;
     }
 
@@ -121,6 +131,11 @@ function App() {
     setModalInfoStock({ open: false, stock: null, object: null, use: false });
     setActiveTab("dossier");
     setDossierJobs(allJobs);
+    setCredenceEditId(null);
+    setCredence2NumCmd("");
+    setCredence2File(null);
+    setCredence2Client("");
+    setCredence2Format("");
 
     // Auto-sélectionne les nouveaux jobs valides, préserve les sélections existantes
     setSelectedJobIds((prev) => {
@@ -182,6 +197,30 @@ function App() {
     });
   }
 
+  function applyManualCredence2(jobId) {
+    setDossierJobs((prev) =>
+      prev.map((j) =>
+        j.id === jobId
+          ? {
+              ...j,
+              credence2: {
+                _manual: true,
+                numCmd: credence2NumCmd,
+                selectedFileObject: credence2File,
+                formatPath: credence2Format || j.formatPath,
+                client: credence2Client || j.client,
+              },
+            }
+          : j,
+      ),
+    );
+    setCredenceEditId(null);
+    setCredence2NumCmd("");
+    setCredence2File(null);
+    setCredence2Client("");
+    setCredence2Format("");
+  }
+
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       e.preventDefault();
@@ -210,7 +249,11 @@ function App() {
           setFormatTauro(arr));
         setLoadingFormatTauro(false);
       })
-      .catch((err) => console.log(err));
+      .catch((err) => {
+        console.error(err);
+        setLoadingFormatTauro(false);
+        setWarnMsg({ hidden: false, header: "Erreur serveur", msg: "Impossible de charger les formats Tauro.", icon: "warning sign", color: "red" });
+      });
   }, []);
 
   //Get App version
@@ -226,7 +269,9 @@ function App() {
       .then((res) => {
         setVersion(res.version);
       })
-      .catch((err) => console.log(err));
+      .catch((err) => {
+        console.error(err);
+      });
   }, []);
 
   useEffect(() => {
@@ -247,8 +292,8 @@ function App() {
         } else {
           setWarnMsg({
             hidden: false,
-            header: "Erreure",
-            msg: res.message,
+            header: "Erreur",
+            msg: res.message || res.error,
             icon: "warning sign",
             color: "red",
           });
@@ -256,7 +301,11 @@ function App() {
         setIsLoading(false);
         setIsFooter(false);
       })
-      .catch((err) => console.log(err));
+      .catch((err) => {
+        console.error(err);
+        setIsLoading(false);
+        setWarnMsg({ hidden: false, header: "Serveur inaccessible", msg: "Impossible de contacter le serveur. Vérifiez la connexion.", icon: "warning sign", color: "red" });
+      });
   }, [formatTauro, checkFolder]);
 
   const handleClose = () => {
@@ -321,6 +370,7 @@ function App() {
         for (const job of jobsToSubmit) {
           const payload = {
             client: job.client || checkFolder,
+            client2: job.credence2?.client || job.client || checkFolder,
             allFormatTauro: formatTauro,
             formatTauro: job.formatTauroValue,
             prodBlanc: job.prodBlanc ?? false,
@@ -546,9 +596,21 @@ function App() {
                   const allSelected = visibleJobs.length > 0 && visibleSelectedCount === visibleJobs.length;
                   const someSelected = visibleSelectedCount > 0 && !allSelected;
                   const hasCredences = dossierJobs.some((j) => j.isCredence);
+                  const unpairedManualCredences = dossierJobs.filter((j) => {
+                    if (!j.isCredence || j._absorbedBy || j.credence2) return false;
+                    return !dossierJobs.some(
+                      (x) => x.isCredence && x.id !== j.id && !x._absorbedBy && !x.credence2,
+                    );
+                  });
                   return (
                     <div className="dossier-table-wrapper">
-                      <Table compact="very" size="small" className="dossier-table">
+                      {unpairedManualCredences.length > 0 && (
+                        <div className="credence-unpaired-warning">
+                          <Icon name="warning sign" color="orange" />
+                          {unpairedManualCredences.length} crédence{unpairedManualCredences.length > 1 ? "s" : ""} sans 2e panneau dans le dossier — cliquez sur &laquo;&nbsp;Compléter&nbsp;&raquo; pour ajouter le 2e visuel.
+                        </div>
+                      )}
+                      <Table compact="very" size="small" className={`dossier-table${hasCredences ? " dossier-table--credences" : ""}`}>
                         <Table.Header>
                           <Table.Row>
                             <Table.HeaderCell className="col-check">
@@ -606,9 +668,12 @@ function App() {
                                   const folders = data[0]?.[job.client] || [];
                                   const rowFiles = folders.find((f) => f.path === job.formatPath)?.files || [];
                                   const isSelected = selectedJobIds.has(job.id);
+                                  const hasDossierPartner = dossierJobs.some(
+                                    (x) => x.isCredence && x.id !== job.id && !x._absorbedBy && !x.credence2,
+                                  );
                                   return (
+                                    <Fragment key={job.id || job._idx}>
                                     <Table.Row
-                                      key={job.id || job._idx}
                                       className={isSelected ? "" : "job-row-deselected"}
                                     >
                                       <Table.Cell>
@@ -726,18 +791,130 @@ function App() {
                                                     j.isCredence &&
                                                     j.id !== job.id &&
                                                     !j._absorbedBy &&
-                                                    j.formatVisu === job.formatVisu &&
-                                                    j.dossierNumero === job.dossierNumero
+                                                    !j.credence2
                                                   )
-                                                  .map((j) => ({ key: j.id, value: j.id, text: j.libelle || j.id }))}
+                                                  .map((j) => ({
+                                                    key: j.id,
+                                                    value: j.id,
+                                                    text: `${j.client || ""} — ${j.libelle || j.id} (${j.formatVisu || ""})`,
+                                                  }))}
                                                 value={job.credence2?.id || null}
                                                 onChange={(_, d) => pairCredence(job.id, d.value || null)}
                                               />
+                                              {!job.credence2 && (
+                                                <Button
+                                                  size="mini"
+                                                  compact
+                                                  color={credenceEditId === job.id ? "grey" : "orange"}
+                                                  onClick={() => {
+                                                    setCredenceEditId((prev) => (prev === job.id ? null : job.id));
+                                                    setCredence2Client("");
+                                                    setCredence2Format("");
+                                                    setCredence2File(null);
+                                                    setCredence2NumCmd("");
+                                                  }}
+                                                >
+                                                  {credenceEditId === job.id ? "Annuler" : "Compléter ▾"}
+                                                </Button>
+                                              )}
                                             </div>
                                           )}
                                         </Table.Cell>
                                       )}
                                     </Table.Row>
+                                    {credenceEditId === job.id && (() => {
+                                      const c2Client = credence2Client || job.client;
+                                      const c2Folders = (data[0]?.[c2Client] || []).filter((f) =>
+                                        /\d{3}x\d{2}/.test(f.name)
+                                      );
+                                      const c2Files = credence2Format
+                                        ? c2Folders.find((f) => f.path === credence2Format)?.files || []
+                                        : [];
+                                      return (
+                                        <Table.Row className="credence-inline-form">
+                                          <Table.Cell colSpan={hasCredences ? 10 : 9} style={{ padding: "0.75rem 1.25rem" }}>
+                                            <Form style={{ display: "flex", gap: "0.75rem", alignItems: "flex-end", flexWrap: "wrap" }}>
+                                              <strong style={{ marginRight: 4, alignSelf: "center" }}>
+                                                <Icon name="clone" /> 2e panneau
+                                              </strong>
+                                              <Form.Field>
+                                                <label>Client 2</label>
+                                                <Dropdown
+                                                  selection
+                                                  size="mini"
+                                                  placeholder="Client…"
+                                                  options={["LM", "CASTO", "BRICO", "ECOM"].map((c) => ({ key: c, value: c, text: c }))}
+                                                  value={c2Client}
+                                                  onChange={(_, d) => {
+                                                    setCredence2Client(d.value);
+                                                    setCredence2Format("");
+                                                    setCredence2File(null);
+                                                  }}
+                                                />
+                                              </Form.Field>
+                                              <Form.Field>
+                                                <label>Format crédence 2</label>
+                                                <Dropdown
+                                                  selection
+                                                  search
+                                                  size="mini"
+                                                  placeholder="Format…"
+                                                  options={c2Folders.map((f) => ({
+                                                    key: f.path,
+                                                    value: f.path,
+                                                    text: f.name.match(/\d{3}x\d{2,3}/i)?.[0] || f.name,
+                                                  }))}
+                                                  value={credence2Format || ""}
+                                                  onChange={(_, d) => {
+                                                    setCredence2Format(d.value);
+                                                    setCredence2File(null);
+                                                  }}
+                                                />
+                                              </Form.Field>
+                                              <Form.Field>
+                                                <label>Visuel 2</label>
+                                                <Dropdown
+                                                  selection
+                                                  search
+                                                  clearable
+                                                  placeholder="Sélectionner…"
+                                                  options={c2Files.map((f) => ({
+                                                    key: f.name,
+                                                    value: f.name,
+                                                    text: f.name.split("/").pop().replace(/\.[^/.]+$/, ""),
+                                                  }))}
+                                                  value={credence2File?.name || null}
+                                                  onChange={(_, d) =>
+                                                    setCredence2File(d.value ? c2Files.find((f) => f.name === d.value) : null)
+                                                  }
+                                                />
+                                              </Form.Field>
+                                              <Form.Field>
+                                                <label>N° commande 2</label>
+                                                <Input
+                                                  size="mini"
+                                                  placeholder="Ex : 165676"
+                                                  value={credence2NumCmd}
+                                                  onChange={(_, d) => setCredence2NumCmd(d.value)}
+                                                />
+                                              </Form.Field>
+                                              <Form.Field>
+                                                <label>&nbsp;</label>
+                                                <Button
+                                                  size="mini"
+                                                  color="green"
+                                                  disabled={!credence2File || !credence2NumCmd || !credence2Format}
+                                                  onClick={() => applyManualCredence2(job.id)}
+                                                  icon="check"
+                                                  content="Valider"
+                                                />
+                                              </Form.Field>
+                                            </Form>
+                                          </Table.Cell>
+                                        </Table.Row>
+                                      );
+                                    })()}
+                                    </Fragment>
                                   );
                                 })}
                               </Fragment>

@@ -14,16 +14,31 @@ async function linkFolders(pathUpdate) {
     try {
       config = JSON.parse(readFile);
     } catch (error) {
-      return logger.error(error);
+      logger.error(error);
+      return { success: [], failed: [] };
     }
   }
 
+  const success = [];
+  const failed = [];
+
   for (const key in config) {
     if (key !== "vernis") {
-      await symlink(config[key], path.join(state.paths.serverRoot, `./public/${key.toUpperCase()}`), pathUpdate);
+      const result = await symlink(
+        config[key],
+        path.join(state.paths.serverRoot, `./public/${key.toUpperCase()}`),
+        pathUpdate,
+      );
+      if (result?.ok) {
+        success.push(key);
+        updateSourcePath(key);
+      } else {
+        failed.push({ key, reason: result?.reason });
+      }
     }
-    updateSourcePath(key);
   }
+
+  return { success, failed };
 }
 
 function getConfig() {
@@ -42,15 +57,17 @@ function getConfig() {
 async function saveConfig(nextConfig) {
   let previousConfig = {};
 
-  if (fs.existsSync(configPath)) {
-    const readFile = fs.readFileSync(configPath, "utf8");
-    previousConfig = JSON.parse(readFile);
+  try {
+    if (fs.existsSync(configPath)) {
+      previousConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    }
+    fs.writeFileSync(configPath, JSON.stringify(nextConfig, null, 2));
+  } catch (error) {
+    throw new Error(`Impossible d'écrire config.json: ${error.message}`);
   }
 
-  fs.writeFileSync(configPath, JSON.stringify(nextConfig));
-  await linkFolders(true);
-
-  return previousConfig;
+  const linkResult = await linkFolders(true);
+  return { previousConfig, linkResult };
 }
 
 module.exports = {
