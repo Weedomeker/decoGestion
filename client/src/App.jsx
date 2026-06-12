@@ -100,6 +100,26 @@ function App() {
   const [credence2Client, setCredence2Client] = useState("");
   const [credence2Format, setCredence2Format] = useState("");
 
+  function autoPairCredences(jobs) {
+    const result = jobs.map((j) => ({ ...j }));
+    const credencesByDossier = {};
+    result.forEach((j, idx) => {
+      if (j.isCredence && !j._absorbedBy && !j.credence2) {
+        if (!credencesByDossier[j.dossierNumero]) credencesByDossier[j.dossierNumero] = [];
+        credencesByDossier[j.dossierNumero].push(idx);
+      }
+    });
+    for (const indices of Object.values(credencesByDossier)) {
+      for (let i = 0; i + 1 < indices.length; i += 2) {
+        const primaryIdx = indices[i];
+        const partnerIdx = indices[i + 1];
+        result[primaryIdx] = { ...result[primaryIdx], credence2: result[partnerIdx] };
+        result[partnerIdx] = { ...result[partnerIdx], _absorbedBy: result[primaryIdx].id };
+      }
+    }
+    return result;
+  }
+
   function handleDossierAutoFill({ clearMode, manualMode, allJobs, client }) {
     if (clearMode) {
       setDossierJobs([]);
@@ -124,13 +144,15 @@ function App() {
 
     if (!allJobs || allJobs.length === 0) return;
 
+    const pairedJobs = autoPairCredences(allJobs);
+
     setCheckProdBlanc(false);
     setSelectedFormat2("");
     setSelectedFile2("");
     setPerte(0);
     setModalInfoStock({ open: false, stock: null, object: null, use: false });
     setActiveTab("dossier");
-    setDossierJobs(allJobs);
+    setDossierJobs(pairedJobs);
     setCredenceEditId(null);
     setCredence2NumCmd("");
     setCredence2File(null);
@@ -140,11 +162,16 @@ function App() {
     // Auto-sélectionne les nouveaux jobs valides, préserve les sélections existantes
     setSelectedJobIds((prev) => {
       const next = new Set(prev);
-      const incomingIds = new Set(allJobs.map((j) => j.id));
+      const incomingIds = new Set(pairedJobs.map((j) => j.id));
       // Retire les IDs disparus (dossier supprimé)
       prev.forEach((id) => { if (!incomingIds.has(id)) next.delete(id); });
-      // Ajoute les nouveaux jobs valides
-      allJobs.forEach((j) => { if (!prev.has(j.id) && j.selectedFileObject) next.add(j.id); });
+      pairedJobs.forEach((j) => {
+        if (j._absorbedBy) {
+          next.delete(j.id); // Force-déselectionne les partenaires absorbés même si déjà sélectionnés
+        } else if (!prev.has(j.id) && j.selectedFileObject) {
+          next.add(j.id);
+        }
+      });
       return next;
     });
   }
@@ -352,7 +379,11 @@ function App() {
       if (jobsToSubmit.length === 0) return;
 
       const unpairedCredences = jobsToSubmit.filter(
-        (j) => j.isCredence && !j.credence2 && (j.client === "BRICO" || j.client === "CASTO"),
+        (j) =>
+          j.isCredence &&
+          !j.credence2 &&
+          (j.client === "BRICO" || j.client === "CASTO") &&
+          Number(j.ex) === 1,
       );
       if (unpairedCredences.length > 0) {
         const details = unpairedCredences.map((j) => `N°${j.numCmd || j.id}`).join(", ");
@@ -361,6 +392,27 @@ function App() {
           message: "",
           object: null,
           error: `${unpairedCredences.length} crédence${unpairedCredences.length > 1 ? "s" : ""} sans 2e panneau : ${details}. Les crédences BRICO/CASTO doivent être amalgamées.`,
+        });
+        return;
+      }
+
+      const incompatibleFinitions = jobsToSubmit.filter((j) => {
+        if (!j.isCredence || !j.credence2) return false;
+        const v1 = j.selectedFileObject?.name || "";
+        const v2 = j.credence2?.selectedFileObject?.name || "";
+        const fin1 = /brillant/i.test(v1) ? "BRILLANT" : /mat/i.test(v1) ? "MAT" : null;
+        const fin2 = /brillant/i.test(v2) ? "BRILLANT" : /mat/i.test(v2) ? "MAT" : null;
+        return fin1 && fin2 && fin1 !== fin2;
+      });
+      if (incompatibleFinitions.length > 0) {
+        const details = incompatibleFinitions
+          .map((j) => `N°${j.numCmd || j.id} (${/brillant/i.test(j.selectedFileObject?.name || "") ? "BRILLANT" : "MAT"} + ${/brillant/i.test(j.credence2?.selectedFileObject?.name || "") ? "BRILLANT" : "MAT"})`)
+          .join(", ");
+        setModalData({
+          open: true,
+          message: "",
+          object: null,
+          error: `Finitions incompatibles pour ${incompatibleFinitions.length} crédence${incompatibleFinitions.length > 1 ? "s" : ""} : ${details}. Les deux panneaux doivent avoir la même finition.`,
         });
         return;
       }
@@ -415,14 +467,29 @@ function App() {
     const _isCredenceFormat =
       selectedFormat &&
       (selectedFormat.includes("300x60") || selectedFormat.includes("255x60"));
-    if (_isCredenceFormat && (checkFolder === "BRICO" || checkFolder === "CASTO") && !selectedFile2) {
-      setModalData({
-        open: true,
-        message: "",
-        object: null,
-        error: "Cette crédence doit être amalgamée avec un 2e visuel. Renseignez le 2e panneau avant de soumettre.",
-      });
-      return;
+    if (_isCredenceFormat && (checkFolder === "BRICO" || checkFolder === "CASTO")) {
+      if (Number(ex) === 1 && !selectedFile2) {
+        setModalData({
+          open: true,
+          message: "",
+          object: null,
+          error: "Cette crédence (1 ex) doit être amalgamée avec un 2e visuel différent. Renseignez le 2e panneau avant de soumettre.",
+        });
+        return;
+      }
+      if (selectedFile2) {
+        const fin1 = /brillant/i.test(selectedFile) ? "BRILLANT" : /mat/i.test(selectedFile) ? "MAT" : null;
+        const fin2 = /brillant/i.test(selectedFile2) ? "BRILLANT" : /mat/i.test(selectedFile2) ? "MAT" : null;
+        if (fin1 && fin2 && fin1 !== fin2) {
+          setModalData({
+            open: true,
+            message: "",
+            object: null,
+            error: `Amalgame impossible : finitions incompatibles (panneau 1 : ${fin1}, panneau 2 : ${fin2}). Les deux crédences doivent avoir la même finition.`,
+          });
+          return;
+        }
+      }
     }
 
     const data = {
@@ -771,51 +838,63 @@ function App() {
                                         <Table.Cell>
                                           {job.isCredence && (
                                             <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
-                                              <Label
-                                                size="mini"
-                                                color={
-                                                  job.credence2
-                                                    ? "green"
-                                                    : job.client === "BRICO" || job.client === "CASTO"
-                                                    ? "red"
-                                                    : "yellow"
-                                                }
-                                              >
-                                                {job.credence2 ? "2 panneaux" : "1 panneau"}
-                                              </Label>
-                                              <Dropdown
-                                                compact selection clearable
-                                                placeholder="— seul —"
-                                                options={dossierJobs
-                                                  .filter((j) =>
-                                                    j.isCredence &&
-                                                    j.id !== job.id &&
-                                                    !j._absorbedBy &&
-                                                    !j.credence2
-                                                  )
-                                                  .map((j) => ({
-                                                    key: j.id,
-                                                    value: j.id,
-                                                    text: `${j.client || ""} — ${j.libelle || j.id} (${j.formatVisu || ""})`,
-                                                  }))}
-                                                value={job.credence2?.id || null}
-                                                onChange={(_, d) => pairCredence(job.id, d.value || null)}
-                                              />
-                                              {!job.credence2 && (
-                                                <Button
-                                                  size="mini"
-                                                  compact
-                                                  color={credenceEditId === job.id ? "grey" : "orange"}
-                                                  onClick={() => {
-                                                    setCredenceEditId((prev) => (prev === job.id ? null : job.id));
-                                                    setCredence2Client("");
-                                                    setCredence2Format("");
-                                                    setCredence2File(null);
-                                                    setCredence2NumCmd("");
-                                                  }}
-                                                >
-                                                  {credenceEditId === job.id ? "Annuler" : "Compléter ▾"}
-                                                </Button>
+                                              {job._absorbedBy ? (
+                                                <Label size="mini" color="grey">Inclus ✓</Label>
+                                              ) : (
+                                                <>
+                                                  <Label
+                                                    size="mini"
+                                                    color={
+                                                      job.credence2
+                                                        ? "green"
+                                                        : job.client === "BRICO" || job.client === "CASTO"
+                                                        ? "red"
+                                                        : "yellow"
+                                                    }
+                                                  >
+                                                    {job.credence2 ? "2 panneaux" : "1 panneau"}
+                                                  </Label>
+                                                  {job.credence2?._manual && (
+                                                    <span style={{ fontSize: "0.75em", color: "#888", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                                      {job.credence2.selectedFileObject?.name?.split("/").pop().replace(/\.[^/.]+$/, "") || "Manuel"}
+                                                    </span>
+                                                  )}
+                                                  <Dropdown
+                                                    compact selection clearable
+                                                    placeholder="— seul —"
+                                                    options={dossierJobs
+                                                      .filter((j) =>
+                                                        j.isCredence &&
+                                                        j.id !== job.id &&
+                                                        !j._absorbedBy &&
+                                                        !j.credence2
+                                                      )
+                                                      .map((j) => ({
+                                                        key: j.id,
+                                                        value: j.id,
+                                                        text: `${j.client || ""} — ${j.libelle || j.id} (${j.formatVisu || ""})`,
+                                                      }))}
+                                                    value={job.credence2?.id || null}
+                                                    onChange={(_, d) => pairCredence(job.id, d.value || null)}
+                                                  />
+                                                  {(!job.credence2 || job.credence2._manual) && (
+                                                    <Button
+                                                      type="button"
+                                                      size="mini"
+                                                      compact
+                                                      color={credenceEditId === job.id ? "grey" : "orange"}
+                                                      onClick={() => {
+                                                        setCredenceEditId((prev) => (prev === job.id ? null : job.id));
+                                                        setCredence2Client("");
+                                                        setCredence2Format("");
+                                                        setCredence2File(null);
+                                                        setCredence2NumCmd("");
+                                                      }}
+                                                    >
+                                                      {credenceEditId === job.id ? "Annuler" : job.credence2?._manual ? "Modifier ▾" : "Compléter ▾"}
+                                                    </Button>
+                                                  )}
+                                                </>
                                               )}
                                             </div>
                                           )}
@@ -901,6 +980,7 @@ function App() {
                                               <Form.Field>
                                                 <label>&nbsp;</label>
                                                 <Button
+                                                  type="button"
                                                   size="mini"
                                                   color="green"
                                                   disabled={!credence2File || !credence2NumCmd || !credence2Format}

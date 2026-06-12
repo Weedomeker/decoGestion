@@ -80,3 +80,38 @@ L'app gère les visuels de quatre enseignes : **LM** (Leroy Merlin), **CASTO** (
 - `client/.env` — `VITE_HOST`, `VITE_PORT`, `VITE_API_GOOGLE`
 
 Le fichier `config.json` à la racine du projet stocke les chemins réseau actifs utilisés par `configService.js` pour créer les symlinks. Il est modifiable en direct via la modale Config de l'interface.
+
+## Règles métier — Crédences (BRICO / CASTO)
+
+Les crédences sont des panneaux de format `300x60` (CASTO) ou `255x60` (BRICO), détectés via le regex `/^\d{3}x\d{2}$/i` sur `format_visu`.
+
+### Règle des exemplaires
+
+| `ex` | Comportement | 2e visuel |
+|------|-------------|-----------|
+| **1 ex** | 2 visuels **différents** amalgamés côte à côte | Obligatoire — fourni par l'utilisateur |
+| **≥ 2 ex** | Même visuel amalgamé **2 fois** sur la plaque | Auto-dupliqué par le backend (`visuel2 = visuel1`) |
+
+- Si `ex=1` et `visuel2` absent → rejet **400** : `"Les crédences BRICO/CASTO (1 ex) doivent être amalgamées avec un 2e visuel différent."`
+- Si `ex≥2` et `visuel2` absent → backend duplique automatiquement (`data.visuel2`, `visuPath2`, `visuel2`, `format2`, `matchRef2` sont tous réassignés).
+
+### Variables critiques dans `addJob`
+
+`visuPath2`, `visuel2` (nom nettoyé) et `format2` sont initialisées **avant** le bloc crédences → elles sont déclarées `let` et réassignées dans le bloc de duplication. Ne pas les déclarer `const`.
+
+### Extraction du nom `deco` dans `runJobs`
+
+- **CASTO** : partie du nom du fichier **après** le format (ex : `"CRED 300x60cm MOSAIQUE 3664711694254 MAT.pdf"` → `"MOSAIQUE"`).
+- **BRICO** : partie **avant** le format (ex : `"VELTIS BRILLANT 255x60 VELTIS-25560"` → `"VELTIS BRILLANT"`).
+
+Cette logique s'applique à `deco` ET `deco2` (le 2e panneau). `deco2` utilise `job.client` (pas `client2`) pour choisir la branche.
+
+### Sauvegarde MongoDB (`saveDeco`)
+
+- `ex=1`, 2 visuels différents (`cmd2 ≠ cmd`) → **2 entrées** Deco créées.
+- `ex≥2`, même visuel dupliqué (`visuel === visuel2`) → **1 seule entrée** Deco (la condition `!isDuplicated` l'empêche).
+
+### Tests de référence
+
+- `test/integration/credences.test.js` — couvre toutes les combinaisons : rejet 400, amalgame 2 visuels différents (CASTO + BRICO), duplication automatique `ex=2`.
+- Endpoint `GET /history?limit=N` disponible pour vérifier les entrées MongoDB après `run_jobs`.

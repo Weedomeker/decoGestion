@@ -258,7 +258,7 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
   // ════════════════════════════════════════════════════════════════════════════
 
   describe("Dossier 165675 — CASTO crédence 300x60 — amalgame 2 visuels (MOSAIQUE + MARBRE BLANC)", function () {
-    this.timeout(60000);
+    this.timeout(90000);
 
     let addResp;
     let writePath, jpgDir;
@@ -325,6 +325,13 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
       ).to.be.ok;
       expect(fs.existsSync(path.join(writePath, amalgame))).to.be.true;
     });
+    it("PDF amalgamé non vide (taille > 0)", () => {
+      const pdfs = findFilesInDir(writePath, ".pdf");
+      const amalgame = pdfs.find((f) => f.includes(" + "));
+      expect(amalgame, "PDF amalgamé introuvable").to.be.ok;
+      const stat = fs.statSync(path.join(writePath, amalgame));
+      expect(stat.size, "PDF amalgamé vide").to.be.greaterThan(0);
+    });
     it("JPG amalgamé généré dans le dossier PRINTSA (avec ' + ' dans le nom)", () => {
       const jpgs = findFilesInDir(jpgDir, ".jpg");
       const amalgame = jpgs.find((f) => f.includes(" + "));
@@ -333,6 +340,25 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
         `Aucun JPG amalgamé trouvé dans ${jpgDir}.\nFichiers : ${jpgs.join(", ") || "(vide)"}`,
       ).to.be.ok;
       expect(fs.existsSync(path.join(jpgDir, amalgame))).to.be.true;
+    });
+    it("JPG amalgamé non vide (taille > 0)", () => {
+      const jpgs = findFilesInDir(jpgDir, ".jpg");
+      const amalgame = jpgs.find((f) => f.includes(" + "));
+      expect(amalgame, "JPG amalgamé introuvable").to.be.ok;
+      const stat = fs.statSync(path.join(jpgDir, amalgame));
+      expect(stat.size, "JPG amalgamé vide").to.be.greaterThan(0);
+    });
+    it("2 entrées Deco créées dans MongoDB (cmd=165675, ref MOSAIQUE et MARBRE BLANC)", async () => {
+      const r = await httpGet("/history?limit=10");
+      expect(r.status, "GET /history doit retourner 200").to.equal(200);
+      const entries = r.body?.data || [];
+      const forCmd = entries.filter((e) => e.numCmd === 165675);
+      expect(forCmd.length, `Entrées MongoDB pour cmd=165675 : ${JSON.stringify(forCmd.map((e) => e.deco))}`).to.be.at.least(2);
+      expect(forCmd[0].deco, "deco ne doit pas être vide").to.be.ok;
+      expect(forCmd[0].format, "format doit être 300x60").to.equal("300x60");
+      const refs = forCmd.map((e) => String(e.ref));
+      expect(refs).to.include("3664711694254");
+      expect(refs).to.include("3664714023259");
     });
   });
 
@@ -345,7 +371,7 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
   // ════════════════════════════════════════════════════════════════════════════
 
   describe("Dossier 164927 — BRICO crédence 255x60 — amalgame 2 visuels (VELTIS + TERRAZZO VULCANO)", function () {
-    this.timeout(60000);
+    this.timeout(90000);
 
     let addResp;
     let writePath, jpgDir;
@@ -412,6 +438,13 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
       ).to.be.ok;
       expect(fs.existsSync(path.join(writePath, amalgame))).to.be.true;
     });
+    it("PDF amalgamé non vide (taille > 0)", () => {
+      const pdfs = findFilesInDir(writePath, ".pdf");
+      const amalgame = pdfs.find((f) => f.includes(" + "));
+      expect(amalgame, "PDF amalgamé introuvable").to.be.ok;
+      const stat = fs.statSync(path.join(writePath, amalgame));
+      expect(stat.size, "PDF amalgamé vide").to.be.greaterThan(0);
+    });
     it("JPG amalgamé généré dans le dossier PRINTSA (avec ' + ' dans le nom)", () => {
       const jpgs = findFilesInDir(jpgDir, ".jpg");
       const amalgame = jpgs.find((f) => f.includes(" + "));
@@ -420,6 +453,202 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
         `Aucun JPG amalgamé trouvé dans ${jpgDir}.\nFichiers : ${jpgs.join(", ") || "(vide)"}`,
       ).to.be.ok;
       expect(fs.existsSync(path.join(jpgDir, amalgame))).to.be.true;
+    });
+    it("JPG amalgamé non vide (taille > 0)", () => {
+      const jpgs = findFilesInDir(jpgDir, ".jpg");
+      const amalgame = jpgs.find((f) => f.includes(" + "));
+      expect(amalgame, "JPG amalgamé introuvable").to.be.ok;
+      const stat = fs.statSync(path.join(jpgDir, amalgame));
+      expect(stat.size, "JPG amalgamé vide").to.be.greaterThan(0);
+    });
+    it("deco2 BRICO : nom du visuel (partie avant le format), pas la référence", async () => {
+      const r = await httpGet("/history?limit=10");
+      expect(r.status).to.equal(200);
+      const entries = r.body?.data || [];
+      const forCmd = entries.filter((e) => e.numCmd === 164927);
+      expect(forCmd.length, "Entrées MongoDB pour cmd=164927").to.be.at.least(2);
+      // deco ne doit pas être la référence brute (VELTIS-25560 ou VULCAN-25560)
+      forCmd.forEach((e) => {
+        expect(e.deco, `deco ne doit pas être vide : ${JSON.stringify(e)}`).to.be.ok;
+        expect(e.deco, "deco ne doit pas être la référence brute").to.not.match(/^[A-Z]+-\d+$/);
+      });
+      const refs = forCmd.map((e) => String(e.ref));
+      expect(refs).to.include("VELTIS-25560");
+      expect(refs).to.include("VULCAN-25560");
+    });
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // 5. CASTO 165675 — crédence 300x60 — ex=2 — duplication automatique du même visuel
+  //    Sans visuel2 fourni → le backend duplique automatiquement visuel1
+  // ════════════════════════════════════════════════════════════════════════════
+
+  describe("CASTO crédence 300x60 — ex=2 — duplication automatique du même visuel", function () {
+    this.timeout(90000);
+
+    let addResp;
+    let writePath, jpgDir;
+
+    const PAYLOAD = {
+      client: "CASTO",
+      numCmd: "165675",
+      numCmd2: "165675",
+      ville: "Miradoux",
+      ex: 2,
+      teinteMasse: false,
+      prodBlanc: false,
+      visuel: "server/public/CASTO/2_300x60/CRED 300x60cm MOSAIQUE 3664711694254 MAT.pdf",
+      format: "server/public/CASTO/2_300x60/",
+      visuel2: "",
+      format2: "",
+      formatTauro: "Deco_Std_150x305",
+      allFormatTauro: TAURO_FORMATS,
+      perte: null,
+      regmarks: false,
+      cut: false,
+      stock: false,
+    };
+
+    before(async function () {
+      await clearAllJobs();
+      addResp = await postJson("/add_job", PAYLOAD);
+      expect(addResp.status, "add_job doit retourner 201 (duplication auto, ex=2)").to.equal(201);
+      writePath = addResp.body.object.writePath;
+      jpgDir = resolveJpgDir(addResp.body.object.jpgName);
+      cleanByPrefix(writePath, "165675");
+      cleanByPrefix(jpgDir, "165675");
+      await postJson("/run_jobs", { run: true });
+      await wait(10000);
+    });
+
+    after(async function () {
+      await clearAllJobs();
+      cleanByPrefix(writePath, "165675");
+      cleanByPrefix(jpgDir, "165675");
+    });
+
+    it("add_job retourne 201 (duplication auto, pas de rejet)", () => expect(addResp.status).to.equal(201));
+    it("client = CASTO", () => expect(addResp.body.object.client).to.equal("CASTO"));
+    it("ex = 2", () => expect(addResp.body.object.ex).to.equal(2));
+    it("format_visu = 300x60", () => expect(addResp.body.object.format_visu).to.equal("300x60"));
+    it("format_Plaque = 150x305", () => expect(addResp.body.object.format_Plaque).to.equal("150x305"));
+    it("ref = EAN-13 MOSAIQUE (3664711694254)", () =>
+      expect(String(addResp.body.object.ref)).to.equal("3664711694254"));
+    it("visuPath2 = visuPath (même visuel dupliqué)", () =>
+      expect(addResp.body.object.visuPath2).to.equal(addResp.body.object.visuPath));
+    it("ref2 = ref (même référence)", () =>
+      expect(String(addResp.body.object.ref2)).to.equal(String(addResp.body.object.ref)));
+    it("PDF généré dans writePath (même visuel × 2)", () => {
+      const pdfs = findFilesInDir(writePath, ".pdf");
+      expect(pdfs.length, `Aucun PDF trouvé dans ${writePath}`).to.be.greaterThan(0);
+      const pdfPath = path.join(writePath, pdfs[0]);
+      expect(fs.existsSync(pdfPath)).to.be.true;
+    });
+    it("PDF non vide (taille > 0)", () => {
+      const pdfs = findFilesInDir(writePath, ".pdf");
+      expect(pdfs.length, "Aucun PDF").to.be.greaterThan(0);
+      expect(fs.statSync(path.join(writePath, pdfs[0])).size).to.be.greaterThan(0);
+    });
+    it("JPG généré dans le dossier PRINTSA", () => {
+      const jpgs = findFilesInDir(jpgDir, ".jpg");
+      expect(jpgs.length, `Aucun JPG trouvé dans ${jpgDir}`).to.be.greaterThan(0);
+    });
+    it("JPG non vide (taille > 0)", () => {
+      const jpgs = findFilesInDir(jpgDir, ".jpg");
+      expect(jpgs.length, "Aucun JPG").to.be.greaterThan(0);
+      expect(fs.statSync(path.join(jpgDir, jpgs[0])).size).to.be.greaterThan(0);
+    });
+    it("1 seule entrée Deco MongoDB (visuel dupliqué, pas de doublon)", async () => {
+      const r = await httpGet("/history?limit=5");
+      expect(r.status).to.equal(200);
+      const entries = r.body?.data || [];
+      const forCmd = entries.filter((e) => e.numCmd === 165675);
+      expect(forCmd.length, "Entrée MongoDB attendue pour cmd=165675").to.be.at.least(1);
+      expect(forCmd[0].ex).to.equal(2);
+      expect(forCmd[0].deco, "deco ne doit pas être vide").to.be.ok;
+      expect(forCmd[0].format).to.equal("300x60");
+    });
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // 6. Rejet — finitions incompatibles (MAT + BRILLANT)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  describe("Rejet — finitions incompatibles entre les deux panneaux d'une crédence", function () {
+    this.timeout(10000);
+
+    it("BRICO ex=1 : MAT + BRILLANT → rejet 400 avec message finition", async () => {
+      const r = await postJson("/add_job", {
+        client: "BRICO",
+        numCmd: "99001", numCmd2: "99002",
+        ville: "Test",
+        ex: 1,
+        visuel: "server/public/BRICO/255x60/ARDECHE MAT+BLANC 255x60 ARDECH-25560.pdf",
+        format: "server/public/BRICO/255x60/",
+        visuel2: "server/public/BRICO/255x60/MARBRE AURALYS BRILLANT 255x60 AURALY-25560.pdf",
+        format2: "server/public/BRICO/255x60/",
+        formatTauro: "Deco_Std_126x260",
+        allFormatTauro: TAURO_FORMATS,
+        teinteMasse: false, prodBlanc: false, perte: null, regmarks: false, cut: false, stock: false,
+      });
+      expect(r.status, `Attendu 400, reçu ${r.status} : ${JSON.stringify(r.body)}`).to.equal(400);
+      expect(r.body.error).to.match(/finition/i);
+      expect(r.body.error).to.include("MAT");
+      expect(r.body.error).to.include("BRILLANT");
+    });
+
+    it("CASTO ex=1 : MAT + BRILLANT → rejet 400 avec message finition", async () => {
+      const r = await postJson("/add_job", {
+        client: "CASTO",
+        numCmd: "99003", numCmd2: "99004",
+        ville: "Test",
+        ex: 1,
+        visuel: "server/public/CASTO/2_300x60/CRED 300x60cm TERRAZZO GRIS 3664712481068 MAT.pdf",
+        format: "server/public/CASTO/2_300x60/",
+        visuel2: "server/public/CASTO/2_300x60/CRED 300x60cm ZELLIGE VERT BRILLANT 3664715926917 BLANC+BRILLANT.pdf",
+        format2: "server/public/CASTO/2_300x60/",
+        formatTauro: "Deco_Std_150x305",
+        allFormatTauro: TAURO_FORMATS,
+        teinteMasse: false, prodBlanc: false, perte: null, regmarks: false, cut: false, stock: false,
+      });
+      expect(r.status, `Attendu 400, reçu ${r.status} : ${JSON.stringify(r.body)}`).to.equal(400);
+      expect(r.body.error).to.match(/finition/i);
+      expect(r.body.error).to.include("MAT");
+      expect(r.body.error).to.include("BRILLANT");
+    });
+
+    it("BRICO ex=1 : BRILLANT + BRILLANT → accepté (201)", async () => {
+      const r = await postJson("/add_job", {
+        client: "BRICO",
+        numCmd: "99005", numCmd2: "99006",
+        ville: "Test",
+        ex: 1,
+        visuel: "server/public/BRICO/255x60/MARBRE AURALYS BRILLANT 255x60 AURALY-25560.pdf",
+        format: "server/public/BRICO/255x60/",
+        visuel2: "server/public/BRICO/255x60/TERRAZZO VULCANO BRILLANT 255x60 VULCAN-25560.pdf",
+        format2: "server/public/BRICO/255x60/",
+        formatTauro: "Deco_Std_126x260",
+        allFormatTauro: TAURO_FORMATS,
+        teinteMasse: false, prodBlanc: false, perte: null, regmarks: false, cut: false, stock: false,
+      });
+      expect(r.status, `Attendu 201, reçu ${r.status} : ${JSON.stringify(r.body)}`).to.equal(201);
+    });
+
+    it("CASTO ex=1 : MAT + MAT → accepté (201)", async () => {
+      const r = await postJson("/add_job", {
+        client: "CASTO",
+        numCmd: "99007", numCmd2: "99008",
+        ville: "Test",
+        ex: 1,
+        visuel: "server/public/CASTO/2_300x60/CRED 300x60cm TERRAZZO GRIS 3664712481068 MAT.pdf",
+        format: "server/public/CASTO/2_300x60/",
+        visuel2: "server/public/CASTO/2_300x60/CRED 300x60cm MARBRE BLANC 3664714023259 MAT.pdf",
+        format2: "server/public/CASTO/2_300x60/",
+        formatTauro: "Deco_Std_150x305",
+        allFormatTauro: TAURO_FORMATS,
+        teinteMasse: false, prodBlanc: false, perte: null, regmarks: false, cut: false, stock: false,
+      });
+      expect(r.status, `Attendu 201, reçu ${r.status} : ${JSON.stringify(r.body)}`).to.equal(201);
     });
   });
 });

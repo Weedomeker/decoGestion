@@ -4,6 +4,7 @@ const jobsController = require("../controllers/jobsController");
 const router = express.Router();
 
 router.get("/jobs", jobsController.getJobs);
+router.get("/history", jobsController.getHistory);
 router.patch("/edit_job", jobsController.editJob);
 router.post("/add_job", jobsController.addJob);
 router.post("/run_jobs", jobsController.runJobs);

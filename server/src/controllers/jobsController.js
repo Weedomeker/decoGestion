@@ -104,22 +104,61 @@ async function addJob(req, res) {
   }
 
   const visuPath = data.visuel;
-  const visuPath2 = data.visuel2;
+  let visuPath2 = data.visuel2;
   let formatTauro = data.formatTauro;
   formatTauro = formatTauro.split("_")?.pop();
   const prodBlanc = data.prodBlanc;
   const format = data.format;
-  const format2 = data.format2;
+  let format2 = data.format2;
   const reg = data.regmarks;
   const teinteMasse = data.teinteMasse;
 
-  // Crédences BRICO/CASTO : le 2e visuel est obligatoire
+  // Validation du nombre d'exemplaires
+  const nbEx = parseInt(data.ex);
+  if (!nbEx || nbEx < 1) {
+    return res.status(400).json({ error: "Le nombre d'exemplaires doit être un entier positif (≥ 1)." });
+  }
+
+  // Crédences BRICO/CASTO : règle selon le nombre d'exemplaires
   // (?!\d) évite de capturer "100x25" dans "100x255" — seules "300x60" / "255x60" matchent
   const _formatVisuCheck = format?.match(/\d{3}x\d{2}(?!\d)/i)?.[0] || "";
-  if (_formatVisuCheck && (client === "BRICO" || client === "CASTO") && !data.visuel2) {
-    return res.status(400).json({
-      error: "Les crédences BRICO/CASTO doivent être amalgamées avec un 2e visuel.",
-    });
+  if (_formatVisuCheck && (client === "BRICO" || client === "CASTO")) {
+    if (nbEx === 1 && !data.visuel2) {
+      return res.status(400).json({
+        error: "Les crédences BRICO/CASTO (1 ex) doivent être amalgamées avec un 2e visuel différent.",
+      });
+    }
+    if (nbEx >= 2 && !data.visuel2) {
+      // 2 ex : même visuel amalgamé 2 fois sur la plaque
+      data.visuel2 = data.visuel;
+      data.format2 = data.format;
+      visuel2 = visuel;
+      visuPath2 = data.visuel;
+      format2 = data.format;
+    }
+  }
+
+  // Crédences : finitions incompatibles (MAT vs BRILLANT) interdites à l'amalgame
+  if (_formatVisuCheck && (client === "BRICO" || client === "CASTO") && visuPath2 && visuPath2 !== visuPath) {
+    const fin1 = /brillant/i.test(visuPath) ? "BRILLANT" : /mat/i.test(visuPath) ? "MAT" : null;
+    const fin2 = /brillant/i.test(visuPath2) ? "BRILLANT" : /mat/i.test(visuPath2) ? "MAT" : null;
+    if (fin1 && fin2 && fin1 !== fin2) {
+      return res.status(400).json({
+        error: `Amalgame impossible : finitions incompatibles (panneau 1 : ${fin1}, panneau 2 : ${fin2}). Les deux crédences doivent avoir la même finition.`,
+      });
+    }
+  }
+
+  // Vérification que les fichiers visuels existent bien sur le disque
+  if (visuPath && !teinteMasse) {
+    if (!fs.existsSync(path.resolve(visuPath))) {
+      return res.status(400).json({ error: `Visuel introuvable sur le disque : ${visuPath}` });
+    }
+  }
+  if (visuPath2 && !teinteMasse) {
+    if (!fs.existsSync(path.resolve(visuPath2))) {
+      return res.status(400).json({ error: `2e visuel introuvable sur le disque : ${visuPath2}` });
+    }
   }
 
   state.process.writePath = prodBlanc
@@ -280,6 +319,12 @@ async function runJobs(req, res) {
       const isCredences = regexCredences.test(job.format_visu);
       const isStock = job?.useStock;
 
+      // Log de cohérence avant traitement
+      logger.info(`▶ Job ${job.cmd} | client=${job.client} | ref=${job.ref} | visuel=${job.visuel} | format=${job.format_visu} | ${job.ex}ex`);
+      if (isCredences && job.visuPath2) {
+        logger.info(`  + 2e panneau | ref2=${job.ref2} | visuel2=${job.visuel2} | visuPath2=${job.visuPath2}`);
+      }
+
       const fileName = `${job.cmd} - ${job.client} ${job.ville.toUpperCase()} - ${
         job.teinteMasse ? job.format_visu.split("_").pop() : job.format_Plaque.split("_").pop()
       } - ${job.visuel.replace(/\.[^/.]+$/, "")} ${job.ex}_EX`;
@@ -334,7 +379,7 @@ async function runJobs(req, res) {
               },
               path.join(
                 job.writePath,
-                `${castoName(fileName)}${job.ref2.length > 0 ? " + " + castoName(fileName2) : ""}.pdf`,
+                `${castoName(fileName)}${job.visuPath2 ? " + " + castoName(fileName2) : ""}.pdf`,
               ),
             );
 
@@ -349,10 +394,22 @@ async function runJobs(req, res) {
           logger.error(`Erreur de modification du PDF pour le job ${job.cmd}: ${error}`);
         }
 
+        // Vérification que le PDF de sortie existe et n'est pas vide
+        if (!job.teinteMasse) {
+          const outPdfPath = isCredences
+            ? path.join(job.writePath, `${castoName(fileName)}${job.visuPath2 ? " + " + castoName(fileName2) : ""}.pdf`)
+            : `${pdfName}.pdf`;
+          if (!fs.existsSync(outPdfPath) || fs.statSync(outPdfPath).size === 0) {
+            logger.error(`❌ PDF de sortie manquant ou vide pour le job ${job.cmd} : ${outPdfPath}`);
+          } else {
+            logger.info(`✅ PDF OK (${fs.statSync(outPdfPath).size} octets) : ${path.basename(outPdfPath)}`);
+          }
+        }
+
         try {
           const startJpg = performance.now();
           if (job.ref) {
-            if (isCredences && job.ref2) {
+            if (isCredences && job.visuPath2) {
               await usePdfWorker({
                 pdf: path.join(
                   job.writePath,
@@ -375,6 +432,16 @@ async function runJobs(req, res) {
         } catch (error) {
           logger.error(`Error generating JPG for job ${job.cmd}:`, error);
         }
+
+        // Vérification que le JPG de sortie existe et n'est pas vide
+        const outJpgPath = isCredences && job.visuPath2
+          ? path.join(`${state.paths.jpgPath}/${state.paths.sessionPRINTSA}/${castoName(jpgName.split("/").pop())} + ${castoName(jpgName2.split("/").pop())}.jpg`)
+          : `${jpgName}.jpg`;
+        if (!fs.existsSync(outJpgPath) || fs.statSync(outJpgPath).size === 0) {
+          logger.error(`❌ JPG de sortie manquant ou vide pour le job ${job.cmd} : ${outJpgPath}`);
+        } else {
+          logger.info(`✅ JPG OK (${fs.statSync(outJpgPath).size} octets) : ${path.basename(outJpgPath)}`);
+        }
       } else {
         try {
           generateImages(job, state.paths.previewDeco, `${jpgName}.jpg`, isStock);
@@ -387,7 +454,10 @@ async function runJobs(req, res) {
 
       let matchRef1;
       if (isCredences) {
-        matchRef1 = job.visuel.match(/\d{13}/);
+        // Pour CASTO : EAN-13 ; pour BRICO : ref alphanumérique (job.ref est déjà fiable)
+        matchRef1 = job.client === "CASTO"
+          ? job.visuel.match(/\d{13}/)
+          : (job.ref ? { 0: String(job.ref) } : null);
       } else {
         matchRef1 = job.visuel.match(/[A-Z]+-\d+/i) || job.ref;
       }
@@ -409,19 +479,24 @@ async function runJobs(req, res) {
 
       const matchRef2 = job.visuel2
         ? isCredences
-          ? job.visuel2.match(/\d{13}/)
+          ? job.client === "CASTO"
+            ? job.visuel2.match(/\d{13}/)
+            : (job.ref2 ? { 0: String(job.ref2) } : null)
           : job.visuel2.match(/[A-Z]+-\d+/i)
         : null;
 
+      // deco2 : même logique que deco — partie avant le format pour BRICO, après pour CASTO
       const deco2 =
         matchName2 && job.visuel2.includes(matchName2[0])
-          ? job.visuel2
-              .split(matchName2[0])[1]
-              ?.replace(/cm/gi, "")
-              ?.replace(/\.pdf$/i, "")
-              ?.replace(matchRef2 ? matchRef2[0] : "", "")
-              ?.replace(" MAT", "")
-              .trim()
+          ? job.client === "CASTO"
+            ? job.visuel2
+                .split(matchName2[0])[1]
+                ?.replace(/cm/gi, "")
+                ?.replace(/\.pdf$/i, "")
+                ?.replace(matchRef2 ? matchRef2[0] : "", "")
+                ?.replace(" MAT", "")
+                .trim()
+            : job.visuel2.split(matchName2[0])[0].trim()
           : job.visuel2;
 
       const saveDeco = async ({ cmd, visuel, formatVisu, ref, temps }) => {
@@ -457,11 +532,13 @@ async function runJobs(req, res) {
           temps: totalTime,
         });
 
-        if (isCredences && job.cmd2 && job.visuel2) {
+        // Pour les crédences 2ex (même visuel dupliqué), on n'enregistre qu'une seule entrée
+        const isDuplicated = job.visuel === job.visuel2;
+        if (isCredences && job.cmd2 && job.visuel2 && !isDuplicated) {
           await saveDeco({
             cmd: job.cmd2 || 0,
             visuel: deco2,
-            formatVisu: job.format2_visu,
+            formatVisu: job.format2_visu || job.format_visu,
             ref: job.ref2,
             temps: totalTime,
           });
@@ -632,6 +709,17 @@ async function generateStickersForJobs(jobs) {
   await fs.promises.rm(tempFolder, { recursive: true, force: true });
 }
 
+async function getHistory(req, res) {
+  const limit = Math.min(parseInt(req.query.limit) || 10, 100);
+  try {
+    const entries = await modelDeco.find({}).sort({ date: -1 }).limit(limit).lean();
+    res.json({ data: entries, count: entries.length });
+  } catch (error) {
+    logger.error("Erreur getHistory:", error);
+    res.status(500).json({ error: "Erreur lors de la récupération de l'historique" });
+  }
+}
+
 module.exports = {
   getJobs,
   editJob,
@@ -640,4 +728,5 @@ module.exports = {
   deleteJob,
   deleteCompletedJobs,
   generateStickersOnly,
+  getHistory,
 };

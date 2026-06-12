@@ -6,7 +6,8 @@ import { Button, Input, Message, Modal } from "semantic-ui-react";
 const InfoModal = ({ open, onClose, message, object, error }) => {
   const [data, setData] = useState(object);
   const [saveError, setSaveError] = useState(null);
-  const visuel = object && object.visuel ? object.visuel?.split("/")?.pop()?.split("-")?.pop()?.split(" ")[0] : "";
+  const visuelName = object?.visuel?.split("/")?.pop()?.replace(/\.pdf$/i, "") || "";
+  const visuel2Name = object?.visuel2?.split("/")?.pop()?.replace(/\.pdf$/i, "") || "";
 
   useEffect(() => {
     setData(object);
@@ -47,7 +48,12 @@ const InfoModal = ({ open, onClose, message, object, error }) => {
           <Message negative>
             <Message.Header>{message}</Message.Header>
             {object && (
-              <pre>{`${object.cmd} ${object.ville} ${visuel} ${object.ref} ${object.format_visu} ${object.format_Plaque.split("_")?.pop()} ${object.ex}ex(s)`}</pre>
+              <pre>
+                {`Cmd: ${object.cmd} | ${object.ville} | Réf: ${object.ref || "—"}\nVisuel: ${visuelName}\nFormat: ${object.format_visu} → ${object.format_Plaque?.split("_")?.pop()} | ${object.ex} ex`}
+                {object.visuel2
+                  ? `\n\n2e panneau :\nCmd: ${object.cmd2 || object.cmd} | Réf: ${object.ref2 || "—"}\nVisuel: ${visuel2Name}`
+                  : ""}
+              </pre>
             )}
           </Message>
         )}
@@ -61,24 +67,22 @@ const InfoModal = ({ open, onClose, message, object, error }) => {
         </Modal.Content>
       )}
       <Modal.Actions>
-        <Input
-          content={object && object.ex}
-          label="Ajouter ex"
-          type="number"
-          onChange={(e) => {
-            const newValue = parseInt(e.target.value);
-            const matchEx = data.jpgName.match(/\d_EX/gi);
-            const newJpgName = data.jpgName.replace(matchEx, newValue + "_EX");
-            setData({ ...data, ex: newValue, jpgName: newJpgName });
-          }}
-        />
-        <Button
-          onClick={() => {
-            updateJob();
-          }}
-        >
-          Valider
-        </Button>
+        {object && (
+          <>
+            <Input
+              content={object.ex}
+              label="Ajouter ex"
+              type="number"
+              onChange={(e) => {
+                const newValue = parseInt(e.target.value);
+                const matchEx = data.jpgName.match(/\d_EX/gi);
+                const newJpgName = data.jpgName.replace(matchEx, newValue + "_EX");
+                setData({ ...data, ex: newValue, jpgName: newJpgName });
+              }}
+            />
+            <Button onClick={() => updateJob()}>Valider</Button>
+          </>
+        )}
         <Button onClick={onClose}>Fermer</Button>
       </Modal.Actions>
     </Modal>
