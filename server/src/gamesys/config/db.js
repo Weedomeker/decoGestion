@@ -47,4 +47,28 @@ async function getDbConnection() {
   return pool.connect();
 }
 
-module.exports = { getDbConnection };
+// Statut ODBC en cache — mis à jour par checkOdbcConnection()
+let _odbcStatus = "unknown"; // "connected" | "disconnected" | "unknown"
+
+function getOdbcStatus() {
+  return _odbcStatus;
+}
+
+async function checkOdbcConnection() {
+  let conn;
+  try {
+    conn = await getDbConnection();
+    await conn.query("SELECT 1");
+    _odbcStatus = "connected";
+    return true;
+  } catch (_) {
+    _odbcStatus = "disconnected";
+    return false;
+  } finally {
+    if (conn) {
+      try { await conn.close(); } catch (_) {}
+    }
+  }
+}
+
+module.exports = { getDbConnection, checkOdbcConnection, getOdbcStatus };
