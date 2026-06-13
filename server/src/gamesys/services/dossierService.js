@@ -506,113 +506,91 @@ async function buildDetail(connection, dossier) {
   const escapedCode = escapeSqlValue(dossierCode);
   const textValues = sqlTextList([dossierCommande, dossierCode]);
 
-  const enteteDevis = await fetchEnteteDevis(connection, escapedCommande, escapedCode);
+  // Batch principal (connection) + batch lié (conn2) en parallèle
+  const primaryBatch = async () => {
+    const enteteDevis = await fetchEnteteDevis(connection, escapedCommande, escapedCode);
+    const dossierExtRows = await fetchOptionalRows(
+      connection,
+      `select * from public.fd_dossier_ext where dos_seq = ${dossier.dos_seq}${dossierCommande ? ` or dos_no_cmde = '${escapedCommande}'` : ""}`
+    );
+    const elements = await fetchOptionalRows(
+      connection,
+      `select eldv_seq, eldv_codeuniq, eldv_libelle, eldv_libelle_papier, eldv_client_no, eldv_num_no_1, eldv_num_no_2 from public.fd_elem_devis where eldv_seq = ${dossier.dos_seq} order by eldv_codeuniq`
+    );
+    const elements2 = await fetchOptionalRows(
+      connection,
+      `select * from public.fd_elem_devis_2 where eldv_no_devis = '${escapedCode}'`
+    );
+    const elements2Ext = await fetchOptionalRows(
+      connection,
+      `select * from public.fd_elem_devis_2_ext where eldv_no_devis = '${escapedCode}'`
+    );
+    const document = await fetchOptionalRows(
+      connection,
+      `select dodv_seq, dodv_num_no_1, dodv_num_no_2, dodv_lib_version_1, dodv_lib_version_2, dodv_lib_version_3, dodv_cout_dossier from public.fd_docum_devi where dodv_seq = ${dossier.dos_seq}`
+    );
+    const versions = await fetchOptionalRows(
+      connection,
+      `select dove_seq, dove_codeuniq, dove_no_cmde, dove_quant_v_1, dove_lib_v_1, dove_quant_v_2, dove_lib_v_2, dove_quant_v_3, dove_lib_v_3 from public.fd_dossier_version where dove_seq = ${dossier.dos_seq}${dossierCommande ? ` or dove_no_cmde = '${escapedCommande}'` : ""}`
+    );
+    const remarques = await fetchOptionalRows(
+      connection,
+      `select * from public.fd_dossier_remarques where dos_rem_seq = ${dossier.dos_seq}${dossierCommande ? ` or dos_rem_no_cmde = '${escapedCommande}'` : ""}`
+    );
+    return { enteteDevis, dossierExtRows, elements, elements2, elements2Ext, document, versions, remarques };
+  };
 
-  const dossierExt = await fetchOptionalRows(
-    connection,
-    `select * from public.fd_dossier_ext where dos_seq = ${dossier.dos_seq}${dossierCommande ? ` or dos_no_cmde = '${escapedCommande}'` : ""}`
-  );
-
-  const elements = await fetchOptionalRows(
-    connection,
-    `select eldv_seq, eldv_codeuniq, eldv_libelle, eldv_libelle_papier, eldv_client_no, eldv_num_no_1, eldv_num_no_2 from public.fd_elem_devis where eldv_seq = ${dossier.dos_seq} order by eldv_codeuniq`
-  );
-
-  const elements2 = await fetchOptionalRows(
-    connection,
-    `select * from public.fd_elem_devis_2 where eldv_no_devis = '${escapedCode}'`
-  );
-
-  const elements2Ext = await fetchOptionalRows(
-    connection,
-    `select * from public.fd_elem_devis_2_ext where eldv_no_devis = '${escapedCode}'`
-  );
-
-  const document = await fetchOptionalRows(
-    connection,
-    `select dodv_seq, dodv_num_no_1, dodv_num_no_2, dodv_lib_version_1, dodv_lib_version_2, dodv_lib_version_3, dodv_cout_dossier from public.fd_docum_devi where dodv_seq = ${dossier.dos_seq}`
-  );
-
-  const versions = await fetchOptionalRows(
-    connection,
-    `select dove_seq, dove_codeuniq, dove_no_cmde, dove_quant_v_1, dove_lib_v_1, dove_quant_v_2, dove_lib_v_2, dove_quant_v_3, dove_lib_v_3 from public.fd_dossier_version where dove_seq = ${dossier.dos_seq}${dossierCommande ? ` or dove_no_cmde = '${escapedCommande}'` : ""}`
-  );
-
-  const remarques = await fetchOptionalRows(
-    connection,
-    `select * from public.fd_dossier_remarques where dos_rem_seq = ${dossier.dos_seq}${dossierCommande ? ` or dos_rem_no_cmde = '${escapedCommande}'` : ""}`
-  );
-
-  const relatedQueries = [
-    ["docOperations", `select * from public.fd_elem_doc_ope where dev_code_devis in (${textValues})`],
-    ["fichierForme", `select * from public.fd_fichier_forme where placoul_devis in (${textValues})`],
-    ["listeMarges", `select * from public.fd_liste_marges where mgdev_seq = ${dossier.dos_seq}`],
-    ["descriptifs", `select * from public.fdescriptif where devis in (${textValues})`],
-    ["livraisons", `select * from public.ff_livraison where bo_no_dossier = '${escapedCommande}' or bo_devis = '${escapedCode}'`],
-    ["signatures", `select * from public.fi_sol_signature where sign_dossier = '${escapedCommande}' or sign_devis = '${escapedCode}'`],
-    ["impositions", `select * from public.fi_sol_imposition where impo_code_devis = '${escapedCode}'`],
-    ["agendaProduction", `select * from public.fp_agenda_prod where ag_dossier = '${escapedCommande}'`],
-    ["etatsDossier", `select * from public.fp_lien_etat_dossier where fled_num_dossier = '${escapedCommande}'`],
-    ["suiviOperations", `select * from public.fp_opera_suivi where suivi_dossier = '${escapedCommande}' or suivi_dossier_element like '${escapedCommandeLike}%' ESCAPE '\\'`],
-    ["pages", `select * from public.fp_pages where pages_dossier = '${escapedCommande}'`],
-  ];
-
-  let docOperations = [];
-  let fichierForme = [];
-  let listeMarges = [];
-  let descriptifs = [];
-  let livraisons = [];
-  let signatures = [];
-  let impositions = [];
-  let agendaProduction = [];
-  let etatsDossier = [];
-  let suiviOperations = [];
-  let pages = [];
-
-  if (textValues) {
-    for (const [name, sql] of relatedQueries) {
-      const rows = await fetchOptionalRows(connection, sql);
-      if (name === "docOperations") docOperations = rows;
-      if (name === "fichierForme") fichierForme = rows;
-      if (name === "listeMarges") listeMarges = rows;
-      if (name === "descriptifs") descriptifs = rows;
-      if (name === "livraisons") livraisons = rows;
-      if (name === "signatures") signatures = rows;
-      if (name === "impositions") impositions = rows;
-      if (name === "agendaProduction") agendaProduction = rows;
-      if (name === "etatsDossier") etatsDossier = rows;
-      if (name === "suiviOperations") suiviOperations = rows;
-      if (name === "pages") pages = rows;
+  const relatedBatch = async () => {
+    if (!textValues) return new Array(11).fill([]);
+    const conn2 = await getDbConnection();
+    try {
+      const docOperations = await fetchOptionalRows(conn2, `select * from public.fd_elem_doc_ope where dev_code_devis in (${textValues})`);
+      const fichierForme = await fetchOptionalRows(conn2, `select * from public.fd_fichier_forme where placoul_devis in (${textValues})`);
+      const listeMarges = await fetchOptionalRows(conn2, `select * from public.fd_liste_marges where mgdev_seq = ${dossier.dos_seq}`);
+      const descriptifs = await fetchOptionalRows(conn2, `select * from public.fdescriptif where devis in (${textValues})`);
+      const livraisons = await fetchOptionalRows(conn2, `select * from public.ff_livraison where bo_no_dossier = '${escapedCommande}' or bo_devis = '${escapedCode}'`);
+      const signatures = await fetchOptionalRows(conn2, `select * from public.fi_sol_signature where sign_dossier = '${escapedCommande}' or sign_devis = '${escapedCode}'`);
+      const impositions = await fetchOptionalRows(conn2, `select * from public.fi_sol_imposition where impo_code_devis = '${escapedCode}'`);
+      const agendaProduction = await fetchOptionalRows(conn2, `select * from public.fp_agenda_prod where ag_dossier = '${escapedCommande}'`);
+      const etatsDossier = await fetchOptionalRows(conn2, `select * from public.fp_lien_etat_dossier where fled_num_dossier = '${escapedCommande}'`);
+      const suiviOperations = await fetchOptionalRows(conn2, `select * from public.fp_opera_suivi where suivi_dossier = '${escapedCommande}' or suivi_dossier_element like '${escapedCommandeLike}%' ESCAPE '\\'`);
+      const pages = await fetchOptionalRows(conn2, `select * from public.fp_pages where pages_dossier = '${escapedCommande}'`);
+      return [docOperations, fichierForme, listeMarges, descriptifs, livraisons, signatures, impositions, agendaProduction, etatsDossier, suiviOperations, pages];
+    } finally {
+      await closeConnection(conn2);
     }
-  }
+  };
+
+  const [primary, relatedResults] = await Promise.all([primaryBatch(), relatedBatch()]);
+  const [docOperations, fichierForme, listeMarges, descriptifs, livraisons, signatures, impositions, agendaProduction, etatsDossier, suiviOperations, pages] = relatedResults;
 
   let visualReferences = [];
   let profileReferences = [];
   let kitPosesReferences = [];
 
   try {
-    const stockReferences = await findStockReferences(connection, enteteDevis);
+    const stockReferences = await findStockReferences(connection, primary.enteteDevis);
     const categorizedReferences = splitVisualAndProfileReferences(stockReferences);
-    visualReferences = buildVisualReferences(enteteDevis, categorizedReferences.visuals);
-    profileReferences = buildProfileReferences(enteteDevis, categorizedReferences.profiles);
-    kitPosesReferences = buildKitPoseReferences(enteteDevis, categorizedReferences.kitPoses);
+    visualReferences = buildVisualReferences(primary.enteteDevis, categorizedReferences.visuals);
+    profileReferences = buildProfileReferences(primary.enteteDevis, categorizedReferences.profiles);
+    kitPosesReferences = buildKitPoseReferences(primary.enteteDevis, categorizedReferences.kitPoses);
   } catch (error) {
     logger.warn(`Erreur références stock pour seq ${dossier.dos_seq}: ${error.message}`);
   }
 
   return {
     dossier,
-    enteteDevis,
+    enteteDevis: primary.enteteDevis,
     visualReferences,
     profileReferences,
     kitPosesReferences,
-    dossierExt: dossierExt[0] || null,
-    elements,
-    elements2,
-    elements2Ext,
-    document: document[0] || null,
-    versions,
-    remarques,
+    dossierExt: primary.dossierExtRows[0] || null,
+    elements: primary.elements,
+    elements2: primary.elements2,
+    elements2Ext: primary.elements2Ext,
+    document: primary.document[0] || null,
+    versions: primary.versions,
+    remarques: primary.remarques,
     docOperations,
     fichierForme,
     listeMarges,
@@ -738,44 +716,46 @@ async function getDossierDetail({ seq, commande, numero, q, view = "summary", ra
     throw error;
   }
 
-  const connection = await getDbConnection();
-  try {
-    const formattedSeq = search.replace(/\/00$/, "v0").replace(/\//g, "v");
-    const escapedSearch = escapeSqlValue(search);
-    const escapedFormattedSeq = escapeSqlValue(formattedSeq);
+  const formattedSeq = search.replace(/\/00$/, "v0").replace(/\//g, "v");
+  const escapedSearch = escapeSqlValue(search);
+  const escapedFormattedSeq = escapeSqlValue(formattedSeq);
 
-    const where = [];
-    if (/^\d+$/.test(search)) {
-      where.push(
-        `(d.dos_seq = ${Number(search)} or d.dos_no_cmde = '${escapedSearch}' or d.dos_no_cmde LIKE '${escapedSearch}/%' or d.dos_codeuniq = '${escapedFormattedSeq}' or d.dos_codeuniq LIKE '${escapedSearch}v%')`
-      );
-    } else {
-      where.push(
-        `(d.dos_no_cmde = '${escapedSearch}' or d.dos_no_cmde LIKE '%${escapedSearch}%' or d.dos_codeuniq = '${escapedFormattedSeq}')`
-      );
-    }
-
-    const dossiers = await query(
-      connection,
-      `
-      select d.*
-      from public.fd_dossier d
-      where ${where.join(" and ")}
-      order by d.dos_seq desc
-    `
+  const where = [];
+  if (/^\d+$/.test(search)) {
+    where.push(
+      `(d.dos_seq = ${Number(search)} or d.dos_no_cmde = '${escapedSearch}' or d.dos_no_cmde LIKE '${escapedSearch}/%' or d.dos_codeuniq = '${escapedFormattedSeq}' or d.dos_codeuniq LIKE '${escapedSearch}v%')`
     );
+  } else {
+    where.push(
+      `(d.dos_no_cmde = '${escapedSearch}' or d.dos_no_cmde LIKE '%${escapedSearch}%' or d.dos_codeuniq = '${escapedFormattedSeq}')`
+    );
+  }
 
-    const details = [];
-    for (const dossier of dossiers) {
-      const detail = await buildDetail(connection, dossier);
-      const selectedDetail = selectDetailView(detail, view);
-      details.push(raw ? selectedDetail : cleanDbValue(selectedDetail));
-    }
-
-    return buildGroupedResponse(details, view);
+  const connection = await getDbConnection();
+  let dossiers;
+  try {
+    dossiers = await query(
+      connection,
+      `select d.* from public.fd_dossier d where ${where.join(" and ")} order by d.dos_seq desc`
+    );
   } finally {
     await closeConnection(connection);
   }
+
+  const details = await Promise.all(
+    dossiers.map(async (dossier) => {
+      const conn = await getDbConnection();
+      try {
+        const detail = await buildDetail(conn, dossier);
+        const selectedDetail = selectDetailView(detail, view);
+        return raw ? selectedDetail : cleanDbValue(selectedDetail);
+      } finally {
+        await closeConnection(conn);
+      }
+    })
+  );
+
+  return buildGroupedResponse(details, view);
 }
 
 module.exports = {
