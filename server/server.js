@@ -17,6 +17,7 @@ const { state, loadAppVersion, restoreJobsBackup } = require("./src/services/app
 const { linkFolders } = require("./src/services/configService");
 const { initWebSocket, broadcastHealth } = require("./src/services/websocketService");
 const { checkOdbcConnection, getOdbcStatus } = require("./src/gamesys/config/db");
+const { checkNetworkPaths } = require("./src/services/networkChecker");
 const mongooseLib = require("mongoose");
 
 const PORT = process.env.PORT || 8000;
@@ -92,6 +93,8 @@ server.listen(PORT, async () => {
 
   await linkFolders(false);
 
+  await checkNetworkPaths();
+
   const previewDir = state.paths.previewDeco;
   const sourceDirs = [state.paths.decoECOM, state.paths.decoLM, state.paths.decoCASTO, state.paths.decoBRICO];
 
@@ -141,9 +144,12 @@ server.listen(PORT, async () => {
       logger.warn(`Check périodique : ODBC ${odbcState}`);
     }
 
+    await checkNetworkPaths();
+
     broadcastHealth({
       mongodb: mongoState,
       odbc: odbcState,
+      symlinks: state.networkStatus,
       uptime: Math.floor(process.uptime()),
     });
   }, 30_000);
