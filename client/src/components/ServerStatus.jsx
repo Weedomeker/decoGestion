@@ -11,7 +11,7 @@ const CONFIG = {
   unknown: { color: "grey",   text: "…" },
 };
 
-export default function ServerStatus() {
+export default function ServerStatus({ onHealthChange }) {
   const [health, setHealth] = useState({ status: "unknown" });
 
   useEffect(() => {
@@ -20,8 +20,11 @@ export default function ServerStatus() {
         const res = await fetch(`http://${HOST}:${PORT}/health`);
         const data = await res.json();
         setHealth(data);
+        onHealthChange?.(data);
       } catch {
-        setHealth({ status: "offline" });
+        const offlineData = { status: "offline" };
+        setHealth(offlineData);
+        onHealthChange?.(offlineData);
       }
     };
 
@@ -36,6 +39,10 @@ export default function ServerStatus() {
   if (health.status === "degraded") {
     if (health.mongodb !== "connected") details.push(`MongoDB: ${health.mongodb}`);
     if (health.odbc !== "connected") details.push(`ODBC: ${health.odbc}`);
+    const deadLinks = Object.entries(health.symlinks ?? {})
+      .filter(([, ok]) => !ok)
+      .map(([k]) => k);
+    if (deadLinks.length) details.push(`Réseau: ${deadLinks.join(", ")} KO`);
   }
 
   return (
