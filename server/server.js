@@ -15,7 +15,7 @@ const { processAllPDFs } = require("./src/generatePreview");
 const registerRoutes = require("./src/routes");
 const { state, loadAppVersion, restoreJobsBackup } = require("./src/services/appState");
 const { linkFolders } = require("./src/services/configService");
-const { initWebSocket } = require("./src/services/websocketService");
+const { initWebSocket, broadcastHealth } = require("./src/services/websocketService");
 const { checkOdbcConnection, getOdbcStatus } = require("./src/gamesys/config/db");
 const mongooseLib = require("mongoose");
 
@@ -127,4 +127,24 @@ server.listen(PORT, async () => {
   } else {
     logger.warn("ODBC: connexion échouée — API Gamesys indisponible (mode dégradé)");
   }
+
+  const MONGO_STATES = ["disconnected", "connected", "connecting", "disconnecting"];
+  setInterval(async () => {
+    const mongoState = MONGO_STATES[mongooseLib.connection.readyState] || "unknown";
+    if (mongooseLib.connection.readyState !== 1) {
+      logger.warn(`Check périodique : MongoDB ${mongoState}`);
+    }
+
+    await checkOdbcConnection();
+    const odbcState = getOdbcStatus();
+    if (odbcState !== "connected") {
+      logger.warn(`Check périodique : ODBC ${odbcState}`);
+    }
+
+    broadcastHealth({
+      mongodb: mongoState,
+      odbc: odbcState,
+      uptime: Math.floor(process.uptime()),
+    });
+  }, 30_000);
 });
