@@ -2,7 +2,7 @@ const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
 const REGEX_BLANC = /\+\s*blanc\b/i;
 import { Fragment, useEffect, useState } from "react";
-import { Button, Checkbox, Dropdown, Form, Icon, Input, Label, Table } from "semantic-ui-react";
+import { Button, Checkbox, Dropdown, Form, Icon, Input, Label, Popup, Table } from "semantic-ui-react";
 import CheckFormats from "./CheckFormats";
 import Config from "./components/Config";
 import DossierAutocomplete from "./components/DossierAutocomplete";
@@ -100,6 +100,7 @@ function App() {
   const [credence2File, setCredence2File] = useState(null);
   const [credence2Client, setCredence2Client] = useState("");
   const [credence2Format, setCredence2Format] = useState("");
+  const [healthData, setHealthData] = useState(null);
 
   function autoPairCredences(jobs) {
     const result = jobs.map((j) => ({ ...j }));
@@ -603,13 +604,31 @@ function App() {
 
   const CLIENT_ICONS = { LM: "leaf", CASTO: "home", BRICO: "wrench", ECOM: "shopping cart" };
 
+  useEffect(() => {
+    if (!healthData) return;
+    const _odbcOk = healthData.odbc === "connected";
+    const _symlinks = healthData.symlinks ?? {};
+    const _anySymlinkOk = Object.values(_symlinks).some(Boolean);
+    if (!_odbcOk && _anySymlinkOk && activeTab === "dossier") {
+      setActiveTab("manuel");
+    }
+    if (_symlinks[checkFolder] === false) {
+      const firstOk = ["LM", "CASTO", "BRICO", "ECOM"].find((c) => _symlinks[c] !== false);
+      if (firstOk) setCheckFolder(firstOk);
+    }
+  }, [healthData]);
+
+  const odbcOk = healthData?.odbc === "connected";
+  const symlinkStatus = healthData?.symlinks ?? {};
+  const anySymlinkOk = Object.values(symlinkStatus).some(Boolean);
+
   return (
     <div className="container">
       <Header
         appVersion={version}
         onFichiers={() => setIsLouisOpen(true)}
         configNode={<Config />}
-        statusNode={<ServerStatus />}
+        statusNode={<ServerStatus onHealthChange={setHealthData} />}
         activeView={activeView}
         onViewChange={setActiveView}
         pendingCount={pendingCount}
@@ -620,13 +639,23 @@ function App() {
         <div className="form-panel">
           {/* Onglets de mode */}
           <div className="mode-tabs">
-            <Button
-              toggle
-              type="button"
-              active={activeTab === "dossier"}
-              onClick={() => setActiveTab("dossier")}
-              icon="search"
-              content="Dossier API"
+            <Popup
+              content="API dossier indisponible (ODBC déconnecté)"
+              disabled={odbcOk || !healthData}
+              trigger={
+                <span>
+                  <Button
+                    toggle
+                    type="button"
+                    active={activeTab === "dossier"}
+                    onClick={() => odbcOk && setActiveTab("dossier")}
+                    disabled={!odbcOk && !!healthData}
+                    icon="search"
+                    content="Dossier API"
+                    style={(!odbcOk && healthData) ? { pointerEvents: "none", opacity: 0.45 } : {}}
+                  />
+                </span>
+              }
             />
             <Button
               toggle
@@ -1076,21 +1105,35 @@ function App() {
                 <div className="form-section">
                   <span className="form-section-label">Client</span>
                   <Button.Group size="small" className="client-selector">
-                    {["LM", "CASTO", "BRICO", "ECOM"].map((c) => (
-                      <Button
-                        key={c}
-                        toggle
-                        type="button"
-                        active={checkFolder === c}
-                        color={checkFolder === c ? clientColor(c) : undefined}
-                        onClick={() => {
-                          handleResetForm();
-                          setCheckFolder(c);
-                        }}
-                        icon={CLIENT_ICONS[c]}
-                        content={c}
-                      />
-                    ))}
+                    {["LM", "CASTO", "BRICO", "ECOM"].map((c) => {
+                      const isKo = symlinkStatus[c] === false;
+                      return (
+                        <Popup
+                          key={c}
+                          content={`Accès réseau ${c} indisponible`}
+                          disabled={!isKo}
+                          trigger={
+                            <span>
+                              <Button
+                                toggle
+                                type="button"
+                                active={checkFolder === c}
+                                color={checkFolder === c ? clientColor(c) : undefined}
+                                onClick={() => {
+                                  if (isKo) return;
+                                  handleResetForm();
+                                  setCheckFolder(c);
+                                }}
+                                disabled={isKo}
+                                icon={CLIENT_ICONS[c]}
+                                content={c}
+                                style={isKo ? { pointerEvents: "none", opacity: 0.45 } : {}}
+                              />
+                            </span>
+                          }
+                        />
+                      );
+                    })}
                   </Button.Group>
                 </div>
 
