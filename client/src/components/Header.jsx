@@ -2,7 +2,7 @@ import PropTypes from "prop-types";
 import { Button, Image } from "semantic-ui-react";
 import logo from "../images/logo_deco_noir.svg";
 
-const Header = ({ appVersion, onFichiers, configNode, activeView, onViewChange, pendingCount }) => {
+const Header = ({ appVersion, onFichiers, configNode, statusNode, activeView, onViewChange, pendingCount }) => {
   const textSliced = appVersion && appVersion.split(" ").slice(0, 8).join(" ");
   const numVersion = appVersion && appVersion.match(/\d/g).join(".");
 
@@ -30,6 +30,7 @@ const Header = ({ appVersion, onFichiers, configNode, activeView, onViewChange, 
       <div className="header-actions">
         <Button compact icon="folder open" content="Fichiers" onClick={onFichiers} />
         {configNode}
+        {statusNode}
       </div>
     </div>
   );
@@ -39,6 +40,7 @@ Header.propTypes = {
   appVersion: PropTypes.string,
   onFichiers: PropTypes.func,
   configNode: PropTypes.node,
+  statusNode: PropTypes.node,
   activeView: PropTypes.string,
   onViewChange: PropTypes.func,
   pendingCount: PropTypes.number,

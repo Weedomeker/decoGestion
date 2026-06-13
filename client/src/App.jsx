@@ -14,6 +14,7 @@ import InfoMessage from "./components/InfoMessage";
 import InfoModal from "./components/InfoModal";
 import InfoStockModal from "./components/InfoStockModal";
 import JobsList from "./components/JobsList";
+import ServerStatus from "./components/ServerStatus";
 import LouisPreview from "./components/LouisPreview";
 import Place from "./components/Place";
 import PreviewDeco from "./components/PreviewDeco";
@@ -608,6 +609,7 @@ function App() {
         appVersion={version}
         onFichiers={() => setIsLouisOpen(true)}
         configNode={<Config />}
+        statusNode={<ServerStatus />}
         activeView={activeView}
         onViewChange={setActiveView}
         pendingCount={pendingCount}
