@@ -24,7 +24,6 @@ const accessLogStream = fs.createWriteStream(path.join(__dirname, "server.log"),
 
 loadAppVersion();
 restoreJobsBackup();
-linkFolders(false);
 initWebSocket(server);
 
 app.use(cors());
@@ -65,43 +64,34 @@ server.listen(PORT, async () => {
       logger.error("Error:", error);
     });
 
-  try {
-    await processAllPDFs({
-      pdfDirectory: path.join(state.paths.decoECOM),
-      jpgDirectory: path.join(state.paths.previewDeco),
-      height: 1920,
-      density: 72,
-      parallelLimit: 5,
-      verbose: false,
-    });
-    await processAllPDFs({
-      pdfDirectory: path.join(state.paths.decoLM),
-      jpgDirectory: path.join(state.paths.previewDeco),
-      height: 1920,
-      density: 72,
-      parallelLimit: 5,
-      verbose: false,
-    });
-    await processAllPDFs({
-      pdfDirectory: path.join(state.paths.decoCASTO),
-      jpgDirectory: path.join(state.paths.previewDeco),
-      height: 1920,
-      density: 72,
-      parallelLimit: 5,
-      verbose: false,
-    });
-    await processAllPDFs({
-      pdfDirectory: path.join(state.paths.decoBRICO),
-      jpgDirectory: path.join(state.paths.previewDeco),
-      height: 1920,
-      density: 72,
-      parallelLimit: 5,
-      verbose: false,
-    });
-  } catch (error) {
-    console.error("Error:", error);
+  await linkFolders(false);
+
+  const previewDir = state.paths.previewDeco;
+  const sourceDirs = [state.paths.decoECOM, state.paths.decoLM, state.paths.decoCASTO, state.paths.decoBRICO];
+
+  if (previewDir) {
+    try {
+      for (const pdfDir of sourceDirs) {
+        if (pdfDir) {
+          await processAllPDFs({
+            pdfDirectory: pdfDir,
+            jpgDirectory: previewDir,
+            height: 1920,
+            density: 72,
+            parallelLimit: 5,
+            verbose: false,
+          });
+        } else {
+          logger.warn("processAllPDFs ignoré: symlink source non disponible");
+        }
+      }
+    } catch (error) {
+      logger.error("Erreur génération JPG:", error);
+    }
+  } else {
+    logger.warn("processAllPDFs ignoré: dossier preview non disponible");
   }
 
   logger.info(`Server start on port ${PORT}`);
-  await mongoose().catch((err) => logger.info(err));
+  await mongoose().catch((err) => logger.error(`MongoDB: ${err.message || err.code || err}`));
 });

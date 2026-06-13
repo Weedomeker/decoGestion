@@ -131,6 +131,25 @@ async function processAllPDFs({
   parallelLimit,
   verbose = true,
 } = {}) {
+  if (!pdfDirectory || !jpgDirectory) {
+    logger.warn(`processAllPDFs ignoré: chemin manquant (pdfDirectory="${pdfDirectory}", jpgDirectory="${jpgDirectory}")`);
+    return;
+  }
+
+  try {
+    await fs.promises.access(pdfDirectory);
+  } catch {
+    logger.error(`processAllPDFs ignoré: dossier source inaccessible — ${pdfDirectory}`);
+    return;
+  }
+
+  try {
+    await fs.promises.access(jpgDirectory);
+  } catch {
+    logger.error(`processAllPDFs ignoré: dossier de destination inaccessible — ${jpgDirectory}`);
+    return;
+  }
+
   try {
     // 1. Récupérer tous les PDFs
     const pdfFiles = await findAllPDFs(pdfDirectory);
