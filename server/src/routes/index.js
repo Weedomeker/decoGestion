@@ -3,10 +3,12 @@ const configRoutes = require("./configRoutes");
 const dossierApiRoutes = require("./dossierApiRoutes");
 const stockRoutes = require("./stockRoutes");
 const systemRoutes = require("./systemRoutes");
+const healthRoutes = require("./healthRoutes");
 const gamesysDossierRoutes = require("../gamesys/routes/dossierRoutes");
 const gamesysOrderRoutes = require("../gamesys/routes/orderRoutes");
 
 function registerRoutes(app) {
+  app.use(healthRoutes);
   app.use(jobsRoutes);
   app.use(configRoutes);
   app.use(dossierApiRoutes);
