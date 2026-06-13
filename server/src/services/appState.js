@@ -42,6 +42,7 @@ const state = {
     completed: [],
   },
   appVersion: undefined,
+  networkStatus: { LM: false, CASTO: false, BRICO: false, ECOM: false, PREVIEW: false },
 };
 
 function loadAppVersion() {
