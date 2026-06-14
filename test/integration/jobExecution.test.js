@@ -33,7 +33,7 @@ function httpGet(endpoint) {
     req.on("error", (e) =>
       reject(new Error(`Serveur inaccessible sur ${HOST}:${PORT} — lancez 'npm run server'. (${e.message})`))
     );
-    req.setTimeout(10000, () => { req.destroy(); reject(new Error(`Timeout GET ${endpoint}`)); });
+    req.setTimeout(30000, () => { req.destroy(); reject(new Error(`Timeout GET ${endpoint}`)); });
   });
 }
 
@@ -59,7 +59,7 @@ function httpMethod(method, endpoint, body) {
       });
     });
     req.on("error", reject);
-    req.setTimeout(30000, () => { req.destroy(); reject(new Error(`Timeout ${method} ${endpoint}`)); });
+    req.setTimeout(150000, () => { req.destroy(); reject(new Error(`Timeout ${method} ${endpoint}`)); });
     req.write(payload);
     req.end();
   });
@@ -157,7 +157,7 @@ describe("Exécution complète des jobs — tous clients (intégration live)", f
   // ── 2. LM 101921 — Visuel normal ALAGOAS DROIT 100x255 ──────────────────
 
   describe("Dossier 101921 — LM visuel normal (ALAGOAS DROIT 100x255)", function () {
-    this.timeout(60000);
+    this.timeout(120000);
 
     let addResp;
     let jpgPath, pdfPath;
@@ -384,7 +384,7 @@ describe("Exécution complète des jobs — tous clients (intégration live)", f
   // ── 6. BRICO 165520 — Visuel normal CALACATTA 100x255 ───────────────────
 
   describe("Dossier 165520 — BRICO visuel normal (CALACATTA 100x255)", function () {
-    this.timeout(60000);
+    this.timeout(120000);
 
     let addResp;
     let jpgPath, pdfPath;

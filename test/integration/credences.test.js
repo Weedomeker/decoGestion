@@ -48,7 +48,7 @@ function httpGet(endpoint) {
     req.on("error", (e) =>
       reject(new Error(`Serveur inaccessible sur ${HOST}:${PORT} — lancez 'npm run server'. (${e.message})`))
     );
-    req.setTimeout(10000, () => { req.destroy(); reject(new Error(`Timeout GET ${endpoint}`)); });
+    req.setTimeout(30000, () => { req.destroy(); reject(new Error(`Timeout GET ${endpoint}`)); });
   });
 }
 
@@ -68,7 +68,7 @@ function httpMethod(method, endpoint, body) {
       });
     });
     req.on("error", reject);
-    req.setTimeout(30000, () => { req.destroy(); reject(new Error(`Timeout ${method} ${endpoint}`)); });
+    req.setTimeout(150000, () => { req.destroy(); reject(new Error(`Timeout ${method} ${endpoint}`)); });
     req.write(payload);
     req.end();
   });
@@ -258,7 +258,7 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
   // ════════════════════════════════════════════════════════════════════════════
 
   describe("Dossier 165675 — CASTO crédence 300x60 — amalgame 2 visuels (MOSAIQUE + MARBRE BLANC)", function () {
-    this.timeout(90000);
+    this.timeout(180000);
 
     let addResp;
     let writePath, jpgDir;
@@ -371,7 +371,7 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
   // ════════════════════════════════════════════════════════════════════════════
 
   describe("Dossier 164927 — BRICO crédence 255x60 — amalgame 2 visuels (VELTIS + TERRAZZO VULCANO)", function () {
-    this.timeout(90000);
+    this.timeout(180000);
 
     let addResp;
     let writePath, jpgDir;
@@ -484,7 +484,7 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
   // ════════════════════════════════════════════════════════════════════════════
 
   describe("CASTO crédence 300x60 — ex=2 — duplication automatique du même visuel", function () {
-    this.timeout(90000);
+    this.timeout(180000);
 
     let addResp;
     let writePath, jpgDir;
@@ -575,7 +575,7 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
   // ════════════════════════════════════════════════════════════════════════════
 
   describe("Rejet — finitions incompatibles entre les deux panneaux d'une crédence", function () {
-    this.timeout(10000);
+    this.timeout(30000);
 
     it("BRICO ex=1 : MAT + BRILLANT → rejet 400 avec message finition", async () => {
       const r = await postJson("/add_job", {

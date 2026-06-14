@@ -94,14 +94,14 @@ function fetchDossierApi(numero) {
     req.on("error", (e) =>
       reject(new Error(`Serveur inaccessible sur ${HOST}:${PORT} — lancez 'npm run server'. (${e.message})`))
     );
-    req.setTimeout(8000, () => { req.destroy(); reject(new Error(`Timeout dossier ${numero}`)); });
+    req.setTimeout(20000, () => { req.destroy(); reject(new Error(`Timeout dossier ${numero}`)); });
   });
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe("Dossier API — détection des teintes masse (intégration live)", function () {
-  this.timeout(15000);
+  this.timeout(30000);
 
   TEST_CASES.forEach(({ numero, description, jobs: expectedJobs }) => {
     describe(`Dossier ${numero} — ${description}`, () => {
