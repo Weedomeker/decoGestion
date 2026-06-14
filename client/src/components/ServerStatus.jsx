@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Divider, Popup } from "semantic-ui-react";
 
 const HOST = import.meta.env.VITE_HOST;
@@ -32,17 +32,20 @@ function ServiceRow({ ok, label }) {
 export default function ServerStatus({ onHealthChange }) {
   const [health, setHealth] = useState({ status: "unknown" });
 
+  const onHealthChangeRef = useRef(onHealthChange);
+  useEffect(() => { onHealthChangeRef.current = onHealthChange; });
+
   useEffect(() => {
     const check = async () => {
       try {
         const res  = await fetch(`http://${HOST}:${PORT}/health`);
         const data = await res.json();
         setHealth(data);
-        onHealthChange?.(data);
+        onHealthChangeRef.current?.(data);
       } catch {
         const offline = { status: "offline" };
         setHealth(offline);
-        onHealthChange?.(offline);
+        onHealthChangeRef.current?.(offline);
       }
     };
     check();
