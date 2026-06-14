@@ -135,9 +135,9 @@ ul { margin: 0; text-align: left; }
 .header {
   grid-column: 1;
   grid-row: 1;
-  background: var(--bg-base);
+  background: var(--bg-elevated);
   border-bottom: 1px solid var(--border-default);
-  box-shadow: 0 1px 0 var(--border-dim), 0 8px 32px rgba(0,0,0,0.6);
+  box-shadow: none;
   width: 100%;
   padding: 0 var(--s-lg);
   display: grid;
@@ -151,16 +151,14 @@ ul { margin: 0; text-align: left; }
   gap: 2px;
 }
 
-/* Logo uniquement : inversion pour fond sombre */
 img.ui.image.header-logo,
 .header-logo img {
-  filter: invert(1) brightness(1.8) !important;
+  filter: none !important;
   vertical-align: middle;
   max-width: 150px;
   margin: 0;
 }
 
-/* Toutes les autres images : aucun filtre */
 img.ui.image:not(.header-logo) {
   filter: none !important;
   vertical-align: middle;
@@ -168,7 +166,7 @@ img.ui.image:not(.header-logo) {
 }
 
 .header-version {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: ui-monospace, 'Courier New', monospace;
   font-size: 9px;
   color: var(--text-muted);
   letter-spacing: 0.5px;
@@ -180,7 +178,6 @@ img.ui.image:not(.header-logo) {
   align-items: center;
 }
 
-/* Header navigation tabs */
 .header-tabs {
   display: flex;
   gap: 0;
@@ -194,13 +191,12 @@ img.ui.image:not(.header-logo) {
   border: none;
   background: transparent;
   color: var(--text-muted);
-  font-family: 'Barlow', sans-serif;
-  font-weight: 600;
-  font-size: 13px;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 500;
+  font-size: 12px;
   cursor: pointer;
   border-bottom: 2px solid transparent;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.3px;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -210,14 +206,13 @@ img.ui.image:not(.header-logo) {
 }
 
 .header-tab.active {
-  color: var(--color-ecom);
-  border-bottom: 2px solid var(--color-ecom);
-  text-shadow: var(--glow-ecom);
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--text-primary);
 }
 
 .header-tab:hover:not(.active) {
   color: var(--text-secondary);
-  background: rgba(255,255,255,0.02);
+  background: var(--bg-hover);
 }
 
 .tab-badge {
@@ -226,13 +221,12 @@ img.ui.image:not(.header-logo) {
   justify-content: center;
   min-width: 18px;
   height: 18px;
-  background: var(--color-ecom);
+  background: var(--text-primary);
   color: var(--bg-base);
   border-radius: 9px;
   font-size: 10px;
   font-weight: 700;
   padding: 0 4px;
-  animation: pulse-badge 2s ease-in-out infinite;
 }
 
 
@@ -244,12 +238,12 @@ img.ui.image:not(.header-logo) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: var(--bg-base);
+  background: var(--bg-elevated);
   border-top: 1px solid var(--border-default);
   color: var(--text-muted);
   text-align: center;
   justify-content: center;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: ui-monospace, 'Courier New', monospace;
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 1.5px;
