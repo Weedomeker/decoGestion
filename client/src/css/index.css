@@ -834,11 +834,11 @@ img.ui.image:not(.header-logo) {
 .ui.form .field > label,
 .ui.form label {
   color: var(--text-muted) !important;
-  font-family: 'Barlow Condensed', sans-serif !important;
-  font-size: 10px !important;
-  font-weight: 700 !important;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif !important;
+  font-size: 9px !important;
+  font-weight: 600 !important;
   text-transform: uppercase !important;
-  letter-spacing: 1px !important;
+  letter-spacing: 2px !important;
 }
 
 /* --- Inputs --- */
@@ -849,16 +849,16 @@ img.ui.image:not(.header-logo) {
   border: 1px solid var(--border-default) !important;
   border-radius: var(--radius) !important;
   color: var(--text-primary) !important;
-  font-family: 'JetBrains Mono', monospace !important;
+  font-family: ui-monospace, 'Courier New', monospace !important;
   font-size: 13px !important;
-  transition: border-color 0.15s, box-shadow 0.15s !important;
+  transition: border-color 0.15s !important;
 }
 
 .ui.input > input:focus,
 .ui.form input:not([type="checkbox"]):focus,
 .pac-target-input:focus {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 0 1px var(--accent) inset, 0 0 10px var(--accent-soft) !important;
+  border-color: var(--text-primary) !important;
+  box-shadow: none !important;
   outline: none !important;
 }
 
@@ -871,7 +871,7 @@ img.ui.image:not(.header-logo) {
   border: 1px solid var(--border-default) !important;
   border-radius: var(--radius) !important;
   color: var(--text-secondary) !important;
-  font-family: 'JetBrains Mono', monospace !important;
+  font-family: ui-monospace, 'Courier New', monospace !important;
   font-size: 13px !important;
 }
 
@@ -879,16 +879,16 @@ img.ui.image:not(.header-logo) {
 .ui.dropdown > .default.text { color: var(--text-muted) !important; }
 
 .ui.dropdown .menu {
-  background: var(--bg-elevated) !important;
-  border: 1px solid var(--border-bright) !important;
+  background: var(--bg-input) !important;
+  border: 1px solid var(--border-default) !important;
   border-radius: var(--radius) !important;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.7) !important;
+  box-shadow: 0 4px 16px rgba(42,37,32,0.1) !important;
 }
 
 .ui.dropdown .menu > .item {
   color: var(--text-secondary) !important;
   border-top: 1px solid var(--border-dim) !important;
-  font-family: 'JetBrains Mono', monospace !important;
+  font-family: ui-monospace, 'Courier New', monospace !important;
   font-size: 12px !important;
 }
 
@@ -900,21 +900,19 @@ img.ui.image:not(.header-logo) {
 .ui.dropdown .menu > .item.active,
 .ui.dropdown .menu > .item.selected {
   background: var(--bg-hover) !important;
-  color: var(--color-ecom) !important;
+  color: var(--text-primary) !important;
 }
 
 .ui.dropdown .menu > .divider {
   border-top: 1px solid var(--border-default) !important;
 }
 
-/* Dropdown arrow icon */
 .ui.dropdown > .dropdown.icon { color: var(--text-muted) !important; }
 
-/* Dropdown: focus/active border */
 .ui.active.dropdown,
 .ui.dropdown:focus {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 0 1px var(--accent) inset !important;
+  border-color: var(--text-primary) !important;
+  box-shadow: none !important;
 }
 
 /* --- Buttons --- */
@@ -1032,7 +1030,7 @@ img.ui.image:not(.header-logo) {
 /* --- Checkboxes --- */
 .ui.checkbox label {
   color: var(--text-secondary) !important;
-  font-family: 'Barlow', sans-serif !important;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif !important;
   font-size: 13px !important;
 }
 
@@ -1042,47 +1040,46 @@ img.ui.image:not(.header-logo) {
 }
 
 .ui.checkbox input:checked ~ label::before {
-  background: var(--accent) !important;
-  border-color: var(--accent) !important;
+  background: var(--text-primary) !important;
+  border-color: var(--text-primary) !important;
 }
 
 .ui.checkbox input:checked ~ label::after {
-  color: #fff !important;
+  color: var(--bg-base) !important;
 }
 
-/* Toggle checkbox */
 .ui.toggle.checkbox label::before {
   background: var(--bg-elevated) !important;
   border: 1px solid var(--border-bright) !important;
 }
 .ui.toggle.checkbox input:checked ~ label::before {
-  background: var(--color-ecom) !important;
-  box-shadow: var(--glow-ecom) !important;
+  background: var(--text-primary) !important;
+  box-shadow: none !important;
 }
-.ui.toggle.checkbox input:checked ~ label { color: var(--color-ecom) !important; }
+.ui.toggle.checkbox input:checked ~ label { color: var(--text-primary) !important; }
 
 /* --- Progress bar --- */
 .ui.progress {
-  background: var(--bg-input) !important;
+  background: var(--border-dim) !important;
   border: 1px solid var(--border-default) !important;
   border-radius: var(--radius) !important;
   box-shadow: none !important;
 }
 
 .ui.progress .bar {
-  background: var(--color-ecom) !important;
-  box-shadow: var(--glow-ecom) !important;
+  background: var(--text-primary) !important;
+  box-shadow: none !important;
   border-radius: var(--radius) !important;
   transition: width 0.3s ease !important;
 }
 
 .ui.progress .bar > .progress {
   color: var(--bg-base) !important;
-  font-family: 'JetBrains Mono', monospace !important;
+  font-family: ui-monospace, 'Courier New', monospace !important;
   font-size: 10px !important;
 }
 
-.ui.progress.indicating .bar { background: var(--color-ecom) !important; }
+.ui.progress.indicating .bar { background: var(--text-primary) !important; }
 
 /* --- Messages --- */
 .ui.message {
