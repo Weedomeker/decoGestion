@@ -533,10 +533,10 @@ img.ui.image:not(.header-logo) {
   left: 0;
   z-index: 100;
   min-width: 240px;
-  background: #1c1c2e;
-  border: 1px solid var(--border-bright);
-  border-radius: 4px;
-  box-shadow: 0 4px 16px rgba(0,0,0,.5);
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(42,37,32,0.1);
   margin-top: 2px;
   overflow: hidden;
 }
@@ -548,28 +548,33 @@ img.ui.image:not(.header-logo) {
   padding: 7px 12px;
   cursor: pointer;
   transition: background 0.1s;
+  border-bottom: 1px solid var(--border-dim);
 }
+
+.dossier-suggestion-item:last-child { border-bottom: none; }
 
 .dossier-suggestion-item:hover,
 .dossier-suggestion-item.active {
-  background: rgba(100, 120, 255, 0.18);
+  background: rgba(42, 37, 32, 0.05);
 }
 
 .suggestion-numero {
   font-weight: 600;
-  color: #e0e0f0;
-  font-size: 0.92em;
+  color: var(--text-primary);
+  font-family: ui-monospace, 'Courier New', monospace;
+  font-size: 12px;
   flex-shrink: 0;
 }
 
 .suggestion-label {
-  color: #9090b0;
-  font-size: 0.85em;
+  color: var(--text-muted);
+  font-size: 11px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.dossier-jobs-picker             { display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--s-sm); }
+
+.dossier-jobs-picker { display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--s-sm); }
 
 /* Chips des dossiers chargés */
 .dossier-chips {
@@ -577,6 +582,28 @@ img.ui.image:not(.header-logo) {
   flex-wrap: wrap;
   gap: 6px;
   margin-top: var(--s-sm);
+}
+
+/* Labels Semantic UI colorés par client (utilisés comme chips) */
+.ui.label.green {
+  background: rgba(45,110,70,0.10) !important;
+  border: 1px solid rgba(45,110,70,0.3) !important;
+  color: var(--color-lm) !important;
+}
+.ui.label.blue {
+  background: rgba(50,90,145,0.10) !important;
+  border: 1px solid rgba(50,90,145,0.3) !important;
+  color: var(--color-casto) !important;
+}
+.ui.label.orange {
+  background: rgba(160,85,35,0.10) !important;
+  border: 1px solid rgba(160,85,35,0.3) !important;
+  color: var(--color-brico) !important;
+}
+.ui.label.teal {
+  background: rgba(35,120,115,0.10) !important;
+  border: 1px solid rgba(35,120,115,0.3) !important;
+  color: var(--color-ecom) !important;
 }
 
 /* Table dossier — scroll horizontal + reset Semantic UI colored table */
@@ -670,17 +697,17 @@ img.ui.image:not(.header-logo) {
 /* Badge client coloré dans les en-têtes de groupe */
 .client-badge {
   display: inline-block;
-  padding: 1px 5px;
+  padding: 1px 6px;
   border-radius: 2px;
   font-size: 9px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
 }
-.client-badge--lm    { background: rgba(0,255,136,0.15); color: var(--color-lm); border: 1px solid rgba(0,255,136,0.3); }
-.client-badge--casto { background: rgba(59,158,255,0.15); color: var(--color-casto); border: 1px solid rgba(59,158,255,0.3); }
-.client-badge--ecom  { background: rgba(0,229,204,0.15); color: var(--color-ecom); border: 1px solid rgba(0,229,204,0.3); }
-.client-badge--brico { background: rgba(255,106,0,0.15); color: var(--color-brico); border: 1px solid rgba(255,106,0,0.3); }
+.client-badge--lm    { background: rgba(45,110,70,0.10);  color: var(--color-lm);    border: 1px solid rgba(45,110,70,0.25); }
+.client-badge--casto { background: rgba(50,90,145,0.10);  color: var(--color-casto); border: 1px solid rgba(50,90,145,0.25); }
+.client-badge--ecom  { background: rgba(35,120,115,0.10); color: var(--color-ecom);  border: 1px solid rgba(35,120,115,0.25); }
+.client-badge--brico { background: rgba(160,85,35,0.10);  color: var(--color-brico); border: 1px solid rgba(160,85,35,0.25); }
 
 /* Ligne désélectionnée */
 .dossier-table .job-row-deselected td {
