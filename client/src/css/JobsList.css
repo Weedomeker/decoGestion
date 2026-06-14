@@ -1,4 +1,4 @@
-/* ===================== JOBS TABLE — COMMAND CENTER ===================== */
+/* ===================== JOBS TABLE ===================== */
 
 .jobs-table-container {
   overflow: auto;
@@ -25,30 +25,30 @@
 .sticky-header {
   top: 0;
   display: table-header-group;
-  background: var(--table-header-bg, #090910) !important;
+  background: var(--table-header-bg) !important;
 }
 
 .sticky-header th {
-  background: var(--table-header-bg, #090910) !important;
-  color: var(--table-header-color, #44446a) !important;
-  font-family: 'Barlow Condensed', sans-serif !important;
-  font-size: 10px !important;
-  font-weight: 700 !important;
+  background: var(--table-header-bg) !important;
+  color: var(--table-header-color) !important;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif !important;
+  font-size: 9px !important;
+  font-weight: 600 !important;
   text-transform: uppercase !important;
-  letter-spacing: 1px !important;
-  border-bottom: 1px solid var(--border-default, #1e1e32) !important;
+  letter-spacing: 1.8px !important;
+  border-bottom: 1px solid var(--border-default) !important;
   padding: 8px !important;
 }
 
 .sticky-footer {
   bottom: 0;
   display: table-footer-group;
-  background: var(--bg-base, #08080d) !important;
+  background: var(--bg-elevated) !important;
 }
 
 .sticky-footer th {
-  background: var(--bg-base, #08080d) !important;
-  border-top: 1px solid var(--border-default, #1e1e32) !important;
+  background: var(--bg-elevated) !important;
+  border-top: 1px solid var(--border-default) !important;
   padding: 6px 8px !important;
 }
 
@@ -85,15 +85,15 @@
 }
 
 /* Client color accent — left border */
-.table-row[data-client="LM"]    > td:first-child { border-left: 3px solid var(--color-lm, #00ff88) !important; }
-.table-row[data-client="CASTO"] > td:first-child { border-left: 3px solid var(--color-casto, #3b9eff) !important; }
-.table-row[data-client="ECOM"]  > td:first-child { border-left: 3px solid var(--color-ecom, #00e5cc) !important; }
-.table-row[data-client="BRICO"] > td:first-child { border-left: 3px solid var(--color-brico, #ff6a00) !important; }
+.table-row[data-client="LM"]    > td:first-child { border-left: 2px solid var(--color-lm) !important; }
+.table-row[data-client="CASTO"] > td:first-child { border-left: 2px solid var(--color-casto) !important; }
+.table-row[data-client="ECOM"]  > td:first-child { border-left: 2px solid var(--color-ecom) !important; }
+.table-row[data-client="BRICO"] > td:first-child { border-left: 2px solid var(--color-brico) !important; }
 
 /* Table cells */
 .table-cell {
   height: var(--table-row-height, 34px) !important;
-  font-family: 'JetBrains Mono', monospace !important;
+  font-family: ui-monospace, 'Courier New', monospace !important;
   font-size: 12px !important;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -101,40 +101,24 @@
   display: table-cell;
   vertical-align: middle;
   padding: 0 8px;
-  color: var(--text-secondary, #7878a0);
+  color: var(--text-secondary);
 }
 
-/* Link style in completed rows */
+/* Links in completed rows */
 .table-row a {
-  color: var(--color-ecom, #00e5cc) !important;
+  color: var(--color-ecom) !important;
   text-decoration: none !important;
-  transition: text-shadow 0.15s;
 }
 .table-row a:hover {
-  text-shadow: 0 0 10px rgba(0,229,204,0.6);
+  color: var(--text-primary) !important;
+  text-decoration: underline !important;
 }
 
-/* ===================== PROCESS BUTTON ANIMATION ===================== */
+/* ===================== ACTION BUTTONS ===================== */
 
-/* "Traiter la file" — pulse when idle */
-.jobs-view .ui.red.button:not(:disabled) {
-  animation: pulse-danger 2.5s ease-in-out infinite;
-}
-
-@keyframes pulse-danger {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 58, 58, 0.5); }
-  50%       { box-shadow: 0 0 0 8px rgba(255, 58, 58, 0); }
-}
-
-/* Stickers button — green pulse */
-.jobs-view .ui.green.button:not(:disabled) {
-  animation: pulse-success 2.5s ease-in-out infinite;
-}
-
-@keyframes pulse-success {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.5); }
-  50%       { box-shadow: 0 0 0 8px rgba(0, 255, 136, 0); }
-}
+/* Supprimé : animations pulse-danger / pulse-success */
+.jobs-view .ui.red.button:not(:disabled)   { /* pas d'animation */ }
+.jobs-view .ui.green.button:not(:disabled) { /* pas d'animation */ }
 
 /* ===================== CHECKBOX FOOTER ===================== */
 
