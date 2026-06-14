@@ -1183,6 +1183,57 @@ img.ui.image:not(.header-logo) {
   backdrop-filter: blur(2px) !important;
 }
 
+/* ===================== NETWORK STATUS DOT ===================== */
+
+.network-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.network-dot--ok      { background: var(--success); }
+.network-dot--degraded { background: var(--warning); }
+.network-dot--offline  { background: var(--danger); }
+.network-dot--unknown  { background: var(--text-muted); }
+
+@keyframes networkPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 170, 0, 0.6); }
+  50%       { box-shadow: 0 0 0 6px rgba(255, 170, 0, 0); }
+}
+
+@keyframes networkPulseFast {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 58, 58, 0.6); }
+  50%       { box-shadow: 0 0 0 6px rgba(255, 58, 58, 0); }
+}
+
+.network-dot--pulse      { animation: networkPulse 2s infinite; }
+.network-dot--pulse-fast { animation: networkPulseFast 1.2s infinite; }
+
+/* Client badge dot */
+.client-btn-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.client-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.client-dot--ok      { background: var(--success); }
+.client-dot--ko      { background: var(--danger); }
+.client-dot--unknown { background: var(--text-muted); }
+
+
 /* --- Tables (for dossier table inside form) --- */
 .ui.table {
   background: var(--bg-surface) !important;
