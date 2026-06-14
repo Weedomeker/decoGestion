@@ -1170,14 +1170,14 @@ img.ui.image:not(.header-logo) {
   flex-shrink: 0;
 }
 
-.network-dot--ok      { background: var(--success); }
+.network-dot--ok       { background: var(--dot-lm); }
 .network-dot--degraded { background: var(--warning); }
 .network-dot--offline  { background: var(--danger); }
 .network-dot--unknown  { background: var(--text-muted); }
 
-
-.network-dot--pulse      { animation: networkPulse 2s infinite; }
-.network-dot--pulse-fast { animation: networkPulseFast 1.2s infinite; }
+/* Supprimé : animations networkPulse / networkPulseFast */
+.network-dot--pulse      { /* pas d'animation */ }
+.network-dot--pulse-fast { /* pas d'animation */ }
 
 /* Client badge dot */
 .client-btn-wrap {
@@ -1196,30 +1196,31 @@ img.ui.image:not(.header-logo) {
   z-index: 1;
 }
 
-.client-dot--ok      { background: var(--success); }
+.client-dot--ok      { background: var(--dot-lm); }
 .client-dot--ko      { background: var(--danger); }
 .client-dot--unknown { background: var(--text-muted); }
 
 
-/* --- Tables (for dossier table inside form) --- */
+/* --- Tables --- */
 .ui.table {
   background: var(--bg-surface) !important;
   color: var(--text-primary) !important;
   border: 1px solid var(--border-default) !important;
   border-radius: var(--radius) !important;
-  font-family: 'JetBrains Mono', monospace !important;
+  font-family: ui-monospace, 'Courier New', monospace !important;
   font-size: 12px !important;
+  box-shadow: none !important;
 }
 
 .ui.table thead th {
   background: var(--table-header-bg) !important;
   color: var(--table-header-color) !important;
   border-bottom: 1px solid var(--border-default) !important;
-  font-family: 'Barlow Condensed', sans-serif !important;
-  font-size: 10px !important;
-  font-weight: 700 !important;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif !important;
+  font-size: 9px !important;
+  font-weight: 600 !important;
   text-transform: uppercase !important;
-  letter-spacing: 1px !important;
+  letter-spacing: 1.8px !important;
 }
 
 .ui.table td {
@@ -1230,7 +1231,7 @@ img.ui.image:not(.header-logo) {
 
 .ui.striped.table > tr:nth-child(2n),
 .ui.striped.table tbody tr:nth-child(2n) {
-  background: rgba(255,255,255,0.015) !important;
+  background: rgba(42,37,32,0.02) !important;
 }
 
 .ui.table tr:hover > td {
@@ -1239,7 +1240,7 @@ img.ui.image:not(.header-logo) {
 
 .ui.table tfoot th,
 .ui.table tfoot td {
-  background: var(--bg-base) !important;
+  background: var(--bg-elevated) !important;
   border-top: 1px solid var(--border-default) !important;
 }
 
