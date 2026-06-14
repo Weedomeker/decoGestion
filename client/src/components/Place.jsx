@@ -21,7 +21,7 @@ const Place = ({ value, onValue, enabled }) => {
     isLoaded && (
       <StandaloneSearchBox onLoad={(ref) => (inputRef.current = ref)} onPlacesChanged={handlePlaceChanged}>
         <input
-          disabled={enabled}
+          disabled={!enabled}
           type="text"
           name="ville"
           id="ville"

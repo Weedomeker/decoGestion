@@ -9,8 +9,8 @@ module.exports = {
   },
   rules: {
     "no-console": "warn",
-    "no-unused-vars": "warn",
-    "no-undef": "warn",
+    "no-unused-vars": "error",
+    "no-undef": "error",
     "no-multi-spaces": "warn",
     "no-new": "warn",
     "no-var": "warn",

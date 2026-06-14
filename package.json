@@ -9,7 +9,11 @@
     "format": "prettier-eslint \"./server/**/*.js\" --write && prettier-eslint \"./client/src/**/*.{js,jsx}\" --write",
     "client": "set NODE_ENV=development&& cd client && npm run dev",
     "build": "set NODE_ENV=production&& cd client && npm run build",
-    "test": "mocha \"test/**/*.test.js\" --timeout 10000 --exit"
+    "test": "mocha \"test/**/*.test.js\" --timeout 10000 --exit",
+    "test:unit": "mocha \"test/unit/**/*.test.js\" --timeout 10000 --exit",
+    "test:integration": "mocha \"test/integration/**/*.test.js\" --timeout 60000 --exit",
+    "test:coverage": "nyc --reporter=text --reporter=html mocha \"test/**/*.test.js\" --timeout 10000 --exit",
+    "lint": "eslint \"server/src/**/*.js\""
   },
   "keywords": [],
   "author": "Weedomeker",
@@ -46,7 +50,7 @@
     "pdfjs-dist": "^5.1.91",
     "pdfkit": "^0.15.1",
     "pdftopic": "^0.2.0",
-    "piscina": "^5.0.0-alpha.0",
+    "piscina": "^5.2.0",
     "qrcode": "^1.5.4",
     "serve-index": "^1.9.1",
     "svg-to-pdfkit": "^0.1.8",
@@ -64,9 +68,15 @@
     "isdev": "^1.0.1",
     "mocha": "^11.1.0",
     "mongodb-memory-server": "^9.5.0",
+    "nyc": "^17.1.0",
     "prettier": "^3.1.0",
     "prettier-eslint": "^16.1.2",
     "prettier-eslint-cli": "^8.0.1",
     "sinon": "^17.0.1"
+  },
+  "nyc": {
+    "exclude": ["test/**", "server/public/**"],
+    "branches": 50,
+    "lines": 50
   }
 }

@@ -19,7 +19,7 @@ function PreviewDeco({ fileSelected, show }) {
   }, []);
 
   const extractReference = (filename) => {
-    const match = filename.match(/\b\d{7,}\b/ || /[A-Z]+-\d+/i);
+    const match = filename.match(/\b\d{7,}\b/) || filename.match(/[A-Z]+-\d+/i);
     if (match && match[0] !== "00000000") return match ? match[0] : null;
   };
 

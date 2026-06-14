@@ -1,5 +1,6 @@
 require("dotenv").config();
 const odbc = require("odbc");
+const logger = require("../../logger/logger");
 
 const CONNECTION_TIMEOUT = parseInt(process.env.ODBC_CONNECT_TIMEOUT || "10", 10);
 const LOGIN_TIMEOUT = parseInt(process.env.ODBC_LOGIN_TIMEOUT || "10", 10);
@@ -61,7 +62,8 @@ async function checkOdbcConnection() {
     await conn.query("SELECT 1");
     _odbcStatus = "connected";
     return true;
-  } catch (_) {
+  } catch (err) {
+    logger.warn(`ODBC: connexion échouée — ${err.message}`);
     _odbcStatus = "disconnected";
     return false;
   } finally {

@@ -20,6 +20,7 @@ import Place from "./components/Place";
 import PreviewDeco from "./components/PreviewDeco";
 import TeinteMasseDropdown from "./components/TeinteMasseDropdown";
 import VisuelDropdown from "./components/VisuelDropdown";
+import { isCredenceFormat } from "./utils/credence";
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -466,9 +467,7 @@ function App() {
     }
 
     // Mode normal : un seul job via le formulaire
-    const _isCredenceFormat =
-      selectedFormat &&
-      (selectedFormat.includes("300x60") || selectedFormat.includes("255x60"));
+    const _isCredenceFormat = isCredenceFormat(selectedFormat);
     if (_isCredenceFormat && (checkFolder === "BRICO" || checkFolder === "CASTO")) {
       if (Number(ex) === 1 && !selectedFile2) {
         setModalData({
@@ -1313,7 +1312,7 @@ function App() {
                 </div>
 
                 {/* Si format crédence */}
-                {selectedFormat && (selectedFormat.includes("300x60") || selectedFormat.includes("255x60")) && (
+                {isCredenceFormat(selectedFormat) && (
                   <div className="form-section form-section--accented" data-client={checkFolder}>
                     <span className="form-section-label"><Icon name="clone" size="small" /> Crédence — 2e partie</span>
                     <Form.Field required error={error.format}>

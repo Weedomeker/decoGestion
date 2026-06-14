@@ -83,20 +83,25 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
       }
     }
 
+    let attempt = 0;
+    const MAX_DELAY = 30000;
+
     function connect() {
       ws = new WebSocket(`ws://${HOST}:${PORT}`);
       ws.onopen = () => {
+        attempt = 0;
         setWsConnected(true);
       };
       ws.onmessage = handleMessage;
-      ws.onerror = (error) => {
-        console.error("WebSocket error:", error);
+      ws.onerror = () => {
         setWsConnected(false);
       };
       ws.onclose = () => {
         setWsConnected(false);
         if (!unmounted) {
-          reconnectTimer = setTimeout(connect, 2000);
+          const delay = Math.min(1000 * Math.pow(2, attempt), MAX_DELAY);
+          attempt++;
+          reconnectTimer = setTimeout(connect, delay);
         }
       };
     }
@@ -106,7 +111,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
     return () => {
       unmounted = true;
       clearTimeout(reconnectTimer);
-      ws.close();
+      if (ws) ws.close();
     };
   }, []);
 

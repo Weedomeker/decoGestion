@@ -18,20 +18,24 @@ mongoose.connection.on("error", (err) => logger.error(`MongoDB: erreur — ${err
 mongoose.connection.on("reconnected", () => logger.info("MongoDB: reconnexion réussie"));
 
 const MAX_RETRIES = 5;
-const RETRY_DELAY_MS = 3000;
 
-async function main(retries = 0) {
-  try {
-    await mongoose.connect(MONGO_URL);
-  } catch (err) {
-    if (retries < MAX_RETRIES) {
-      logger.warn(`MongoDB: tentative ${retries + 1}/${MAX_RETRIES} dans ${RETRY_DELAY_MS / 1000}s — ${err.message}`);
-      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
-      return main(retries + 1);
+async function main() {
+  let attempt = 0;
+  while (attempt < MAX_RETRIES) {
+    try {
+      await mongoose.connect(MONGO_URL);
+      return;
+    } catch (err) {
+      attempt++;
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 30000);
+      logger.warn(`MongoDB: tentative ${attempt}/${MAX_RETRIES} dans ${delay / 1000}s — ${err.message}`);
+      if (attempt < MAX_RETRIES) {
+        await new Promise((r) => setTimeout(r, delay));
+      }
     }
-    logger.error(`MongoDB: échec après ${MAX_RETRIES} tentatives — serveur démarré en mode dégradé`);
-    // Pas de throw — le serveur reste opérationnel sans MongoDB
   }
+  logger.error(`MongoDB: échec après ${MAX_RETRIES} tentatives — serveur démarré en mode dégradé`);
+  // Pas de throw — le serveur reste opérationnel sans MongoDB
 }
 
 module.exports = main;

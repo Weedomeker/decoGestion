@@ -444,7 +444,7 @@ async function runJobs(req, res) {
         }
       } else {
         try {
-          generateImages(job, state.paths.previewDeco, `${jpgName}.jpg`, isStock);
+          await generateImages(job, state.paths.previewDeco, `${jpgName}.jpg`, isStock);
         } catch (error) {
           logger.error(`Error generating JPG for job ${job.cmd}:`, error);
         }

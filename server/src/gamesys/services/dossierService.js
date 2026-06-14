@@ -1,5 +1,5 @@
 const { getDbConnection } = require("../config/db");
-const { query, escapeSqlValue, sqlTextList, closeConnection } = require("../lib/db");
+const { query, sqlTextList, escapeSqlLike, closeConnection } = require("../lib/db");
 const logger = require("../../logger/logger");
 const {
   normalizeSearchText,
@@ -11,7 +11,6 @@ const {
   getVisualReferenceFromEntete,
 } = require("../utils/reference");
 const { cleanDbValue, pickFields, uniqueBy, countRows } = require("../utils/data");
-const { escapeSqlLike } = require("../lib/db");
 
 async function findStockReferences(connection, enteteDevis) {
   const identif = enteteDevis[0]?.endv_identif || "";
@@ -60,11 +59,13 @@ async function findStockReferences(connection, enteteDevis) {
 
   if (usefulTerms.length < 2) return [];
 
+  const likeParams = [];
   const where = usefulTerms
-    .map(
-      (term) =>
-        `(upper(st_lib_1_conso) like '%${escapeSqlLike(term)}%' ESCAPE '\\' or upper(st_lib_2_conso) like '%${escapeSqlLike(term)}%' ESCAPE '\\' or upper(st_art_ref_client) like '%${escapeSqlLike(term)}%' ESCAPE '\\' or upper(st_modele) like '%${escapeSqlLike(term)}%' ESCAPE '\\')`
-    )
+    .map((term) => {
+      const likeVal = `%${escapeSqlLike(term)}%`;
+      likeParams.push(likeVal, likeVal, likeVal, likeVal);
+      return `(upper(st_lib_1_conso) like ? ESCAPE '\\' or upper(st_lib_2_conso) like ? ESCAPE '\\' or upper(st_art_ref_client) like ? ESCAPE '\\' or upper(st_modele) like ? ESCAPE '\\')`;
+    })
     .join(" and ");
 
   const rows = await query(
@@ -85,7 +86,8 @@ async function findStockReferences(connection, enteteDevis) {
       where ${where}
       order by st_seq desc
       limit 25
-    `
+    `,
+    likeParams
   );
 
   const exactRows = rows.filter((row) => {
@@ -477,11 +479,12 @@ function buildGroupedResponse(details, view) {
   return grouped;
 }
 
-async function fetchEnteteDevis(connection, escapedCommande, escapedCode) {
+async function fetchEnteteDevis(connection, commande, code) {
   try {
     return await query(
       connection,
-      `select * from public.fd_entete_devi where endv_no_dossier = '${escapedCommande}' or endv_no_commande = '${escapedCommande}' or endv_no_cmde_globale = '${escapedCommande}' or endv_no_dossier_site_donneur = '${escapedCommande}' or endv_coduniq = '${escapedCode}'`
+      `select * from public.fd_entete_devi where endv_no_dossier = ? or endv_no_commande = ? or endv_no_cmde_globale = ? or endv_no_dossier_site_donneur = ? or endv_coduniq = ?`,
+      [commande, commande, commande, commande, code]
     );
   } catch (error) {
     logger.warn(`Erreur entête devis: ${error.message}`);
@@ -489,9 +492,9 @@ async function fetchEnteteDevis(connection, escapedCommande, escapedCode) {
   }
 }
 
-async function fetchOptionalRows(connection, sql) {
+async function fetchOptionalRows(connection, sql, params = []) {
   try {
-    return await query(connection, sql);
+    return await query(connection, sql, params);
   } catch (error) {
     logger.warn(`Erreur requête liée: ${error.message}`);
     return [];
@@ -501,42 +504,35 @@ async function fetchOptionalRows(connection, sql) {
 async function buildDetail(connection, dossier) {
   const dossierCommande = dossier?.dos_no_cmde || "";
   const dossierCode = dossier?.dos_codeuniq || "";
-  const escapedCommande = escapeSqlValue(dossierCommande);
-  const escapedCommandeLike = escapeSqlLike(dossierCommande);
-  const escapedCode = escapeSqlValue(dossierCode);
+  const dosSeq = dossier.dos_seq;
+  // textValues : utilisé pour les clauses IN multi-valeurs — échappement manuel maintenu
+  // car ODBC ne supporte pas les placeholders IN dynamiques sans reconstruction de la requête
   const textValues = sqlTextList([dossierCommande, dossierCode]);
 
   // Batch principal (connection) + batch lié (conn2) en parallèle
   const primaryBatch = async () => {
-    const enteteDevis = await fetchEnteteDevis(connection, escapedCommande, escapedCode);
-    const dossierExtRows = await fetchOptionalRows(
-      connection,
-      `select * from public.fd_dossier_ext where dos_seq = ${dossier.dos_seq}${dossierCommande ? ` or dos_no_cmde = '${escapedCommande}'` : ""}`
-    );
+    const enteteDevis = await fetchEnteteDevis(connection, dossierCommande, dossierCode);
+    const dossierExtRows = dossierCommande
+      ? await fetchOptionalRows(connection, `select * from public.fd_dossier_ext where dos_seq = ? or dos_no_cmde = ?`, [dosSeq, dossierCommande])
+      : await fetchOptionalRows(connection, `select * from public.fd_dossier_ext where dos_seq = ?`, [dosSeq]);
     const elements = await fetchOptionalRows(
       connection,
-      `select eldv_seq, eldv_codeuniq, eldv_libelle, eldv_libelle_papier, eldv_client_no, eldv_num_no_1, eldv_num_no_2 from public.fd_elem_devis where eldv_seq = ${dossier.dos_seq} order by eldv_codeuniq`
+      `select eldv_seq, eldv_codeuniq, eldv_libelle, eldv_libelle_papier, eldv_client_no, eldv_num_no_1, eldv_num_no_2 from public.fd_elem_devis where eldv_seq = ? order by eldv_codeuniq`,
+      [dosSeq]
     );
-    const elements2 = await fetchOptionalRows(
-      connection,
-      `select * from public.fd_elem_devis_2 where eldv_no_devis = '${escapedCode}'`
-    );
-    const elements2Ext = await fetchOptionalRows(
-      connection,
-      `select * from public.fd_elem_devis_2_ext where eldv_no_devis = '${escapedCode}'`
-    );
+    const elements2 = await fetchOptionalRows(connection, `select * from public.fd_elem_devis_2 where eldv_no_devis = ?`, [dossierCode]);
+    const elements2Ext = await fetchOptionalRows(connection, `select * from public.fd_elem_devis_2_ext where eldv_no_devis = ?`, [dossierCode]);
     const document = await fetchOptionalRows(
       connection,
-      `select dodv_seq, dodv_num_no_1, dodv_num_no_2, dodv_lib_version_1, dodv_lib_version_2, dodv_lib_version_3, dodv_cout_dossier from public.fd_docum_devi where dodv_seq = ${dossier.dos_seq}`
+      `select dodv_seq, dodv_num_no_1, dodv_num_no_2, dodv_lib_version_1, dodv_lib_version_2, dodv_lib_version_3, dodv_cout_dossier from public.fd_docum_devi where dodv_seq = ?`,
+      [dosSeq]
     );
-    const versions = await fetchOptionalRows(
-      connection,
-      `select dove_seq, dove_codeuniq, dove_no_cmde, dove_quant_v_1, dove_lib_v_1, dove_quant_v_2, dove_lib_v_2, dove_quant_v_3, dove_lib_v_3 from public.fd_dossier_version where dove_seq = ${dossier.dos_seq}${dossierCommande ? ` or dove_no_cmde = '${escapedCommande}'` : ""}`
-    );
-    const remarques = await fetchOptionalRows(
-      connection,
-      `select * from public.fd_dossier_remarques where dos_rem_seq = ${dossier.dos_seq}${dossierCommande ? ` or dos_rem_no_cmde = '${escapedCommande}'` : ""}`
-    );
+    const versions = dossierCommande
+      ? await fetchOptionalRows(connection, `select dove_seq, dove_codeuniq, dove_no_cmde, dove_quant_v_1, dove_lib_v_1, dove_quant_v_2, dove_lib_v_2, dove_quant_v_3, dove_lib_v_3 from public.fd_dossier_version where dove_seq = ? or dove_no_cmde = ?`, [dosSeq, dossierCommande])
+      : await fetchOptionalRows(connection, `select dove_seq, dove_codeuniq, dove_no_cmde, dove_quant_v_1, dove_lib_v_1, dove_quant_v_2, dove_lib_v_2, dove_quant_v_3, dove_lib_v_3 from public.fd_dossier_version where dove_seq = ?`, [dosSeq]);
+    const remarques = dossierCommande
+      ? await fetchOptionalRows(connection, `select * from public.fd_dossier_remarques where dos_rem_seq = ? or dos_rem_no_cmde = ?`, [dosSeq, dossierCommande])
+      : await fetchOptionalRows(connection, `select * from public.fd_dossier_remarques where dos_rem_seq = ?`, [dosSeq]);
     return { enteteDevis, dossierExtRows, elements, elements2, elements2Ext, document, versions, remarques };
   };
 
@@ -544,17 +540,19 @@ async function buildDetail(connection, dossier) {
     if (!textValues) return new Array(11).fill([]);
     const conn2 = await getDbConnection();
     try {
+      // IN clauses : échappement manuel maintenu (ODBC ne supporte pas les placeholders IN dynamiques)
       const docOperations = await fetchOptionalRows(conn2, `select * from public.fd_elem_doc_ope where dev_code_devis in (${textValues})`);
       const fichierForme = await fetchOptionalRows(conn2, `select * from public.fd_fichier_forme where placoul_devis in (${textValues})`);
-      const listeMarges = await fetchOptionalRows(conn2, `select * from public.fd_liste_marges where mgdev_seq = ${dossier.dos_seq}`);
+      const listeMarges = await fetchOptionalRows(conn2, `select * from public.fd_liste_marges where mgdev_seq = ?`, [dosSeq]);
       const descriptifs = await fetchOptionalRows(conn2, `select * from public.fdescriptif where devis in (${textValues})`);
-      const livraisons = await fetchOptionalRows(conn2, `select * from public.ff_livraison where bo_no_dossier = '${escapedCommande}' or bo_devis = '${escapedCode}'`);
-      const signatures = await fetchOptionalRows(conn2, `select * from public.fi_sol_signature where sign_dossier = '${escapedCommande}' or sign_devis = '${escapedCode}'`);
-      const impositions = await fetchOptionalRows(conn2, `select * from public.fi_sol_imposition where impo_code_devis = '${escapedCode}'`);
-      const agendaProduction = await fetchOptionalRows(conn2, `select * from public.fp_agenda_prod where ag_dossier = '${escapedCommande}'`);
-      const etatsDossier = await fetchOptionalRows(conn2, `select * from public.fp_lien_etat_dossier where fled_num_dossier = '${escapedCommande}'`);
-      const suiviOperations = await fetchOptionalRows(conn2, `select * from public.fp_opera_suivi where suivi_dossier = '${escapedCommande}' or suivi_dossier_element like '${escapedCommandeLike}%' ESCAPE '\\'`);
-      const pages = await fetchOptionalRows(conn2, `select * from public.fp_pages where pages_dossier = '${escapedCommande}'`);
+      const livraisons = await fetchOptionalRows(conn2, `select * from public.ff_livraison where bo_no_dossier = ? or bo_devis = ?`, [dossierCommande, dossierCode]);
+      const signatures = await fetchOptionalRows(conn2, `select * from public.fi_sol_signature where sign_dossier = ? or sign_devis = ?`, [dossierCommande, dossierCode]);
+      const impositions = await fetchOptionalRows(conn2, `select * from public.fi_sol_imposition where impo_code_devis = ?`, [dossierCode]);
+      const agendaProduction = await fetchOptionalRows(conn2, `select * from public.fp_agenda_prod where ag_dossier = ?`, [dossierCommande]);
+      const etatsDossier = await fetchOptionalRows(conn2, `select * from public.fp_lien_etat_dossier where fled_num_dossier = ?`, [dossierCommande]);
+      const likeCommande = `${escapeSqlLike(dossierCommande)}%`;
+      const suiviOperations = await fetchOptionalRows(conn2, `select * from public.fp_opera_suivi where suivi_dossier = ? or suivi_dossier_element like ? ESCAPE '\\'`, [dossierCommande, likeCommande]);
+      const pages = await fetchOptionalRows(conn2, `select * from public.fp_pages where pages_dossier = ?`, [dossierCommande]);
       return [docOperations, fichierForme, listeMarges, descriptifs, livraisons, signatures, impositions, agendaProduction, etatsDossier, suiviOperations, pages];
     } finally {
       await closeConnection(conn2);
@@ -661,7 +659,7 @@ async function searchDossiers({ q = "", limit = 10 } = {}) {
   if (search.length < 2) return [];
 
   const safeLimit = Math.min(Math.max(limit, 1), 20);
-  const escapedQ = escapeSqlValue(search);
+  const likeQ = `${escapeSqlLike(search)}%`;
   const connection = await getDbConnection();
 
   try {
@@ -679,13 +677,14 @@ async function searchDossiers({ q = "", limit = 10 } = {}) {
       where d.dos_no_cmde is not null
         and d.dos_no_cmde <> ''
         and (
-          d.dos_no_cmde like '${escapedQ}%'
-          or split_part(d.dos_no_cmde, '/', 1) like '${escapedQ}%'
+          d.dos_no_cmde like ? ESCAPE '\\'
+          or split_part(d.dos_no_cmde, '/', 1) like ? ESCAPE '\\'
         )
       group by split_part(d.dos_no_cmde, '/', 1)
       order by numero desc
       limit ${safeLimit}
-    `
+    `,
+      [likeQ, likeQ]
     );
 
     return rows.map((row) => {
@@ -717,27 +716,24 @@ async function getDossierDetail({ seq, commande, numero, q, view = "summary", ra
   }
 
   const formattedSeq = search.replace(/\/00$/, "v0").replace(/\//g, "v");
-  const escapedSearch = escapeSqlValue(search);
-  const escapedFormattedSeq = escapeSqlValue(formattedSeq);
 
-  const where = [];
+  let dossiersSql;
+  let dossiersParams;
   if (/^\d+$/.test(search)) {
-    where.push(
-      `(d.dos_seq = ${Number(search)} or d.dos_no_cmde = '${escapedSearch}' or d.dos_no_cmde LIKE '${escapedSearch}/%' or d.dos_codeuniq = '${escapedFormattedSeq}' or d.dos_codeuniq LIKE '${escapedSearch}v%')`
-    );
+    const searchLike = `${escapeSqlLike(search)}/%`;
+    const codeUniqLike = `${escapeSqlLike(search)}v%`;
+    dossiersSql = `select d.* from public.fd_dossier d where (d.dos_seq = ? or d.dos_no_cmde = ? or d.dos_no_cmde LIKE ? ESCAPE '\\' or d.dos_codeuniq = ? or d.dos_codeuniq LIKE ? ESCAPE '\\') order by d.dos_seq desc`;
+    dossiersParams = [Number(search), search, searchLike, formattedSeq, codeUniqLike];
   } else {
-    where.push(
-      `(d.dos_no_cmde = '${escapedSearch}' or d.dos_no_cmde LIKE '%${escapedSearch}%' or d.dos_codeuniq = '${escapedFormattedSeq}')`
-    );
+    const searchLike = `%${escapeSqlLike(search)}%`;
+    dossiersSql = `select d.* from public.fd_dossier d where (d.dos_no_cmde = ? or d.dos_no_cmde LIKE ? ESCAPE '\\' or d.dos_codeuniq = ?) order by d.dos_seq desc`;
+    dossiersParams = [search, searchLike, formattedSeq];
   }
 
   const connection = await getDbConnection();
   let dossiers;
   try {
-    dossiers = await query(
-      connection,
-      `select d.* from public.fd_dossier d where ${where.join(" and ")} order by d.dos_seq desc`
-    );
+    dossiers = await query(connection, dossiersSql, dossiersParams);
   } finally {
     await closeConnection(connection);
   }

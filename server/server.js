@@ -40,7 +40,15 @@ loadAppVersion();
 restoreJobsBackup();
 initWebSocket(server);
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(",")
+    : ["http://localhost:3000", "http://localhost:5173"],
+  credentials: true,
+  methods: ["GET", "POST", "PATCH", "DELETE"],
+  allowedHeaders: ["Content-Type"],
+  maxAge: 86400,
+}));
 app.use(express.json());
 app.use(cookieParser());
 app.use(morgan("combined", { stream: accessLogStream }));

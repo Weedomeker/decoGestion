@@ -7,23 +7,25 @@ const logger = require("../../src/logger/logger");
 
 // Schéma des commandes
 const decoSchema = new mongoose.Schema({
-  date: { type: Date },
-  client: { type: String },
-  numCmd: { type: Number },
+  date: { type: Date, default: Date.now },
+  client: { type: String, enum: ["LM", "CASTO", "BRICO", "ECOM", ""] },
+  numCmd: { type: Number, min: 1 },
   mag: { type: String },
   dibond: { type: String },
   deco: { type: String },
   ref: { type: String },
   format: { type: String },
   finition: { type: String, default: "" },
-  ex: { type: Number },
-  temps: { type: Number },
+  ex: { type: Number, min: 1, max: 9999 },
+  temps: { type: Number, min: 0 },
   perte: { type: Number },
   status: { type: String },
   app_version: { type: String },
   ip: { type: String },
   comment: { type: String, default: "" },
-});
+}, { timestamps: true });
+
+decoSchema.index({ numCmd: 1, client: 1 });
 
 // Hook avant save
 decoSchema.pre("save", async function (next) {

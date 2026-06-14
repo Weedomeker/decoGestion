@@ -1,6 +1,7 @@
 import PropTypes from "prop-types";
 import { useEffect, useRef, useState } from "react";
 import { Button, Icon, Input, Label, Message, Segment } from "semantic-ui-react";
+import { isCredenceFormat } from "../utils/credence";
 
 const CLIENTS = ["LM", "CASTO", "ECOM", "BRICO"];
 const CLIENT_ALIASES = {
@@ -62,7 +63,6 @@ function findFileCandidates(files, job) {
 }
 
 const REGEX_BLANC = /\+\s*blanc\b/i;
-const CREDENCES_RE = /^\d{3}x\d{2}$/i;
 
 const TEINTE_MASSE_OPTIONS = [
   "NOIR ZERO MAT",
@@ -133,7 +133,7 @@ function buildRows(payload, pathData, formatTauro) {
       candidates.length === 1 ||
       (candidates.length > 1 && candidates[0].score > (candidates[1]?.score || 0) + 20);
 
-    const isCredence = CREDENCES_RE.test(job.formatVisu);
+    const isCredence = isCredenceFormat(job.formatVisu);
     return {
       id: baseId,
       ...job,
