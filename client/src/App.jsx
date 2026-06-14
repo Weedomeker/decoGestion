@@ -1107,13 +1107,18 @@ function App() {
                   <Button.Group size="small" className="client-selector">
                     {["LM", "CASTO", "BRICO", "ECOM"].map((c) => {
                       const isKo = symlinkStatus[c] === false;
+                      const dotCls =
+                        healthData === null        ? "client-dot client-dot--unknown" :
+                        symlinkStatus[c] === true  ? "client-dot client-dot--ok"      :
+                        symlinkStatus[c] === false ? "client-dot client-dot--ko"      :
+                                                     "client-dot client-dot--unknown";
                       return (
                         <Popup
                           key={c}
                           content={`Accès réseau ${c} indisponible`}
                           disabled={!isKo}
                           trigger={
-                            <span>
+                            <span className="client-btn-wrap">
                               <Button
                                 toggle
                                 type="button"
@@ -1129,6 +1134,7 @@ function App() {
                                 content={c}
                                 style={isKo ? { pointerEvents: "none", opacity: 0.45 } : {}}
                               />
+                              <span className={dotCls} />
                             </span>
                           }
                         />
