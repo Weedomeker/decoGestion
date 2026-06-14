@@ -317,11 +317,11 @@ img.ui.image:not(.header-logo) {
 }
 
 .form-section-label {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 10px;
-  font-weight: 700;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 1.2px;
+  letter-spacing: 2px;
   color: var(--text-muted);
   margin-bottom: 2px;
   display: flex;
@@ -331,46 +331,32 @@ img.ui.image:not(.header-logo) {
 
 .form-section--accented {
   position: relative;
-  border-left: 3px solid var(--client-color, var(--border-default));
-  background: linear-gradient(90deg, rgba(255,255,255,0.025) 0%, transparent 50%);
+  border-left: 2px solid var(--client-color, var(--border-default));
+  background: var(--client-bg, transparent);
   padding: var(--s-md) var(--s-md);
   border-radius: 0 var(--radius) var(--radius) 0;
-  overflow: hidden;
   gap: var(--s-sm);
   display: flex;
   flex-direction: column;
 }
 
-.form-section--accented::before {
-  content: '';
-  position: absolute;
-  left: -16px;
-  top: 10%;
-  bottom: 10%;
-  width: 18px;
-  background: var(--client-glow-color, transparent);
-  filter: blur(6px);
-  pointer-events: none;
-}
-
 .form-section--accented[data-client="LM"]    {
   --client-color: var(--color-lm);
-  --client-glow-color: rgba(0,255,136,0.15);
+  --client-bg: rgba(45, 110, 70, 0.04);
 }
 .form-section--accented[data-client="CASTO"] {
   --client-color: var(--color-casto);
-  --client-glow-color: rgba(59,158,255,0.15);
+  --client-bg: rgba(50, 90, 145, 0.04);
 }
 .form-section--accented[data-client="ECOM"]  {
   --client-color: var(--color-ecom);
-  --client-glow-color: rgba(0,229,204,0.15);
+  --client-bg: rgba(35, 120, 115, 0.04);
 }
 .form-section--accented[data-client="BRICO"] {
   --client-color: var(--color-brico);
-  --client-glow-color: rgba(255,106,0,0.15);
+  --client-bg: rgba(160, 85, 35, 0.04);
 }
 
-/* Options checkboxes */
 .options-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -399,11 +385,10 @@ img.ui.image:not(.header-logo) {
   border: none !important;
   border-bottom: 2px solid transparent !important;
   margin-bottom: -1px;
-  font-family: 'Barlow', sans-serif !important;
-  font-weight: 600 !important;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif !important;
+  font-weight: 500 !important;
   font-size: 12px !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.6px !important;
+  letter-spacing: 0.3px !important;
   box-shadow: none !important;
   padding: 8px 16px;
   transition: color 0.15s !important;
@@ -411,13 +396,13 @@ img.ui.image:not(.header-logo) {
 
 .mode-tabs .ui.button.toggle.active {
   background: transparent !important;
-  color: var(--color-ecom) !important;
-  border-bottom: 2px solid var(--color-ecom) !important;
+  color: var(--text-primary) !important;
+  border-bottom: 2px solid var(--text-primary) !important;
   box-shadow: none !important;
 }
 
 .mode-tabs .ui.button.toggle:hover:not(.active) {
-  background: rgba(255,255,255,0.02) !important;
+  background: var(--bg-hover) !important;
   color: var(--text-secondary) !important;
 }
 
@@ -474,7 +459,7 @@ img.ui.image:not(.header-logo) {
 
 .field-error-msg {
   color: var(--danger);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: ui-monospace, 'Courier New', monospace;
   font-size: 10px;
   margin-top: 2px;
   display: flex;
