@@ -1,15 +1,33 @@
 import { useEffect, useState } from "react";
-import { Label } from "semantic-ui-react";
+import { Divider, Popup } from "semantic-ui-react";
 
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
 
-const CONFIG = {
-  ok:      { color: "green",  text: "Connecté" },
-  degraded:{ color: "orange", text: "Mode dégradé" },
-  offline: { color: "red",    text: "Hors ligne" },
-  unknown: { color: "grey",   text: "…" },
+const DOT_STATE = {
+  ok:      { cls: "network-dot network-dot--ok" },
+  degraded:{ cls: "network-dot network-dot--degraded network-dot--pulse" },
+  offline: { cls: "network-dot network-dot--offline network-dot--pulse-fast" },
+  unknown: { cls: "network-dot network-dot--unknown" },
 };
+
+function ServiceRow({ ok, label }) {
+  const color =
+    ok === true  ? "var(--success)"    :
+    ok === false ? "var(--danger)"     :
+                   "var(--text-muted)";
+  const text = ok === true ? "OK" : ok === false ? "KO" : "…";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.75rem" }}>
+      <span style={{
+        width: 7, height: 7, borderRadius: "50%",
+        background: color, flexShrink: 0, display: "inline-block",
+      }} />
+      <span style={{ color: "var(--text-secondary)", minWidth: 72 }}>{label}</span>
+      <span style={{ color }}>{text}</span>
+    </div>
+  );
+}
 
 export default function ServerStatus({ onHealthChange }) {
   const [health, setHealth] = useState({ status: "unknown" });
@@ -17,38 +35,50 @@ export default function ServerStatus({ onHealthChange }) {
   useEffect(() => {
     const check = async () => {
       try {
-        const res = await fetch(`http://${HOST}:${PORT}/health`);
+        const res  = await fetch(`http://${HOST}:${PORT}/health`);
         const data = await res.json();
         setHealth(data);
         onHealthChange?.(data);
       } catch {
-        const offlineData = { status: "offline" };
-        setHealth(offlineData);
-        onHealthChange?.(offlineData);
+        const offline = { status: "offline" };
+        setHealth(offline);
+        onHealthChange?.(offline);
       }
     };
-
     check();
     const id = setInterval(check, 30_000);
     return () => clearInterval(id);
   }, []);
 
-  const { color, text } = CONFIG[health.status] ?? CONFIG.unknown;
+  const { cls }  = DOT_STATE[health.status] ?? DOT_STATE.unknown;
+  const symlinks = health.symlinks ?? {};
+  const mongoOk  = health.mongodb === "connected";
+  const odbcOk   = health.odbc    === "connected";
 
-  const details = [];
-  if (health.status === "degraded") {
-    if (health.mongodb !== "connected") details.push(`MongoDB: ${health.mongodb}`);
-    if (health.odbc !== "connected") details.push(`ODBC: ${health.odbc}`);
-    const deadLinks = Object.entries(health.symlinks ?? {})
-      .filter(([, ok]) => !ok)
-      .map(([k]) => k);
-    if (deadLinks.length) details.push(`Réseau: ${deadLinks.join(", ")} KO`);
-  }
+  const content = (
+    <div style={{ display: "flex", flexDirection: "column", gap: 5, padding: "4px 2px" }}>
+      <ServiceRow ok={mongoOk} label="MongoDB" />
+      <ServiceRow ok={odbcOk}  label="ODBC"    />
+      <Divider style={{ margin: "4px 0" }} />
+      {["LM", "CASTO", "BRICO", "ECOM", "PREVIEW"].map((k) => (
+        <ServiceRow key={k} ok={symlinks[k] ?? null} label={k} />
+      ))}
+    </div>
+  );
 
   return (
-    <Label size="tiny" color={color} style={{ marginLeft: "0.5rem" }}>
-      {text}
-      {details.length > 0 && ` — ${details.join(", ")}`}
-    </Label>
+    <Popup
+      trigger={<span className={cls} />}
+      content={content}
+      position="bottom right"
+      on="hover"
+      style={{
+        minWidth: 160,
+        background: "var(--bg-elevated)",
+        border:     "1px solid var(--border-bright)",
+        color:      "var(--text-primary)",
+        boxShadow:  "0 4px 20px rgba(0,0,0,0.5)",
+      }}
+    />
   );
 }
