@@ -475,7 +475,7 @@ img.ui.image:not(.header-logo) {
 /* ===================== MISC COMPONENTS ===================== */
 
 .preview-label {
-  font-family: 'Barlow Condensed', sans-serif;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -485,7 +485,7 @@ img.ui.image:not(.header-logo) {
 }
 
 .jobs-section-label {
-  font-family: 'Barlow Condensed', sans-serif;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -503,7 +503,6 @@ img.ui.image:not(.header-logo) {
   margin-top: 4px;
   padding-top: 8px;
   color: var(--color-ecom);
-  text-shadow: var(--glow-ecom);
 }
 
 .format-tauro  { display: flex; flex-direction: column; }
@@ -1250,11 +1249,11 @@ img.ui.image:not(.header-logo) {
 /* ===================== GOOGLE PLACES AUTOCOMPLETE ===================== */
 
 .pac-container {
-  background: var(--bg-elevated) !important;
-  border: 1px solid var(--border-bright) !important;
+  background: var(--bg-input) !important;
+  border: 1px solid var(--border-default) !important;
   border-radius: 0 0 var(--radius) var(--radius) !important;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.7) !important;
-  font-family: 'JetBrains Mono', monospace !important;
+  box-shadow: 0 4px 16px rgba(42,37,32,0.1) !important;
+  font-family: ui-monospace, 'Courier New', monospace !important;
 }
 
 .pac-item {
