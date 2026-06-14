@@ -1081,13 +1081,13 @@ img.ui.image:not(.header-logo) {
   color: var(--text-secondary) !important;
   box-shadow: none !important;
   border-radius: var(--radius) !important;
-  font-family: 'Barlow', sans-serif !important;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif !important;
 }
 
 .ui.message .header {
   color: var(--text-primary) !important;
-  font-family: 'Barlow Condensed', sans-serif !important;
-  letter-spacing: 0.5px !important;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif !important;
+  letter-spacing: 0.3px !important;
 }
 
 .ui.yellow.message, .ui.warning.message {
@@ -1107,11 +1107,11 @@ img.ui.image:not(.header-logo) {
 }
 
 .ui.green.message, .ui.success.message {
-  border-left: 3px solid var(--color-lm) !important;
-  background: rgba(0,255,136,0.06) !important;
-  color: var(--color-lm) !important;
+  border-left: 3px solid var(--success) !important;
+  background: rgba(45, 110, 70, 0.06) !important;
+  color: var(--success) !important;
   border-color: transparent !important;
-  border-left-color: var(--color-lm) !important;
+  border-left-color: var(--success) !important;
 }
 
 .ui.message .icon { color: inherit !important; }
@@ -1119,18 +1119,18 @@ img.ui.image:not(.header-logo) {
 /* --- Modals --- */
 .ui.modal {
   background: var(--bg-surface) !important;
-  border: 1px solid var(--border-bright) !important;
-  box-shadow: 0 0 60px rgba(0,0,0,0.9), 0 0 0 1px var(--border-dim) !important;
+  border: 1px solid var(--border-default) !important;
+  box-shadow: 0 8px 40px rgba(42,37,32,0.15) !important;
   border-radius: calc(var(--radius) * 2) !important;
 }
 
 .ui.modal > .header {
-  background: var(--bg-base) !important;
+  background: var(--bg-elevated) !important;
   color: var(--text-primary) !important;
   border-bottom: 1px solid var(--border-default) !important;
-  font-family: 'Barlow Condensed', sans-serif !important;
-  font-size: 16px !important;
-  letter-spacing: 0.5px !important;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif !important;
+  font-size: 15px !important;
+  letter-spacing: 0.2px !important;
 }
 
 .ui.modal > .content {
@@ -1144,7 +1144,7 @@ img.ui.image:not(.header-logo) {
 }
 
 .ui.dimmer {
-  background: rgba(0, 0, 0, 0.88) !important;
+  background: rgba(42, 37, 32, 0.5) !important;
   backdrop-filter: blur(2px) !important;
 }
 
