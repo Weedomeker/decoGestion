@@ -12,50 +12,48 @@
   --radius: 3px;
 
   /* Backgrounds */
-  --bg-base:     #08080d;
-  --bg-surface:  #0d0d14;
-  --bg-elevated: #14141c;
-  --bg-hover:    #1c1c28;
-  --bg-input:    #0f0f18;
+  --bg-base:     #eeebe5;
+  --bg-surface:  #e8e4dc;
+  --bg-elevated: #f0ede8;
+  --bg-hover:    rgba(42, 37, 32, 0.04);
+  --bg-input:    #faf8f4;
 
   /* Borders */
-  --border-dim:     #14142a;
-  --border-default: #1e1e32;
-  --border-bright:  #2e2e48;
-  --border-color:   #1e1e32;
+  --border-dim:     #ede9e2;
+  --border-default: #d9d4cc;
+  --border-bright:  #cac4ba;
+  --border-color:   #d9d4cc;
 
   /* Text */
-  --text-primary:   #d8d8ee;
-  --text-secondary: #7878a0;
-  --text-muted:     #3a3a58;
-  --surface-bg:     #0d0d14;
+  --text-primary:   #2a2520;
+  --text-secondary: #776e62;
+  --text-muted:     #b0a89e;
+  --surface-bg:     #e8e4dc;
 
-  /* Client neons */
-  --color-lm:    #00ff88;
-  --color-casto: #3b9eff;
-  --color-ecom:  #00e5cc;
-  --color-brico: #ff6a00;
+  /* Client accents (désaturés — pas de néon) */
+  --color-lm:    #2d6e46;
+  --color-casto: #325a91;
+  --color-ecom:  #237870;
+  --color-brico: #a05523;
 
-  /* Glows */
-  --glow-lm:    0 0 18px rgba(0, 255, 136, 0.35);
-  --glow-casto: 0 0 18px rgba(59, 158, 255, 0.35);
-  --glow-ecom:  0 0 18px rgba(0, 229, 204, 0.35);
-  --glow-brico: 0 0 18px rgba(255, 106, 0, 0.35);
+  /* Dots de statut réseau */
+  --dot-lm:    #6dbb8a;
+  --dot-casto: #6a9bbf;
+  --dot-ecom:  #4aacaa;
+  --dot-brico: #bf7a3a;
 
-  /* System */
-  --accent:       #5050e8;
-  --accent-soft:  rgba(80, 80, 232, 0.2);
-  --accent-glow:  rgba(80, 80, 232, 0.4);
-  --danger:       #ff3a3a;
-  --danger-soft:  rgba(255, 58, 58, 0.12);
-  --danger-glow:  rgba(255, 58, 58, 0.35);
-  --success:      #00ff88;
-  --warning:      #ffaa00;
-  --warning-soft: rgba(255, 170, 0, 0.1);
+  /* Système sémantique (lisible sur fond clair) */
+  --accent:       #325a91;
+  --accent-soft:  rgba(50, 90, 145, 0.12);
+  --danger:       #b84040;
+  --danger-soft:  rgba(184, 64, 64, 0.08);
+  --success:      #2d6e46;
+  --warning:      #a07830;
+  --warning-soft: rgba(160, 120, 48, 0.08);
 
   /* Table */
-  --table-header-bg:    #090910;
-  --table-header-color: #6060a0;
+  --table-header-bg:    #f0ede8;
+  --table-header-color: #b0a89e;
   --table-row-height:   34px;
 
   /* Layout */
