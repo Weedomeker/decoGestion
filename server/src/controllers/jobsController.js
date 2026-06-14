@@ -84,9 +84,13 @@ async function addJob(req, res) {
     teinteMasse: req.body.teinteMasse,
     stock: req.body.stock,
   };
-  let client = data.client != null ? data.client?.toUpperCase() : "";
+  if (!data.client || !data.visuel || !data.formatTauro || !data.format) {
+    return res.status(400).json({ error: "Champs obligatoires manquants : client, visuel, format, formatTauro." });
+  }
+
+  let client = data.client.toUpperCase();
   const client2 = (req.body.client2 || data.client)?.toUpperCase();
-  let visuel = data.visuel?.split("/")?.pop();
+  let visuel = data.visuel.split("/").pop();
   let visuel2 = data.visuel2?.split("/").pop() || "";
 
   if (client === "LM") {
