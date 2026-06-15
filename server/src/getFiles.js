@@ -6,15 +6,23 @@ const { cmToPoints, pointsToCm } = require("./convertUnits");
 const getFiles = (dir, files = [], directories = []) => {
   if (!fs.existsSync(dir)) return { directories, files };
 
-  const fileList = fs.readdirSync(dir);
-  for (const file of fileList) {
-    const name = `${dir}\\${file}`;
-    if (fs.statSync(name).isDirectory() && fs.readdirSync(name).length !== 0) {
-      directories.push(path.join(name));
-      getFiles(path.join(name), files);
-    } else {
-      if (path.extname(name) === ".pdf") files.push(name);
+  try {
+    const fileList = fs.readdirSync(dir);
+    for (const file of fileList) {
+      const name = `${dir}\\${file}`;
+      try {
+        if (fs.statSync(name).isDirectory() && fs.readdirSync(name).length !== 0) {
+          directories.push(path.join(name));
+          getFiles(path.join(name), files);
+        } else {
+          if (path.extname(name) === ".pdf") files.push(name);
+        }
+      } catch (entryErr) {
+        console.warn(`[getFiles] Entrée inaccessible ${name}: ${entryErr.code || entryErr.message}`);
+      }
     }
+  } catch (err) {
+    console.warn(`[getFiles] Erreur lecture ${dir}: ${err.code || err.message}`);
   }
   return { directories, files };
 };
@@ -51,20 +59,23 @@ const getData = async (dir) => {
 
     const listFiles = await Promise.all(
       getFiles(folderPath).files.map(async (file) => {
-        const fileSize = fs.statSync(file).size;
-        // const format = await getFormat(file);
-        return {
-          name: file.replace(/\\/g, "/"),
-          size: bytesToSize(fileSize),
-          // format: format,
-        };
+        try {
+          const fileSize = fs.statSync(file).size;
+          return {
+            name: file.replace(/\\/g, "/"),
+            size: bytesToSize(fileSize),
+          };
+        } catch (err) {
+          console.warn(`[getData] Fichier inaccessible ${file}: ${err.code || err.message}`);
+          return null;
+        }
       }),
     );
 
     arr.push({
       name: nameFolder,
       path: folderPath.replace(/\\/g, "/") + "/",
-      files: listFiles,
+      files: listFiles.filter(Boolean),
     });
   }
 

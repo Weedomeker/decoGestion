@@ -2,6 +2,17 @@ const path = require("path");
 const fs = require("fs");
 const getFiles = require("../getFiles").getData;
 const { state } = require("./appState");
+const logger = require("../logger/logger");
+
+async function safeGetFiles(dir, key) {
+  if (!state.networkStatus[key]) return [];
+  try {
+    return await getFiles(dir);
+  } catch (err) {
+    logger.warn(`getDecoPaths [${key}] inaccessible : ${err.code || err.message}`);
+    return [];
+  }
+}
 
 async function getDecoPaths() {
   const { decoLM, decoCASTO, previewDeco, decoBRICO, decoECOM } = state.paths;
@@ -14,15 +25,22 @@ async function getDecoPaths() {
     typeof decoECOM === "string"
   ) {
     let jpgFiles = [];
-    if (fs.existsSync(previewDeco)) {
-      const files = fs.readdirSync(previewDeco, { withFileTypes: true });
-      jpgFiles = files.filter((file) => file.isFile() && file.name.endsWith(".jpg"));
+    if (state.networkStatus.PREVIEW && fs.existsSync(previewDeco)) {
+      try {
+        const files = fs.readdirSync(previewDeco, { withFileTypes: true });
+        jpgFiles = files.filter((file) => file.isFile() && file.name.endsWith(".jpg"));
+      } catch (err) {
+        logger.warn(`getDecoPaths [PREVIEW] inaccessible : ${err.code || err.message}`);
+      }
     }
 
-    const dirLM = await getFiles(decoLM);
-    const dirCASTO = await getFiles(decoCASTO);
-    const dirBRICO = await getFiles(decoBRICO);
-    const dirECOM = await getFiles(decoECOM);
+    const [dirLM, dirCASTO, dirBRICO, dirECOM] = await Promise.all([
+      safeGetFiles(decoLM, "LM"),
+      safeGetFiles(decoCASTO, "CASTO"),
+      safeGetFiles(decoBRICO, "BRICO"),
+      safeGetFiles(decoECOM, "ECOM"),
+    ]);
+
     const dirDecoPreview = jpgFiles.map((file) => ({
       name: file.name,
       path: path.join(previewDeco, file.name),

@@ -3,10 +3,10 @@ const { state } = require("./appState");
 const logger = require("../logger/logger");
 
 const KEY_TO_PATH = {
-  LM:      () => state.paths.decoLM,
-  CASTO:   () => state.paths.decoCASTO,
-  BRICO:   () => state.paths.decoBRICO,
-  ECOM:    () => state.paths.decoECOM,
+  LM: () => state.paths.decoLM,
+  CASTO: () => state.paths.decoCASTO,
+  BRICO: () => state.paths.decoBRICO,
+  ECOM: () => state.paths.decoECOM,
   PREVIEW: () => state.paths.previewDeco,
 };
 
@@ -14,11 +14,15 @@ async function checkNetworkPaths() {
   const results = {};
   for (const [key, getPath] of Object.entries(KEY_TO_PATH)) {
     const p = getPath();
-    if (!p) { results[key] = false; continue; }
+    if (!p) {
+      results[key] = false;
+      continue;
+    }
     try {
       await fs.access(p, fs.constants.R_OK);
       results[key] = true;
-    } catch {
+    } catch (err) {
+      logger.warn(`Chemin réseau inaccessible [${key}] : ${err.code || err.message}`);
       results[key] = false;
     }
   }
