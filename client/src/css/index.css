@@ -1,63 +1,110 @@
 /* ============================================================
-   COMMAND CENTER — Dark Industrial Theme
-   Fonts: Barlow (UI) · Barlow Condensed (labels) · JetBrains Mono (data)
+   Zinc (clair) + Ardoise (sombre)
+   Polices : Figtree (UI) · Geist Mono (données)
    ============================================================ */
 
 :root {
+  color-scheme: light;
+
   --s-xs: 4px;
   --s-sm: 8px;
   --s-md: 16px;
   --s-lg: 24px;
   --s-xl: 32px;
-  --radius: 3px;
+  --radius: 4px;
 
-  /* Backgrounds */
-  --bg-base:     #eeebe5;
-  --bg-surface:  #e8e4dc;
-  --bg-elevated: #f0ede8;
-  --bg-hover:    rgba(42, 37, 32, 0.04);
-  --bg-input:    #faf8f4;
+  /* Backgrounds — Zinc */
+  --bg-base:     #f4f4f6;
+  --bg-surface:  #eaeaed;
+  --bg-elevated: #ffffff;
+  --bg-hover:    rgba(9, 9, 18, 0.04);
+  --bg-input:    #fafafb;
 
   /* Borders */
-  --border-dim:     #ede9e2;
-  --border-default: #d9d4cc;
-  --border-bright:  #cac4ba;
-  --border-color:   #d9d4cc;
+  --border-dim:     #e8e8ec;
+  --border-default: #e0e0e6;
+  --border-bright:  #c4c4ce;
+  --border-color:   #e0e0e6;
 
   /* Text */
-  --text-primary:   #2a2520;
-  --text-secondary: #776e62;
-  --text-muted:     #b0a89e;
-  --surface-bg:     #e8e4dc;
+  --text-primary:   #09090e;
+  --text-secondary: #52525e;
+  --text-muted:     #9898a8;
+  --surface-bg:     #eaeaed;
 
-  /* Client accents (désaturés — pas de néon) */
-  --color-lm:    #2d6e46;
-  --color-casto: #325a91;
-  --color-ecom:  #237870;
-  --color-brico: #a05523;
+  /* Client accents */
+  --color-lm:    #1e6640;
+  --color-casto: #1c4a8a;
+  --color-ecom:  #0c6660;
+  --color-brico: #8a3f1c;
 
   /* Dots de statut réseau */
-  --dot-lm:    #6dbb8a;
-  --dot-casto: #6a9bbf;
-  --dot-ecom:  #4aacaa;
-  --dot-brico: #bf7a3a;
+  --dot-lm:    #4aad6a;
+  --dot-casto: #4a7ec9;
+  --dot-ecom:  #3aada0;
+  --dot-brico: #c97040;
 
-  /* Système sémantique (lisible sur fond clair) */
-  --accent:       #325a91;
-  --accent-soft:  rgba(50, 90, 145, 0.12);
-  --danger:       #b84040;
-  --danger-soft:  rgba(184, 64, 64, 0.08);
-  --success:      #2d6e46;
-  --warning:      #a07830;
-  --warning-soft: rgba(160, 120, 48, 0.08);
+  /* Système sémantique */
+  --accent:       #1c4a8a;
+  --accent-soft:  rgba(28, 74, 138, 0.1);
+  --danger:       #b33030;
+  --danger-soft:  rgba(179, 48, 48, 0.08);
+  --success:      #1e6640;
+  --warning:      #8a6018;
+  --warning-soft: rgba(138, 96, 24, 0.08);
 
   /* Table */
-  --table-header-bg:    #f0ede8;
-  --table-header-color: #b0a89e;
+  --table-header-bg:    #f0f0f4;
+  --table-header-color: #9898a8;
   --table-row-height:   34px;
 
   /* Layout */
   --form-panel-width: 1100px;
+}
+
+/* ============================================================
+   Ardoise — activé par data-theme="dark" sur <html>
+   ============================================================ */
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-base:     #161618;
+  --bg-surface:  #1e1e21;
+  --bg-elevated: #232326;
+  --bg-hover:    rgba(255, 255, 255, 0.04);
+  --bg-input:    #1a1a1d;
+
+  --border-dim:     #2a2a2e;
+  --border-default: #2e2e32;
+  --border-bright:  #424248;
+  --border-color:   #2e2e32;
+
+  --text-primary:   #e8e8ea;
+  --text-secondary: #8e8e96;
+  --text-muted:     #555558;
+  --surface-bg:     #1e1e21;
+
+  --color-lm:    #4aad6a;
+  --color-casto: #4a7ec9;
+  --color-ecom:  #3aada0;
+  --color-brico: #c97040;
+
+  --dot-lm:    #4aad6a;
+  --dot-casto: #4a7ec9;
+  --dot-ecom:  #3aada0;
+  --dot-brico: #c97040;
+
+  --accent:       #4a7ec9;
+  --accent-soft:  rgba(74, 126, 201, 0.12);
+  --danger:       #d44040;
+  --danger-soft:  rgba(212, 64, 64, 0.08);
+  --success:      #4aad6a;
+  --warning:      #c9902a;
+  --warning-soft: rgba(201, 144, 42, 0.08);
+
+  --table-header-bg:    #1e1e21;
+  --table-header-color: #555558;
 }
 
 /* ===================== BASE ===================== */
@@ -71,7 +118,7 @@ html, body {
   max-height: 100vh;
   background-color: var(--bg-base);
   color: var(--text-primary);
-  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Figtree', -apple-system, sans-serif;
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
 }
@@ -159,6 +206,11 @@ img.ui.image.header-logo,
   margin: 0;
 }
 
+[data-theme="dark"] img.ui.image.header-logo,
+[data-theme="dark"] .header-logo img {
+  filter: invert(0.9) brightness(1.1) !important;
+}
+
 img.ui.image:not(.header-logo) {
   filter: none !important;
   vertical-align: middle;
@@ -166,7 +218,7 @@ img.ui.image:not(.header-logo) {
 }
 
 .header-version {
-  font-family: ui-monospace, 'Courier New', monospace;
+  font-family: 'Geist Mono', ui-monospace, monospace;
   font-size: 9px;
   color: var(--text-muted);
   letter-spacing: 0.5px;
@@ -176,6 +228,27 @@ img.ui.image:not(.header-logo) {
   display: flex;
   gap: var(--s-sm);
   align-items: center;
+}
+
+.header-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  font-family: 'Figtree', -apple-system, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+}
+.header-action-btn:hover {
+  border-color: var(--border-bright);
+  color: var(--text-primary);
+  background: var(--bg-hover);
 }
 
 .header-tabs {
@@ -191,7 +264,7 @@ img.ui.image:not(.header-logo) {
   border: none;
   background: transparent;
   color: var(--text-muted);
-  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Figtree', -apple-system, sans-serif;
   font-weight: 500;
   font-size: 12px;
   cursor: pointer;
@@ -243,7 +316,7 @@ img.ui.image:not(.header-logo) {
   color: var(--text-muted);
   text-align: center;
   justify-content: center;
-  font-family: ui-monospace, 'Courier New', monospace;
+  font-family: 'Geist Mono', ui-monospace, monospace;
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 1.5px;
@@ -317,7 +390,7 @@ img.ui.image:not(.header-logo) {
 }
 
 .form-section-label {
-  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Figtree', -apple-system, sans-serif;
   font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
@@ -385,7 +458,7 @@ img.ui.image:not(.header-logo) {
   border: none !important;
   border-bottom: 2px solid transparent !important;
   margin-bottom: -1px;
-  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif !important;
+  font-family: 'Figtree', -apple-system, sans-serif !important;
   font-weight: 500 !important;
   font-size: 12px !important;
   letter-spacing: 0.3px !important;
@@ -459,7 +532,7 @@ img.ui.image:not(.header-logo) {
 
 .field-error-msg {
   color: var(--danger);
-  font-family: ui-monospace, 'Courier New', monospace;
+  font-family: 'Geist Mono', ui-monospace, monospace;
   font-size: 10px;
   margin-top: 2px;
   display: flex;
@@ -475,7 +548,7 @@ img.ui.image:not(.header-logo) {
 /* ===================== MISC COMPONENTS ===================== */
 
 .preview-label {
-  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Figtree', -apple-system, sans-serif;
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -485,7 +558,7 @@ img.ui.image:not(.header-logo) {
 }
 
 .jobs-section-label {
-  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Figtree', -apple-system, sans-serif;
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -560,7 +633,7 @@ img.ui.image:not(.header-logo) {
 .suggestion-numero {
   font-weight: 600;
   color: var(--text-primary);
-  font-family: ui-monospace, 'Courier New', monospace;
+  font-family: 'Geist Mono', ui-monospace, monospace;
   font-size: 12px;
   flex-shrink: 0;
 }
@@ -681,7 +754,7 @@ img.ui.image:not(.header-logo) {
 }
 
 .dossier-group-label {
-  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif !important;
+  font-family: 'Figtree', -apple-system, sans-serif !important;
   font-size: 10px !important;
   font-weight: 600 !important;
   text-transform: none !important;
@@ -722,7 +795,7 @@ img.ui.image:not(.header-logo) {
 .dossier-table.ui.orange.table thead th {
   background: var(--table-header-bg) !important;
   color: var(--table-header-color) !important;
-  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif !important;
+  font-family: 'Figtree', -apple-system, sans-serif !important;
   font-size: 9px !important;
   font-weight: 600 !important;
   text-transform: uppercase !important;
@@ -775,7 +848,7 @@ img.ui.image:not(.header-logo) {
 .dossier-table .ui.dropdown .menu > .item {
   color: var(--text-secondary) !important;
   border-top: 1px solid var(--border-dim) !important;
-  font-family: ui-monospace, 'Courier New', monospace !important;
+  font-family: 'Geist Mono', ui-monospace, monospace !important;
   font-size: 11px !important;
   white-space: nowrap !important;
   overflow: hidden !important;
@@ -816,7 +889,7 @@ img.ui.image:not(.header-logo) {
   border-radius: var(--radius);
   font-size: 12px;
   color: var(--warning);
-  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Figtree', -apple-system, sans-serif;
 }
 
 .dossier-table.ui.table .credence-inline-form td {
@@ -842,7 +915,7 @@ img.ui.image:not(.header-logo) {
 .ui.form .field > label,
 .ui.form label {
   color: var(--text-muted) !important;
-  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif !important;
+  font-family: 'Figtree', -apple-system, sans-serif !important;
   font-size: 9px !important;
   font-weight: 600 !important;
   text-transform: uppercase !important;
@@ -857,7 +930,7 @@ img.ui.image:not(.header-logo) {
   border: 1px solid var(--border-default) !important;
   border-radius: var(--radius) !important;
   color: var(--text-primary) !important;
-  font-family: ui-monospace, 'Courier New', monospace !important;
+  font-family: 'Geist Mono', ui-monospace, monospace !important;
   font-size: 13px !important;
   transition: border-color 0.15s !important;
 }
@@ -879,7 +952,7 @@ img.ui.image:not(.header-logo) {
   border: 1px solid var(--border-default) !important;
   border-radius: var(--radius) !important;
   color: var(--text-secondary) !important;
-  font-family: ui-monospace, 'Courier New', monospace !important;
+  font-family: 'Geist Mono', ui-monospace, monospace !important;
   font-size: 13px !important;
 }
 
@@ -896,7 +969,7 @@ img.ui.image:not(.header-logo) {
 .ui.dropdown .menu > .item {
   color: var(--text-secondary) !important;
   border-top: 1px solid var(--border-dim) !important;
-  font-family: ui-monospace, 'Courier New', monospace !important;
+  font-family: 'Geist Mono', ui-monospace, monospace !important;
   font-size: 12px !important;
 }
 
@@ -928,7 +1001,7 @@ img.ui.image:not(.header-logo) {
   background: var(--bg-elevated) !important;
   color: var(--text-secondary) !important;
   border: 1px solid var(--border-default) !important;
-  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif !important;
+  font-family: 'Figtree', -apple-system, sans-serif !important;
   font-weight: 500 !important;
   font-size: 12px !important;
   letter-spacing: 0.3px !important;
@@ -1033,7 +1106,7 @@ img.ui.image:not(.header-logo) {
 /* --- Checkboxes --- */
 .ui.checkbox label {
   color: var(--text-secondary) !important;
-  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif !important;
+  font-family: 'Figtree', -apple-system, sans-serif !important;
   font-size: 13px !important;
 }
 
@@ -1078,7 +1151,7 @@ img.ui.image:not(.header-logo) {
 
 .ui.progress .bar > .progress {
   color: var(--bg-base) !important;
-  font-family: ui-monospace, 'Courier New', monospace !important;
+  font-family: 'Geist Mono', ui-monospace, monospace !important;
   font-size: 10px !important;
 }
 
@@ -1091,12 +1164,12 @@ img.ui.image:not(.header-logo) {
   color: var(--text-secondary) !important;
   box-shadow: none !important;
   border-radius: var(--radius) !important;
-  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif !important;
+  font-family: 'Figtree', -apple-system, sans-serif !important;
 }
 
 .ui.message .header {
   color: var(--text-primary) !important;
-  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif !important;
+  font-family: 'Figtree', -apple-system, sans-serif !important;
   letter-spacing: 0.3px !important;
 }
 
@@ -1138,7 +1211,7 @@ img.ui.image:not(.header-logo) {
   background: var(--bg-elevated) !important;
   color: var(--text-primary) !important;
   border-bottom: 1px solid var(--border-default) !important;
-  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif !important;
+  font-family: 'Figtree', -apple-system, sans-serif !important;
   font-size: 15px !important;
   letter-spacing: 0.2px !important;
 }
@@ -1206,7 +1279,7 @@ img.ui.image:not(.header-logo) {
   color: var(--text-primary) !important;
   border: 1px solid var(--border-default) !important;
   border-radius: var(--radius) !important;
-  font-family: ui-monospace, 'Courier New', monospace !important;
+  font-family: 'Geist Mono', ui-monospace, monospace !important;
   font-size: 12px !important;
   box-shadow: none !important;
 }
@@ -1215,7 +1288,7 @@ img.ui.image:not(.header-logo) {
   background: var(--table-header-bg) !important;
   color: var(--table-header-color) !important;
   border-bottom: 1px solid var(--border-default) !important;
-  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif !important;
+  font-family: 'Figtree', -apple-system, sans-serif !important;
   font-size: 9px !important;
   font-weight: 600 !important;
   text-transform: uppercase !important;
@@ -1253,7 +1326,7 @@ img.ui.image:not(.header-logo) {
   border: 1px solid var(--border-default) !important;
   border-radius: 0 0 var(--radius) var(--radius) !important;
   box-shadow: 0 4px 16px rgba(42,37,32,0.1) !important;
-  font-family: ui-monospace, 'Courier New', monospace !important;
+  font-family: 'Geist Mono', ui-monospace, monospace !important;
 }
 
 .pac-item {

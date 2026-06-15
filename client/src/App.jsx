@@ -58,6 +58,14 @@ function App() {
   const [pendingCount, setPendingCount] = useState(0);
   const [isLouisOpen, setIsLouisOpen] = useState(false);
   const [preview, setPreview] = useState(null);
+  const [theme, setTheme] = useState(() => localStorage.getItem('deco-theme') || 'light');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('deco-theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(t => t === 'light' ? 'dark' : 'light');
   const [warnMsg, setWarnMsg] = useState({
     hidden: true,
     header: "",
@@ -631,6 +639,8 @@ function App() {
         activeView={activeView}
         onViewChange={setActiveView}
         pendingCount={pendingCount}
+        theme={theme}
+        onThemeToggle={toggleTheme}
       />
 
       <div className="view-area">

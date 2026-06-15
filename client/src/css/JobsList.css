@@ -31,7 +31,7 @@
 .sticky-header th {
   background: var(--table-header-bg) !important;
   color: var(--table-header-color) !important;
-  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif !important;
+  font-family: 'Figtree', -apple-system, sans-serif !important;
   font-size: 9px !important;
   font-weight: 600 !important;
   text-transform: uppercase !important;
@@ -93,7 +93,7 @@
 /* Table cells */
 .table-cell {
   height: var(--table-row-height, 34px) !important;
-  font-family: ui-monospace, 'Courier New', monospace !important;
+  font-family: 'Geist Mono', ui-monospace, monospace !important;
   font-size: 12px !important;
   overflow: hidden;
   text-overflow: ellipsis;
