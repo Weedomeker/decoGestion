@@ -119,6 +119,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
     const dataFetch = async () => {
       try {
         const response = await fetch(`http://${HOST}:${PORT}/jobs/`, { method: "GET" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const res = await response.json();
         setData([{ jobs: res.jobs, completed: res.completed }]);
         setLoading(false);
@@ -134,6 +135,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
     const dataFetch = async () => {
       try {
         const response = await fetch(`http://${HOST}:${PORT}/config/`, { method: "GET" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const res = await response.json();
         setFilter(res.vernis);
       } catch (error) {

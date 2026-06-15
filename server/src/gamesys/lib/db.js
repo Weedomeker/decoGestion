@@ -1,4 +1,5 @@
 const { getDbConnection } = require("../config/db");
+const logger = require("../../logger/logger");
 
 async function query(connection, sql, params = []) {
   try {
@@ -10,7 +11,7 @@ async function query(connection, sql, params = []) {
     const result = await connection.query(sql, params);
     return Array.from(result);
   } catch (error) {
-    console.error(`Erreur requête SQL: ${error.message}`);
+    logger.error(`Erreur requête SQL: ${error.message}`);
     throw error;
   }
 }

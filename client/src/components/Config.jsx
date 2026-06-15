@@ -7,6 +7,7 @@ const PORT = import.meta.env.VITE_PORT;
 function Config() {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState({});
+  const [saveError, setSaveError] = useState(null);
 
   // Fonction pour charger les données initiales
   const fetchInitialData = async () => {
@@ -18,9 +19,9 @@ function Config() {
 
       if (response.ok) {
         const responseData = await response.json();
-        setData(responseData); // Met à jour l'état avec les données récupérées
+        setData(responseData);
       } else {
-        console.log("Erreur lors du chargement des données");
+        setSaveError(`Erreur chargement config (${response.status})`);
       }
     } catch (err) {
       console.error("Erreur de connexion lors du chargement :", err);
@@ -30,12 +31,14 @@ function Config() {
   // Utiliser `useEffect` pour charger les données chaque fois que la modale s'ouvre
   useEffect(() => {
     if (open) {
+      setSaveError(null);
       fetchInitialData();
     }
   }, [open]); // `fetchInitialData` est appelé chaque fois que `open` devient `true`
 
-  // Fonction pour envoyer les données mises à jour au serveur
+  // Retourne true si succès, false si erreur
   async function fetchDataAndCompare(newData) {
+    setSaveError(null);
     try {
       const response = await fetch(`http://${HOST}:${PORT}/config`, {
         method: "POST",
@@ -43,19 +46,19 @@ function Config() {
         body: JSON.stringify(newData),
       });
 
-      if (response.ok) {
-        const responseData = await response.json();
-        const isDifferent = Object.entries(data).some(([key, value]) => value !== responseData[key]);
-
-        if (isDifferent) {
-          setData(responseData);
-          console.log("Les valeurs de l'état ont été mises à jour.");
-        } else {
-          console.log("Les valeurs sont identiques, pas de mise à jour.");
-        }
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        setSaveError(err.error || `Erreur serveur (${response.status})`);
+        return false;
       }
+
+      const responseData = await response.json();
+      const isDifferent = Object.entries(data).some(([key, value]) => value !== responseData[key]);
+      if (isDifferent) setData(responseData);
+      return true;
     } catch (err) {
-      console.error("Erreur lors de la connexion :", err);
+      setSaveError("Impossible de joindre le serveur.");
+      return false;
     }
   }
 
@@ -83,6 +86,7 @@ function Config() {
       </Header>
       <div className="config">
         <ModalContent scrolling>
+          {saveError && <p style={{ color: "red", margin: "0 0 8px" }}>{saveError}</p>}
           <div className="input-folders">
             <Input
               fluid
@@ -143,8 +147,8 @@ function Config() {
           color="green"
           inverted
           onClick={async () => {
-            await fetchDataAndCompare(data);
-            setOpen(false);
+            const ok = await fetchDataAndCompare(data);
+            if (ok) setOpen(false);
           }}
         >
           <Icon name="checkmark" /> Valider

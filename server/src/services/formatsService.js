@@ -25,7 +25,7 @@ function saveFormatsTauroIfNeeded(formatTauro = []) {
     let arr = [];
     if (fs.existsSync(filePath)) {
       const readFile = fs.readFileSync(filePath, { encoding: "utf8" });
-      arr.push(readFile.split(/\r?\n/g));
+      arr = readFile.split(/\r?\n/g).filter((l) => l.trim() !== "");
     }
     if (formatTauro.length > arr.length) {
       fs.writeFileSync(filePath, formatTauro.join("\n"));

@@ -6,7 +6,7 @@ const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
 
 function extractReference(filename) {
-  const match = filename.match(/\b\d{7,}\b/ || /[A-Z]+-\d+/i);
+  const match = filename.match(/\b\d{7,}\b/) || filename.match(/[A-Z]+-\d+/i);
   if (match && match[0] !== "00000000") return match[0];
 }
 

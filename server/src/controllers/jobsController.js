@@ -740,6 +740,7 @@ function deleteJob(req, res) {
   }
 
   state.jobs.jobs.splice(jobIndex, 1);
+  broadcastWS(state.jobs);
 
   return res.sendStatus(200);
 }

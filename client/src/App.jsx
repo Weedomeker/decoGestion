@@ -58,7 +58,11 @@ function App() {
   const [pendingCount, setPendingCount] = useState(0);
   const [isLouisOpen, setIsLouisOpen] = useState(false);
   const [preview, setPreview] = useState(null);
-  const [theme, setTheme] = useState(() => localStorage.getItem('deco-theme') || 'light');
+  const [dossierPreview, setDossierPreview] = useState(null);
+  const [theme, setTheme] = useState(() =>
+    localStorage.getItem('deco-theme') ||
+    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+  );
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -100,7 +104,7 @@ function App() {
   });
   const [modalInfoStock, setModalInfoStock] = useState({
     open: false,
-    stock: [],
+    stock: null,
     object: null,
     use: false,
   });
@@ -356,9 +360,7 @@ function App() {
   };
 
   const handleCloseStock = () => {
-    setModalInfoStock({
-      open: false,
-    });
+    setModalInfoStock({ open: false, stock: null, object: null, use: false });
   };
 
   const handleValidateStock = async () => {
@@ -377,7 +379,7 @@ function App() {
         throw new Error(result.error || "Une erreur est survenue");
       }
     } catch (error) {
-      console.log(error);
+      setModalData({ open: true, message: "", object: null, error: error.message });
     }
   };
 
@@ -532,26 +534,21 @@ function App() {
       if (!response.ok) {
         throw new Error(result.error || "Une erreur est survenue");
       }
-      if (response.status === 200) {
-        setJobsRefresh((prev) => prev + 1);
+      setJobsRefresh((prev) => prev + 1);
+      if (result.stock?.ex > 0) {
+        setModalInfoStock({
+          open: true,
+          stock: result.stock,
+          object: result.object,
+          use: false,
+        });
+      } else {
         setModalData({
           open: true,
           message: result.message,
           object: result.object,
           error: null,
         });
-      } else {
-        setJobsRefresh((prev) => prev + 1);
-
-        // Si un stock est trouvé, afficher le modal d'info stock
-        if (result.stock && result.stock?.ex > 0) {
-          setModalInfoStock({
-            open: true,
-            stock: result.stock,
-            object: result.object,
-            use: false,
-          });
-        }
       }
     } catch (err) {
       setModalData({
@@ -831,6 +828,7 @@ function App() {
                                                 selectedFileObject: sel || null,
                                                 prodBlanc: REGEX_BLANC.test((sel?.name || "").split("/").pop()),
                                               });
+                                              setDossierPreview(sel?.name || null);
                                             }}
                                           />
                                         )}
@@ -1230,10 +1228,6 @@ function App() {
                             CheckFormats(selectedFormatTauro, value.name.split("/").pop()).gap == true
                           ) {
                             setPerte(CheckFormats(selectedFormatTauro, value.name.split("/").pop()).surface);
-                            console.log(
-                              "Perte Visu 1:",
-                              CheckFormats(selectedFormatTauro, value.name.split("/").pop()).surface,
-                            );
                             setWarnMsg({
                               ...warnMsg,
                               hidden: false,
@@ -1307,15 +1301,7 @@ function App() {
                           setError({ ...error, numCmd: false });
                         }
                       }}
-                      onFocus={(e) =>
-                        e.target.addEventListener(
-                          "wheel",
-                          function (e) {
-                            e.preventDefault();
-                          },
-                          { passive: false },
-                        )
-                      }
+                      onWheel={(e) => e.preventDefault()}
                     />
                     {error.numCmd && <span className="field-error-msg">N° commande : 5 ou 6 chiffres requis</span>}
                   </Form.Field>
@@ -1404,8 +1390,6 @@ function App() {
                                 .surface,
                             );
 
-                            console.log("GAP TRUE");
-
                             setWarnMsg({
                               ...warnMsg,
                               hidden: false,
@@ -1444,11 +1428,6 @@ function App() {
                               CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop())
                                 .surface,
                             );
-                            console.log(
-                              "Perte Visu 2:",
-                              CheckFormats(selectedFormatTauro, value.name?.split("/").pop(), selectedFile?.split("/").pop())
-                                .surface,
-                            );
                           }
                         }}
                       />
@@ -1484,15 +1463,7 @@ function App() {
                             setError({ ...error, numCmd: false });
                           }
                         }}
-                        onFocus={(e) =>
-                          e.target.addEventListener(
-                            "wheel",
-                            function (e) {
-                              e.preventDefault();
-                            },
-                            { passive: false },
-                          )
-                        }
+                        onWheel={(e) => e.preventDefault()}
                       />
                     </Form.Field>
                   </div>
@@ -1609,10 +1580,15 @@ function App() {
         </div>
 
         {/* Panneau preview — apparaît automatiquement quand un visuel est sélectionné */}
-        <div className={`preview-panel${preview ? " visible" : ""}`}>
-          <p className="preview-label">Aperçu visuel</p>
-          <PreviewDeco fileSelected={preview} show={!!preview} client={checkFolder} />
-        </div>
+        {(() => {
+          const activePreview = activeTab === "dossier" ? dossierPreview : preview;
+          return (
+            <div className={`preview-panel${activePreview ? " visible" : ""}`}>
+              <p className="preview-label">Aperçu visuel</p>
+              <PreviewDeco fileSelected={activePreview} show={!!activePreview} client={checkFolder} />
+            </div>
+          );
+        })()}
       </div>
 
       <div className={`jobs-view${activeView !== "jobs" ? " hidden" : ""}`}>

@@ -163,7 +163,6 @@ ul { margin: 0; text-align: left; }
   gap: var(--s-lg);
   flex: 1;
   min-height: 0;
-  justify-content: center;
 }
 
 .jobs-view {
@@ -337,8 +336,8 @@ img.ui.image:not(.header-logo) {
 
 .form-panel {
   flex: 1 1 auto;
-  width: var(--form-panel-width);
-  max-width: var(--form-panel-width);
+  width: 100%;
+  max-width: 100%;
   min-width: 420px;
   overflow-y: auto;
   display: flex;
@@ -688,7 +687,6 @@ img.ui.image:not(.header-logo) {
 /* Table dossier — scroll horizontal + reset Semantic UI colored table */
 .dossier-table-wrapper {
   width: 100%;
-  overflow-x: auto;
 }
 
 .dossier-table {
