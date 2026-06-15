@@ -130,8 +130,7 @@ function buildRows(payload, pathData, formatTauro) {
     const selectedFile = bestCandidate?.name || "";
     const selectedFileObject = bestCandidate || null;
     const hasStrongMatch =
-      candidates.length === 1 ||
-      (candidates.length > 1 && candidates[0].score > (candidates[1]?.score || 0) + 20);
+      candidates.length === 1 || (candidates.length > 1 && candidates[0].score > (candidates[1]?.score || 0) + 20);
 
     const isCredence = isCredenceFormat(job.formatVisu);
     return {
@@ -150,26 +149,30 @@ function buildRows(payload, pathData, formatTauro) {
       isCredence,
       credence2: null,
       _absorbedBy: null,
-      status:
-        !formatTauroValue
-          ? "Format Tauro requis"
-          : candidates.length === 0
-            ? "Aucun fichier local trouvé"
-            : hasStrongMatch
-              ? "Prêt"
-              : "Choix requis",
+      status: !formatTauroValue
+        ? "Format Tauro requis"
+        : candidates.length === 0
+          ? "Aucun fichier local trouvé"
+          : hasStrongMatch
+            ? "Prêt"
+            : "Choix requis",
     };
   });
 }
 
 function parseNumbers(value) {
-  const tokens = value.split(/[\s,;\n]+/).map((s) => s.trim()).filter(Boolean);
-  const numbers = tokens.map((token) => {
-    if (/^\d+$/.test(token)) return token;
-    // Code-barre type D165619/00 → 165619
-    const m = token.match(/^[A-Za-z]*(\d+)\/\d+$/);
-    return m ? m[1] : null;
-  }).filter(Boolean);
+  const tokens = value
+    .split(/[\s,;\n]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const numbers = tokens
+    .map((token) => {
+      if (/^\d+$/.test(token)) return token;
+      // Code-barre type D165619/00 → 165619
+      const m = token.match(/^[A-Za-z]*(\d+)\/\d+$/);
+      return m ? m[1] : null;
+    })
+    .filter(Boolean);
   return [...new Set(numbers)];
 }
 
@@ -184,7 +187,7 @@ function replaceLastToken(value, replacement) {
   return tokens.join(" ").trim();
 }
 
-function DossierAutocomplete({ host, port, pathData, formatTauro, onAutoFill }) {
+function DossierAutocomplete({ host, port, pathData, formatTauro, onAutoFill, gamesysOk }) {
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [loadedDossiers, setLoadedDossiers] = useState([]);
@@ -279,8 +282,8 @@ function DossierAutocomplete({ host, port, pathData, formatTauro, onAutoFill }) 
         fetch(`http://${host}:${port}/dossier-api/${numero}`, {
           method: "GET",
           headers: { Accept: "application/json" },
-        }).then((res) => res.json().then((body) => ({ ok: res.ok, numero, body })))
-      )
+        }).then((res) => res.json().then((body) => ({ ok: res.ok, numero, body }))),
+      ),
     );
 
     setIsLoading(false);
@@ -331,14 +334,23 @@ function DossierAutocomplete({ host, port, pathData, formatTauro, onAutoFill }) 
     }
   }
 
+  const gamesysOffline = gamesysOk === false;
+
   return (
     <Segment className="dossier-autocomplete" color="grey">
+      {gamesysOffline && (
+        <Message warning size="tiny" style={{ marginBottom: 8 }}>
+          <Icon name="warning sign" />
+          Gamesys indisponible — la recherche par dossier n'est pas accessible.
+        </Message>
+      )}
       <div className="dossier-autocomplete-search">
         <div className="dossier-input-wrapper">
           <Input
             placeholder="N° Dossier(s) — ex: 164629 164630"
             value={inputValue}
             onChange={(e, d) => setInputValue(d.value)}
+            disabled={gamesysOffline}
             onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
             onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
             onKeyDown={(event) => {
@@ -366,7 +378,10 @@ function DossierAutocomplete({ host, port, pathData, formatTauro, onAutoFill }) 
                 <div
                   key={s.numero}
                   className={`dossier-suggestion-item${i === suggestionIndex ? " active" : ""}`}
-                  onMouseDown={(e) => { e.preventDefault(); handleSelectSuggestion(s); }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelectSuggestion(s);
+                  }}
                 >
                   <span className="suggestion-numero">{s.numero}</span>
                   {(s.magasin || s.ville || s.client) && (
@@ -377,7 +392,7 @@ function DossierAutocomplete({ host, port, pathData, formatTauro, onAutoFill }) 
             </div>
           )}
         </div>
-        <Button type="button" color="vk" loading={isLoading} disabled={isLoading} onClick={handleSearch}>
+        <Button type="button" color="vk" loading={isLoading} disabled={isLoading || gamesysOffline} onClick={handleSearch}>
           Rechercher
         </Button>
         {loadedDossiers.length > 0 && (
@@ -426,6 +441,7 @@ DossierAutocomplete.propTypes = {
   pathData: PropTypes.object,
   formatTauro: PropTypes.array.isRequired,
   onAutoFill: PropTypes.func,
+  gamesysOk: PropTypes.bool,
 };
 
 export default DossierAutocomplete;

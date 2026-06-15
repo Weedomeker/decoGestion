@@ -42,16 +42,15 @@ async function linkFolders(pathUpdate) {
 }
 
 function getConfig() {
-  if (!fs.existsSync(configPath)) {
+  if (!fs.existsSync(configPath)) return null;
+  try {
+    const readFile = fs.readFileSync(configPath, "utf8");
+    if (!readFile.trim()) return undefined;
+    return JSON.parse(readFile);
+  } catch (error) {
+    logger.error(`Impossible de lire config.json : ${error.message}`);
     return null;
   }
-
-  const readFile = fs.readFileSync(configPath, "utf8");
-  if (Object.keys(readFile).length === 0) {
-    return undefined;
-  }
-
-  return JSON.parse(readFile);
 }
 
 async function saveConfig(nextConfig) {

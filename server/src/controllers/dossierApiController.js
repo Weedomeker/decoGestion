@@ -1,4 +1,5 @@
 const dossierService = require("../gamesys/services/dossierService");
+const { getOdbcStatus } = require("../gamesys/config/db");
 
 function parseFormat(value) {
   if (!value) return "";
@@ -44,7 +45,12 @@ function normalizeDossierApiPayload(payload) {
 
     const livraison = Array.isArray(sousDossier?.livraison) ? sousDossier.livraison[0] : null;
     const entete = Array.isArray(sousDossier?.enteteDevis) ? sousDossier.enteteDevis[0] : null;
-    const sousNumero = sousDossier?.sousNumero || String(sousDossier?.commande || "").split("/").pop() || "";
+    const sousNumero =
+      sousDossier?.sousNumero ||
+      String(sousDossier?.commande || "")
+        .split("/")
+        .pop() ||
+      "";
     const commande = sousDossier?.commande || `${payload?.numero || ""}/${sousNumero}`;
 
     return visualReferences.map((visualRef, visualIndex) => {
@@ -64,9 +70,10 @@ function normalizeDossierApiPayload(payload) {
         commande,
         sousNumero,
         numCmd: String(payload?.numero || ""),
-        ville: payload.clientName === "ECOM"
-          ? livraison?.bo_adlivr_nom_1 || livraison?.bo_ref_de_livraison || livraison?.bo_ville || ""
-          : livraison?.bo_ville || livraison?.bo_adlivr_nom_1 || livraison?.bo_ref_de_livraison || "",
+        ville:
+          payload.clientName === "ECOM"
+            ? livraison?.bo_adlivr_nom_1 || livraison?.bo_ref_de_livraison || livraison?.bo_ville || ""
+            : livraison?.bo_ville || livraison?.bo_adlivr_nom_1 || livraison?.bo_ref_de_livraison || "",
         ex: entete?.endv_quant ?? livraison?.bo_quant_livree_total ?? 1,
         reference: visualRef?.reference || visualRef?.articleReference || visualRef?.modele || "",
         articleReference: visualRef?.articleReference || "",
@@ -95,6 +102,10 @@ async function getDossierApi(req, res) {
 
   if (!/^\d+$/.test(numero)) {
     return res.status(400).json({ error: "Numéro de dossier invalide" });
+  }
+
+  if (getOdbcStatus() !== "connected") {
+    return res.status(503).json({ error: "Service Gamesys indisponible — connexion ODBC inactive" });
   }
 
   try {

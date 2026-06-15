@@ -10,6 +10,9 @@ const generateCutFile = require("../generateCutFile").generateCutFile;
 const createJob = require("../jobsList");
 const modelDeco = require("../models/Deco");
 const modelRefDeco = require("../models/RefDeco");
+const RefCasto = require("../models/RefCasto");
+const RefBrico = require("../models/RefBrico");
+const RefEcom = require("../models/RefEcom");
 const checkVernis = require("../checkVernis");
 const { generateStickers, createStickersPage } = require("../generateStickers");
 const generateImages = require("../generateImages");
@@ -111,7 +114,7 @@ async function addJob(req, res) {
   let visuPath2 = data.visuel2;
   let formatTauro = data.formatTauro;
   formatTauro = formatTauro.split("_")?.pop();
-  const prodBlanc = data.prodBlanc;
+  let prodBlanc = data.prodBlanc;
   const format = data.format;
   let format2 = data.format2;
   const reg = data.regmarks;
@@ -201,12 +204,15 @@ async function addJob(req, res) {
     data.ex
   }_EX`;
 
-  if (
-    !fs.existsSync(state.process.writePath) ||
-    !fs.existsSync(`${state.paths.jpgPath}/${state.paths.sessionPRINTSA}`)
-  ) {
-    fs.mkdirSync(state.process.writePath, { recursive: true });
-    fs.mkdirSync(`${state.paths.jpgPath}/${state.paths.sessionPRINTSA}`, { recursive: true });
+  try {
+    if (!fs.existsSync(state.process.writePath)) {
+      fs.mkdirSync(state.process.writePath, { recursive: true });
+    }
+    if (!fs.existsSync(`${state.paths.jpgPath}/${state.paths.sessionPRINTSA}`)) {
+      fs.mkdirSync(`${state.paths.jpgPath}/${state.paths.sessionPRINTSA}`, { recursive: true });
+    }
+  } catch (err) {
+    return res.status(500).json({ error: `Impossible de créer le dossier de sortie : ${err.message}` });
   }
 
   state.process.jpgName = `${state.paths.jpgPath}/${state.paths.sessionPRINTSA}/${state.process.fileName}`;
@@ -229,11 +235,75 @@ async function addJob(req, res) {
     }
   }
 
-  let matchRef = data.teinteMasse ? findRefTeinteMasse?.[0]?.ref : visuel.match(/\d{8,13}/)?.[0];
+  let matchRef = data.teinteMasse ? findRefTeinteMasse?.[0]?.ref : visuel.match(/\d{13}/)?.[0];
   if (client === "BRICO" || client === "ECOM") matchRef = visuel.match(/[A-Z]+-\d+/g)?.[0];
 
-  let matchRef2 = visuel2.match(/\d{8,13}/)?.[0];
+  let matchRef2 = visuel2.match(/\d{13}/)?.[0];
   if (client2 === "BRICO" || client2 === "ECOM") matchRef2 = visuel2.match(/[A-Z]+-\d+/g)?.[0];
+
+  // Validation MongoDB des références extraites
+  const refModelMap = { LM: modelRefDeco, CASTO: RefCasto, BRICO: RefBrico, ECOM: RefEcom };
+  const RefModelClient = refModelMap[client];
+  const RefModelClient2 = refModelMap[client2];
+  const otherRefModels = [modelRefDeco, RefCasto, RefBrico, RefEcom];
+
+  let refWarning = null;
+  let refWarning2 = null;
+
+  if (matchRef && RefModelClient) {
+    let refValidated = await RefModelClient.findOne({ ref: String(matchRef) }).lean();
+    if (!refValidated) {
+      for (const m of otherRefModels.filter((m) => m !== RefModelClient)) {
+        refValidated = await m.findOne({ ref: String(matchRef) }).lean();
+        if (refValidated) break;
+      }
+    }
+    if (!refValidated) {
+      refWarning = `Référence "${matchRef}" non trouvée en base (${client})`;
+      logger.warn(`⚠️ ${refWarning} — visuel: ${visuel}`);
+    } else {
+      // Vérification cohérence format fichier vs base
+      const formatFromRef = refValidated.format;
+      const formatFromFile = format?.match(/\d{2,}x\d{2,}/i)?.[0];
+      if (formatFromRef && formatFromFile && formatFromRef !== formatFromFile) {
+        const msg = `Format incohérent pour ref ${matchRef} : fichier=${formatFromFile}, base=${formatFromRef}`;
+        logger.warn(`⚠️ ${msg}`);
+        refWarning = msg;
+      }
+      // RefEcom.blanc : forcer prodBlanc si la référence est marquée blanc en base
+      if (client === "ECOM" && refValidated.blanc === true && !prodBlanc) {
+        logger.warn(`⚠️ RefEcom ${matchRef} marquée blanc=true en base mais prodBlanc=false — correction automatique`);
+        prodBlanc = true;
+        // Recalculer le writePath avec prodBlanc = true
+        state.process.writePath = path.join(state.paths.saveFolder + "/Prod avec BLANC");
+        if (!fs.existsSync(state.process.writePath)) {
+          fs.mkdirSync(state.process.writePath, { recursive: true });
+        }
+      }
+    }
+  }
+
+  if (matchRef2 && RefModelClient2 && visuel2) {
+    let refValidated2 = await RefModelClient2.findOne({ ref: String(matchRef2) }).lean();
+    if (!refValidated2) {
+      for (const m of otherRefModels.filter((m) => m !== RefModelClient2)) {
+        refValidated2 = await m.findOne({ ref: String(matchRef2) }).lean();
+        if (refValidated2) break;
+      }
+    }
+    if (!refValidated2) {
+      refWarning2 = `Référence 2 "${matchRef2}" non trouvée en base (${client2})`;
+      logger.warn(`⚠️ ${refWarning2} — visuel2: ${visuel2}`);
+    } else {
+      const formatFromRef2 = refValidated2.format;
+      const formatFromFile2 = format2?.match(/\d{2,}x\d{2,}/i)?.[0];
+      if (formatFromRef2 && formatFromFile2 && formatFromRef2 !== formatFromFile2) {
+        const msg2 = `Format incohérent pour ref2 ${matchRef2} : fichier=${formatFromFile2}, base=${formatFromRef2}`;
+        logger.warn(`⚠️ ${msg2}`);
+        refWarning2 = msg2;
+      }
+    }
+  }
 
   const newJob = createJob(
     client,
@@ -258,6 +328,8 @@ async function addJob(req, res) {
     data.cut,
     data.teinteMasse,
     data.stock ? data.stock : false,
+    prodBlanc,
+    client2,
   );
 
   const jobExist = state.jobs.jobs.find(
@@ -290,6 +362,8 @@ async function addJob(req, res) {
     message: "Commande ajoutée",
     object: result.object,
     stock: modelStock,
+    refWarning,
+    refWarning2,
   });
 }
 
@@ -324,7 +398,9 @@ async function runJobs(req, res) {
       const isStock = job?.useStock;
 
       // Log de cohérence avant traitement
-      logger.info(`▶ Job ${job.cmd} | client=${job.client} | ref=${job.ref} | visuel=${job.visuel} | format=${job.format_visu} | ${job.ex}ex`);
+      logger.info(
+        `▶ Job ${job.cmd} | client=${job.client} | ref=${job.ref} | visuel=${job.visuel} | format=${job.format_visu} | ${job.ex}ex`,
+      );
       if (isCredences && job.visuPath2) {
         logger.info(`  + 2e panneau | ref2=${job.ref2} | visuel2=${job.visuel2} | visuPath2=${job.visuPath2}`);
       }
@@ -341,20 +417,22 @@ async function runJobs(req, res) {
 
       const sortFolder = req.body.sortFolder;
 
-      if (!fs.existsSync(job.writePath)) {
-        fs.mkdirSync(job.writePath, { recursive: true });
-      }
-      const jpgPathExists = fs.existsSync(`${state.paths.jpgPath}/${state.paths.sessionPRINTSA}`);
-
-      if (!jpgPathExists) {
-        fs.mkdirSync(`${state.paths.jpgPath}/${state.paths.sessionPRINTSA}`, { recursive: true });
-      }
-
-      if (sortFolder) {
-        const vernisFolder = `${state.paths.jpgPath}/${state.paths.sessionPRINTSA}/${
-          checkVernis(fileName) === "_S" ? "Satin" : checkVernis(fileName)
-        }`;
-        if (!fs.existsSync(vernisFolder)) fs.mkdirSync(vernisFolder, { recursive: true });
+      try {
+        if (!fs.existsSync(job.writePath)) {
+          fs.mkdirSync(job.writePath, { recursive: true });
+        }
+        if (!fs.existsSync(`${state.paths.jpgPath}/${state.paths.sessionPRINTSA}`)) {
+          fs.mkdirSync(`${state.paths.jpgPath}/${state.paths.sessionPRINTSA}`, { recursive: true });
+        }
+        if (sortFolder) {
+          const vernisFolder = `${state.paths.jpgPath}/${state.paths.sessionPRINTSA}/${
+            checkVernis(fileName) === "_S" ? "Satin" : checkVernis(fileName)
+          }`;
+          if (!fs.existsSync(vernisFolder)) fs.mkdirSync(vernisFolder, { recursive: true });
+        }
+      } catch (err) {
+        logger.error(`❌ Impossible de créer les dossiers pour le job ${job.cmd} : ${err.message}`);
+        continue;
       }
 
       const pdfName = `${job.writePath}/${fileName}`;
@@ -390,7 +468,7 @@ async function runJobs(req, res) {
             const endPdf = performance.now();
             state.process.pdfTime = endPdf - startPdf;
           } else {
-            await modifyPdf(job.visuPath, job.writePath, fileName, job.format_visu, job.format_Plaque, job.reg);
+            await modifyPdf(job.visuPath, job.writePath, fileName, job.format_Plaque, job.reg);
             const endPdf = performance.now();
             state.process.pdfTime = endPdf - startPdf;
           }
@@ -403,10 +481,14 @@ async function runJobs(req, res) {
           const outPdfPath = isCredences
             ? path.join(job.writePath, `${castoName(fileName)}${job.visuPath2 ? " + " + castoName(fileName2) : ""}.pdf`)
             : `${pdfName}.pdf`;
-          if (!fs.existsSync(outPdfPath) || fs.statSync(outPdfPath).size === 0) {
-            logger.error(`❌ PDF de sortie manquant ou vide pour le job ${job.cmd} : ${outPdfPath}`);
-          } else {
-            logger.info(`✅ PDF OK (${fs.statSync(outPdfPath).size} octets) : ${path.basename(outPdfPath)}`);
+          try {
+            if (!fs.existsSync(outPdfPath) || fs.statSync(outPdfPath).size === 0) {
+              logger.error(`❌ PDF de sortie manquant ou vide pour le job ${job.cmd} : ${outPdfPath}`);
+            } else {
+              logger.info(`✅ PDF OK (${fs.statSync(outPdfPath).size} octets) : ${path.basename(outPdfPath)}`);
+            }
+          } catch (err) {
+            logger.error(`❌ Impossible de vérifier le PDF pour le job ${job.cmd} : ${err.message}`);
           }
         }
 
@@ -438,13 +520,20 @@ async function runJobs(req, res) {
         }
 
         // Vérification que le JPG de sortie existe et n'est pas vide
-        const outJpgPath = isCredences && job.visuPath2
-          ? path.join(`${state.paths.jpgPath}/${state.paths.sessionPRINTSA}/${castoName(jpgName.split("/").pop())} + ${castoName(jpgName2.split("/").pop())}.jpg`)
-          : `${jpgName}.jpg`;
-        if (!fs.existsSync(outJpgPath) || fs.statSync(outJpgPath).size === 0) {
-          logger.error(`❌ JPG de sortie manquant ou vide pour le job ${job.cmd} : ${outJpgPath}`);
-        } else {
-          logger.info(`✅ JPG OK (${fs.statSync(outJpgPath).size} octets) : ${path.basename(outJpgPath)}`);
+        const outJpgPath =
+          isCredences && job.visuPath2
+            ? path.join(
+                `${state.paths.jpgPath}/${state.paths.sessionPRINTSA}/${castoName(jpgName.split("/").pop())} + ${castoName(jpgName2.split("/").pop())}.jpg`,
+              )
+            : `${jpgName}.jpg`;
+        try {
+          if (!fs.existsSync(outJpgPath) || fs.statSync(outJpgPath).size === 0) {
+            logger.error(`❌ JPG de sortie manquant ou vide pour le job ${job.cmd} : ${outJpgPath}`);
+          } else {
+            logger.info(`✅ JPG OK (${fs.statSync(outJpgPath).size} octets) : ${path.basename(outJpgPath)}`);
+          }
+        } catch (err) {
+          logger.error(`❌ Impossible de vérifier le JPG pour le job ${job.cmd} : ${err.message}`);
         }
       } else {
         try {
@@ -454,14 +543,12 @@ async function runJobs(req, res) {
         }
       }
 
-      const matchName1 = isCredences ? job.visuel.match(/ \d{3}x\d{2}/i) : job.visuel.match(/ \d{3}x\d{3}/i);
+      const matchName1 = isCredences ? job.visuel.match(/ \d{3}x\d{2}/i) : job.visuel.match(/ \d{2,3}x\d{2,3}/i);
 
       let matchRef1;
       if (isCredences) {
         // Pour CASTO : EAN-13 ; pour BRICO : ref alphanumérique (job.ref est déjà fiable)
-        matchRef1 = job.client === "CASTO"
-          ? job.visuel.match(/\d{13}/)
-          : (job.ref ? { 0: String(job.ref) } : null);
+        matchRef1 = job.client === "CASTO" ? job.visuel.match(/\d{13}/) : job.ref ? { 0: String(job.ref) } : null;
       } else {
         matchRef1 = job.visuel.match(/[A-Z]+-\d+/i) || job.ref;
       }
@@ -485,7 +572,9 @@ async function runJobs(req, res) {
         ? isCredences
           ? job.client === "CASTO"
             ? job.visuel2.match(/\d{13}/)
-            : (job.ref2 ? { 0: String(job.ref2) } : null)
+            : job.ref2
+              ? { 0: String(job.ref2) }
+              : null
           : job.visuel2.match(/[A-Z]+-\d+/i)
         : null;
 
@@ -520,6 +609,7 @@ async function runJobs(req, res) {
           app_version: `v${state.appVersion}`,
           ip: req.ip.split(":").pop() === "1" || req.hostname === "localhost" ? os.hostname() : req.ip.split(":").pop(),
           comment: isStock ? `Pris en stock le ${new Date().toLocaleString()}` : "",
+          prodBlanc: !!job.prodBlanc,
         };
 
         const newDeco = new modelDeco(data);
@@ -708,7 +798,9 @@ async function generateStickersForJobs(jobs) {
   await createStickersPage(tempFolder, pdfPath, "A4");
 
   const files = await fs.promises.readdir(tempFolder);
-  await Promise.all(files.map((file) => fs.promises.rename(path.join(tempFolder, file), path.join(etiquettesFolder, file))));
+  await Promise.all(
+    files.map((file) => fs.promises.rename(path.join(tempFolder, file), path.join(etiquettesFolder, file))),
+  );
 
   await fs.promises.rm(tempFolder, { recursive: true, force: true });
 }

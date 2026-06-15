@@ -1,9 +1,7 @@
 const { getDbConnection } = require("../config/db");
 
 async function query(connection, sql, params = []) {
-  const result = params?.length
-    ? await connection.query(sql, params)
-    : await connection.query(sql);
+  const result = params?.length ? await connection.query(sql, params) : await connection.query(sql);
 
   return Array.from(result);
 }
@@ -43,7 +41,7 @@ exports.getOrderProductionDetails = async (req, res) => {
       left join public.fd_entete_devi e on e.endv_seq = d.dos_seq
       where d.dos_no_cmde = ?
       `,
-      [commande]
+      [commande],
     );
 
     if (dossiers.length === 0) {
@@ -61,13 +59,13 @@ exports.getOrderProductionDetails = async (req, res) => {
         `select dove_lib_v_1, dove_quant_v_1, dove_lib_v_2, dove_quant_v_2, dove_lib_v_3, dove_quant_v_3
          from public.fd_dossier_version
          where dove_seq = ?${dossierCommande ? ` or dove_no_cmde = '${dossierCommande}'` : ""}`,
-        [seq]
+        [seq],
       );
 
       const remarques = await query(
         connection,
         `select * from public.fd_dossier_remarques where dos_rem_seq = ?${dossierCommande ? ` or dos_rem_no_cmde = '${dossierCommande}'` : ""}`,
-        [seq]
+        [seq],
       );
 
       results.push({

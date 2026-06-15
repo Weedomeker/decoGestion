@@ -5,6 +5,17 @@ import { Image } from "semantic-ui-react";
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
 
+function extractReference(filename) {
+  const match = filename.match(/\b\d{7,}\b/ || /[A-Z]+-\d+/i);
+  if (match && match[0] !== "00000000") return match[0];
+}
+
+function extractFormat(filename) {
+  const isCredence = filename.match(/\b\d{3}x\d{2}\b/i);
+  const format = filename.match(/\b\d{3}x\d{3}\b/i);
+  return isCredence ? { isCredence: true, format: isCredence[0] } : { isCredence: false, format: format?.[0] };
+}
+
 function PreviewDeco({ fileSelected, show }) {
   const [previewList, setPreviewList] = useState([]);
   const [imageUrl, setImageUrl] = useState(null);
@@ -18,58 +29,41 @@ function PreviewDeco({ fileSelected, show }) {
       .catch((err) => console.error("Erreur preview:", err));
   }, []);
 
-  const extractReference = (filename) => {
-    const match = filename.match(/\b\d{7,}\b/) || filename.match(/[A-Z]+-\d+/i);
-    if (match && match[0] !== "00000000") return match ? match[0] : null;
-  };
-
-  // Extraire le format et differencier type de format 3 digits x 3 digits ou 3 digits x 2 digits
-  // Si 3 digits x 2 digits return isCredence true sinon false et return format
-  const extractFormat = (filename) => {
-    const isCredence = filename.match(/\b\d{3}x\d{2}\b/i);
-    const format = filename.match(/\b\d{3}x\d{3}\b/i);
-    return isCredence ? { isCredence: true, format: isCredence[0] } : { isCredence: false, format: format[0] };
-  };
-
-  // 🔹 4. Chercher le bon visuel
   useEffect(() => {
     if (!fileSelected || previewList.length === 0) return;
-
     const filename = fileSelected.split("/").pop();
     const name = filename.replace(".pdf", "");
     const reference = extractReference(filename);
 
-    let matched;
+    const matched = reference
+      ? previewList.find((e) => e.name.includes(reference))
+      : previewList.find((e) => e.name.replace(".jpg", "") === name);
 
-    if (reference) {
-      matched = previewList.find((entry) => entry.name.includes(reference));
-    } else {
-      matched = previewList.find((entry) => entry.name.replace(".jpg", "") === name);
-    }
-
-    if (matched) {
-      setImageUrl(`http://${HOST}:${PORT}/${matched.path.split("\\").slice(1).join("/")}`);
-    } else {
-      setImageUrl(null);
-    }
+    setImageUrl(matched ? `http://${HOST}:${PORT}/${matched.path.split("\\").slice(1).join("/")}` : null);
   }, [fileSelected, previewList]);
 
-  if (!fileSelected || !show || !imageUrl)
+  if (!fileSelected || !show || !imageUrl) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", width: "100%", height: "100%" }}>
-        <p>Aucune image trouvée</p>
+      <div className="preview-empty">
+        <p>Aucune image</p>
       </div>
     );
+  }
+
+  const fname = fileSelected.split("/").pop() ?? "";
+  const { isCredence } = extractFormat(imageUrl);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", width: "100%", height: "100%" }}>
-      {/* style rotation if reference is not null */}
-      <Image
-        src={imageUrl}
-        alt="Aperçu déco"
-        rounded
-        style={{ transform: extractFormat(imageUrl).isCredence ? "rotate(90deg)" : undefined }}
-      />
+    <div className="preview-c">
+      <div className="preview-c-top">
+        <span className="preview-c-label">Preview</span>
+      </div>
+      <div className="preview-c-image">
+        <Image src={imageUrl} alt="Aperçu déco" style={{ transform: isCredence ? "rotate(90deg)" : undefined }} />
+      </div>
+      <div className="preview-c-bottom">
+        <span className="preview-c-fname">{fname.replace(".pdf", ".jpg")}</span>
+      </div>
     </div>
   );
 }

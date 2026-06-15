@@ -24,7 +24,9 @@ const state = {
     jpgPath: "./server/public",
     sessionPRINTSA: `PRINTSA#${dayDate}`,
     saveFolder:
-      process.env.NODE_ENV === "development" ? path.join(serverRoot, "/public/tmp") : path.join(serverRoot, "/public/TAURO"),
+      process.env.NODE_ENV === "development"
+        ? path.join(serverRoot, "/public/tmp")
+        : path.join(serverRoot, "/public/TAURO"),
     serverRoot,
     projectRoot,
   },

@@ -8,16 +8,18 @@ function normalizeSearchText(value) {
 }
 
 function getSearchTerms(label) {
-  return String(label || "")
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/(\d+)\s*[xX]\s*(\d+)/g, "$1 $2")
-    .replace(/(\d+)\s*(CM|MM)\b/gi, "$1")
-    .toUpperCase()
-    .match(/[A-Z0-9]+/g)
-    ?.filter((term) => term.length >= 3 || /^\d+$/.test(term))
-    .filter((term) => !["MAT", "THE", "LES"].includes(term))
-    .slice(0, 6) || [];
+  return (
+    String(label || "")
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/(\d+)\s*[xX]\s*(\d+)/g, "$1 $2")
+      .replace(/(\d+)\s*(CM|MM)\b/gi, "$1")
+      .toUpperCase()
+      .match(/[A-Z0-9]+/g)
+      ?.filter((term) => term.length >= 3 || /^\d+$/.test(term))
+      .filter((term) => !["MAT", "THE", "LES"].includes(term))
+      .slice(0, 6) || []
+  );
 }
 
 function getProfileSearchTerms(label) {
@@ -42,9 +44,7 @@ function getProfileSearchTerms(label) {
 }
 
 function isProfileLabel(value) {
-  return /\b(PROFIL(ES|E|S)?|CORNIERE)\b/.test(
-    normalizeSearchText(value)
-  );
+  return /\b(PROFIL(ES|E|S)?|CORNIERE)\b/.test(normalizeSearchText(value));
 }
 
 function isKitPoseLabel(value) {
@@ -57,11 +57,9 @@ function isNumericReference(value) {
 }
 
 function getVisualReferenceFromEntete(entete) {
-  const explicitReference = [
-    entete?.endv_ref_client,
-    entete?.endv_no_modele,
-    entete?.endv_code_complet_modele,
-  ].find((value) => value && String(value).trim());
+  const explicitReference = [entete?.endv_ref_client, entete?.endv_no_modele, entete?.endv_code_complet_modele].find(
+    (value) => value && String(value).trim(),
+  );
 
   if (explicitReference) return String(explicitReference).trim();
 

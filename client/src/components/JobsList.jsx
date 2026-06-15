@@ -15,7 +15,6 @@ import {
   TableRow,
 } from "semantic-ui-react";
 import "../css/JobsList.css";
-import "./InfoModal";
 
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
@@ -353,8 +352,10 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
                 <TableCell>{checkVernis(entry.visuel)?.slice(0, 1)?.toUpperCase()}</TableCell>
                 <TableCell>{entry.format_visu?.split("_").pop()}</TableCell>
                 <TableCell>{entry.format_Plaque?.split("_").pop()}</TableCell>
-                <TableCell>{entry.ex}</TableCell>
-                <TableCell>{entry.cut ? <Icon name="cut" /> : null}</TableCell>
+                <TableCell>
+                  {entry.ex}
+                  {entry.cut ? <Icon name="cut" size="tiny" fitted style={{ marginLeft: "3px", opacity: 0.55 }} /> : null}
+                </TableCell>
 
                 {status === "jobs" ? (
                   <TableCell>
@@ -378,8 +379,9 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
       : [];
 
     const newTable = !isLoading && (
-      <div className="jobs-table-container">
-        <Table size="small" compact columns={"11"} className="jobs-table" striped>
+      <div className="jobs-table-wrapper">
+        <div className="jobs-table-container">
+        <Table size="small" compact columns={"10"} className="jobs-table" striped>
           <colgroup>
             <col style={{ width: "60px" }} />
             <col style={{ width: "130px" }} />
@@ -389,8 +391,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
             <col style={{ width: "40px" }} />
             <col style={{ width: "70px" }} />
             <col style={{ width: "70px" }} />
-            <col style={{ width: "30px" }} />
-            <col style={{ width: "20px" }} />
+            <col style={{ width: "50px" }} />
             <col style={{ width: "44px" }} />
           </colgroup>
           <TableHeader className="sticky-header">
@@ -405,7 +406,6 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
               <TableHeaderCell>Plaques</TableHeaderCell>
               <TableHeaderCell>Ex</TableHeaderCell>
               <TableHeaderCell />
-              <TableHeaderCell />
             </TableRow>
           </TableHeader>
 
@@ -416,7 +416,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
           {status === "jobs" && (
             <TableFooter className="sticky-footer">
               <TableRow>
-                <TableHeaderCell colSpan="11" collapsing>
+                <TableHeaderCell colSpan="10" collapsing>
                   <div className="sticky-footer-content">
                     <div className="checkbox-footer">
                       {!onLoading &&
@@ -481,7 +481,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
           {status === "completed" && (
             <TableFooter className="sticky-footer">
               <TableRow>
-                <TableHeaderCell colSpan="11" collapsing>
+                <TableHeaderCell colSpan="10" collapsing>
                   <div className="sticky-footer-content">
                     <Button animated="fade" color="red" size="small" compact onClick={() => handleDeleteJobComplete()}>
                       <ButtonContent hidden content="Clear" />
@@ -504,6 +504,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
             </TableFooter>
           )}
         </Table>
+        </div>
       </div>
     );
 
@@ -519,23 +520,39 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {!wsConnected && (
-        <div style={{ background: "#fff3cd", color: "#856404", padding: "4px 10px", fontSize: "0.85em", borderBottom: "1px solid #ffc107" }}>
+        <div
+          style={{
+            background: "#fff3cd",
+            color: "#856404",
+            padding: "4px 10px",
+            fontSize: "0.85em",
+            borderBottom: "1px solid #ffc107",
+          }}
+        >
           ⚠ Temps réel déconnecté — reconnexion en cours…
         </div>
       )}
       {actionError && (
-        <div style={{ background: "#f8d7da", color: "#721c24", padding: "4px 10px", fontSize: "0.85em", borderBottom: "1px solid #f5c6cb", cursor: "pointer" }} onClick={() => setActionError(null)}>
+        <div
+          style={{
+            background: "#f8d7da",
+            color: "#721c24",
+            padding: "4px 10px",
+            fontSize: "0.85em",
+            borderBottom: "1px solid #f5c6cb",
+            cursor: "pointer",
+          }}
+          onClick={() => setActionError(null)}
+        >
           ✕ {actionError}
         </div>
       )}
       <div className="jobs-section-label">File en attente ({nbJobs})</div>
       {jobs}
       {nbCompleted > 0 && (
-        <div className="jobs-section-label jobs-section-label--completed">
-          Traités ({nbCompleted})
-        </div>
+        <div className="jobs-section-label jobs-section-label--completed">Traités ({nbCompleted})</div>
       )}
-      {completed}
+      {nbCompleted > 0 && completed}
     </div>
   );
 }
