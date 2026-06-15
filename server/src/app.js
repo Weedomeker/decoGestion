@@ -6,7 +6,7 @@ const fs = require("fs");
 const { cmToPoints, pointsToCm, cmToPxl } = require("./convertUnits");
 const logger = require("./logger/logger");
 
-async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg) {
+async function modifyPdf(filePath, writePath, fileName, formatTauro, reg) {
   try {
     const readPdf = await fs.promises.readFile(filePath);
     const pdfDoc = await PDFDocument.load(readPdf);

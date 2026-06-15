@@ -23,13 +23,21 @@ const decoSchema = new mongoose.Schema({
   app_version: { type: String },
   ip: { type: String },
   comment: { type: String, default: "" },
+  prodBlanc: { type: Boolean, default: false },
 });
+
+const clientRefOrder = {
+  LM: [RefDeco, RefCasto, RefBrico, RefEcom],
+  CASTO: [RefCasto, RefDeco, RefBrico, RefEcom],
+  BRICO: [RefBrico, RefDeco, RefCasto, RefEcom],
+  ECOM: [RefEcom, RefDeco, RefCasto, RefBrico],
+};
 
 // Hook avant save
 decoSchema.pre("save", async function (next) {
   try {
     if (this.isModified("ref") && this.ref) {
-      const refs = [RefDeco, RefCasto, RefBrico, RefEcom];
+      const refs = clientRefOrder[this.client?.toUpperCase()] || [RefDeco, RefCasto, RefBrico, RefEcom];
       let refData = null;
       for (const refModel of refs) {
         refData = await refModel.findOne({ ref: this.ref });
@@ -61,7 +69,8 @@ decoSchema.pre("findOneAndUpdate", async function (next) {
     const data = update.$set || update;
 
     if (data.ref) {
-      const refs = [RefDeco, RefCasto, RefBrico, RefEcom];
+      const clientKey = data.client?.toUpperCase() || this.getFilter()?.client?.toUpperCase();
+      const refs = clientRefOrder[clientKey] || [RefDeco, RefCasto, RefBrico, RefEcom];
 
       const results = await Promise.all(refs.map((refModel) => refModel.findOne({ ref: data.ref })));
 

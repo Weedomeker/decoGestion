@@ -552,6 +552,18 @@ function App() {
       } else {
         setJobsRefresh((prev) => prev + 1);
 
+        // Avertissement référence non trouvée ou format incohérent
+        if (result.refWarning || result.refWarning2) {
+          const warnings = [result.refWarning, result.refWarning2].filter(Boolean).join(" · ");
+          setWarnMsg({
+            hidden: false,
+            header: "Avertissement référence",
+            msg: warnings,
+            icon: "warning sign",
+            color: "orange",
+          });
+        }
+
         // Si un stock est trouvé, afficher le modal d'info stock
         if (result.stock && result.stock?.ex > 0) {
           setModalInfoStock({

@@ -21,6 +21,8 @@ function createJob(
   cut,
   teinteMasse,
   stock,
+  prodBlanc,
+  client2,
 ) {
   const date = new Date();
 
@@ -28,6 +30,7 @@ function createJob(
     _id: Date.now(),
     date: date,
     client: client,
+    client2: client2 || client,
     cmd: parseInt(cmd),
     cmd2: cmd2 ? parseInt(cmd2) : 0,
     ville: ville,
@@ -49,6 +52,7 @@ function createJob(
     cut: cut,
     teinteMasse: teinteMasse,
     useStock: stock,
+    prodBlanc: !!prodBlanc,
   };
 
   return newJob;
