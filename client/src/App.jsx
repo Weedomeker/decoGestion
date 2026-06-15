@@ -1543,7 +1543,7 @@ function App() {
               <span className="form-section-label">Options de production</span>
               <div className="options-grid">
                 <div className="options-col">
-                  {!(activeTab === "dossier" && dossierJobs.length > 0) && (
+                  {activeTab !== "dossier" && (
                     <Checkbox
                       name="Prod avec blanc"
                       label="Prod avec blanc"
@@ -1551,7 +1551,7 @@ function App() {
                       onChange={(e, data) => setCheckProdBlanc(data.checked)}
                     />
                   )}
-                  {checkFolder == "LM" && !(activeTab === "dossier" && dossierJobs.length > 0) && (
+                  {checkFolder == "LM" && activeTab !== "dossier" && (
                     <Checkbox
                       name="Teinte Masse"
                       label="Teinte Masse"
