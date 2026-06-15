@@ -1,4 +1,4 @@
-/* ===================== JOBS TABLE — COMMAND CENTER ===================== */
+/* ===================== JOBS TABLE ===================== */
 
 .jobs-table-container {
   overflow: auto;
@@ -25,30 +25,30 @@
 .sticky-header {
   top: 0;
   display: table-header-group;
-  background: var(--table-header-bg, #090910) !important;
+  background: var(--table-header-bg, #f8f9fb) !important;
 }
 
 .sticky-header th {
-  background: var(--table-header-bg, #090910) !important;
-  color: var(--table-header-color, #44446a) !important;
-  font-family: 'Barlow Condensed', sans-serif !important;
+  background: var(--table-header-bg, #f8f9fb) !important;
+  color: var(--table-header-color, #7b82a0) !important;
+  font-family: 'Outfit', sans-serif !important;
   font-size: 10px !important;
   font-weight: 700 !important;
   text-transform: uppercase !important;
-  letter-spacing: 1px !important;
-  border-bottom: 1px solid var(--border-default, #1e1e32) !important;
+  letter-spacing: 0.8px !important;
+  border-bottom: 1px solid var(--border-default, #e2e5ee) !important;
   padding: 8px !important;
 }
 
 .sticky-footer {
   bottom: 0;
   display: table-footer-group;
-  background: var(--bg-base, #08080d) !important;
+  background: var(--bg-elevated, #f8f9fb) !important;
 }
 
 .sticky-footer th {
-  background: var(--bg-base, #08080d) !important;
-  border-top: 1px solid var(--border-default, #1e1e32) !important;
+  background: var(--bg-elevated, #f8f9fb) !important;
+  border-top: 1px solid var(--border-default, #e2e5ee) !important;
   padding: 6px 8px !important;
 }
 
@@ -76,23 +76,23 @@
   display: table-row-group;
 }
 
-/* Table rows */
+/* Rows */
 .table-row {
   display: table-row;
-  height: var(--table-row-height, 34px) !important;
-  max-height: var(--table-row-height, 34px);
-  transition: background 0.1s;
+  height: var(--table-row-height, 36px) !important;
+  max-height: var(--table-row-height, 36px);
+  transition: background 0.08s;
 }
 
-/* Client color accent — left border */
-.table-row[data-client="LM"]    > td:first-child { border-left: 3px solid var(--color-lm, #00ff88) !important; }
-.table-row[data-client="CASTO"] > td:first-child { border-left: 3px solid var(--color-casto, #3b9eff) !important; }
-.table-row[data-client="ECOM"]  > td:first-child { border-left: 3px solid var(--color-ecom, #00e5cc) !important; }
-.table-row[data-client="BRICO"] > td:first-child { border-left: 3px solid var(--color-brico, #ff6a00) !important; }
+/* Accent couleur client — bordure gauche */
+.table-row[data-client="LM"]    > td:first-child { border-left: 3px solid var(--color-lm, #16a34a) !important; }
+.table-row[data-client="CASTO"] > td:first-child { border-left: 3px solid var(--color-casto, #1d4ed8) !important; }
+.table-row[data-client="ECOM"]  > td:first-child { border-left: 3px solid var(--color-ecom, #0e7490) !important; }
+.table-row[data-client="BRICO"] > td:first-child { border-left: 3px solid var(--color-brico, #c2410c) !important; }
 
-/* Table cells */
+/* Cells */
 .table-cell {
-  height: var(--table-row-height, 34px) !important;
+  height: var(--table-row-height, 36px) !important;
   font-family: 'JetBrains Mono', monospace !important;
   font-size: 12px !important;
   overflow: hidden;
@@ -101,42 +101,41 @@
   display: table-cell;
   vertical-align: middle;
   padding: 0 8px;
-  color: var(--text-secondary, #7878a0);
+  color: var(--text-secondary, #4e5472);
 }
 
-/* Link style in completed rows */
+/* Liens dans les lignes terminées */
 .table-row a {
-  color: var(--color-ecom, #00e5cc) !important;
+  color: var(--accent, #4338ca) !important;
   text-decoration: none !important;
-  transition: text-shadow 0.15s;
+  transition: color 0.12s;
 }
 .table-row a:hover {
-  text-shadow: 0 0 10px rgba(0,229,204,0.6);
+  color: #3730a3 !important;
+  text-decoration: underline !important;
 }
 
-/* ===================== PROCESS BUTTON ANIMATION ===================== */
+/* ===================== BOUTON TRAITER ===================== */
 
-/* "Traiter la file" — pulse when idle */
 .jobs-view .ui.red.button:not(:disabled) {
-  animation: pulse-danger 2.5s ease-in-out infinite;
+  animation: pulse-action 2.5s ease-in-out infinite;
 }
 
-@keyframes pulse-danger {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 58, 58, 0.5); }
-  50%       { box-shadow: 0 0 0 8px rgba(255, 58, 58, 0); }
+@keyframes pulse-action {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.3); }
+  50%       { box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
 }
 
-/* Stickers button — green pulse */
 .jobs-view .ui.green.button:not(:disabled) {
   animation: pulse-success 2.5s ease-in-out infinite;
 }
 
 @keyframes pulse-success {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.5); }
-  50%       { box-shadow: 0 0 0 8px rgba(0, 255, 136, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.3); }
+  50%       { box-shadow: 0 0 0 6px rgba(22, 163, 74, 0); }
 }
 
-/* ===================== CHECKBOX FOOTER ===================== */
+/* ===================== FOOTER CHECKBOX ===================== */
 
 .checkbox-footer {
   display: flex;

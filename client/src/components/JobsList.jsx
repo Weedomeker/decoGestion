@@ -15,7 +15,6 @@ import {
   TableRow,
 } from "semantic-ui-react";
 import "../css/JobsList.css";
-import "./InfoModal";
 
 const HOST = import.meta.env.VITE_HOST;
 const PORT = import.meta.env.VITE_PORT;
@@ -514,21 +513,37 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {!wsConnected && (
-        <div style={{ background: "#fff3cd", color: "#856404", padding: "4px 10px", fontSize: "0.85em", borderBottom: "1px solid #ffc107" }}>
+        <div
+          style={{
+            background: "#fff3cd",
+            color: "#856404",
+            padding: "4px 10px",
+            fontSize: "0.85em",
+            borderBottom: "1px solid #ffc107",
+          }}
+        >
           ⚠ Temps réel déconnecté — reconnexion en cours…
         </div>
       )}
       {actionError && (
-        <div style={{ background: "#f8d7da", color: "#721c24", padding: "4px 10px", fontSize: "0.85em", borderBottom: "1px solid #f5c6cb", cursor: "pointer" }} onClick={() => setActionError(null)}>
+        <div
+          style={{
+            background: "#f8d7da",
+            color: "#721c24",
+            padding: "4px 10px",
+            fontSize: "0.85em",
+            borderBottom: "1px solid #f5c6cb",
+            cursor: "pointer",
+          }}
+          onClick={() => setActionError(null)}
+        >
           ✕ {actionError}
         </div>
       )}
       <div className="jobs-section-label">File en attente ({nbJobs})</div>
       {jobs}
       {nbCompleted > 0 && (
-        <div className="jobs-section-label jobs-section-label--completed">
-          Traités ({nbCompleted})
-        </div>
+        <div className="jobs-section-label jobs-section-label--completed">Traités ({nbCompleted})</div>
       )}
       {completed}
     </div>

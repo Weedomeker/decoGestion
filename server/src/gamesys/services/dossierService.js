@@ -34,7 +34,7 @@ async function findStockReferences(connection, enteteDevis) {
         where st_code_tarif = 'KITPOSE' and st_lib_1_conso = 'KIT DE POSE'
         order by st_seq desc
         limit 25
-      `
+      `,
     );
 
     return rows.map((row) => ({
@@ -54,16 +54,14 @@ async function findStockReferences(connection, enteteDevis) {
   const numericTerms = terms.filter((term) => /^\d+$/.test(term));
   const firstLabelTerm = terms.find((term) => /^[A-Z]+$/.test(term));
   const candidateTerms = isProfileLabel(identif) ? terms : [firstLabelTerm, ...numericTerms];
-  const usefulTerms = candidateTerms
-    .filter(Boolean)
-    .filter((term) => !["CM", "MM"].includes(term));
+  const usefulTerms = candidateTerms.filter(Boolean).filter((term) => !["CM", "MM"].includes(term));
 
   if (usefulTerms.length < 2) return [];
 
   const where = usefulTerms
     .map(
       (term) =>
-        `(upper(st_lib_1_conso) like '%${escapeSqlLike(term)}%' ESCAPE '\\' or upper(st_lib_2_conso) like '%${escapeSqlLike(term)}%' ESCAPE '\\' or upper(st_art_ref_client) like '%${escapeSqlLike(term)}%' ESCAPE '\\' or upper(st_modele) like '%${escapeSqlLike(term)}%' ESCAPE '\\')`
+        `(upper(st_lib_1_conso) like '%${escapeSqlLike(term)}%' ESCAPE '\\' or upper(st_lib_2_conso) like '%${escapeSqlLike(term)}%' ESCAPE '\\' or upper(st_art_ref_client) like '%${escapeSqlLike(term)}%' ESCAPE '\\' or upper(st_modele) like '%${escapeSqlLike(term)}%' ESCAPE '\\')`,
     )
     .join(" and ");
 
@@ -85,15 +83,13 @@ async function findStockReferences(connection, enteteDevis) {
       where ${where}
       order by st_seq desc
       limit 25
-    `
+    `,
   );
 
   const exactRows = rows.filter((row) => {
-    const haystack = normalizeSearchText([
-      row.st_lib_1_conso,
-      row.st_lib_2_conso,
-      row.st_art_ref_client,
-    ].filter(Boolean).join(" "));
+    const haystack = normalizeSearchText(
+      [row.st_lib_1_conso, row.st_lib_2_conso, row.st_art_ref_client].filter(Boolean).join(" "),
+    );
     return terms.every((term) => haystack.includes(term));
   });
 
@@ -113,17 +109,21 @@ async function findStockReferences(connection, enteteDevis) {
 }
 
 function getStockReferenceCategory(reference) {
-  const searchableText = normalizeSearchText([
-    reference?.reference,
-    reference?.modele,
-    reference?.libelle,
-    reference?.codeTarif,
-    reference?.famille,
-    reference?.sousFamille,
-    reference?.type,
-    reference?.st_code_tarif,
-    reference?.st_lib_1_conso,
-  ].filter(Boolean).join(" "));
+  const searchableText = normalizeSearchText(
+    [
+      reference?.reference,
+      reference?.modele,
+      reference?.libelle,
+      reference?.codeTarif,
+      reference?.famille,
+      reference?.sousFamille,
+      reference?.type,
+      reference?.st_code_tarif,
+      reference?.st_lib_1_conso,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
 
   if (isKitPoseLabel(searchableText)) return "kit_pose";
   if (isProfileLabel(searchableText)) return "profil";
@@ -152,13 +152,13 @@ function buildKitPoseReferences(enteteDevis, stockKitPoseReferences) {
   return uniqueBy(
     (enteteDevis || [])
       .map((entete) => {
-
-
-        const numericStockReference = stockKitPoseReferences?.find((reference) => isNumericReference(reference.reference));
+        const numericStockReference = stockKitPoseReferences?.find((reference) =>
+          isNumericReference(reference.reference),
+        );
         const stockReference = numericStockReference || stockKitPoseReferences?.[0];
         const reference = stockReference?.reference || numericStockReference?.reference || entete.endv_identif;
 
-        if(! isKitPoseLabel(entete.endv_identif)) return null;
+        if (!isKitPoseLabel(entete.endv_identif)) return null;
 
         return {
           reference,
@@ -175,7 +175,7 @@ function buildKitPoseReferences(enteteDevis, stockKitPoseReferences) {
         };
       })
       .filter(Boolean),
-    (reference) => reference.reference
+    (reference) => reference.reference,
   );
 }
 
@@ -186,19 +186,18 @@ function buildVisualReferences(enteteDevis, stockVisualReferences) {
         if (isProfileLabel(entete.endv_identif)) return null;
         if (isKitPoseLabel(entete.endv_identif)) return null;
 
-        const stockReference = stockVisualReferences?.find((stock) => {
-          const stockText = normalizeSearchText([
-            stock.libelle,
-            stock.codeTarif,
-            stock.reference,
-            stock.modele,
-          ].filter(Boolean).join(" "));
-          const enteteText = normalizeSearchText(entete.endv_identif);
-          return enteteText && stockText.includes(enteteText);
-        }) || stockVisualReferences?.[0];
+        const stockReference =
+          stockVisualReferences?.find((stock) => {
+            const stockText = normalizeSearchText(
+              [stock.libelle, stock.codeTarif, stock.reference, stock.modele].filter(Boolean).join(" "),
+            );
+            const enteteText = normalizeSearchText(entete.endv_identif);
+            return enteteText && stockText.includes(enteteText);
+          }) || stockVisualReferences?.[0];
 
         const explicitReference = getVisualReferenceFromEntete(entete);
-        const reference = stockReference?.reference || stockReference?.modele || explicitReference || entete.endv_identif;
+        const reference =
+          stockReference?.reference || stockReference?.modele || explicitReference || entete.endv_identif;
         if (!reference) return null;
 
         return {
@@ -216,7 +215,7 @@ function buildVisualReferences(enteteDevis, stockVisualReferences) {
         };
       })
       .filter(Boolean),
-    (reference) => reference.reference || reference.modele || reference.libelle
+    (reference) => reference.reference || reference.modele || reference.libelle,
   );
 }
 
@@ -226,7 +225,9 @@ function buildProfileReferences(enteteDevis, stockProfileReferences) {
       .map((entete) => {
         if (!isProfileLabel(entete.endv_identif)) return null;
 
-        const numericStockReference = stockProfileReferences?.find((reference) => isNumericReference(reference.reference));
+        const numericStockReference = stockProfileReferences?.find((reference) =>
+          isNumericReference(reference.reference),
+        );
         const stockReference = numericStockReference || stockProfileReferences?.[0];
 
         return {
@@ -244,7 +245,7 @@ function buildProfileReferences(enteteDevis, stockProfileReferences) {
         };
       })
       .filter(Boolean),
-    (reference) => reference.reference || reference.libelle
+    (reference) => reference.reference || reference.libelle,
   );
 }
 
@@ -257,7 +258,7 @@ function selectDetailView(detail, view) {
     return {
       dossier: pickFields(mergedDossier, ["dos_seq", "dos_codeuniq", "dos_no_cmde", "dos_client"]),
       enteteDevis: detail.enteteDevis.map((entete) =>
-        pickFields(entete, ["endv_ndevis", "endv_coduniq", "endv_identif", "endv_no_commande", "endv_no_dossier"])
+        pickFields(entete, ["endv_ndevis", "endv_coduniq", "endv_identif", "endv_no_commande", "endv_no_dossier"]),
       ),
       visualReferences: detail.visualReferences,
       profileReferences: detail.profileReferences,
@@ -269,7 +270,14 @@ function selectDetailView(detail, view) {
     return {
       dossier: pickFields(mergedDossier, ["dos_seq", "dos_codeuniq", "dos_no_cmde", "dos_client", "dos_date"]),
       enteteDevis: detail.enteteDevis.map((entete) =>
-        pickFields(entete, ["endv_identif", "endv_quant", "endv_resp_produ", "endv_qui_lance_en_fab", "endv_statut_dossier", "endv_statut_de_suivi"])
+        pickFields(entete, [
+          "endv_identif",
+          "endv_quant",
+          "endv_resp_produ",
+          "endv_qui_lance_en_fab",
+          "endv_statut_dossier",
+          "endv_statut_de_suivi",
+        ]),
       ),
       elements2: detail.elements2,
       signatures: detail.signatures,
@@ -285,7 +293,7 @@ function selectDetailView(detail, view) {
     return {
       dossier: pickFields(mergedDossier, ["dos_seq", "dos_codeuniq", "dos_no_cmde", "dos_client"]),
       enteteDevis: detail.enteteDevis.map((entete) =>
-        pickFields(entete, ["endv_identif", "endv_quant", "endv_date_livraison", "endv_no_commande_client"])
+        pickFields(entete, ["endv_identif", "endv_quant", "endv_date_livraison", "endv_no_commande_client"]),
       ),
       livraisons: detail.livraisons,
     };
@@ -319,7 +327,7 @@ function selectDetailView(detail, view) {
         "endv_date_cmde",
         "endv_statut_dossier",
         "endv_statut_de_suivi",
-      ])
+      ]),
     ),
     visualReferences: detail.visualReferences,
     profileReferences: detail.profileReferences,
@@ -335,14 +343,14 @@ function selectDetailView(detail, view) {
         "bo_date_souhaitee",
         "bo_date_depart_usine",
         "bo_ref_de_livraison",
-      ])
+      ]),
     ),
     production: {
       agenda: detail.agendaProduction.map((agenda) =>
-        pickFields(agenda, ["ag_type_date", "ag_date_a_faire", "ag_qui_doit_faire", "ag_libelle"])
+        pickFields(agenda, ["ag_type_date", "ag_date_a_faire", "ag_qui_doit_faire", "ag_libelle"]),
       ),
       suivi: detail.suiviOperations.map((suivi) =>
-        pickFields(suivi, ["suivi_centre", "suivi_tps_prevu", "suivi_ct_prevu", "suivi_dept", "suivi_lien_solution"])
+        pickFields(suivi, ["suivi_centre", "suivi_tps_prevu", "suivi_ct_prevu", "suivi_dept", "suivi_lien_solution"]),
       ),
     },
   };
@@ -368,21 +376,21 @@ function getSubDossierNumber(detail) {
 function flattenVisualReferences(details) {
   return uniqueBy(
     details.flatMap((detail) => detail.visualReferences || []),
-    (reference) => reference.reference || reference.modele || reference.libelle
+    (reference) => reference.reference || reference.modele || reference.libelle,
   );
 }
 
 function flattenProfileReferences(details) {
   return uniqueBy(
     details.flatMap((detail) => detail.profileReferences || []),
-    (reference) => reference.reference || reference.modele || reference.libelle
+    (reference) => reference.reference || reference.modele || reference.libelle,
   );
 }
 
 function flattenKitPoseReferences(details) {
   return uniqueBy(
     details.flatMap((detail) => detail.kitPosesReferences || []),
-    (reference) => reference.reference || reference.modele || reference.libelle
+    (reference) => reference.reference || reference.modele || reference.libelle,
   );
 }
 
@@ -390,7 +398,7 @@ function buildGroupedResponse(details, view) {
   if (view === "raw") return details;
 
   const sortedDetails = [...details].sort((a, b) =>
-    getSubDossierNumber(a).localeCompare(getSubDossierNumber(b), "fr", { numeric: true })
+    getSubDossierNumber(a).localeCompare(getSubDossierNumber(b), "fr", { numeric: true }),
   );
   const first = sortedDetails[0] || {};
   const rootNumber = getDossierRootNumber(first);
@@ -400,7 +408,7 @@ function buildGroupedResponse(details, view) {
   let clientName;
   if (first.dossier?.dos_client || first.enteteDevis?.[0]?.endv_cclient) {
     let client = first.dossier?.dos_client || first.enteteDevis?.[0]?.endv_cclient;
-    let client_name = ['LM', 'BM', 'CAS', 'ECOM'];
+    let client_name = ["LM", "BM", "CAS", "ECOM"];
     for (const name of client_name) {
       if (String(client).startsWith(name)) {
         clientName = name;
@@ -469,7 +477,7 @@ function buildGroupedResponse(details, view) {
             "suiviOperations",
             "pages",
           ]),
-        0
+        0,
       ),
     };
   }
@@ -481,7 +489,7 @@ async function fetchEnteteDevis(connection, escapedCommande, escapedCode) {
   try {
     return await query(
       connection,
-      `select * from public.fd_entete_devi where endv_no_dossier = '${escapedCommande}' or endv_no_commande = '${escapedCommande}' or endv_no_cmde_globale = '${escapedCommande}' or endv_no_dossier_site_donneur = '${escapedCommande}' or endv_coduniq = '${escapedCode}'`
+      `select * from public.fd_entete_devi where endv_no_dossier = '${escapedCommande}' or endv_no_commande = '${escapedCommande}' or endv_no_cmde_globale = '${escapedCommande}' or endv_no_dossier_site_donneur = '${escapedCommande}' or endv_coduniq = '${escapedCode}'`,
     );
   } catch (error) {
     logger.warn(`Erreur entête devis: ${error.message}`);
@@ -511,31 +519,31 @@ async function buildDetail(connection, dossier) {
     const enteteDevis = await fetchEnteteDevis(connection, escapedCommande, escapedCode);
     const dossierExtRows = await fetchOptionalRows(
       connection,
-      `select * from public.fd_dossier_ext where dos_seq = ${dossier.dos_seq}${dossierCommande ? ` or dos_no_cmde = '${escapedCommande}'` : ""}`
+      `select * from public.fd_dossier_ext where dos_seq = ${dossier.dos_seq}${dossierCommande ? ` or dos_no_cmde = '${escapedCommande}'` : ""}`,
     );
     const elements = await fetchOptionalRows(
       connection,
-      `select eldv_seq, eldv_codeuniq, eldv_libelle, eldv_libelle_papier, eldv_client_no, eldv_num_no_1, eldv_num_no_2 from public.fd_elem_devis where eldv_seq = ${dossier.dos_seq} order by eldv_codeuniq`
+      `select eldv_seq, eldv_codeuniq, eldv_libelle, eldv_libelle_papier, eldv_client_no, eldv_num_no_1, eldv_num_no_2 from public.fd_elem_devis where eldv_seq = ${dossier.dos_seq} order by eldv_codeuniq`,
     );
     const elements2 = await fetchOptionalRows(
       connection,
-      `select * from public.fd_elem_devis_2 where eldv_no_devis = '${escapedCode}'`
+      `select * from public.fd_elem_devis_2 where eldv_no_devis = '${escapedCode}'`,
     );
     const elements2Ext = await fetchOptionalRows(
       connection,
-      `select * from public.fd_elem_devis_2_ext where eldv_no_devis = '${escapedCode}'`
+      `select * from public.fd_elem_devis_2_ext where eldv_no_devis = '${escapedCode}'`,
     );
     const document = await fetchOptionalRows(
       connection,
-      `select dodv_seq, dodv_num_no_1, dodv_num_no_2, dodv_lib_version_1, dodv_lib_version_2, dodv_lib_version_3, dodv_cout_dossier from public.fd_docum_devi where dodv_seq = ${dossier.dos_seq}`
+      `select dodv_seq, dodv_num_no_1, dodv_num_no_2, dodv_lib_version_1, dodv_lib_version_2, dodv_lib_version_3, dodv_cout_dossier from public.fd_docum_devi where dodv_seq = ${dossier.dos_seq}`,
     );
     const versions = await fetchOptionalRows(
       connection,
-      `select dove_seq, dove_codeuniq, dove_no_cmde, dove_quant_v_1, dove_lib_v_1, dove_quant_v_2, dove_lib_v_2, dove_quant_v_3, dove_lib_v_3 from public.fd_dossier_version where dove_seq = ${dossier.dos_seq}${dossierCommande ? ` or dove_no_cmde = '${escapedCommande}'` : ""}`
+      `select dove_seq, dove_codeuniq, dove_no_cmde, dove_quant_v_1, dove_lib_v_1, dove_quant_v_2, dove_lib_v_2, dove_quant_v_3, dove_lib_v_3 from public.fd_dossier_version where dove_seq = ${dossier.dos_seq}${dossierCommande ? ` or dove_no_cmde = '${escapedCommande}'` : ""}`,
     );
     const remarques = await fetchOptionalRows(
       connection,
-      `select * from public.fd_dossier_remarques where dos_rem_seq = ${dossier.dos_seq}${dossierCommande ? ` or dos_rem_no_cmde = '${escapedCommande}'` : ""}`
+      `select * from public.fd_dossier_remarques where dos_rem_seq = ${dossier.dos_seq}${dossierCommande ? ` or dos_rem_no_cmde = '${escapedCommande}'` : ""}`,
     );
     return { enteteDevis, dossierExtRows, elements, elements2, elements2Ext, document, versions, remarques };
   };
@@ -544,25 +552,82 @@ async function buildDetail(connection, dossier) {
     if (!textValues) return new Array(11).fill([]);
     const conn2 = await getDbConnection();
     try {
-      const docOperations = await fetchOptionalRows(conn2, `select * from public.fd_elem_doc_ope where dev_code_devis in (${textValues})`);
-      const fichierForme = await fetchOptionalRows(conn2, `select * from public.fd_fichier_forme where placoul_devis in (${textValues})`);
-      const listeMarges = await fetchOptionalRows(conn2, `select * from public.fd_liste_marges where mgdev_seq = ${dossier.dos_seq}`);
-      const descriptifs = await fetchOptionalRows(conn2, `select * from public.fdescriptif where devis in (${textValues})`);
-      const livraisons = await fetchOptionalRows(conn2, `select * from public.ff_livraison where bo_no_dossier = '${escapedCommande}' or bo_devis = '${escapedCode}'`);
-      const signatures = await fetchOptionalRows(conn2, `select * from public.fi_sol_signature where sign_dossier = '${escapedCommande}' or sign_devis = '${escapedCode}'`);
-      const impositions = await fetchOptionalRows(conn2, `select * from public.fi_sol_imposition where impo_code_devis = '${escapedCode}'`);
-      const agendaProduction = await fetchOptionalRows(conn2, `select * from public.fp_agenda_prod where ag_dossier = '${escapedCommande}'`);
-      const etatsDossier = await fetchOptionalRows(conn2, `select * from public.fp_lien_etat_dossier where fled_num_dossier = '${escapedCommande}'`);
-      const suiviOperations = await fetchOptionalRows(conn2, `select * from public.fp_opera_suivi where suivi_dossier = '${escapedCommande}' or suivi_dossier_element like '${escapedCommandeLike}%' ESCAPE '\\'`);
-      const pages = await fetchOptionalRows(conn2, `select * from public.fp_pages where pages_dossier = '${escapedCommande}'`);
-      return [docOperations, fichierForme, listeMarges, descriptifs, livraisons, signatures, impositions, agendaProduction, etatsDossier, suiviOperations, pages];
+      const docOperations = await fetchOptionalRows(
+        conn2,
+        `select * from public.fd_elem_doc_ope where dev_code_devis in (${textValues})`,
+      );
+      const fichierForme = await fetchOptionalRows(
+        conn2,
+        `select * from public.fd_fichier_forme where placoul_devis in (${textValues})`,
+      );
+      const listeMarges = await fetchOptionalRows(
+        conn2,
+        `select * from public.fd_liste_marges where mgdev_seq = ${dossier.dos_seq}`,
+      );
+      const descriptifs = await fetchOptionalRows(
+        conn2,
+        `select * from public.fdescriptif where devis in (${textValues})`,
+      );
+      const livraisons = await fetchOptionalRows(
+        conn2,
+        `select * from public.ff_livraison where bo_no_dossier = '${escapedCommande}' or bo_devis = '${escapedCode}'`,
+      );
+      const signatures = await fetchOptionalRows(
+        conn2,
+        `select * from public.fi_sol_signature where sign_dossier = '${escapedCommande}' or sign_devis = '${escapedCode}'`,
+      );
+      const impositions = await fetchOptionalRows(
+        conn2,
+        `select * from public.fi_sol_imposition where impo_code_devis = '${escapedCode}'`,
+      );
+      const agendaProduction = await fetchOptionalRows(
+        conn2,
+        `select * from public.fp_agenda_prod where ag_dossier = '${escapedCommande}'`,
+      );
+      const etatsDossier = await fetchOptionalRows(
+        conn2,
+        `select * from public.fp_lien_etat_dossier where fled_num_dossier = '${escapedCommande}'`,
+      );
+      const suiviOperations = await fetchOptionalRows(
+        conn2,
+        `select * from public.fp_opera_suivi where suivi_dossier = '${escapedCommande}' or suivi_dossier_element like '${escapedCommandeLike}%' ESCAPE '\\'`,
+      );
+      const pages = await fetchOptionalRows(
+        conn2,
+        `select * from public.fp_pages where pages_dossier = '${escapedCommande}'`,
+      );
+      return [
+        docOperations,
+        fichierForme,
+        listeMarges,
+        descriptifs,
+        livraisons,
+        signatures,
+        impositions,
+        agendaProduction,
+        etatsDossier,
+        suiviOperations,
+        pages,
+      ];
     } finally {
       await closeConnection(conn2);
     }
   };
 
   const [primary, relatedResults] = await Promise.all([primaryBatch(), relatedBatch()]);
-  const [docOperations, fichierForme, listeMarges, descriptifs, livraisons, signatures, impositions, agendaProduction, etatsDossier, suiviOperations, pages] = relatedResults;
+  const [
+    docOperations,
+    fichierForme,
+    listeMarges,
+    descriptifs,
+    livraisons,
+    signatures,
+    impositions,
+    agendaProduction,
+    etatsDossier,
+    suiviOperations,
+    pages,
+  ] = relatedResults;
 
   let visualReferences = [];
   let profileReferences = [];
@@ -649,7 +714,7 @@ async function listDossiers({ limit = 20, client, commande } = {}) {
       order by d.dos_date desc nulls last, d.dos_seq desc
       limit ${safeLimit}
     `,
-      params
+      params,
     );
   } finally {
     await closeConnection(connection);
@@ -685,7 +750,7 @@ async function searchDossiers({ q = "", limit = 10 } = {}) {
       group by split_part(d.dos_no_cmde, '/', 1)
       order by numero desc
       limit ${safeLimit}
-    `
+    `,
     );
 
     return rows.map((row) => {
@@ -723,11 +788,11 @@ async function getDossierDetail({ seq, commande, numero, q, view = "summary", ra
   const where = [];
   if (/^\d+$/.test(search)) {
     where.push(
-      `(d.dos_seq = ${Number(search)} or d.dos_no_cmde = '${escapedSearch}' or d.dos_no_cmde LIKE '${escapedSearch}/%' or d.dos_codeuniq = '${escapedFormattedSeq}' or d.dos_codeuniq LIKE '${escapedSearch}v%')`
+      `(d.dos_seq = ${Number(search)} or d.dos_no_cmde = '${escapedSearch}' or d.dos_no_cmde LIKE '${escapedSearch}/%' or d.dos_codeuniq = '${escapedFormattedSeq}' or d.dos_codeuniq LIKE '${escapedSearch}v%')`,
     );
   } else {
     where.push(
-      `(d.dos_no_cmde = '${escapedSearch}' or d.dos_no_cmde LIKE '%${escapedSearch}%' or d.dos_codeuniq = '${escapedFormattedSeq}')`
+      `(d.dos_no_cmde = '${escapedSearch}' or d.dos_no_cmde LIKE '%${escapedSearch}%' or d.dos_codeuniq = '${escapedFormattedSeq}')`,
     );
   }
 
@@ -736,7 +801,7 @@ async function getDossierDetail({ seq, commande, numero, q, view = "summary", ra
   try {
     dossiers = await query(
       connection,
-      `select d.* from public.fd_dossier d where ${where.join(" and ")} order by d.dos_seq desc`
+      `select d.* from public.fd_dossier d where ${where.join(" and ")} order by d.dos_seq desc`,
     );
   } finally {
     await closeConnection(connection);
@@ -752,7 +817,7 @@ async function getDossierDetail({ seq, commande, numero, q, view = "summary", ra
       } finally {
         await closeConnection(conn);
       }
-    })
+    }),
   );
 
   return buildGroupedResponse(details, view);

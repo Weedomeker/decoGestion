@@ -17,13 +17,15 @@ function deriveNetworkState(isUnknown, val) {
 
 function TooltipRow({ label, state }) {
   const color = state === "ok" ? "#22c55e" : state === "ko" ? "#ef4444" : "#555";
-  const text  = state === "ok" ? "OK"      : state === "ko" ? "KO"      : "—";
+  const text = state === "ok" ? "OK" : state === "ko" ? "KO" : "—";
   return (
     <div className="srv-tooltip-row">
       <span className="srv-tooltip-name">{label}</span>
       <div className="srv-tooltip-state">
         <span className="srv-tooltip-dot" style={{ background: color }} />
-        <span className="srv-tooltip-val" style={{ color }}>{text}</span>
+        <span className="srv-tooltip-val" style={{ color }}>
+          {text}
+        </span>
       </div>
     </div>
   );
@@ -31,13 +33,13 @@ function TooltipRow({ label, state }) {
 
 function SrvTooltip({ health }) {
   const isUnknown = health.status === "unknown";
-  const symlinks  = health.symlinks ?? {};
+  const symlinks = health.symlinks ?? {};
 
   const services = [
     { label: "MongoDB", state: deriveServiceState(isUnknown, health.mongodb === "connected") },
-    { label: "GameSys", state: deriveServiceState(isUnknown, health.odbc    === "connected") },
+    { label: "GameSys", state: deriveServiceState(isUnknown, health.odbc === "connected") },
   ];
-  const network = NETWORK_KEYS.map(k => ({
+  const network = NETWORK_KEYS.map((k) => ({
     label: k,
     state: deriveNetworkState(isUnknown, symlinks[k]),
   }));
@@ -45,22 +47,26 @@ function SrvTooltip({ health }) {
   return (
     <div className="srv-tooltip">
       <div className="srv-tooltip-section">Services</div>
-      {services.map(r => <TooltipRow key={r.label} {...r} />)}
+      {services.map((r) => (
+        <TooltipRow key={r.label} {...r} />
+      ))}
       <div className="srv-tooltip-divider" />
       <div className="srv-tooltip-section">Réseau clients</div>
-      {network.map(r => <TooltipRow key={r.label} {...r} />)}
+      {network.map((r) => (
+        <TooltipRow key={r.label} {...r} />
+      ))}
     </div>
   );
 }
 
 export default function ServerStatus({ onHealthChange }) {
   const [health, setHealth] = useState({ status: "unknown" });
-  const [open, setOpen]     = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     const check = async () => {
       try {
-        const res  = await fetch(`http://${HOST}:${PORT}/health`);
+        const res = await fetch(`http://${HOST}:${PORT}/health`);
         const data = await res.json();
         setHealth(data);
         onHealthChange?.(data);
@@ -76,28 +82,22 @@ export default function ServerStatus({ onHealthChange }) {
   }, []);
 
   const isUnknown = health.status === "unknown";
-  const symlinks  = health.symlinks ?? {};
+  const symlinks = health.symlinks ?? {};
 
   const allStates = [
     deriveServiceState(isUnknown, health.mongodb === "connected"),
-    deriveServiceState(isUnknown, health.odbc    === "connected"),
-    ...NETWORK_KEYS.map(k => deriveNetworkState(isUnknown, symlinks[k])),
+    deriveServiceState(isUnknown, health.odbc === "connected"),
+    ...NETWORK_KEYS.map((k) => deriveNetworkState(isUnknown, symlinks[k])),
   ];
 
-  const badgeState = isUnknown ? null
-    : allStates.some(s => s === "ko") ? "ko"
-    : "ok";
+  const badgeState = isUnknown ? null : allStates.some((s) => s === "ko") ? "ko" : "ok";
 
   return (
-    <div
-      className="srv-status-trigger"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-    >
+    <div className="srv-status-trigger" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
       <svg viewBox="0 0 24 24" className="srv-status-icon">
         <rect x="2" y="3" width="20" height="6" rx="1.5" />
         <rect x="2" y="13" width="20" height="6" rx="1.5" />
-        <circle cx="18.5" cy="6"  r="1.3" fill="currentColor" stroke="none" />
+        <circle cx="18.5" cy="6" r="1.3" fill="currentColor" stroke="none" />
         <circle cx="18.5" cy="16" r="1.3" fill="currentColor" stroke="none" />
       </svg>
       {badgeState && <span className={`srv-status-badge srv-status-badge--${badgeState}`} />}

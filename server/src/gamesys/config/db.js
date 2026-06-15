@@ -66,7 +66,9 @@ async function checkOdbcConnection() {
     return false;
   } finally {
     if (conn) {
-      try { await conn.close(); } catch (_) {}
+      try {
+        await conn.close();
+      } catch (_) {}
     }
   }
 }

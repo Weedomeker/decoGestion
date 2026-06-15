@@ -7,7 +7,7 @@ Ce fichier fournit des indications à Claude Code (claude.ai/code) pour travaill
 ### Développement
 
 ```bash
-# Démarrer le backend (avec rechargement automatique nodemon)
+# Démarrer le backend (avec rechargement automatique nodemon) tout en precisant que tu es bien dev
 npm run server
 
 # Démarrer le frontend (terminal séparé)
@@ -29,7 +29,7 @@ npm run format
 ### Tests
 
 ```bash
-# Lancer tous les tests (mocha)
+# Lancer tous les tests (mocha) en confirmant toujours aue tu es bien en dev
 npm test
 
 # Lancer un fichier de test spécifique
@@ -87,10 +87,10 @@ Les crédences sont des panneaux de format `300x60` (CASTO) ou `255x60` (BRICO),
 
 ### Règle des exemplaires
 
-| `ex` | Comportement | 2e visuel |
-|------|-------------|-----------|
-| **1 ex** | 2 visuels **différents** amalgamés côte à côte | Obligatoire — fourni par l'utilisateur |
-| **≥ 2 ex** | Même visuel amalgamé **2 fois** sur la plaque | Auto-dupliqué par le backend (`visuel2 = visuel1`) |
+| `ex`       | Comportement                                   | 2e visuel                                          |
+| ---------- | ---------------------------------------------- | -------------------------------------------------- |
+| **1 ex**   | 2 visuels **différents** amalgamés côte à côte | Obligatoire — fourni par l'utilisateur             |
+| **≥ 2 ex** | Même visuel amalgamé **2 fois** sur la plaque  | Auto-dupliqué par le backend (`visuel2 = visuel1`) |
 
 - Si `ex=1` et `visuel2` absent → rejet **400** : `"Les crédences BRICO/CASTO (1 ex) doivent être amalgamées avec un 2e visuel différent."`
 - Si `ex≥2` et `visuel2` absent → backend duplique automatiquement (`data.visuel2`, `visuPath2`, `visuel2`, `format2`, `matchRef2` sont tous réassignés).

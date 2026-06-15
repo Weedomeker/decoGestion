@@ -6,8 +6,16 @@ import { Button, Input, Message, Modal } from "semantic-ui-react";
 const InfoModal = ({ open, onClose, message, object, error }) => {
   const [data, setData] = useState(object);
   const [saveError, setSaveError] = useState(null);
-  const visuelName = object?.visuel?.split("/")?.pop()?.replace(/\.pdf$/i, "") || "";
-  const visuel2Name = object?.visuel2?.split("/")?.pop()?.replace(/\.pdf$/i, "") || "";
+  const visuelName =
+    object?.visuel
+      ?.split("/")
+      ?.pop()
+      ?.replace(/\.pdf$/i, "") || "";
+  const visuel2Name =
+    object?.visuel2
+      ?.split("/")
+      ?.pop()
+      ?.replace(/\.pdf$/i, "") || "";
 
   useEffect(() => {
     setData(object);
@@ -45,7 +53,7 @@ const InfoModal = ({ open, onClose, message, object, error }) => {
             <p>{error}</p>
           </Message>
         ) : (
-          <Message negative>
+          <Message positive>
             <Message.Header>{message}</Message.Header>
             {object && (
               <pre>

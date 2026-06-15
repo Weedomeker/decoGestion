@@ -132,7 +132,9 @@ async function processAllPDFs({
   verbose = true,
 } = {}) {
   if (!pdfDirectory || !jpgDirectory) {
-    logger.warn(`processAllPDFs ignoré: chemin manquant (pdfDirectory="${pdfDirectory}", jpgDirectory="${jpgDirectory}")`);
+    logger.warn(
+      `processAllPDFs ignoré: chemin manquant (pdfDirectory="${pdfDirectory}", jpgDirectory="${jpgDirectory}")`,
+    );
     return;
   }
 

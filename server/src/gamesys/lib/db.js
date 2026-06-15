@@ -20,11 +20,17 @@ function escapeSqlValue(value) {
 }
 
 function escapeSqlLike(value) {
-  return String(value || "").replace(/'/g, "''").replace(/%/g, "\\%").replace(/_/g, "\\_");
+  return String(value || "")
+    .replace(/'/g, "''")
+    .replace(/%/g, "\\%")
+    .replace(/_/g, "\\_");
 }
 
 function sqlTextList(values) {
-  return values.filter(Boolean).map((value) => `'${escapeSqlValue(value)}'`).join(", ");
+  return values
+    .filter(Boolean)
+    .map((value) => `'${escapeSqlValue(value)}'`)
+    .join(", ");
 }
 
 async function closeConnection(connection) {

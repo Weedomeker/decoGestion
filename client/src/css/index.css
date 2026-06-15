@@ -635,6 +635,10 @@ img.ui.image:not(.header-logo) {
   margin-bottom: var(--s-md);
 }
 
+.mode-tabs > span {
+  display: contents;
+}
+
 .mode-tabs .ui.button.toggle {
   border-radius: 0 !important;
   background: transparent !important;
@@ -808,7 +812,7 @@ img.ui.image:not(.header-logo) {
 .dossier-autocomplete-search {
   display: flex;
   gap: var(--s-sm);
-  align-items: flex-start;
+  align-items: center;
 }
 .dossier-autocomplete-search .ui.input {
   min-width: 240px;
@@ -1361,7 +1365,11 @@ img.ui.image:not(.header-logo) {
 
 /* VK = CTA principal */
 .form-panel .ui.vk.button {
-  margin-top: 6px !important;
+  margin-top: 20px !important;
+}
+
+.dossier-autocomplete-search .ui.vk.button {
+  margin-top: 0 !important;
 }
 
 .ui.vk.button {
@@ -1369,15 +1377,15 @@ img.ui.image:not(.header-logo) {
   color: #fff !important;
   border: none !important;
   box-shadow:
-    0 1px 3px rgba(67, 56, 202, 0.3),
-    0 2px 8px rgba(67, 56, 202, 0.15) !important;
+    0 1px 3px rgba(41, 37, 36, 0.2),
+    0 2px 8px rgba(41, 37, 36, 0.1) !important;
   font-size: 14px !important;
   font-weight: 600 !important;
   letter-spacing: 0 !important;
 }
 .ui.vk.button:hover {
-  background: #3730a3 !important;
-  box-shadow: 0 2px 6px rgba(67, 56, 202, 0.35) !important;
+  background: #44403c !important;
+  box-shadow: 0 2px 6px rgba(41, 37, 36, 0.3) !important;
 }
 
 /* Disabled */
