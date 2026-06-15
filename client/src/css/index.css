@@ -148,8 +148,9 @@ ul { margin: 0; text-align: left; }
 
 .header-brand {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: var(--s-sm);
+  padding-bottom: 3px;
 }
 
 img.ui.image.header-logo,
@@ -170,13 +171,10 @@ img.ui.image:not(.header-logo) {
 
 .header-version {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: var(--text-muted);
-  letter-spacing: 0.3px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  padding: 2px 6px;
-  border-radius: 3px;
+  font-size: 8px;
+  color: #d4d4d4;
+  line-height: 1;
+  user-select: none;
   flex-shrink: 0;
 }
 
