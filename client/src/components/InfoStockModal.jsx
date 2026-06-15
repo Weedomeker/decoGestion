@@ -25,7 +25,7 @@ const InfoStockModal = ({ stock, open, onClose, onValidate }) => {
 };
 
 InfoStockModal.propTypes = {
-  stock: PropTypes.object.isRequired,
+  stock: PropTypes.object,
   open: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
   onValidate: PropTypes.func.isRequired,
