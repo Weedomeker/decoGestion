@@ -1,8 +1,17 @@
 /* ===================== JOBS TABLE ===================== */
 
+.jobs-table-wrapper {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
 .jobs-table-container {
   overflow: auto;
-  width: 100%;
   flex: 1;
   min-height: 0;
 }
@@ -12,6 +21,19 @@
   display: table;
   table-layout: fixed;
   border-collapse: collapse;
+}
+
+/* Le wrapper fournit la bordure — retrait de la bordure Semantic UI */
+.jobs-table-wrapper .jobs-table.ui.table {
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+/* Séparateur visuel pour la colonne action (dernière colonne) */
+.jobs-table tbody td:last-child,
+.jobs-table thead th:last-child {
+  border-left: 1px solid var(--border-default) !important;
+  text-align: center;
 }
 
 /* Sticky header & footer */
