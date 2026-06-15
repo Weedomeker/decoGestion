@@ -13,17 +13,17 @@
   --radius-sm: 4px;
 
   /* Backgrounds */
-  --bg-base: #f2f3f7;
+  --bg-base: #f5f5f5;
   --bg-surface: #ffffff;
-  --bg-elevated: #f8f9fb;
-  --bg-hover: #f0f1f6;
+  --bg-elevated: #f9f9f9;
+  --bg-hover: #f0f0f0;
   --bg-input: #ffffff;
 
   /* Borders */
-  --border-dim: #eef0f5;
-  --border-default: #e2e5ee;
-  --border-bright: #c8ccda;
-  --border-color: #e2e5ee;
+  --border-dim: #eeeeee;
+  --border-default: #e4e4e4;
+  --border-bright: #d0d0d0;
+  --border-color: #e4e4e4;
 
   /* Text */
   --text-primary: #1a1d27;
@@ -866,11 +866,14 @@ img.ui.image:not(.header-logo) {
 .dossier-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 4px;
   margin-top: var(--s-sm);
-  max-height: 68px;
+  max-height: 74px;
   overflow-y: auto;
-  padding-right: 4px;
+  overflow-x: hidden;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: #e0e0e0 transparent;
 }
 
 /* ===================== DOSSIER TABLE ===================== */
@@ -1163,7 +1166,7 @@ img.ui.image:not(.header-logo) {
 .ui.segment {
   background: var(--bg-surface) !important;
   border: 1px solid var(--border-default) !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+  box-shadow: none !important;
   color: var(--text-primary) !important;
 }
 
