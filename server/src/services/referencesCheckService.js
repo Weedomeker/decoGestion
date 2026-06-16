@@ -16,7 +16,14 @@ function extractRefFromFilename(fileName, client) {
 }
 
 function extractFormatFromFilename(fileName) {
-  return fileName.match(/\d{2,}x\d{2,}/i)?.[0] || null;
+  // Le "x" séparateur est parfois saisi en majuscule sur les fichiers ("100X210") —
+  // on normalise en minuscule à l'extraction pour que la comparaison avec la base
+  // (compareClientReferences) ne déclenche pas une fausse incohérence de casse.
+  return fileName.match(/\d{2,}x\d{2,}/i)?.[0]?.toLowerCase() || null;
+}
+
+function normalizeFormat(format) {
+  return format ? String(format).toLowerCase() : format;
 }
 
 function buildFileEntries(filePaths, client) {
@@ -53,7 +60,7 @@ function compareClientReferences(fileEntries, dbRefs, client) {
 
     fileRefsCovered.add(entry.ref);
 
-    if (entry.format && dbRef.format && entry.format !== dbRef.format) {
+    if (entry.format && dbRef.format && entry.format !== normalizeFormat(dbRef.format)) {
       formatMismatches.push({
         ref: entry.ref,
         fileName: entry.fileName,

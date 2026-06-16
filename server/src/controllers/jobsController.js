@@ -260,8 +260,8 @@ async function addJob(req, res) {
       logger.warn(`⚠️ ${refWarning} — visuel: ${visuel}`);
     } else {
       // Vérification cohérence format fichier vs base
-      const formatFromRef = refValidated.format;
-      const formatFromFile = format?.match(/\d{2,}x\d{2,}/i)?.[0];
+      const formatFromRef = refValidated.format?.toLowerCase();
+      const formatFromFile = format?.match(/\d{2,}x\d{2,}/i)?.[0]?.toLowerCase();
       if (formatFromRef && formatFromFile && formatFromRef !== formatFromFile) {
         const msg = `Format incohérent pour ref ${matchRef} : fichier=${formatFromFile}, base=${formatFromRef}`;
         logger.warn(`⚠️ ${msg}`);
@@ -292,8 +292,8 @@ async function addJob(req, res) {
       refWarning2 = `Référence 2 "${matchRef2}" non trouvée en base (${client2})`;
       logger.warn(`⚠️ ${refWarning2} — visuel2: ${visuel2}`);
     } else {
-      const formatFromRef2 = refValidated2.format;
-      const formatFromFile2 = format2?.match(/\d{2,}x\d{2,}/i)?.[0];
+      const formatFromRef2 = refValidated2.format?.toLowerCase();
+      const formatFromFile2 = format2?.match(/\d{2,}x\d{2,}/i)?.[0]?.toLowerCase();
       if (formatFromRef2 && formatFromFile2 && formatFromRef2 !== formatFromFile2) {
         const msg2 = `Format incohérent pour ref2 ${matchRef2} : fichier=${formatFromFile2}, base=${formatFromRef2}`;
         logger.warn(`⚠️ ${msg2}`);

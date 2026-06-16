@@ -74,6 +74,41 @@ describe("Vérification de cohérence — GET /references-check", function () {
   });
 
   ["LM", "CASTO", "BRICO", "ECOM"].forEach((client) => {
+    it(`${client} : le rapport contient une section gamesys (ou unavailable si ODBC injoignable)`, async () => {
+      const res = await getJson("/references-check");
+      expect(res.status).to.equal(200);
+
+      const gamesys = res.body[client]?.gamesys;
+      expect(gamesys).to.be.an("object");
+
+      if (gamesys.unavailable) {
+        // ODBC non joignable dans cet environnement — rien à vérifier de plus.
+        return;
+      }
+
+      expect(gamesys.notFoundInGamesys).to.be.an("array");
+    });
+
+    it(`${client} : une référence sans correspondance Gamesys apparaît dans notFoundInGamesys (ou unavailable)`, async () => {
+      const ref = refFor(`gamesys-${client}`);
+      const created = await postJson(`/references/${client}`, { ref, model: "Sans équivalent Gamesys" });
+      expect(created.status).to.equal(201);
+      createdIds.push({ client, id: created.body._id });
+
+      const res = await getJson("/references-check");
+      expect(res.status).to.equal(200);
+
+      const gamesys = res.body[client]?.gamesys;
+      if (gamesys.unavailable) {
+        return;
+      }
+
+      const notFoundRefs = gamesys.notFoundInGamesys.map((m) => m.ref);
+      expect(notFoundRefs).to.include(ref);
+    });
+  });
+
+  ["LM", "CASTO", "BRICO", "ECOM"].forEach((client) => {
     it(`${client} : une référence sans visuel disque apparaît dans missingFiles (ou networkUnavailable)`, async () => {
       const ref = refFor(`missing-${client}`);
       const created = await postJson(`/references/${client}`, { ref, model: "Sans visuel disque" });

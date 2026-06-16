@@ -430,6 +430,32 @@ function ReferencesView() {
                     </Table>
                   )}
                 </div>
+
+                <div className="references-check-section">
+                  <strong>Références absentes de Gamesys ({r.gamesys?.notFoundInGamesys?.length ?? 0})</strong>
+                  {r.gamesys?.unavailable ? (
+                    <p className="references-check-warning">Gamesys inaccessible — vérification ignorée.</p>
+                  ) : !r.gamesys?.notFoundInGamesys?.length ? (
+                    <p>Aucun écart.</p>
+                  ) : (
+                    <Table compact celled size="small">
+                      <Table.Header>
+                        <Table.Row>
+                          <Table.HeaderCell>Référence</Table.HeaderCell>
+                          <Table.HeaderCell>Modèle</Table.HeaderCell>
+                        </Table.Row>
+                      </Table.Header>
+                      <Table.Body>
+                        {r.gamesys.notFoundInGamesys.map((m) => (
+                          <Table.Row key={`gm-nf-${m.ref}`}>
+                            <Table.Cell>{m.ref}</Table.Cell>
+                            <Table.Cell>{m.model}</Table.Cell>
+                          </Table.Row>
+                        ))}
+                      </Table.Body>
+                    </Table>
+                  )}
+                </div>
               </div>
             );
           })}

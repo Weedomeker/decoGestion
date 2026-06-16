@@ -4,6 +4,9 @@ const refModels = require("../services/refModels");
 const { getFiles } = require("../getFiles");
 const { state } = require("../services/appState");
 const { buildFileEntries, compareClientReferences } = require("../services/referencesCheckService");
+const { compareClientReferencesWithGamesys } = require("../services/gamesysReferencesCheckService");
+const { findStockByRefs } = require("../gamesys/services/stockReferenceLookupService");
+const { getOdbcStatus } = require("../gamesys/config/db");
 
 const CLIENT_DIR_KEY = { LM: "decoLM", CASTO: "decoCASTO", BRICO: "decoBRICO", ECOM: "decoECOM" };
 
@@ -22,7 +25,7 @@ function sanitizePayload(client, body) {
     ref: typeof ref === "string" ? ref.trim() : ref,
     model: typeof model === "string" ? model.trim() : model,
     finition: typeof finition === "string" ? finition.trim() : finition,
-    format: typeof format === "string" ? format.trim() : format,
+    format: typeof format === "string" ? format.trim().toLowerCase() : format,
   };
   if (client === "ECOM") payload.blanc = Boolean(blanc);
   return payload;
@@ -128,6 +131,8 @@ async function checkReferences(req, res) {
     const Model = refModels[client];
     const dir = state.paths[CLIENT_DIR_KEY[client]];
 
+    let dbRefs = [];
+
     if (!state.networkStatus[client]) {
       report[client] = {
         networkUnavailable: true,
@@ -136,25 +141,45 @@ async function checkReferences(req, res) {
         formatMismatches: [],
         stats: null,
       };
-      continue;
+    } else {
+      try {
+        const { files } = getFiles(dir, [], []);
+        const fileEntries = buildFileEntries(files, client);
+        dbRefs = await Model.find({}, "ref model format").lean();
+        const result = compareClientReferences(fileEntries, dbRefs, client);
+        report[client] = { networkUnavailable: false, ...result };
+      } catch (error) {
+        logger.error(`checkReferences (${client}): ${error.message}`);
+        report[client] = {
+          networkUnavailable: false,
+          error: "Erreur lors du scan",
+          orphanFiles: [],
+          missingFiles: [],
+          formatMismatches: [],
+          stats: null,
+        };
+      }
     }
 
-    try {
-      const { files } = getFiles(dir, [], []);
-      const fileEntries = buildFileEntries(files, client);
-      const dbRefs = await Model.find({}, "ref model format").lean();
-      const result = compareClientReferences(fileEntries, dbRefs, client);
-      report[client] = { networkUnavailable: false, ...result };
-    } catch (error) {
-      logger.error(`checkReferences (${client}): ${error.message}`);
-      report[client] = {
-        networkUnavailable: false,
-        error: "Erreur lors du scan",
-        orphanFiles: [],
-        missingFiles: [],
-        formatMismatches: [],
-        stats: null,
-      };
+    if (getOdbcStatus() !== "connected") {
+      report[client].gamesys = { unavailable: true, notFoundInGamesys: [], stats: null };
+    } else {
+      try {
+        if (!dbRefs.length) dbRefs = await Model.find({}, "ref model format").lean();
+        const stockMatches = await findStockByRefs(dbRefs.map((doc) => doc.ref));
+        report[client].gamesys = {
+          unavailable: false,
+          ...compareClientReferencesWithGamesys(dbRefs, stockMatches, client),
+        };
+      } catch (error) {
+        logger.error(`checkReferences gamesys (${client}): ${error.message}`);
+        report[client].gamesys = {
+          unavailable: false,
+          error: "Erreur lors de la vérification Gamesys",
+          notFoundInGamesys: [],
+          stats: null,
+        };
+      }
     }
   }
 
