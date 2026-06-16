@@ -367,13 +367,14 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
                     <Button
                       compact
                       size="mini"
-                      color="grey"
+                      color="red"
+                      className="row-delete-btn"
                       onClick={() => setConfirmDeleteId(entry.jobId)}
                       disabled={onLoading}
                       title="Supprimer ce job de la file"
                       aria-label="Supprimer ce job de la file"
                     >
-                      <Icon name="remove" fitted inverted />
+                      <Icon name="remove" fitted />
                     </Button>
                   </TableCell>
                 ) : (
@@ -390,16 +391,16 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
         <div className="jobs-table-container">
         <Table size="small" compact columns={"10"} className="jobs-table" striped>
           <colgroup>
-            <col style={{ width: "60px" }} />
-            <col style={{ width: "130px" }} />
+            <col style={{ width: "56px" }} />
+            <col style={{ width: "120px" }} />
             <col style={{ width: "80px" }} />
             <col style={{ width: "100px" }} />
             <col style={{ width: "auto" }} />
-            <col style={{ width: "40px" }} />
+            <col style={{ width: "64px" }} />
             <col style={{ width: "70px" }} />
             <col style={{ width: "70px" }} />
-            <col style={{ width: "50px" }} />
-            <col style={{ width: "44px" }} />
+            <col style={{ width: "48px" }} />
+            <col style={{ width: "60px" }} />
           </colgroup>
           <TableHeader className="sticky-header">
             <TableRow className="table-row">

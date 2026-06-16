@@ -82,4 +82,4 @@ const getData = async (dir) => {
   return arr;
 };
 
-module.exports = { getData };
+module.exports = { getData, getFiles };

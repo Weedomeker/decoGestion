@@ -20,6 +20,9 @@ const Header = ({ appVersion, onFichiers, configNode, statusNode, activeView, on
           File
           {pendingCount > 0 && <span className="tab-badge">{pendingCount}</span>}
         </button>
+        <button className={`header-tab${activeView === "references" ? " active" : ""}`} onClick={() => onViewChange("references")}>
+          Références
+        </button>
       </div>
 
       <div className="header-actions">

@@ -120,6 +120,17 @@
 .jobs-view .ui.red.button:not(:disabled)   { /* pas d'animation */ }
 .jobs-view .ui.green.button:not(:disabled) { /* pas d'animation */ }
 
+/* Bouton de suppression par ligne : marge de respiration avec le bord
+   droit du tableau (la colonne fait 60px, le bouton mini-compact ~28px) */
+.jobs-table td:last-child {
+  padding-right: 16px !important;
+  text-align: right;
+}
+
+.row-delete-btn.ui.button {
+  margin: 0 !important;
+}
+
 /* ===================== CHECKBOX FOOTER ===================== */
 
 .checkbox-footer {

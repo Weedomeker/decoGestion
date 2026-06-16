@@ -255,6 +255,7 @@ function DossierAutocomplete({ host, port, pathData, formatTauro, onAutoFill, ga
     setSuggestions([]);
     const newValue = replaceLastToken(inputValue, suggestion.numero);
     setInputValue(newValue);
+    loadNumbers(parseNumbers(newValue));
   }
 
   async function handleSearch() {
@@ -265,6 +266,11 @@ function DossierAutocomplete({ host, port, pathData, formatTauro, onAutoFill, ga
       setMessage({ type: "error", text: "Saisis au moins un numéro de dossier." });
       return;
     }
+    await loadNumbers(numbers);
+  }
+
+  async function loadNumbers(numbers) {
+    if (numbers.length === 0) return;
 
     const alreadyLoaded = new Set(loadedDossiers.map((d) => d.numero));
     const newNumbers = numbers.filter((n) => !alreadyLoaded.has(n));
@@ -392,7 +398,7 @@ function DossierAutocomplete({ host, port, pathData, formatTauro, onAutoFill, ga
             </div>
           )}
         </div>
-        <Button type="button" color="vk" loading={isLoading} disabled={isLoading || gamesysOffline} onClick={handleSearch}>
+        <Button type="button" size="small" compact color="vk" loading={isLoading} disabled={isLoading || gamesysOffline} onClick={handleSearch}>
           Rechercher
         </Button>
         {loadedDossiers.length > 0 && (

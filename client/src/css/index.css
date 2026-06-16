@@ -60,6 +60,9 @@
 
   /* Layout */
   --form-panel-width: 1100px;
+
+  /* Motion */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ============================================================
@@ -117,6 +120,9 @@ html, body {
   height: 100vh;
   max-height: 100vh;
   background-color: var(--bg-base);
+  background-image: radial-gradient(circle at 1px 1px, var(--border-dim) 1px, transparent 0);
+  background-size: 32px 32px;
+  background-attachment: fixed;
   color: var(--text-primary);
   font-family: 'Figtree', -apple-system, sans-serif;
   font-size: 14px;
@@ -174,6 +180,15 @@ ul { margin: 0; text-align: left; }
   min-height: 0;
 }
 
+.references-view-wrapper {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0 var(--s-lg);
+  flex: 1;
+  min-height: 0;
+}
+
 .hidden { display: none !important; }
 
 /* ===================== HEADER ===================== */
@@ -183,12 +198,18 @@ ul { margin: 0; text-align: left; }
   grid-row: 1;
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border-default);
-  box-shadow: none;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
   width: 100%;
   padding: 0 var(--s-lg);
   display: grid;
   grid-template-columns: 180px 1fr auto;
   align-items: center;
+  position: relative;
+  z-index: 5;
+}
+
+[data-theme="dark"] .header {
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
 }
 
 .header-brand {
@@ -248,7 +269,7 @@ img.ui.image:not(.header-logo) {
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: border-color 0.12s, color 0.12s, background 0.12s;
+  transition: border-color 0.18s var(--ease), color 0.18s var(--ease), background 0.18s var(--ease);
 }
 .header-action-btn:hover {
   border-color: var(--border-bright);
@@ -279,7 +300,7 @@ img.ui.image:not(.header-logo) {
   align-items: center;
   gap: 7px;
   line-height: 1;
-  transition: color 0.15s;
+  transition: color 0.18s var(--ease), border-color 0.22s var(--ease);
   margin-bottom: -1px;
 }
 
@@ -337,13 +358,45 @@ img.ui.image:not(.header-logo) {
 .form-panel {
   flex: 1 1 auto;
   width: 100%;
-  max-width: 100%;
+  max-width: var(--form-panel-width);
   min-width: 420px;
+  margin: 0 auto;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  padding: var(--s-sm) 0;
+  padding: var(--s-sm) var(--s-lg) var(--s-md);
   gap: 10px;
+  transition: max-width 0.25s var(--ease);
+}
+
+/* Le tableau Dossier API est dense en colonnes : il a besoin de toute la
+   largeur disponible plutôt que du cap pensé pour le formulaire manuel.
+   Seul le tableau profite de cette largeur ; la barre de recherche, les
+   options et le bouton « Ajouter » restent centrés à la largeur habituelle
+   pour ne pas réintroduire des champs disproportionnés. */
+.form-panel--wide {
+  max-width: none;
+}
+
+.form-panel--wide .dossier-autocomplete,
+.form-panel--wide .form-section,
+.form-panel--wide .warning-message,
+.form-panel--wide > .mode-tabs {
+  width: 100%;
+  max-width: var(--form-panel-width);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Le bouton submit (« Ajouter ») ne doit pas s'étirer sur toute la largeur du
+   form-panel (flex stretch par défaut, ou width:100% en mode wide) : il garde
+   la largeur de son contenu, centré. */
+.submit-button.ui.button {
+  align-self: center;
+  width: auto;
+  max-width: none;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .preview-panel {
@@ -583,8 +636,16 @@ img.ui.image:not(.header-logo) {
   color: var(--color-ecom);
 }
 
-.format-tauro  { display: flex; flex-direction: column; }
-.add-button    { min-width: 25px; max-width: 200px; }
+.format-tauro     { display: flex; flex-direction: column; }
+.format-tauro-row { display: flex; align-items: stretch; gap: var(--s-sm); }
+.format-tauro-row .ui.dropdown.selection { flex: 1 1 auto; }
+.add-button       {
+  flex: 0 0 auto;
+  width: 38px;
+  min-width: 38px;
+  max-width: 38px;
+  margin: 0 !important;
+}
 .form .warning-message { text-align: justify; }
 .config        { display: flex; flex-direction: column; width: 100%; }
 .config .input { width: 100%; max-width: 50%; padding: 0 0 8px 8px; }
@@ -601,7 +662,13 @@ img.ui.image:not(.header-logo) {
 .dossier-autocomplete            { max-width: 100% !important; }
 .dossier-autocomplete-search     { display: flex; gap: var(--s-sm); align-items: center; }
 .dossier-autocomplete-search .ui.input { min-width: 200px; }
-.dossier-autocomplete-search .ui.vk.button { margin-top: 0 !important; }
+.dossier-autocomplete-search .ui.vk.button {
+  width: auto;
+  max-width: none;
+  margin-top: 0 !important;
+  margin-left: 0;
+  margin-right: 0;
+}
 
 .dossier-input-wrapper           { position: relative; }
 
@@ -1012,7 +1079,7 @@ img.ui.image:not(.header-logo) {
   letter-spacing: 0.3px !important;
   border-radius: var(--radius) !important;
   box-shadow: none !important;
-  transition: background 0.15s, border-color 0.15s !important;
+  transition: background 0.18s var(--ease), border-color 0.18s var(--ease), color 0.18s var(--ease) !important;
 }
 
 .ui.button:hover {
@@ -1094,10 +1161,21 @@ img.ui.image:not(.header-logo) {
   letter-spacing: 1px !important;
   text-shadow: none !important;
   margin-top: var(--s-lg) !important;
+  transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease), background 0.18s var(--ease) !important;
 }
-.ui.vk.button:hover {
+.ui.vk.button:hover:not(:disabled) {
   background: #3d3530 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18) !important;
+  transform: translateY(-1px);
+}
+.ui.vk.button:active:not(:disabled) {
+  transform: translateY(0);
   box-shadow: none !important;
+}
+
+[data-theme="dark"] .ui.vk.button:hover:not(:disabled) {
+  background: #d4d4d8 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45) !important;
 }
 
 /* Disabled */

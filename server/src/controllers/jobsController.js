@@ -9,10 +9,8 @@ const createDec = require("../dec");
 const generateCutFile = require("../generateCutFile").generateCutFile;
 const createJob = require("../jobsList");
 const modelDeco = require("../models/Deco");
-const modelRefDeco = require("../models/RefDeco");
-const RefCasto = require("../models/RefCasto");
-const RefBrico = require("../models/RefBrico");
-const RefEcom = require("../models/RefEcom");
+const refModels = require("../services/refModels");
+const modelRefDeco = refModels.LM;
 const checkVernis = require("../checkVernis");
 const { generateStickers, createStickersPage } = require("../generateStickers");
 const generateImages = require("../generateImages");
@@ -242,10 +240,9 @@ async function addJob(req, res) {
   if (client2 === "BRICO" || client2 === "ECOM") matchRef2 = visuel2.match(/[A-Z]+-\d+/g)?.[0];
 
   // Validation MongoDB des références extraites
-  const refModelMap = { LM: modelRefDeco, CASTO: RefCasto, BRICO: RefBrico, ECOM: RefEcom };
-  const RefModelClient = refModelMap[client];
-  const RefModelClient2 = refModelMap[client2];
-  const otherRefModels = [modelRefDeco, RefCasto, RefBrico, RefEcom];
+  const RefModelClient = refModels[client];
+  const RefModelClient2 = refModels[client2];
+  const otherRefModels = Object.values(refModels);
 
   let refWarning = null;
   let refWarning2 = null;

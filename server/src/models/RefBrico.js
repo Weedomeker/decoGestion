@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const refBricoSchema = new mongoose.Schema(
   {
-    ref: { type: String },
+    ref: { type: String, unique: true },
     model: { type: String },
     finition: { type: String },
     format: { type: String },

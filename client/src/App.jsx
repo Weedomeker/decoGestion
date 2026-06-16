@@ -18,6 +18,7 @@ import ServerStatus from "./components/ServerStatus";
 import LouisPreview from "./components/LouisPreview";
 import Place from "./components/Place";
 import PreviewDeco from "./components/PreviewDeco";
+import ReferencesView from "./components/ReferencesView";
 import TeinteMasseDropdown from "./components/TeinteMasseDropdown";
 import VisuelDropdown from "./components/VisuelDropdown";
 import { isCredenceFormat } from "./utils/credence";
@@ -432,6 +433,7 @@ function App() {
 
       try {
         const errors = [];
+        const succeededIds = [];
         for (const job of jobsToSubmit) {
           const payload = {
             client: job.client || checkFolder,
@@ -461,12 +463,21 @@ function App() {
           if (!response.ok) {
             const result = await response.json().catch(() => ({}));
             errors.push(result.error || `Erreur ${response.status} (job ${job.numCmd || job.id})`);
+          } else {
+            succeededIds.push(job.id);
           }
         }
         if (errors.length === 0) {
           setDossierJobs([]);
           setSelectedJobIds(new Set());
         } else {
+          const succeededSet = new Set(succeededIds);
+          setDossierJobs((prev) => prev.filter((j) => !succeededSet.has(j.id) && !succeededSet.has(j._absorbedBy)));
+          setSelectedJobIds((prev) => {
+            const next = new Set(prev);
+            succeededSet.forEach((id) => next.delete(id));
+            return next;
+          });
           setModalData({ open: true, message: "", object: null, error: errors.join(" · ") });
         }
         setJobsRefresh((prev) => prev + 1);
@@ -642,7 +653,7 @@ function App() {
 
       <div className="view-area">
       <div className={`main-area${activeView !== "form" ? " hidden" : ""}`}>
-        <div className="form-panel">
+        <div className={`form-panel${activeTab === "dossier" && dossierJobs.length > 0 ? " form-panel--wide" : ""}`}>
           {/* Onglets de mode */}
           <div className="mode-tabs">
             <Popup
@@ -1052,6 +1063,7 @@ function App() {
                 <div className="form-section">
                   <span className="form-section-label">Plaque Tauro</span>
                 <Form.Field className="format-tauro" required error={error.formatTauro}>
+                  <div className="format-tauro-row">
                   <FormatTauro
                     error={error.formatTauro}
                     isLoading={isloadingFormatTauro}
@@ -1095,14 +1107,16 @@ function App() {
                     }}
                   />
                   <Button
-                    attached="bottom"
                     className="add-button"
                     type="button"
                     icon="add"
                     color="grey"
                     size="mini"
+                    title="Ajouter un format de plaque Tauro"
+                    aria-label="Ajouter un format de plaque Tauro"
                     onClick={handleToggleAddFormat}
                   />
+                  </div>
                   {showAddFormat && <Input id="addFormatTauro" size="small" label="Add format" placeholder="ex: 101x215" />}
                   {error.formatTauro && <span className="field-error-msg">Sélectionne un format de plaque Tauro</span>}
                 </Form.Field>
@@ -1568,7 +1582,8 @@ function App() {
             <Button
               type="submit"
               color="vk"
-              fluid
+              size="small"
+              className="submit-button"
               disabled={dossierJobs.length > 0 && selectedJobIds.size === 0}
               content={
                 dossierJobs.length > 0
@@ -1593,6 +1608,10 @@ function App() {
 
       <div className={`jobs-view${activeView !== "jobs" ? " hidden" : ""}`}>
         <JobsList formatTauro={formatTauro} refreshToken={jobsRefresh} onPendingCountChange={setPendingCount} />
+      </div>
+
+      <div className={`references-view-wrapper${activeView !== "references" ? " hidden" : ""}`}>
+        <ReferencesView />
       </div>
       </div>
 
