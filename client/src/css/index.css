@@ -135,7 +135,7 @@ html, body {
 ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
-input { text-transform: capitalize; }
+#ville { text-transform: capitalize; }
 
 ul { margin: 0; text-align: left; }
 

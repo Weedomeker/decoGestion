@@ -83,8 +83,8 @@ const InfoModal = ({ open, onClose, message, object, error }) => {
               type="number"
               onChange={(e) => {
                 const newValue = parseInt(e.target.value);
-                const matchEx = data.jpgName.match(/\d_EX/gi);
-                const newJpgName = data.jpgName.replace(matchEx, newValue + "_EX");
+                const matchEx = data.jpgName.match(/\d_EX/i);
+                const newJpgName = matchEx ? data.jpgName.replace(matchEx[0], newValue + "_EX") : data.jpgName;
                 setData({ ...data, ex: newValue, jpgName: newJpgName });
               }}
             />

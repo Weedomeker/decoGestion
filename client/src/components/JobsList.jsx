@@ -2,8 +2,8 @@ import PropTypes from "prop-types";
 import { useEffect, useState } from "react";
 import {
   Button,
-  ButtonContent,
   Checkbox,
+  Confirm,
   Icon,
   Progress,
   Table,
@@ -33,6 +33,9 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
   const [filter, setFilter] = useState([]);
   const [wsConnected, setWsConnected] = useState(false);
   const [actionError, setActionError] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [confirmClearCompleted, setConfirmClearCompleted] = useState(false);
+  const [confirmRunJobs, setConfirmRunJobs] = useState(false);
 
   useEffect(() => {
     if (data.length > 0) {
@@ -365,8 +368,10 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
                       compact
                       size="mini"
                       color="grey"
-                      onClick={() => handleDeleteJob(entry.jobId)}
+                      onClick={() => setConfirmDeleteId(entry.jobId)}
                       disabled={onLoading}
+                      title="Supprimer ce job de la file"
+                      aria-label="Supprimer ce job de la file"
                     >
                       <Icon name="remove" fitted inverted />
                     </Button>
@@ -426,32 +431,24 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
                           <Button
                             type="button"
                             color="green"
-                            animated="fade"
                             size="small"
                             compact
+                            icon="file text"
+                            content="Générer stickers"
                             onClick={() => handleGenerateStickers()}
                             disabled={onLoading}
-                          >
-                            <ButtonContent visible>
-                              <Icon name="file text" inverted />
-                            </ButtonContent>
-                            <ButtonContent hidden content="Générer stickers" />
-                          </Button>
+                          />
                         ) : (
                           <Button
                             type="button"
                             color="red"
-                            animated="fade"
                             size="small"
                             compact
-                            onClick={() => runJobsList()}
+                            icon="send"
+                            content="Traiter la file"
+                            onClick={() => setConfirmRunJobs(true)}
                             disabled={onLoading}
-                          >
-                            <ButtonContent visible>
-                              <Icon name="send" inverted />
-                            </ButtonContent>
-                            <ButtonContent hidden content="Traiter la file" />
-                          </Button>
+                          />
                         ))}
 
                       {!onLoading && (
@@ -485,12 +482,14 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
               <TableRow>
                 <TableHeaderCell colSpan="10" collapsing>
                   <div className="sticky-footer-content">
-                    <Button animated="fade" color="red" size="small" compact onClick={() => handleDeleteJobComplete()}>
-                      <ButtonContent hidden content="Clear" />
-                      <ButtonContent visible>
-                        <Icon name="warning circle" />
-                      </ButtonContent>
-                    </Button>
+                    <Button
+                      color="red"
+                      size="small"
+                      compact
+                      icon="warning circle"
+                      content="Vider l'historique"
+                      onClick={() => setConfirmClearCompleted(true)}
+                    />
 
                     {executionTime && (data?.[0]?.jobs?.length ?? 0) === 0 && (
                       <pre>
@@ -524,11 +523,11 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
       {!wsConnected && (
         <div
           style={{
-            background: "#fff3cd",
-            color: "#856404",
+            background: "var(--warning-soft)",
+            color: "var(--warning)",
             padding: "4px 10px",
             fontSize: "0.85em",
-            borderBottom: "1px solid #ffc107",
+            borderBottom: "1px solid var(--warning)",
           }}
         >
           ⚠ Temps réel déconnecté — reconnexion en cours…
@@ -537,11 +536,11 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
       {actionError && (
         <div
           style={{
-            background: "#f8d7da",
-            color: "#721c24",
+            background: "var(--danger-soft)",
+            color: "var(--danger)",
             padding: "4px 10px",
             fontSize: "0.85em",
-            borderBottom: "1px solid #f5c6cb",
+            borderBottom: "1px solid var(--danger)",
             cursor: "pointer",
           }}
           onClick={() => setActionError(null)}
@@ -555,6 +554,45 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
         <div className="jobs-section-label jobs-section-label--completed">Traités ({nbCompleted})</div>
       )}
       {nbCompleted > 0 && completed}
+
+      <Confirm
+        open={confirmDeleteId !== null}
+        header="Supprimer ce job ?"
+        content="Ce job sera retiré de la file en attente. Cette action est irréversible."
+        confirmButton="Supprimer"
+        cancelButton="Annuler"
+        onCancel={() => setConfirmDeleteId(null)}
+        onConfirm={() => {
+          handleDeleteJob(confirmDeleteId);
+          setConfirmDeleteId(null);
+        }}
+      />
+
+      <Confirm
+        open={confirmClearCompleted}
+        header="Vider l'historique des jobs traités ?"
+        content={`${nbCompleted} job${nbCompleted > 1 ? "s" : ""} traité${nbCompleted > 1 ? "s" : ""} seront définitivement supprimés de l'historique.`}
+        confirmButton="Vider"
+        cancelButton="Annuler"
+        onCancel={() => setConfirmClearCompleted(false)}
+        onConfirm={() => {
+          handleDeleteJobComplete();
+          setConfirmClearCompleted(false);
+        }}
+      />
+
+      <Confirm
+        open={confirmRunJobs}
+        header="Traiter la file ?"
+        content={`${nbJobs} job${nbJobs > 1 ? "s" : ""} en attente vont être traités (génération PDF/découpe). Cette opération peut prendre du temps.`}
+        confirmButton="Traiter"
+        cancelButton="Annuler"
+        onCancel={() => setConfirmRunJobs(false)}
+        onConfirm={() => {
+          runJobsList();
+          setConfirmRunJobs(false);
+        }}
+      />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import PropTypes from "prop-types";
 import { useEffect, useRef, useState } from "react";
 import { Divider, Popup } from "semantic-ui-react";
 
@@ -28,6 +29,11 @@ function ServiceRow({ ok, label }) {
     </div>
   );
 }
+
+ServiceRow.propTypes = {
+  ok: PropTypes.bool,
+  label: PropTypes.string.isRequired,
+};
 
 export default function ServerStatus({ onHealthChange }) {
   const [health, setHealth] = useState({ status: "unknown" });
@@ -71,10 +77,10 @@ export default function ServerStatus({ onHealthChange }) {
 
   return (
     <Popup
-      trigger={<span className={cls} />}
+      trigger={<span className={cls} tabIndex={0} role="button" aria-label="État des services" />}
       content={content}
       position="bottom right"
-      on="hover"
+      on={["hover", "click", "focus"]}
       style={{
         minWidth: 160,
         background: "var(--bg-elevated)",
@@ -85,3 +91,7 @@ export default function ServerStatus({ onHealthChange }) {
     />
   );
 }
+
+ServerStatus.propTypes = {
+  onHealthChange: PropTypes.func,
+};
