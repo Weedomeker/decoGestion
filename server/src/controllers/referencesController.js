@@ -145,7 +145,7 @@ async function checkReferences(req, res) {
       try {
         const { files } = getFiles(dir, [], []);
         const fileEntries = buildFileEntries(files, client);
-        dbRefs = await Model.find({}, "ref model format").lean();
+        dbRefs = await Model.find({}, "ref model format finition").lean();
         const result = compareClientReferences(fileEntries, dbRefs, client);
         report[client] = { networkUnavailable: false, ...result };
       } catch (error) {
@@ -165,7 +165,7 @@ async function checkReferences(req, res) {
       report[client].gamesys = { unavailable: true, notFoundInGamesys: [], stats: null };
     } else {
       try {
-        if (!dbRefs.length) dbRefs = await Model.find({}, "ref model format").lean();
+        if (!dbRefs.length) dbRefs = await Model.find({}, "ref model format finition").lean();
         const stockMatches = await findStockByRefs(dbRefs.map((doc) => doc.ref));
         report[client].gamesys = {
           unavailable: false,

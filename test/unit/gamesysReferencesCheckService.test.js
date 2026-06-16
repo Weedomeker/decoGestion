@@ -45,5 +45,58 @@ describe("gamesysReferencesCheckService", () => {
 
       expect(result.notFoundInGamesys).to.have.lengthOf(0);
     });
+
+    it("exclut les profils (PROFIL, CORNIERE) même s'ils sont absents de Gamesys", () => {
+      const dbRefs = [
+        { ref: "P001", model: "PROFIL ALU 210", finition: "MAT", format: "210x10" },
+        { ref: "P002", model: "CORNIERE BLANC", finition: "BRILLANT", format: "210x10" },
+      ];
+
+      const result = compareClientReferencesWithGamesys(dbRefs, new Map(), "LM");
+
+      expect(result.notFoundInGamesys).to.have.lengthOf(0);
+      expect(result.stats.refsInDb).to.equal(2);
+      expect(result.stats.notFoundCount).to.equal(0);
+    });
+
+    it("exclut les teinte masse même s'ils sont absents de Gamesys", () => {
+      const dbRefs = [
+        { ref: "TM01", model: "BETON GRIS", finition: "Teinte Masse", format: "100x210" },
+        { ref: "TM02", model: "BLANC PUR", finition: "TEINTE MASSE", format: "100x210" },
+      ];
+
+      const result = compareClientReferencesWithGamesys(dbRefs, new Map(), "LM");
+
+      expect(result.notFoundInGamesys).to.have.lengthOf(0);
+      expect(result.stats.notFoundCount).to.equal(0);
+    });
+
+    it("signale uniquement les visuels non-teinte-masse absents de Gamesys", () => {
+      const dbRefs = [
+        { ref: "V001", model: "BETON HAUT", finition: "MAT", format: "100x210" },
+        { ref: "TM01", model: "BLANC PUR", finition: "TEINTE MASSE", format: "100x210" },
+        { ref: "P001", model: "PROFIL FINITION ALU", finition: "BRILLANT", format: "210x10" },
+      ];
+      const stockMatches = new Map([
+        ["V001", { st_modele: "BETON HAUT", st_lib_1_conso: "MAT", st_lib_2_conso: "" }],
+      ]);
+
+      const result = compareClientReferencesWithGamesys(dbRefs, stockMatches, "LM");
+
+      expect(result.notFoundInGamesys).to.have.lengthOf(0);
+      expect(result.stats.refsInDb).to.equal(3);
+    });
+
+    it("signale un visuel absent de Gamesys quand profil et teinte masse sont présents mais pas lui", () => {
+      const dbRefs = [
+        { ref: "V999", model: "ARDOISE BLEUE", finition: "MAT", format: "100x210" },
+        { ref: "TM01", model: "BLANC", finition: "TEINTE MASSE", format: "100x210" },
+        { ref: "P001", model: "PROFIL ALU", finition: "BRILLANT", format: "210x10" },
+      ];
+
+      const result = compareClientReferencesWithGamesys(dbRefs, new Map(), "LM");
+
+      expect(result.notFoundInGamesys).to.deep.equal([{ ref: "V999", model: "ARDOISE BLEUE", client: "LM" }]);
+    });
   });
 });
