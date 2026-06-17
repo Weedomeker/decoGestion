@@ -1,4 +1,4 @@
-const { isProfileLabel } = require("../gamesys/utils/reference");
+const { isProfileLabel, isTeinteMasseModel } = require("../gamesys/utils/reference");
 
 /**
  * Compare les références MongoDB d'un client à leurs correspondances Gamesys
@@ -14,16 +14,12 @@ const { isProfileLabel } = require("../gamesys/utils/reference");
  *   - profils (PROFIL*, CORNIERE) : ne sont pas des visuels, catégorie différente dans Gamesys
  *   - teinte masse : pas de fichier visuel associé, c'est normal
  *
- * `dbRefs`       : [{ ref, model, finition, format }] — issus de Model.find(...) côté MongoDB
+ * `dbRefs`       : [{ ref, model, format }] — issus de Model.find(...) côté MongoDB
  * `stockMatches` : Map<ref, fs_stock row> — voir findStockByRefs()
  */
-function isTeinteMasse(finition) {
-  return /teinte\s*masse/i.test(String(finition || ""));
-}
-
 function compareClientReferencesWithGamesys(dbRefs, stockMatches, client) {
   const notFoundInGamesys = [];
-  const eligible = dbRefs.filter((doc) => !isProfileLabel(doc.model) && !isTeinteMasse(doc.finition));
+  const eligible = dbRefs.filter((doc) => !isProfileLabel(doc.model) && !isTeinteMasseModel(doc.model));
 
   for (const dbRef of eligible) {
     const ref = String(dbRef.ref || "").trim();

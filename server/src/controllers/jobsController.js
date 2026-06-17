@@ -234,10 +234,10 @@ async function addJob(req, res) {
   }
 
   let matchRef = data.teinteMasse ? findRefTeinteMasse?.[0]?.ref : visuel.match(/\d{13}/)?.[0];
-  if (client === "BRICO" || client === "ECOM") matchRef = visuel.match(/[A-Z]+-\d+/g)?.[0];
+  if (client === "BRICO" || client === "ECOM") matchRef = visuel.match(/[A-Z]+\d*-\d+/g)?.[0];
 
   let matchRef2 = visuel2.match(/\d{13}/)?.[0];
-  if (client2 === "BRICO" || client2 === "ECOM") matchRef2 = visuel2.match(/[A-Z]+-\d+/g)?.[0];
+  if (client2 === "BRICO" || client2 === "ECOM") matchRef2 = visuel2.match(/[A-Z]+\d*-\d+/g)?.[0];
 
   // Validation MongoDB des références extraites
   const RefModelClient = refModels[client];
@@ -547,7 +547,7 @@ async function runJobs(req, res) {
         // Pour CASTO : EAN-13 ; pour BRICO : ref alphanumérique (job.ref est déjà fiable)
         matchRef1 = job.client === "CASTO" ? job.visuel.match(/\d{13}/) : job.ref ? { 0: String(job.ref) } : null;
       } else {
-        matchRef1 = job.visuel.match(/[A-Z]+-\d+/i) || job.ref;
+        matchRef1 = job.visuel.match(/[A-Z]+\d*-\d+/i) || job.ref;
       }
 
       const deco =
@@ -572,7 +572,7 @@ async function runJobs(req, res) {
             : job.ref2
               ? { 0: String(job.ref2) }
               : null
-          : job.visuel2.match(/[A-Z]+-\d+/i)
+          : job.visuel2.match(/[A-Z]+\d*-\d+/i)
         : null;
 
       // deco2 : même logique que deco — partie avant le format pour BRICO, après pour CASTO

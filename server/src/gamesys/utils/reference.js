@@ -56,6 +56,24 @@ function isNumericReference(value) {
   return /^\d+$/.test(String(value || ""));
 }
 
+// Liste exhaustive des modèles "teinte masse" — solides sans fichier visuel associé.
+// Source de vérité : TeinteMasseDropdown.jsx (côté client).
+const TEINTE_MASSE_MODELS = [
+  "NOIR ZERO",
+  "BLANC ZERO",
+  "GRANIT 3",
+  "ALU BROSSE",
+  "BRONZE BROSSE",
+  "CUIVRE BROSSE",
+  "NOIR BROSSE",
+  "OR BROSSE",
+];
+
+function isTeinteMasseModel(model) {
+  const normalized = normalizeSearchText(model);
+  return TEINTE_MASSE_MODELS.some((tm) => normalized === tm || normalized.startsWith(tm + " "));
+}
+
 function getVisualReferenceFromEntete(entete) {
   const explicitReference = [entete?.endv_ref_client, entete?.endv_no_modele, entete?.endv_code_complet_modele].find(
     (value) => value && String(value).trim(),
@@ -74,5 +92,6 @@ module.exports = {
   isProfileLabel,
   isKitPoseLabel,
   isNumericReference,
+  isTeinteMasseModel,
   getVisualReferenceFromEntete,
 };
