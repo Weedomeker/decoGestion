@@ -103,6 +103,12 @@ server.listen(PORT, async () => {
 
   await checkNetworkPaths();
 
+  // MongoDB doit être prêt avant processAllPDFs (scan long) pour que les requêtes
+  // arrivant pendant le scan ne buffèrent pas et ne timeout pas.
+  await connectMongo().catch((err) => logger.error(`MongoDB: ${err.message || err.code || err}`));
+
+  logger.info(`Server start on port ${PORT}`);
+
   const previewDir = state.paths.previewDeco;
   const sourceDirs = [state.paths.decoECOM, state.paths.decoLM, state.paths.decoCASTO, state.paths.decoBRICO];
 
@@ -128,9 +134,6 @@ server.listen(PORT, async () => {
   } else {
     logger.warn("processAllPDFs ignoré: dossier preview non disponible");
   }
-
-  logger.info(`Server start on port ${PORT}`);
-  await connectMongo().catch((err) => logger.error(`MongoDB: ${err.message || err.code || err}`));
 
   const odbcOk = await checkOdbcConnection();
   if (odbcOk) {

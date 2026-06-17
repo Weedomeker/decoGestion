@@ -102,6 +102,7 @@ function App() {
     message: "",
     object: null,
     error: null,
+    warning: null,
   });
   const [modalInfoStock, setModalInfoStock] = useState({
     open: false,
@@ -357,6 +358,7 @@ function App() {
       message: "",
       object: null,
       error: null,
+      warning: null,
     });
   };
 
@@ -433,6 +435,7 @@ function App() {
 
       try {
         const errors = [];
+        const warnings = [];
         const succeededIds = [];
         for (const job of jobsToSubmit) {
           const payload = {
@@ -460,16 +463,23 @@ function App() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           });
+          const result = await response.json().catch(() => ({}));
           if (!response.ok) {
-            const result = await response.json().catch(() => ({}));
             errors.push(result.error || `Erreur ${response.status} (job ${job.numCmd || job.id})`);
           } else {
             succeededIds.push(job.id);
+            if (result.refCrossClientWarning)
+              warnings.push(`N°${job.numCmd || job.id} : ${result.refCrossClientWarning}`);
+            if (result.prodBlancCorrected)
+              warnings.push(`N°${job.numCmd || job.id} : Prod blanc activé automatiquement (ref base marquée blanc)`);
           }
         }
         if (errors.length === 0) {
           setDossierJobs([]);
           setSelectedJobIds(new Set());
+          if (warnings.length > 0) {
+            setModalData({ open: true, message: "Commandes ajoutées", object: null, error: null, warning: warnings.join("\n") });
+          }
         } else {
           const succeededSet = new Set(succeededIds);
           setDossierJobs((prev) => prev.filter((j) => !succeededSet.has(j.id) && !succeededSet.has(j._absorbedBy)));
@@ -478,11 +488,11 @@ function App() {
             succeededSet.forEach((id) => next.delete(id));
             return next;
           });
-          setModalData({ open: true, message: "", object: null, error: errors.join(" · ") });
+          setModalData({ open: true, message: "", object: null, error: errors.join(" · "), warning: warnings.length > 0 ? warnings.join("\n") : null });
         }
         setJobsRefresh((prev) => prev + 1);
       } catch (err) {
-        setModalData({ open: true, message: "", object: null, error: err.message });
+        setModalData({ open: true, message: "", object: null, error: err.message, warning: null });
       }
       return;
     }
@@ -554,11 +564,18 @@ function App() {
           use: false,
         });
       } else {
+        const notices = [
+          result.refCrossClientWarning,
+          result.prodBlancCorrected ? "Prod blanc activé automatiquement (ref base marquée blanc)" : null,
+        ]
+          .filter(Boolean)
+          .join(" · ");
         setModalData({
           open: true,
           message: result.message,
           object: result.object,
           error: null,
+          warning: notices || null,
         });
       }
     } catch (err) {
@@ -567,6 +584,7 @@ function App() {
         message: "",
         object: null,
         error: err.message,
+        warning: null,
       });
     }
   };
@@ -1625,6 +1643,7 @@ function App() {
         message={modalData.message}
         object={modalData.object}
         error={modalData.error}
+        warning={modalData.warning}
       />
 
       <InfoStockModal

@@ -22,6 +22,7 @@ const { saveFormatsTauroIfNeeded } = require("../services/formatsService");
 const { broadcastWS, broadcastCompletedJob } = require("../services/websocketService");
 const usePdfWorker = require("../utils/pdfWorker");
 const { castoName } = require("../utils/jobNames");
+const { extractRefFromFilename, validateRefFormat, REF_FORMAT_HINT } = require("../services/referencesCheckService");
 
 function getJobs(req, res) {
   res.json(state.jobs);
@@ -233,73 +234,115 @@ async function addJob(req, res) {
     }
   }
 
-  let matchRef = data.teinteMasse ? findRefTeinteMasse?.[0]?.ref : visuel.match(/\d{13}/)?.[0];
-  if (client === "LM" && !matchRef) matchRef = visuel.match(/\b\d{8}\b/)?.[0];
-  if (client === "BRICO" || client === "ECOM") matchRef = visuel.match(/[A-Z]+\d*-\d+/g)?.[0];
+  let matchRef = data.teinteMasse ? findRefTeinteMasse?.[0]?.ref : extractRefFromFilename(visuel, client);
+  let matchRef2 = visuel2 ? extractRefFromFilename(visuel2, client2) : null;
 
-  let matchRef2 = visuel2.match(/\d{13}/)?.[0];
-  if (client2 === "BRICO" || client2 === "ECOM") matchRef2 = visuel2.match(/[A-Z]+\d*-\d+/g)?.[0];
+  // Validation du format de la référence extraite (avant toute requête MongoDB)
+  if (matchRef && !teinteMasse && !validateRefFormat(matchRef, client)) {
+    return res.status(400).json({
+      error: `Format de référence non conforme pour le client ${client} : "${matchRef}" extrait de "${visuel}". Attendu : ${REF_FORMAT_HINT[client] || "format inconnu"}.`,
+      code: "REF_FORMAT_INVALID",
+    });
+  }
+  if (matchRef2 && visuel2 && !validateRefFormat(matchRef2, client2)) {
+    return res.status(400).json({
+      error: `Format de référence non conforme pour le client ${client2} (visuel 2) : "${matchRef2}" extrait de "${visuel2}". Attendu : ${REF_FORMAT_HINT[client2] || "format inconnu"}.`,
+      code: "REF_FORMAT_INVALID",
+    });
+  }
 
   // Validation MongoDB des références extraites
   const RefModelClient = refModels[client];
   const RefModelClient2 = refModels[client2];
   const otherRefModels = Object.values(refModels);
 
-  let refWarning = null;
-  let refWarning2 = null;
+  let refCrossClientWarning = null;
+  let prodBlancCorrected = false;
+  let refValidated = null;
+  let refValidated2 = null;
+
+  // Vérification référence 1
+  if (!matchRef && !teinteMasse) {
+    return res.status(400).json({
+      error: `Impossible d'extraire une référence du fichier "${visuel}" pour le client ${client}.`,
+      code: "REF_EXTRACTION_FAILED",
+    });
+  }
 
   if (matchRef && RefModelClient) {
-    let refValidated = await RefModelClient.findOne({ ref: String(matchRef) }).lean();
-    if (!refValidated) {
-      for (const m of otherRefModels.filter((m) => m !== RefModelClient)) {
-        refValidated = await m.findOne({ ref: String(matchRef) }).lean();
-        if (refValidated) break;
+    try {
+      refValidated = await RefModelClient.findOne({ ref: String(matchRef) }).lean();
+      if (!refValidated) {
+        for (const m of otherRefModels.filter((m) => m !== RefModelClient)) {
+          refValidated = await m.findOne({ ref: String(matchRef) }).lean();
+          if (refValidated) {
+            refCrossClientWarning = `Référence "${matchRef}" trouvée dans un autre client (${client}). Vérifiez la cohérence.`;
+            logger.warn(`⚠️ ${refCrossClientWarning}`);
+            break;
+          }
+        }
       }
-    }
-    if (!refValidated) {
-      refWarning = `Référence "${matchRef}" non trouvée en base (${client})`;
-      logger.warn(`⚠️ ${refWarning} — visuel: ${visuel}`);
-    } else {
+      if (!refValidated) {
+        return res.status(400).json({
+          error: `Référence "${matchRef}" introuvable en base MongoDB (client ${client}). Vérifiez que ce visuel est bien référencé.`,
+          code: "REF_NOT_FOUND",
+        });
+      }
       // Vérification cohérence format fichier vs base
       const formatFromRef = refValidated.format?.toLowerCase();
       const formatFromFile = format?.match(/\d{2,}x\d{2,}/i)?.[0]?.toLowerCase();
       if (formatFromRef && formatFromFile && formatFromRef !== formatFromFile) {
-        const msg = `Format incohérent pour ref ${matchRef} : fichier=${formatFromFile}, base=${formatFromRef}`;
+        const msg = `Format incohérent pour la ref ${matchRef} : sélectionné=${formatFromFile}, base=${formatFromRef}. Vérifiez le format du visuel.`;
         logger.warn(`⚠️ ${msg}`);
-        refWarning = msg;
+        return res.status(400).json({ error: msg, code: "FORMAT_MISMATCH" });
       }
       // RefEcom.blanc : forcer prodBlanc si la référence est marquée blanc en base
       if (client === "ECOM" && refValidated.blanc === true && !prodBlanc) {
         logger.warn(`⚠️ RefEcom ${matchRef} marquée blanc=true en base mais prodBlanc=false — correction automatique`);
         prodBlanc = true;
-        // Recalculer le writePath avec prodBlanc = true
+        prodBlancCorrected = true;
         state.process.writePath = path.join(state.paths.saveFolder + "/Prod avec BLANC");
         if (!fs.existsSync(state.process.writePath)) {
           fs.mkdirSync(state.process.writePath, { recursive: true });
         }
       }
+    } catch (err) {
+      logger.error(`Erreur MongoDB validation ref "${matchRef}" (${client}) : ${err.message}`);
+      return res.status(500).json({ error: "Erreur lors de la vérification de la référence en base.", code: "DB_ERROR" });
     }
   }
 
+  // Vérification référence 2 (si visuel2 présent)
   if (matchRef2 && RefModelClient2 && visuel2) {
-    let refValidated2 = await RefModelClient2.findOne({ ref: String(matchRef2) }).lean();
-    if (!refValidated2) {
-      for (const m of otherRefModels.filter((m) => m !== RefModelClient2)) {
-        refValidated2 = await m.findOne({ ref: String(matchRef2) }).lean();
-        if (refValidated2) break;
+    try {
+      refValidated2 = await RefModelClient2.findOne({ ref: String(matchRef2) }).lean();
+      if (!refValidated2) {
+        for (const m of otherRefModels.filter((m) => m !== RefModelClient2)) {
+          refValidated2 = await m.findOne({ ref: String(matchRef2) }).lean();
+          if (refValidated2) {
+            const warn2 = `Référence 2 "${matchRef2}" trouvée dans un autre client (${client2}). Vérifiez la cohérence.`;
+            logger.warn(`⚠️ ${warn2}`);
+            refCrossClientWarning = refCrossClientWarning ? `${refCrossClientWarning} · ${warn2}` : warn2;
+            break;
+          }
+        }
       }
-    }
-    if (!refValidated2) {
-      refWarning2 = `Référence 2 "${matchRef2}" non trouvée en base (${client2})`;
-      logger.warn(`⚠️ ${refWarning2} — visuel2: ${visuel2}`);
-    } else {
+      if (!refValidated2) {
+        return res.status(400).json({
+          error: `Référence 2 "${matchRef2}" introuvable en base MongoDB (client ${client2}). Vérifiez que ce visuel est bien référencé.`,
+          code: "REF_NOT_FOUND",
+        });
+      }
       const formatFromRef2 = refValidated2.format?.toLowerCase();
       const formatFromFile2 = format2?.match(/\d{2,}x\d{2,}/i)?.[0]?.toLowerCase();
       if (formatFromRef2 && formatFromFile2 && formatFromRef2 !== formatFromFile2) {
-        const msg2 = `Format incohérent pour ref2 ${matchRef2} : fichier=${formatFromFile2}, base=${formatFromRef2}`;
+        const msg2 = `Format incohérent pour la ref 2 ${matchRef2} : sélectionné=${formatFromFile2}, base=${formatFromRef2}. Vérifiez le format du visuel.`;
         logger.warn(`⚠️ ${msg2}`);
-        refWarning2 = msg2;
+        return res.status(400).json({ error: msg2, code: "FORMAT_MISMATCH" });
       }
+    } catch (err) {
+      logger.error(`Erreur MongoDB validation ref2 "${matchRef2}" (${client2}) : ${err.message}`);
+      return res.status(500).json({ error: "Erreur lors de la vérification de la référence 2 en base.", code: "DB_ERROR" });
     }
   }
 
@@ -328,6 +371,8 @@ async function addJob(req, res) {
     data.stock ? data.stock : false,
     prodBlanc,
     client2,
+    refValidated || null,
+    refValidated2 || null,
   );
 
   const jobExist = state.jobs.jobs.find(
@@ -360,8 +405,8 @@ async function addJob(req, res) {
     message: "Commande ajoutée",
     object: result.object,
     stock: modelStock,
-    refWarning,
-    refWarning2,
+    refCrossClientWarning: refCrossClientWarning || null,
+    prodBlancCorrected,
   });
 }
 
@@ -401,6 +446,22 @@ async function runJobs(req, res) {
       );
       if (isCredences && job.visuPath2) {
         logger.info(`  + 2e panneau | ref2=${job.ref2} | visuel2=${job.visuel2} | visuPath2=${job.visuPath2}`);
+      }
+
+      // Re-vérification intégrité : fichier toujours présent et référence cohérente
+      if (job.refDbData && !job.teinteMasse) {
+        if (!fs.existsSync(path.resolve(job.visuPath))) {
+          logger.error(`❌ Job ${job.cmd} annulé : visuel introuvable sur le disque : ${job.visuPath}`);
+          broadcastWS({ type: "jobError", job, reason: "Visuel introuvable sur le disque" });
+          continue;
+        }
+        if (String(job.ref) !== String(job.refDbData.ref)) {
+          logger.error(
+            `❌ Job ${job.cmd} annulé : incohérence ref (job.ref=${job.ref} ≠ pinned=${job.refDbData.ref})`,
+          );
+          broadcastWS({ type: "jobError", job, reason: "Incohérence de référence" });
+          continue;
+        }
       }
 
       const fileName = `${job.cmd} - ${job.client} ${job.ville.toUpperCase()} - ${
@@ -598,6 +659,7 @@ async function runJobs(req, res) {
           : job.visuel2;
 
       const saveDeco = async ({ cmd, visuel, formatVisu, ref, temps }) => {
+        const safeRef = ref && String(ref) !== "0" ? ref : null;
         const data = {
           date: job.date,
           client: job.client,
@@ -605,12 +667,12 @@ async function runJobs(req, res) {
           mag: job.ville,
           dibond: job.format_Plaque,
           deco: visuel,
-          ref: ref || 0,
+          ref: safeRef,
           format: formatVisu?.split("_").pop().replace("/", ""),
           ex: parseInt(job.ex),
           temps,
           perte: job.perte ? parseFloat(job.perte) : 0,
-          status: "",
+          status: safeRef ? "" : "ref_invalide",
           app_version: `v${state.appVersion}`,
           ip: req.ip.split(":").pop() === "1" || req.hostname === "localhost" ? os.hostname() : req.ip.split(":").pop(),
           comment: isStock ? `Pris en stock le ${new Date().toLocaleString()}` : "",

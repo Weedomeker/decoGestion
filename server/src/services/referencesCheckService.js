@@ -1,18 +1,41 @@
 const path = require("path");
 const { isProfileLabel, isTeinteMasseModel } = require("../gamesys/utils/reference");
 
-// LM utilise deux formats de référence :
-//   - 8 chiffres (ex: "94953676") pour les anciens articles
-//   - alphanumérique avec tiret (ex: "AURALIN-100210", "U548-100210") pour les articles récents
-// \d* entre [A-Z]+ et - permet de capturer des refs comme "U548-100210" (lettre+chiffres+tiret+chiffres).
-// L'alternance essaie d'abord \d{8} pour ne pas capturer un fragment de format
-// (100210 = 6 chiffres seulement, donc pas de faux positif).
+// Formats de référence par client :
+//   LM    : 8 chiffres isolés (ex: "94953676") OU alphanumérique avec tiret (ex: "AURALIN-100210")
+//           (?<!\d) / (?!\d) empêchent d'extraire 8 chiffres au milieu d'un EAN-13 CASTO.
+//   CASTO : EAN-13 strictement 13 chiffres isolés — mêmes garde-fous que LM.
+//   BRICO / ECOM : lettres + tiret + chiffres SANS "x" (ex: "VELTIS-25560", "CALACA-100255").
+//           \d+ ne capture jamais "x", donc le format sans séparateur est garanti par construction.
 const REF_REGEX_BY_CLIENT = {
-  LM: /\d{8}|[A-Z]+\d*-\d+/,
-  CASTO: /\d{13}/,
+  LM: /(?<!\d)\d{8}(?!\d)|[A-Z]+\d*-\d+/,
+  CASTO: /(?<!\d)\d{13}(?!\d)/,
   BRICO: /[A-Z]+\d*-\d+/g,
   ECOM: /[A-Z]+\d*-\d+/g,
 };
+
+// Validation stricte du format de la référence extraite (patterns ancrés début/fin).
+// Empêche les faux positifs avant la requête MongoDB.
+const REF_FORMAT_BY_CLIENT = {
+  LM: /^(\d{8}|[A-Z]+\d*-\d{4,})$/,
+  CASTO: /^\d{13}$/,
+  BRICO: /^[A-Z]+\d*-\d{4,}$/,
+  ECOM: /^[A-Z]+\d*-\d{4,}$/,
+};
+
+// Messages d'aide affichés dans les erreurs 400 REF_FORMAT_INVALID.
+const REF_FORMAT_HINT = {
+  LM: "8 chiffres (ex: 94953676) ou alphanumérique sans 'x' (ex: AURALIN-100210)",
+  CASTO: "EAN-13 — exactement 13 chiffres (ex: 3664711694254)",
+  BRICO: "lettres + chiffres sans 'x' (ex: VELTIS-25560, CALACA-100255)",
+  ECOM: "lettres + chiffres sans 'x' (ex: HOKUSAID-100210)",
+};
+
+function validateRefFormat(ref, client) {
+  const regex = REF_FORMAT_BY_CLIENT[client];
+  if (!regex) return true;
+  return regex.test(ref);
+}
 
 function extractRefFromFilename(fileName, client) {
   const regex = REF_REGEX_BY_CLIENT[client] || REF_REGEX_BY_CLIENT.LM;
@@ -106,8 +129,11 @@ function checkAllClients(filesByClient, dbRefsByClient) {
 
 module.exports = {
   REF_REGEX_BY_CLIENT,
+  REF_FORMAT_BY_CLIENT,
+  REF_FORMAT_HINT,
   extractRefFromFilename,
   extractFormatFromFilename,
+  validateRefFormat,
   buildFileEntries,
   compareClientReferences,
   checkAllClients,

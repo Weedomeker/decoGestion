@@ -23,6 +23,8 @@ function createJob(
   stock,
   prodBlanc,
   client2,
+  refDbData,
+  refDbData2,
 ) {
   const date = new Date();
 
@@ -53,6 +55,8 @@ function createJob(
     teinteMasse: teinteMasse,
     useStock: stock,
     prodBlanc: !!prodBlanc,
+    refDbData: refDbData || null,
+    refDbData2: refDbData2 || null,
   };
 
   return newJob;

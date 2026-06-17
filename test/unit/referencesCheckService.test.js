@@ -2,6 +2,7 @@ const { expect } = require("chai");
 const {
   extractRefFromFilename,
   extractFormatFromFilename,
+  validateRefFormat,
   compareClientReferences,
 } = require("../../server/src/services/referencesCheckService");
 
@@ -24,6 +25,45 @@ describe("referencesCheckService", () => {
       expect(extractRefFromFilename("VISUEL SANS REFERENCE.pdf", "LM")).to.be.null;
       expect(extractRefFromFilename("VISUEL SANS REFERENCE.pdf", "BRICO")).to.be.null;
     });
+
+    it("LM : n'extrait pas 8 chiffres depuis un EAN-13 CASTO (faux positif)", () => {
+      expect(extractRefFromFilename("CRED 300x60cm MOSAIQUE 3664711694254 MAT.pdf", "LM")).to.be.null;
+    });
+
+    it("CASTO : n'extrait pas l'EAN-13 depuis une ref LM 8 chiffres (impossible)", () => {
+      expect(extractRefFromFilename("ACIER 100x255 94963978 MAT.pdf", "CASTO")).to.be.null;
+    });
+
+    it("LM alphanumérique : extrait AURALIN-100210", () => {
+      expect(extractRefFromFilename("AURALIN NATUREL MAT 100x210 AURALIN-100210.pdf", "LM")).to.equal("AURALIN-100210");
+    });
+
+    it("BRICO/ECOM : pas de 'x' dans la partie numérique de la ref", () => {
+      // VELTIS-25560 (pas VELTIS-255x60)
+      expect(extractRefFromFilename("VELTIS BRILLANT 255x60 VELTIS-25560.pdf", "BRICO")).to.equal("VELTIS-25560");
+      expect(extractRefFromFilename("ALOHA 100x210 ALOHAD-100210 MAT.pdf", "ECOM")).to.equal("ALOHAD-100210");
+    });
+  });
+
+  describe("validateRefFormat()", () => {
+    it("LM 8 chiffres : valide", () => expect(validateRefFormat("94963978", "LM")).to.be.true);
+    it("LM alphanumérique : valide", () => expect(validateRefFormat("AURALIN-100210", "LM")).to.be.true);
+    it("LM avec chiffres dans le préfixe : valide", () => expect(validateRefFormat("U548-100210", "LM")).to.be.true);
+    it("LM 7 chiffres : invalide", () => expect(validateRefFormat("9496397", "LM")).to.be.false);
+    it("LM 9 chiffres : invalide", () => expect(validateRefFormat("949639780", "LM")).to.be.false);
+    it("LM EAN-13 : invalide", () => expect(validateRefFormat("3664711694254", "LM")).to.be.false);
+
+    it("CASTO EAN-13 : valide", () => expect(validateRefFormat("3664711694254", "CASTO")).to.be.true);
+    it("CASTO 12 chiffres : invalide", () => expect(validateRefFormat("366471169425", "CASTO")).to.be.false);
+    it("CASTO 14 chiffres : invalide", () => expect(validateRefFormat("36647116942541", "CASTO")).to.be.false);
+
+    it("BRICO format correct sans 'x' : valide", () => expect(validateRefFormat("VELTIS-25560", "BRICO")).to.be.true);
+    it("BRICO format 6 chiffres : valide", () => expect(validateRefFormat("CALACA-100255", "BRICO")).to.be.true);
+    it("BRICO avec 'x' dans les chiffres : invalide", () => expect(validateRefFormat("VELTIS-255x60", "BRICO")).to.be.false);
+    it("BRICO trop peu de chiffres (<4) : invalide", () => expect(validateRefFormat("AB-25", "BRICO")).to.be.false);
+
+    it("ECOM format correct : valide", () => expect(validateRefFormat("HOKUSAID-100210", "ECOM")).to.be.true);
+    it("ECOM sans lettres : invalide", () => expect(validateRefFormat("100210", "ECOM")).to.be.false);
   });
 
   describe("extractFormatFromFilename()", () => {

@@ -19,7 +19,13 @@ const { isProfileLabel, isTeinteMasseModel } = require("../gamesys/utils/referen
  */
 function compareClientReferencesWithGamesys(dbRefs, stockMatches, client) {
   const notFoundInGamesys = [];
-  const eligible = dbRefs.filter((doc) => !isProfileLabel(doc.model) && !isTeinteMasseModel(doc.model));
+  const isTeinteMasseFinition = (f) => typeof f === "string" && f.toLowerCase().includes("teinte masse");
+  const eligible = dbRefs.filter(
+    (doc) =>
+      !isProfileLabel(doc.model) &&
+      !isTeinteMasseModel(doc.model) &&
+      !isTeinteMasseFinition(doc.finition),
+  );
 
   for (const dbRef of eligible) {
     const ref = String(dbRef.ref || "").trim();

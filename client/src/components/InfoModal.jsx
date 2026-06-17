@@ -3,7 +3,7 @@ const PORT = import.meta.env.VITE_PORT;
 import PropTypes from "prop-types";
 import { useEffect, useState } from "react";
 import { Button, Input, Message, Modal } from "semantic-ui-react";
-const InfoModal = ({ open, onClose, message, object, error }) => {
+const InfoModal = ({ open, onClose, message, object, error, warning }) => {
   const [data, setData] = useState(object);
   const [saveError, setSaveError] = useState(null);
   const visuelName =
@@ -53,17 +53,25 @@ const InfoModal = ({ open, onClose, message, object, error }) => {
             <p>{error}</p>
           </Message>
         ) : (
-          <Message positive>
-            <Message.Header>{message}</Message.Header>
-            {object && (
-              <pre>
-                {`Cmd: ${object.cmd} | ${object.ville} | Réf: ${object.ref || "—"}\nVisuel: ${visuelName}\nFormat: ${object.format_visu} → ${object.format_Plaque?.split("_")?.pop()} | ${object.ex} ex`}
-                {object.visuel2
-                  ? `\n\n2e panneau :\nCmd: ${object.cmd2 || object.cmd} | Réf: ${object.ref2 || "—"}\nVisuel: ${visuel2Name}`
-                  : ""}
-              </pre>
+          <>
+            <Message positive>
+              <Message.Header>{message}</Message.Header>
+              {object && (
+                <pre>
+                  {`Cmd: ${object.cmd} | ${object.ville} | Réf: ${object.ref || "—"}\nVisuel: ${visuelName}\nFormat: ${object.format_visu} → ${object.format_Plaque?.split("_")?.pop()} | ${object.ex} ex`}
+                  {object.visuel2
+                    ? `\n\n2e panneau :\nCmd: ${object.cmd2 || object.cmd} | Réf: ${object.ref2 || "—"}\nVisuel: ${visuel2Name}`
+                    : ""}
+                </pre>
+              )}
+            </Message>
+            {warning && (
+              <Message warning>
+                <Message.Header>Attention</Message.Header>
+                <p>{warning}</p>
+              </Message>
             )}
-          </Message>
+          </>
         )}
       </Modal.Content>
       {saveError && (
@@ -103,6 +111,7 @@ InfoModal.propTypes = {
   message: PropTypes.string.isRequired,
   object: PropTypes.object,
   error: PropTypes.string,
+  warning: PropTypes.string,
 };
 
 export default InfoModal;

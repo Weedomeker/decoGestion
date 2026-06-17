@@ -23,7 +23,10 @@ async function main() {
   let attempt = 0;
   while (attempt < MAX_RETRIES) {
     try {
-      await mongoose.connect(MONGO_URL);
+      await mongoose.connect(MONGO_URL, {
+        heartbeatFrequencyMS: 10000,
+        serverSelectionTimeoutMS: 30000,
+      });
       return;
     } catch (err) {
       attempt++;

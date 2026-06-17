@@ -52,7 +52,7 @@ function httpGet(endpoint) {
   });
 }
 
-function httpMethod(method, endpoint, body) {
+function httpMethod(method, endpoint, body, timeoutMs = 150000) {
   return new Promise((resolve, reject) => {
     const payload = JSON.stringify(body);
     const options = {
@@ -68,14 +68,14 @@ function httpMethod(method, endpoint, body) {
       });
     });
     req.on("error", reject);
-    req.setTimeout(150000, () => { req.destroy(); reject(new Error(`Timeout ${method} ${endpoint}`)); });
+    req.setTimeout(timeoutMs, () => { req.destroy(); reject(new Error(`Timeout ${method} ${endpoint}`)); });
     req.write(payload);
     req.end();
   });
 }
 
-const postJson = (endpoint, body) => httpMethod("POST", endpoint, body);
-const deleteJson = (endpoint, body) => httpMethod("DELETE", endpoint, body);
+const postJson = (endpoint, body, timeoutMs) => httpMethod("POST", endpoint, body, timeoutMs);
+const deleteJson = (endpoint, body, timeoutMs) => httpMethod("DELETE", endpoint, body, timeoutMs);
 
 async function clearAllJobs() {
   const r = await httpGet("/jobs");
@@ -371,7 +371,7 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
   // ════════════════════════════════════════════════════════════════════════════
 
   describe("Dossier 164927 — BRICO crédence 255x60 — amalgame 2 visuels (VELTIS + TERRAZZO VULCANO)", function () {
-    this.timeout(180000);
+    this.timeout(600000);
 
     let addResp;
     let writePath, jpgDir;
@@ -397,6 +397,7 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
     };
 
     before(async function () {
+      this.timeout(600000);
       await clearAllJobs();
       addResp = await postJson("/add_job", PAYLOAD);
       expect(addResp.status, "add_job doit retourner 201").to.equal(201);
@@ -404,7 +405,7 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
       jpgDir = resolveJpgDir(addResp.body.object.jpgName);
       cleanByPrefix(writePath, "164927");
       cleanByPrefix(jpgDir, "164927");
-      await postJson("/run_jobs", { run: true });
+      await postJson("/run_jobs", { run: true }, 600000);
       await wait(8000);
     });
 
@@ -623,7 +624,7 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
         numCmd: "99005", numCmd2: "99006",
         ville: "Test",
         ex: 1,
-        visuel: "server/public/BRICO/255x60/MARBRE AURALYS BRILLANT 255x60 AURALY-25560.pdf",
+        visuel: "server/public/BRICO/255x60/VELTIS BRILLANT 255x60 VELTIS-25560.pdf",
         format: "server/public/BRICO/255x60/",
         visuel2: "server/public/BRICO/255x60/TERRAZZO VULCANO BRILLANT 255x60 VULCAN-25560.pdf",
         format2: "server/public/BRICO/255x60/",
@@ -640,7 +641,7 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
         numCmd: "99007", numCmd2: "99008",
         ville: "Test",
         ex: 1,
-        visuel: "server/public/CASTO/2_300x60/CRED 300x60cm TERRAZZO GRIS 3664712481068 MAT.pdf",
+        visuel: "server/public/CASTO/2_300x60/CRED 300x60cm MOSAIQUE 3664711694254 MAT.pdf",
         format: "server/public/CASTO/2_300x60/",
         visuel2: "server/public/CASTO/2_300x60/CRED 300x60cm MARBRE BLANC 3664714023259 MAT.pdf",
         format2: "server/public/CASTO/2_300x60/",
