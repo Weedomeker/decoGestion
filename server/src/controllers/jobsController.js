@@ -234,6 +234,7 @@ async function addJob(req, res) {
   }
 
   let matchRef = data.teinteMasse ? findRefTeinteMasse?.[0]?.ref : visuel.match(/\d{13}/)?.[0];
+  if (client === "LM" && !matchRef) matchRef = visuel.match(/\b\d{8}\b/)?.[0];
   if (client === "BRICO" || client === "ECOM") matchRef = visuel.match(/[A-Z]+\d*-\d+/g)?.[0];
 
   let matchRef2 = visuel2.match(/\d{13}/)?.[0];
@@ -489,40 +490,47 @@ async function runJobs(req, res) {
           }
         }
 
-        try {
-          const startJpg = performance.now();
-          if (job.ref) {
-            if (isCredences && job.visuPath2) {
-              await usePdfWorker({
-                pdf: path.join(
-                  job.writePath,
-                  `${castoName(pdfName.split("/").pop())} + ${castoName(pdfName2.split("/").pop())}.pdf`,
-                ),
-                jpg: path.join(
-                  `${state.paths.jpgPath}/${state.paths.sessionPRINTSA}/${castoName(
-                    jpgName.split("/").pop(),
-                  )} + ${castoName(jpgName2.split("/").pop())}.jpg`,
-                ),
-              });
-            } else {
-              getPreview(job.ref, jpgName, isStock);
-            }
-          } else {
-            await usePdfWorker({ pdf: `${pdfName}.pdf`, jpg: `${jpgName}.jpg` });
-          }
-          const endJpg = performance.now();
-          state.process.jpgTime = endJpg - startJpg;
-        } catch (error) {
-          logger.error(`Error generating JPG for job ${job.cmd}:`, error);
-        }
-
-        // Vérification que le JPG de sortie existe et n'est pas vide
         const outJpgPath =
           isCredences && job.visuPath2
             ? path.join(
                 `${state.paths.jpgPath}/${state.paths.sessionPRINTSA}/${castoName(jpgName.split("/").pop())} + ${castoName(jpgName2.split("/").pop())}.jpg`,
               )
             : `${jpgName}.jpg`;
+
+        const jpgDejaPresent = fs.existsSync(outJpgPath) && fs.statSync(outJpgPath).size > 0;
+
+        if (jpgDejaPresent) {
+          logger.info(`✅ JPG déjà présent, génération ignorée : ${path.basename(outJpgPath)}`);
+        } else {
+          try {
+            const startJpg = performance.now();
+            if (job.ref) {
+              if (isCredences && job.visuPath2) {
+                await usePdfWorker({
+                  pdf: path.join(
+                    job.writePath,
+                    `${castoName(pdfName.split("/").pop())} + ${castoName(pdfName2.split("/").pop())}.pdf`,
+                  ),
+                  jpg: outJpgPath,
+                });
+              } else {
+                await getPreview(job.ref, jpgName, isStock);
+              }
+            } else {
+              const visuelNoExt = job.visuel?.replace(/\.[^.]+$/, "") || "";
+              const previewFound = visuelNoExt ? await getPreview(visuelNoExt, jpgName, isStock) : false;
+              if (!previewFound) {
+                await usePdfWorker({ pdf: `${pdfName}.pdf`, jpg: outJpgPath });
+              }
+            }
+            const endJpg = performance.now();
+            state.process.jpgTime = endJpg - startJpg;
+          } catch (error) {
+            logger.error(`Error generating JPG for job ${job.cmd}:`, error);
+          }
+        }
+
+        // Vérification que le JPG de sortie existe et n'est pas vide
         try {
           if (!fs.existsSync(outJpgPath) || fs.statSync(outJpgPath).size === 0) {
             logger.error(`❌ JPG de sortie manquant ou vide pour le job ${job.cmd} : ${outJpgPath}`);

@@ -1,11 +1,14 @@
 const path = require("path");
 const { isProfileLabel, isTeinteMasseModel } = require("../gamesys/utils/reference");
 
-// LM utilise des références à 8 chiffres en base (ex: "94953676"), distinctes des
-// EAN-13 de CASTO — contrairement à jobsController.js (matchRef) qui réutilise par
-// défaut /\d{13}/ pour les deux et ne matche donc jamais les vraies refs LM.
+// LM utilise deux formats de référence :
+//   - 8 chiffres (ex: "94953676") pour les anciens articles
+//   - alphanumérique avec tiret (ex: "AURALIN-100210", "U548-100210") pour les articles récents
+// \d* entre [A-Z]+ et - permet de capturer des refs comme "U548-100210" (lettre+chiffres+tiret+chiffres).
+// L'alternance essaie d'abord \d{8} pour ne pas capturer un fragment de format
+// (100210 = 6 chiffres seulement, donc pas de faux positif).
 const REF_REGEX_BY_CLIENT = {
-  LM: /\d{8}/,
+  LM: /\d{8}|[A-Z]+\d*-\d+/,
   CASTO: /\d{13}/,
   BRICO: /[A-Z]+\d*-\d+/g,
   ECOM: /[A-Z]+\d*-\d+/g,

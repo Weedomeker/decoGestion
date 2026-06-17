@@ -129,61 +129,16 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
   const ref2 = null;
   const name2 = null;
 
-  // Filtrage des fichiers image qui contiennent la référence
+  const refStr = ref && ref !== 0 ? String(ref) : null;
+  const visuelNoExt = visuel ? visuel.replace(/\.[^.]+$/, "") : "";
+
   const images = files.filter(
     (file) =>
-      file.toLowerCase().endsWith(".jpg") && (file.includes(ref) || file.toLowerCase().includes(visuel.toLowerCase())),
+      file.toLowerCase().endsWith(".jpg") &&
+      ((refStr && file.includes(refStr)) || (visuelNoExt && file.toLowerCase().includes(visuelNoExt.toLowerCase()))),
   );
 
-  const imagesTeinteMasse = files.filter(
-    (file) => file.toLowerCase().endsWith(".jpg") && file.toLowerCase().includes(visuel.toLowerCase()),
-  );
-
-  let infoCommande = [];
   const match = (useSecond ? cmd.visuel2 : cmd.visuel)?.match(/(gauche|droit|centre)/i);
-
-  if (showDataCmd) {
-    if (cmd) {
-      const castoNameVisuel = [];
-      if (isCasto) {
-        //CRED 255x60cm BETON CLAIR 3664711962643 MAT.pdf
-
-        const origineCastoName = [cmd.visuel, cmd.visuel2];
-        //extraction nom visuel
-        const nameCasto = origineCastoName.map((name) =>
-          name
-            ?.replace(/\d{2,}x\d{2,}/i, "")
-            ?.replace("cm", "")
-            ?.replace("CRED", "")
-            ?.replace(/\d{13}/, "")
-            ?.replace("MAT.pdf", "")
-            ?.replace("BRILLANT.pdf", "")
-            .trim(),
-        );
-        castoNameVisuel.push(nameCasto[0], nameCasto[1]);
-      }
-      // Extraction des informations spécifiques pour chaque commande
-      infoCommande.push(
-        cmd.ville || "Ville inconnue",
-        isCasto || isBrico
-          ? castoNameVisuel[0]
-          : cmd.visuel
-              ?.split(/\d{2,}x\d{2,}/i)
-              .shift()
-              .trim() || "Visuel inconnu",
-        match ? match[0] : null,
-        cmd.ref?.toString() || "Réf inconnue",
-        cmd.format_visu?.split("_").pop().trim() || "Format inconnu",
-      );
-      isCasto || isBrico
-        ? infoCommande.push(
-            castoNameVisuel[1] || "Visuel inconnu",
-            cmd.ref2?.toString() || "Réf inconnue",
-            cmd.format2_visu?.split("_").pop().trim() || "Format inconnu",
-          )
-        : null;
-    }
-  }
 
   try {
     // Lire le modèle de PDF
@@ -278,6 +233,7 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
 
       // Sélection correcte de l'image preview
       const miniaturePreview = images[0] || "";
+      logger.info(`[sticker] V${cmd.visuelIndex} ref=${ref} → preview: ${miniaturePreview || "(aucun)"}`);
 
       // Ajustement de la taille du texte
       let fontSize = 10;
@@ -484,13 +440,9 @@ function extractCommandId(fileName) {
 }
 
 function extractVernis(cmd) {
-  //regex pour match Brillant ou Mat
-  const regexBrillant = /brillant/i;
-  const regexMat = /mat/i;
-  const matchBrillant = regexBrillant.test(cmd.visuel);
-  const matchMat = regexMat.test(cmd.visuel);
-  if (matchBrillant) return true;
-  if (matchMat) return false;
+  const visuelToCheck = cmd.visuelIndex === 2 ? cmd.visuel2 : cmd.visuel;
+  if (/brillant/i.test(visuelToCheck)) return true;
+  if (/mat/i.test(visuelToCheck)) return false;
 }
 
 module.exports = { generateStickers, createStickersPage };
