@@ -327,6 +327,19 @@ async function main() {
   let fixPlan = null;
   if (opts.dryRun) {
     fixPlan = await applyFixes(classifiedByClient, true);
+  } else if (opts.fix) {
+    const totalMissing = Object.values(classifiedByClient).reduce((n, c) => n + c.notInGamesys.length, 0);
+    if (totalMissing === 0) {
+      console.log("Aucun fichier à corriger.");
+    } else {
+      console.log(`\n${totalMissing} fichier(s) absent(s) de Gamesys seront traités.`);
+      const ok = await confirm("Lancer la recherche et le renommage ? (o/N) : ");
+      if (ok) {
+        fixPlan = await applyFixes(classifiedByClient, false);
+      } else {
+        console.log("Annulé.");
+      }
+    }
   }
 
   const md = generateMarkdownReport(classifiedByClient, fixPlan, opts);
