@@ -1,4 +1,5 @@
 const path = require("path");
+const { isProfileLabel, isTeinteMasseModel } = require("../gamesys/utils/reference");
 
 // LM utilise des références à 8 chiffres en base (ex: "94953676"), distinctes des
 // EAN-13 de CASTO — contrairement à jobsController.js (matchRef) qui réutilise par
@@ -6,8 +7,8 @@ const path = require("path");
 const REF_REGEX_BY_CLIENT = {
   LM: /\d{8}/,
   CASTO: /\d{13}/,
-  BRICO: /[A-Z]+-\d+/g,
-  ECOM: /[A-Z]+-\d+/g,
+  BRICO: /[A-Z]+\d*-\d+/g,
+  ECOM: /[A-Z]+\d*-\d+/g,
 };
 
 function extractRefFromFilename(fileName, client) {
@@ -73,6 +74,7 @@ function compareClientReferences(fileEntries, dbRefs, client) {
 
   const missingFiles = dbRefs
     .filter((doc) => !fileRefsCovered.has(String(doc.ref)))
+    .filter((doc) => !isProfileLabel(doc.model) && !isTeinteMasseModel(doc.model))
     .map((doc) => ({ ref: doc.ref, model: doc.model, format: doc.format, client }));
 
   return {
@@ -100,6 +102,7 @@ function checkAllClients(filesByClient, dbRefsByClient) {
 }
 
 module.exports = {
+  REF_REGEX_BY_CLIENT,
   extractRefFromFilename,
   extractFormatFromFilename,
   buildFileEntries,
