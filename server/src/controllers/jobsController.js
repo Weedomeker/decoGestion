@@ -78,7 +78,7 @@ async function addJob(req, res) {
     visuel2: req.body.visuel2,
     numCmd: req.body.numCmd ? req.body.numCmd : 0,
     numCmd2: req.body.numCmd2 ? req.body.numCmd2 : 0,
-    ville: req.body.ville != null ? req.body.ville?.toUpperCase() : "",
+    ville: typeof req.body.ville === "string" ? req.body.ville.toUpperCase() : "",
     ex: req.body.ex !== null ? req.body.ex : "",
     perte: req.body.perte,
     regmarks: req.body.regmarks,
@@ -92,7 +92,7 @@ async function addJob(req, res) {
 
   let client = data.client.toUpperCase();
   const client2 = (req.body.client2 || data.client)?.toUpperCase();
-  let visuel = data.visuel.split("/").pop();
+  let visuel = data.visuel?.split("/").pop() || "";
   let visuel2 = data.visuel2?.split("/").pop() || "";
 
   if (client === "LM") {
@@ -111,8 +111,7 @@ async function addJob(req, res) {
 
   const visuPath = data.visuel;
   let visuPath2 = data.visuel2;
-  let formatTauro = data.formatTauro;
-  formatTauro = formatTauro.split("_")?.pop();
+  let formatTauro = data.formatTauro?.split("_")?.pop() || "";
   let prodBlanc = data.prodBlanc;
   const format = data.format;
   let format2 = data.format2;
@@ -684,7 +683,7 @@ async function runJobs(req, res) {
       };
 
       try {
-        const totalTime = parseFloat(((state.process.jpgTime + state.process.pdfTime) / 1000).toFixed(2)) || 0;
+        const totalTime = parseFloat((((state.process.jpgTime ?? 0) + (state.process.pdfTime ?? 0)) / 1000).toFixed(2)) || 0;
         await saveDeco({
           cmd: job.cmd || 0,
           visuel: deco,
