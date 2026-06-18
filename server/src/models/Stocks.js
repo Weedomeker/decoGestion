@@ -19,6 +19,8 @@ stocksSchema.post("findOneAndUpdate", async function (doc) {
   }
 });
 
+stocksSchema.index({ ref: 1 });
+
 const Stocks = mongoose.model("stocks", stocksSchema);
 
 module.exports = Stocks;

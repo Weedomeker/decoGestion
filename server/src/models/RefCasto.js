@@ -10,6 +10,8 @@ const refCastoSchema = new mongoose.Schema(
   { collection: "casto_ref_deco" },
 ); // préciser le nom exact de la collection Mongo
 
+refCastoSchema.index({ model: "text", finition: "text" });
+
 const RefCasto = mongoose.model("RefCasto", refCastoSchema);
 
 module.exports = RefCasto;

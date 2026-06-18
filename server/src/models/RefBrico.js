@@ -10,6 +10,8 @@ const refBricoSchema = new mongoose.Schema(
   { collection: "brico_ref_deco" },
 ); // préciser le nom exact de la collection Mongo
 
+refBricoSchema.index({ model: "text", finition: "text" });
+
 const RefBrico = mongoose.model("RefBrico", refBricoSchema);
 
 module.exports = RefBrico;

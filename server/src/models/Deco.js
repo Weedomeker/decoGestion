@@ -27,6 +27,7 @@ const decoSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 decoSchema.index({ numCmd: 1, client: 1 });
+decoSchema.index({ date: -1 });
 
 const clientRefOrder = {
   LM: [RefDeco, RefCasto, RefBrico, RefEcom],
