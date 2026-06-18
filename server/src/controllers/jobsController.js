@@ -34,8 +34,10 @@ function findFirstRef(models, ref) {
     if (remaining === 0) return resolve({ doc: null, index: -1 });
     let settled = false;
     models.forEach((model, index) => {
+      const refNum = Number(ref);
+      const refQuery = !isNaN(refNum) ? { $in: [String(ref), refNum] } : String(ref);
       model
-        .findOne({ ref: String(ref) })
+        .findOne({ ref: refQuery })
         .lean()
         .then((doc) => {
           remaining--;
