@@ -180,7 +180,7 @@ async function checkReferences(req, res) {
       } catch (error) {
         logger.error(`checkReferences gamesys (${client}): ${error.message}`);
         report[client].gamesys = {
-          unavailable: false,
+          unavailable: true,
           error: "Erreur lors de la vérification Gamesys",
           notFoundInGamesys: [],
           stats: null,
