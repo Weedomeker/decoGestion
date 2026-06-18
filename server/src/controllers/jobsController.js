@@ -270,16 +270,14 @@ async function addJob(req, res) {
 
   if (matchRef && RefModelClient) {
     try {
-      refValidated = await RefModelClient.findOne({ ref: String(matchRef) }).lean();
-      if (!refValidated) {
-        for (const m of otherRefModels.filter((m) => m !== RefModelClient)) {
-          refValidated = await m.findOne({ ref: String(matchRef) }).lean();
-          if (refValidated) {
-            refCrossClientWarning = `Référence "${matchRef}" trouvée dans un autre client (${client}). Vérifiez la cohérence.`;
-            logger.warn(`⚠️ ${refCrossClientWarning}`);
-            break;
-          }
-        }
+      const allModels = [RefModelClient, ...otherRefModels.filter((m) => m !== RefModelClient)];
+      const results = await Promise.all(allModels.map((m) => m.findOne({ ref: String(matchRef) }).lean()));
+      refValidated = results.find(Boolean) || null;
+
+      // Vérifier si la référence provient d'un autre client
+      if (refValidated && results.indexOf(refValidated) > 0) {
+        refCrossClientWarning = `Référence "${matchRef}" trouvée dans un autre client (${client}). Vérifiez la cohérence.`;
+        logger.warn(`⚠️ ${refCrossClientWarning}`);
       }
       if (!refValidated) {
         return res.status(400).json({
