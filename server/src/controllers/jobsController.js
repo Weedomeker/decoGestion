@@ -167,8 +167,8 @@ async function addJob(req, res) {
   }
 
   state.process.writePath = prodBlanc
-    ? path.join(state.paths.saveFolder + "/Prod avec BLANC")
-    : path.join(state.paths.saveFolder + "/Deco_Std_" + formatTauro);
+    ? path.join(state.paths.saveFolder, "Prod avec BLANC")
+    : path.join(state.paths.saveFolder, `Deco_Std_${formatTauro}`);
 
   let prefixClient = "";
   if (client === null) {
@@ -299,7 +299,7 @@ async function addJob(req, res) {
         logger.warn(`⚠️ RefEcom ${matchRef} marquée blanc=true en base mais prodBlanc=false — correction automatique`);
         prodBlanc = true;
         prodBlancCorrected = true;
-        state.process.writePath = path.join(state.paths.saveFolder + "/Prod avec BLANC");
+        state.process.writePath = path.join(state.paths.saveFolder, "Prod avec BLANC");
         if (!fs.existsSync(state.process.writePath)) {
           fs.mkdirSync(state.process.writePath, { recursive: true });
         }
