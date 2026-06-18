@@ -27,21 +27,6 @@ const getFiles = (dir, files = [], directories = []) => {
   return { directories, files };
 };
 
-// async function getFormat(file) {
-//   const format = [];
-//   try {
-//     const readPdf = await fs.promises.readFile(file);
-//     const pdfDoc = await PDFDocument.load(readPdf);
-//     const pages = pdfDoc.getPages();
-//     const firstPage = pages[0];
-//     const { width, height } = firstPage.getSize();
-//     format.push(parseInt(pointsToCm(width).toFixed(0)), parseInt(pointsToCm(height).toFixed(0)));
-//   } catch (error) {
-//     console.log(error);
-//   }
-//   return format;
-// }
-
 function bytesToSize(bytes) {
   const sizes = ["Octets", "Ko", "Mo", "Go", "To"];
   if (bytes === 0) return "n/a";

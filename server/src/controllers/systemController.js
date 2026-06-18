@@ -25,7 +25,7 @@ async function getProcess(req, res) {
 }
 
 async function getPublic(req, res) {
-  res.status(200).send();
+  res.status(501).json({ error: "Non implémenté" });
 }
 
 async function getPath(req, res) {
@@ -42,7 +42,7 @@ function getFormatsTauroHandler(req, res) {
 }
 
 function getQrCode(req, res) {
-  res.status(200).send();
+  res.status(501).json({ error: "Non implémenté" });
 }
 
 module.exports = {
