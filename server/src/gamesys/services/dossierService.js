@@ -392,7 +392,7 @@ function buildGroupedResponse(details, view) {
   if (view === "raw") return details;
 
   const sortedDetails = [...details].sort((a, b) =>
-    getSubDossierNumber(a).localeCompare(getSubDossierNumber(b), "fr", { numeric: true })
+    getSubDossierNumber(b).localeCompare(getSubDossierNumber(a), "fr", { numeric: true })
   );
   const first = sortedDetails[0] || {};
   const rootNumber = getDossierRootNumber(first);
