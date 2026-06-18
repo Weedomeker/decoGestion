@@ -10,8 +10,8 @@ const { isProfileLabel, isTeinteMasseModel } = require("../gamesys/utils/referen
 const REF_REGEX_BY_CLIENT = {
   LM: /(?<!\d)\d{8}(?!\d)|[A-Z]+\d*-\d+/,
   CASTO: /(?<!\d)\d{13}(?!\d)/,
-  BRICO: /[A-Z]+\d*-\d+/g,
-  ECOM: /[A-Z]+\d*-\d+/g,
+  BRICO: /[A-Z]+\d*-\d+/,
+  ECOM: /[A-Z]+\d*-\d+/,
 };
 
 // Validation stricte du format de la référence extraite (patterns ancrés début/fin).
