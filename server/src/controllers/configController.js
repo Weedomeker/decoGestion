@@ -17,9 +17,6 @@ function getConfigHandler(req, res) {
     if (config === null) {
       return res.status(404).json({ error: "Fichier de configuration introuvable" });
     }
-    if (config === undefined) {
-      return res.status(404).json({ error: "Fichier de configuration invalide" });
-    }
     return res.json(config);
   } catch (error) {
     logger.error(`getConfig: ${error.message}`);

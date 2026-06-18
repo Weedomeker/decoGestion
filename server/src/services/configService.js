@@ -45,7 +45,7 @@ function getConfig() {
   if (!fs.existsSync(configPath)) return null;
   try {
     const readFile = fs.readFileSync(configPath, "utf8");
-    if (!readFile.trim()) return undefined;
+    if (!readFile.trim()) return null;
     return JSON.parse(readFile);
   } catch (error) {
     logger.error(`Impossible de lire config.json : ${error.message}`);
