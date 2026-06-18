@@ -6,6 +6,7 @@ const { expect } = require("chai");
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const Deco = require("../../server/src/models/Deco");
 
 const HOST = "127.0.0.1";
 const PORT = 8000;
@@ -133,6 +134,7 @@ describe("Exécution complète des jobs — tous clients (intégration live)", f
     after(async function () {
       await clearAllJobs();
       cleanFiles([jpgPath]);
+      await Deco.deleteMany({ numCmd: 165130 });
     });
 
     it("add_job retourne 201", () => expect(addResp.status).to.equal(201));
@@ -194,6 +196,7 @@ describe("Exécution complète des jobs — tous clients (intégration live)", f
     after(async function () {
       await clearAllJobs();
       cleanFiles([jpgPath, pdfPath]);
+      await Deco.deleteMany({ numCmd: 101921 });
     });
 
     it("add_job retourne 201", () => expect(addResp.status).to.equal(201));
@@ -253,6 +256,7 @@ describe("Exécution complète des jobs — tous clients (intégration live)", f
     after(async function () {
       await clearAllJobs();
       cleanFiles([jpgPath]);
+      await Deco.deleteMany({ numCmd: 165673 });
     });
 
     it("add_job retourne 201", () => expect(addResp.status).to.equal(201));
@@ -313,6 +317,7 @@ describe("Exécution complète des jobs — tous clients (intégration live)", f
     after(async function () {
       await clearAllJobs();
       cleanFiles([jpgPath, pdfPath]);
+      await Deco.deleteMany({ numCmd: 164771 });
     });
 
     it("add_job retourne 201", () => expect(addResp.status).to.equal(201));
@@ -421,6 +426,7 @@ describe("Exécution complète des jobs — tous clients (intégration live)", f
     after(async function () {
       await clearAllJobs();
       cleanFiles([jpgPath, pdfPath]);
+      await Deco.deleteMany({ numCmd: 165520 });
     });
 
     it("add_job retourne 201", () => expect(addResp.status).to.equal(201));

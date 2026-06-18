@@ -13,6 +13,7 @@ const { expect } = require("chai");
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const Deco = require("../../server/src/models/Deco");
 
 // Chargement optionnel : requiert odbc (pilote natif), absent sur certaines machines
 let normalizeDossierApiPayload;
@@ -299,6 +300,7 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
       await clearAllJobs();
       cleanByPrefix(writePath, "165675");
       cleanByPrefix(jpgDir, "165675");
+      await Deco.deleteMany({ numCmd: 165675 });
     });
 
     it("add_job retourne 201", () => expect(addResp.status).to.equal(201));
@@ -413,6 +415,7 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
       await clearAllJobs();
       cleanByPrefix(writePath, "164927");
       cleanByPrefix(jpgDir, "164927");
+      await Deco.deleteMany({ numCmd: 164927 });
     });
 
     it("add_job retourne 201", () => expect(addResp.status).to.equal(201));
@@ -526,6 +529,7 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
       await clearAllJobs();
       cleanByPrefix(writePath, "165675");
       cleanByPrefix(jpgDir, "165675");
+      await Deco.deleteMany({ numCmd: 165675 });
     });
 
     it("add_job retourne 201 (duplication auto, pas de rejet)", () => expect(addResp.status).to.equal(201));
