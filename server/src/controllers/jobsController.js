@@ -24,6 +24,34 @@ const usePdfWorker = require("../utils/pdfWorker");
 const { castoName } = require("../utils/jobNames");
 const { extractRefFromFilename, validateRefFormat, REF_FORMAT_HINT } = require("../services/referencesCheckService");
 
+// Résout sur le premier modèle qui retourne un document non-null, avec son index.
+// Court-circuite dès le premier résultat trouvé plutôt que d'attendre tous les modèles.
+function findFirstRef(models, ref) {
+  return new Promise((resolve) => {
+    let remaining = models.length;
+    if (remaining === 0) return resolve({ doc: null, index: -1 });
+    let settled = false;
+    models.forEach((model, index) => {
+      model
+        .findOne({ ref: String(ref) })
+        .lean()
+        .then((doc) => {
+          remaining--;
+          if (doc && !settled) {
+            settled = true;
+            resolve({ doc, index });
+          } else if (remaining === 0 && !settled) {
+            resolve({ doc: null, index: -1 });
+          }
+        })
+        .catch(() => {
+          remaining--;
+          if (remaining === 0 && !settled) resolve({ doc: null, index: -1 });
+        });
+    });
+  });
+}
+
 function getJobs(req, res) {
   res.json(state.jobs);
 }
@@ -271,13 +299,12 @@ async function addJob(req, res) {
   if (matchRef && RefModelClient) {
     try {
       const allModels = [RefModelClient, ...otherRefModels.filter((m) => m !== RefModelClient)];
-      const results = await Promise.all(allModels.map((m) => m.findOne({ ref: String(matchRef) }).lean()));
-      const resultIndex = results.findIndex(Boolean);
-      refValidated = resultIndex >= 0 ? results[resultIndex] : null;
+      const { doc, index: resultIndex } = await findFirstRef(allModels, matchRef);
+      refValidated = doc;
 
-      // Vérifier si la référence provient d'un autre client
+      // Vérifier si la référence provient d'une collection d'un autre client
       if (refValidated && resultIndex > 0) {
-        refCrossClientWarning = `Référence "${matchRef}" trouvée dans un autre client (${client}). Vérifiez la cohérence.`;
+        refCrossClientWarning = `Référence "${matchRef}" déclarée pour le client ${client} mais trouvée dans une autre collection. Vérifiez la cohérence.`;
         logger.warn(`⚠️ ${refCrossClientWarning}`);
       }
       if (!refValidated) {
@@ -314,12 +341,11 @@ async function addJob(req, res) {
   if (matchRef2 && RefModelClient2 && visuel2) {
     try {
       const allModels2 = [RefModelClient2, ...otherRefModels.filter((m) => m !== RefModelClient2)];
-      const results2 = await Promise.all(allModels2.map((m) => m.findOne({ ref: String(matchRef2) }).lean()));
-      const resultIndex2 = results2.findIndex(Boolean);
-      refValidated2 = resultIndex2 >= 0 ? results2[resultIndex2] : null;
+      const { doc: doc2, index: resultIndex2 } = await findFirstRef(allModels2, matchRef2);
+      refValidated2 = doc2;
 
       if (refValidated2 && resultIndex2 > 0) {
-        const warn2 = `Référence 2 "${matchRef2}" trouvée dans un autre client (${client2}). Vérifiez la cohérence.`;
+        const warn2 = `Référence 2 "${matchRef2}" déclarée pour le client ${client2} mais trouvée dans une autre collection. Vérifiez la cohérence.`;
         logger.warn(`⚠️ ${warn2}`);
         refCrossClientWarning = refCrossClientWarning ? `${refCrossClientWarning} · ${warn2}` : warn2;
       }

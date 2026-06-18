@@ -24,10 +24,6 @@ async function getProcess(req, res) {
   }
 }
 
-async function getPublic(req, res) {
-  res.status(501).json({ error: "Non implémenté" });
-}
-
 async function getPath(req, res) {
   try {
     res.json(await getDecoPaths());
@@ -41,14 +37,8 @@ function getFormatsTauroHandler(req, res) {
   res.json(getFormatsTauro());
 }
 
-function getQrCode(req, res) {
-  res.status(501).json({ error: "Non implémenté" });
-}
-
 module.exports = {
   getProcess,
-  getPublic,
   getPath,
   getFormatsTauro: getFormatsTauroHandler,
-  getQrCode,
 };
