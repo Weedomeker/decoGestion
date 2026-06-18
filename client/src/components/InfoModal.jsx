@@ -1,6 +1,5 @@
-const HOST = import.meta.env.VITE_HOST;
-const PORT = import.meta.env.VITE_PORT;
 import PropTypes from "prop-types";
+import { API_BASE } from "../utils/api";
 import { useEffect, useState } from "react";
 import { Button, Input, Message, Modal } from "semantic-ui-react";
 const InfoModal = ({ open, onClose, message, object, error, warning }) => {
@@ -26,7 +25,7 @@ const InfoModal = ({ open, onClose, message, object, error, warning }) => {
   const updateJob = async () => {
     setSaveError(null);
     try {
-      const response = await fetch(`http://${HOST}:${PORT}/edit_job`, {
+      const response = await fetch(`${API_BASE}/edit_job`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),

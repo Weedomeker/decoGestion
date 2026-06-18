@@ -1,9 +1,7 @@
 import PropTypes from "prop-types";
 import { useEffect, useState } from "react";
 import { Image } from "semantic-ui-react";
-
-const HOST = import.meta.env.VITE_HOST;
-const PORT = import.meta.env.VITE_PORT;
+import { API_BASE } from "../utils/api";
 
 function extractReference(filename) {
   const match = filename.match(/\b\d{7,}\b/) || filename.match(/[A-Z]+-\d+/i);
@@ -21,7 +19,7 @@ function PreviewDeco({ fileSelected, show }) {
   const [imageUrl, setImageUrl] = useState(null);
 
   useEffect(() => {
-    fetch(`http://${HOST}:${PORT}/path`)
+    fetch(`${API_BASE}/path`)
       .then((res) => res.json())
       .then((data) => {
         if (data[0].Preview) setPreviewList(data[0].Preview);
@@ -39,7 +37,7 @@ function PreviewDeco({ fileSelected, show }) {
       ? previewList.find((e) => e.name.includes(reference))
       : previewList.find((e) => e.name.replace(".jpg", "") === name);
 
-    setImageUrl(matched ? `http://${HOST}:${PORT}/${matched.path.split("\\").slice(1).join("/")}` : null);
+    setImageUrl(matched ? `${API_BASE}/${matched.path.split("\\").slice(1).join("/")}` : null);
   }, [fileSelected, previewList]);
 
   if (!fileSelected || !show || !imageUrl) {

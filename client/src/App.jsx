@@ -1,7 +1,6 @@
-const HOST = import.meta.env.VITE_HOST;
-const PORT = import.meta.env.VITE_PORT;
 const REGEX_BLANC = /\+\s*blanc\b/i;
 import { Fragment, useEffect, useState } from "react";
+import { API_BASE } from "./utils/api";
 import { Button, Checkbox, Dropdown, Form, Icon, Input, Label, Popup, Table } from "semantic-ui-react";
 import CheckFormats from "./CheckFormats";
 import Config from "./components/Config";
@@ -280,7 +279,7 @@ function App() {
 
   //Get Format Tauro
   useEffect(() => {
-    fetch(`http://${HOST}:${PORT}/formatsTauro`, {
+    fetch(`${API_BASE}/formatsTauro`, {
       method: "GET",
       headers: { Accept: "Application/json" },
     })
@@ -302,7 +301,7 @@ function App() {
 
   //Get App version
   useEffect(() => {
-    fetch(`http://${HOST}:${PORT}/process`, {
+    fetch(`${API_BASE}/process`, {
       method: "GET",
       headers: {
         Accept: "Application/json",
@@ -319,7 +318,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    fetch(`http://${HOST}:${PORT}/path`, {
+    fetch(`${API_BASE}/path`, {
       method: "GET",
       headers: {
         Accept: "Application/json",
@@ -372,7 +371,7 @@ function App() {
     setModalInfoStock((prev) => ({ ...prev, open: false }));
 
     try {
-      const response = await fetch(`http://${HOST}:${PORT}/edit_job`, {
+      const response = await fetch(`${API_BASE}/edit_job`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...jobToUpdate, useStock: true }),
@@ -458,7 +457,7 @@ function App() {
             teinteMasse: job.teinteMasse ?? false,
             stock: false,
           };
-          const response = await fetch(`http://${HOST}:${PORT}/add_job`, {
+          const response = await fetch(`${API_BASE}/add_job`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
@@ -545,7 +544,7 @@ function App() {
     };
 
     try {
-      const response = await fetch(`http://${HOST}:${PORT}/add_job`, {
+      const response = await fetch(`${API_BASE}/add_job`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),

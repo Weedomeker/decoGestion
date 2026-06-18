@@ -1,9 +1,7 @@
 import PropTypes from "prop-types";
 import { useEffect, useRef, useState } from "react";
 import { Divider, Popup } from "semantic-ui-react";
-
-const HOST = import.meta.env.VITE_HOST;
-const PORT = import.meta.env.VITE_PORT;
+import { API_BASE } from "../utils/api";
 
 const DOT_STATE = {
   ok:      { cls: "network-dot network-dot--ok" },
@@ -44,7 +42,7 @@ export default function ServerStatus({ onHealthChange }) {
   useEffect(() => {
     const check = async () => {
       try {
-        const res  = await fetch(`http://${HOST}:${PORT}/health`);
+        const res  = await fetch(`${API_BASE}/health`);
         const data = await res.json();
         setHealth(data);
         onHealthChangeRef.current?.(data);

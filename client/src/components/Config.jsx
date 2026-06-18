@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button, ButtonContent, Header, Icon, Input, Modal, ModalActions, ModalContent } from "semantic-ui-react";
-
-const HOST = import.meta.env.VITE_HOST;
-const PORT = import.meta.env.VITE_PORT;
+import { API_BASE } from "../utils/api";
 
 function Config() {
   const [open, setOpen] = useState(false);
@@ -12,7 +10,7 @@ function Config() {
   // Fonction pour charger les données initiales
   const fetchInitialData = async () => {
     try {
-      const response = await fetch(`http://${HOST}:${PORT}/config`, {
+      const response = await fetch(`${API_BASE}/config`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       });
@@ -40,7 +38,7 @@ function Config() {
   async function fetchDataAndCompare(newData) {
     setSaveError(null);
     try {
-      const response = await fetch(`http://${HOST}:${PORT}/config`, {
+      const response = await fetch(`${API_BASE}/config`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newData),

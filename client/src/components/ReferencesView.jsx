@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Checkbox, Confirm, Form, Icon, Image, Input, Modal, Table } from "semantic-ui-react";
 import "../css/ReferencesView.css";
+import { API_BASE } from "../utils/api";
 
-const HOST = import.meta.env.VITE_HOST;
-const PORT = import.meta.env.VITE_PORT;
-const BASE_URL = `http://${HOST}:${PORT}`;
+const BASE_URL = API_BASE;
 
 const CLIENTS = ["LM", "CASTO", "BRICO", "ECOM"];
 const CLIENT_ICONS = { LM: "leaf", CASTO: "home", BRICO: "wrench", ECOM: "shopping cart" };

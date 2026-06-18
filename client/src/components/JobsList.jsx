@@ -15,9 +15,7 @@ import {
   TableRow,
 } from "semantic-ui-react";
 import "../css/JobsList.css";
-
-const HOST = import.meta.env.VITE_HOST;
-const PORT = import.meta.env.VITE_PORT;
+import { API_BASE } from "../utils/api";
 
 function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
   const [data, setData] = useState([]);
@@ -121,7 +119,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
   useEffect(() => {
     const dataFetch = async () => {
       try {
-        const response = await fetch(`http://${HOST}:${PORT}/jobs/`, { method: "GET" });
+        const response = await fetch(`${API_BASE}/jobs/`, { method: "GET" });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const res = await response.json();
         setData([{ jobs: res.jobs, completed: res.completed }]);
@@ -137,7 +135,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
   useEffect(() => {
     const dataFetch = async () => {
       try {
-        const response = await fetch(`http://${HOST}:${PORT}/config/`, { method: "GET" });
+        const response = await fetch(`${API_BASE}/config/`, { method: "GET" });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const res = await response.json();
         setFilter(res.vernis);
@@ -151,7 +149,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
   const handleGenerateStickers = async () => {
     setActionError(null);
     try {
-      const response = await fetch(`http://${HOST}:${PORT}/generate_stickers`, {
+      const response = await fetch(`${API_BASE}/generate_stickers`, {
         method: "POST",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
       });
@@ -186,7 +184,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
   const runJobsList = async () => {
     setActionError(null);
     try {
-      const response = await fetch(`http://${HOST}:${PORT}/run_jobs`, {
+      const response = await fetch(`${API_BASE}/run_jobs`, {
         method: "POST",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -213,7 +211,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
   const handleDeleteJob = async (id) => {
     setActionError(null);
     try {
-      const response = await fetch(`http://${HOST}:${PORT}/delete_job`, {
+      const response = await fetch(`${API_BASE}/delete_job`, {
         method: "DELETE",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({ _id: id }),
@@ -238,7 +236,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
     const snapshot = data[0]?.completed ?? [];
     setData((prevData) => [{ ...prevData[0], completed: [] }]);
     try {
-      const response = await fetch(`http://${HOST}:${PORT}/delete_job_completed`, {
+      const response = await fetch(`${API_BASE}/delete_job_completed`, {
         method: "DELETE",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({ clear: true }),
@@ -302,7 +300,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
           // Générer les lignes (1 pour LM, 2 pour CASTO)
           return entries.map((entry, idx) => {
             const title = entry.jpgName?.split("/")?.pop() ?? "";
-            const url = `http://${HOST}:${PORT}/public/` + entry.jpgName.replace(/#/i, "%23");
+            const url = `${API_BASE}/public/` + entry.jpgName.replace(/#/i, "%23");
 
             let visuelName = entry.visuel?.split("/")?.pop() ?? "";
             const regexFormat = visuelName.match(/\d{3}x\d{2,}/i);
