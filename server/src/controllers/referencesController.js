@@ -10,6 +10,10 @@ const { getOdbcStatus } = require("../gamesys/config/db");
 
 const CLIENT_DIR_KEY = { LM: "decoLM", CASTO: "decoCASTO", BRICO: "decoBRICO", ECOM: "decoECOM" };
 
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function getModel(client, res) {
   const Model = refModels[client];
   if (!Model) {
@@ -38,10 +42,12 @@ async function listReferences(req, res) {
 
   try {
     const { q, limit } = req.query;
-    const filter = q ? { $or: [{ ref: new RegExp(q, "i") }, { model: new RegExp(q, "i") }] } : {};
+    const filter = q ? { $or: [{ ref: new RegExp(escapeRegExp(q), "i") }, { model: new RegExp(escapeRegExp(q), "i") }] } : {};
+    const parsedLimit = parseInt(limit, 10);
+    const safeLimit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 2000) : 50;
     const docs = await Model.find(filter)
       .sort({ model: 1 })
-      .limit(Math.min(parseInt(limit, 10) || 500, 2000))
+      .limit(safeLimit)
       .lean();
     res.json(docs);
   } catch (error) {
