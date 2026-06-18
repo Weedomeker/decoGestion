@@ -709,8 +709,6 @@ function App() {
             {activeTab === "dossier" && (
               <>
                 <DossierAutocomplete
-                  host={HOST}
-                  port={PORT}
                   pathData={data[0] || {}}
                   formatTauro={formatTauro}
                   onAutoFill={handleDossierAutoFill}

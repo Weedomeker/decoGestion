@@ -2,6 +2,7 @@ import PropTypes from "prop-types";
 import { useEffect, useRef, useState } from "react";
 import { Button, Icon, Input, Label, Message, Segment } from "semantic-ui-react";
 import { isCredenceFormat } from "../utils/credence";
+import { API_BASE } from "../utils/api";
 
 const CLIENTS = ["LM", "CASTO", "ECOM", "BRICO"];
 const CLIENT_ALIASES = {
@@ -187,7 +188,7 @@ function replaceLastToken(value, replacement) {
   return tokens.join(" ").trim();
 }
 
-function DossierAutocomplete({ host, port, pathData, formatTauro, onAutoFill, gamesysOk }) {
+function DossierAutocomplete({ pathData, formatTauro, onAutoFill, gamesysOk }) {
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [loadedDossiers, setLoadedDossiers] = useState([]);
@@ -208,7 +209,7 @@ function DossierAutocomplete({ host, port, pathData, formatTauro, onAutoFill, ga
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`http://${host}:${port}/api/dossiers/search?q=${token}&limit=8`, {
+        const res = await fetch(`${API_BASE}/api/dossiers/search?q=${token}&limit=8`, {
           signal: controller.signal,
         });
         if (!res.ok) return;
@@ -224,7 +225,7 @@ function DossierAutocomplete({ host, port, pathData, formatTauro, onAutoFill, ga
       clearTimeout(debounceRef.current);
       controller.abort();
     };
-  }, [inputValue, host, port]);
+  }, [inputValue]);
 
   function emitJobs(dossiers) {
     if (!onAutoFill) return;
@@ -285,7 +286,7 @@ function DossierAutocomplete({ host, port, pathData, formatTauro, onAutoFill, ga
 
     const results = await Promise.allSettled(
       newNumbers.map((numero) =>
-        fetch(`http://${host}:${port}/dossier-api/${numero}`, {
+        fetch(`${API_BASE}/dossier-api/${numero}`, {
           method: "GET",
           headers: { Accept: "application/json" },
         }).then((res) => res.json().then((body) => ({ ok: res.ok, numero, body }))),
@@ -442,8 +443,6 @@ function DossierAutocomplete({ host, port, pathData, formatTauro, onAutoFill, ga
 }
 
 DossierAutocomplete.propTypes = {
-  host: PropTypes.string.isRequired,
-  port: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
   pathData: PropTypes.object,
   formatTauro: PropTypes.array.isRequired,
   onAutoFill: PropTypes.func,
