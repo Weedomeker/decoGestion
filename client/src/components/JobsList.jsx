@@ -226,8 +226,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
       }
 
       // Mise à jour de l'état après la suppression réussie
-      const updateJobs = data[0].jobs.filter((item) => item._id !== id);
-      setData((prevData) => [{ ...prevData[0], jobs: updateJobs }]);
+      setData((prevData) => [{ ...prevData[0], jobs: prevData[0].jobs.filter((item) => item._id !== id) }]);
     } catch (error) {
       console.error("Error deleting job:", error);
       setActionError("Impossible de contacter le serveur.");
