@@ -44,7 +44,7 @@ async function listReferences(req, res) {
     const { q, limit } = req.query;
     const filter = q ? { $or: [{ ref: new RegExp(escapeRegExp(q), "i") }, { model: new RegExp(escapeRegExp(q), "i") }] } : {};
     const parsedLimit = parseInt(limit, 10);
-    const safeLimit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 2000) : 50;
+    const safeLimit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 2000) : 500;
     const docs = await Model.find(filter)
       .sort({ model: 1 })
       .limit(safeLimit)

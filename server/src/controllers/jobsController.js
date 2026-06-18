@@ -313,17 +313,15 @@ async function addJob(req, res) {
   // Vérification référence 2 (si visuel2 présent)
   if (matchRef2 && RefModelClient2 && visuel2) {
     try {
-      refValidated2 = await RefModelClient2.findOne({ ref: String(matchRef2) }).lean();
-      if (!refValidated2) {
-        for (const m of otherRefModels.filter((m) => m !== RefModelClient2)) {
-          refValidated2 = await m.findOne({ ref: String(matchRef2) }).lean();
-          if (refValidated2) {
-            const warn2 = `Référence 2 "${matchRef2}" trouvée dans un autre client (${client2}). Vérifiez la cohérence.`;
-            logger.warn(`⚠️ ${warn2}`);
-            refCrossClientWarning = refCrossClientWarning ? `${refCrossClientWarning} · ${warn2}` : warn2;
-            break;
-          }
-        }
+      const allModels2 = [RefModelClient2, ...otherRefModels.filter((m) => m !== RefModelClient2)];
+      const results2 = await Promise.all(allModels2.map((m) => m.findOne({ ref: String(matchRef2) }).lean()));
+      const resultIndex2 = results2.findIndex(Boolean);
+      refValidated2 = resultIndex2 >= 0 ? results2[resultIndex2] : null;
+
+      if (refValidated2 && resultIndex2 > 0) {
+        const warn2 = `Référence 2 "${matchRef2}" trouvée dans un autre client (${client2}). Vérifiez la cohérence.`;
+        logger.warn(`⚠️ ${warn2}`);
+        refCrossClientWarning = refCrossClientWarning ? `${refCrossClientWarning} · ${warn2}` : warn2;
       }
       if (!refValidated2) {
         return res.status(400).json({
