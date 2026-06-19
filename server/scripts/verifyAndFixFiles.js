@@ -522,9 +522,11 @@ async function main() {
   if (mongoose.connection.readyState === 1) await mongoose.disconnect();
 }
 
-main().catch((err) => {
-  console.error("Erreur fatale :", err);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error("Erreur fatale :", err);
+    process.exit(1);
+  });
+}
 
 module.exports = { buildRenameTarget, classifyEntries };
