@@ -6,10 +6,15 @@ const JOBS_CONCURRENCY = parseInt(process.env.JOBS_CONCURRENCY) || 3;
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
 function makeConnection() {
-  return new IORedis(REDIS_URL, {
+  const conn = new IORedis(REDIS_URL, {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
+    retryStrategy: (times) => Math.min(times * 500, 10000),
   });
+  conn.on('error', (err) => {
+    if (err.code !== 'ECONNREFUSED') logger.error(`Redis: ${err.message}`);
+  });
+  return conn;
 }
 
 // BullMQ requiert une connexion IORedis distincte pour Queue, QueueEvents et Worker.
