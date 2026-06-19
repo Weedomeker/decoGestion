@@ -23,8 +23,7 @@ const { broadcastWS, broadcastCompletedJob } = require("../services/websocketSer
 const usePdfWorker = require("../utils/pdfWorker");
 const { castoName } = require("../utils/jobNames");
 const { extractRefFromFilename, validateRefFormat, REF_FORMAT_HINT } = require("../services/referencesCheckService");
-const pLimit = require("p-limit");
-const JOBS_CONCURRENCY = parseInt(process.env.JOBS_CONCURRENCY) || 3;
+const { decoQueue, queueEvents } = require("../services/queueService");
 
 // Résout sur le premier modèle qui retourne un document non-null, avec son index.
 // Court-circuite dès le premier résultat trouvé plutôt que d'attendre tous les modèles.
@@ -744,29 +743,43 @@ async function runJobs(req, res) {
 
   try {
     state.jobs.completed = [];
-    const backupPath = path.join(state.paths.serverRoot, "./backups/jobs_backup.json");
-
-    try {
-      fs.mkdirSync(path.join(state.paths.serverRoot, "./backups"), { recursive: true });
-      fs.writeFileSync(backupPath, JSON.stringify(state.jobs.jobs, null, 2), "utf8");
-      logger.info("📝 Backup des jobs créé.");
-    } catch (e) {
-      logger.error("❌ Impossible de créer le backup des jobs", e);
-    }
-
     const jobsToRun = [...state.jobs.jobs];
+
+    if (jobsToRun.length === 0) {
+      return res.status(400).json({ error: "Aucun job à traiter" });
+    }
 
     const startTime = performance.now();
     broadcastWS({ type: "start", startTime });
 
-    const limit = pLimit(JOBS_CONCURRENCY);
-    await Promise.all(jobsToRun.map((job) => limit(() => processJob(job, req))));
-    logger.info("✅ Tous les jobs ont été traités avec succès.");
-    const resultsSummary = [];
-    state.jobs.completed.map((job) => {
-      const { cmd, cmd2 } = job;
-      resultsSummary.push([cmd, cmd2 > 0 ? cmd2 : ""]);
-    });
+    const bullJobs = await Promise.all(
+      jobsToRun.map((job) =>
+        decoQueue.add(
+          "process-job",
+          {
+            job,
+            sortFolder: req.body.sortFolder,
+            ip: req.ip,
+          },
+          {
+            attempts: 3,
+            backoff: { type: "exponential", delay: 5000 },
+          },
+        ),
+      ),
+    );
+
+    logger.info(`📥 ${bullJobs.length} job(s) enqueués dans BullMQ.`);
+
+    try {
+      await Promise.all(bullJobs.map((bj) => bj.waitUntilFinished(queueEvents)));
+    } catch (err) {
+      logger.error(`⚠️ Un ou plusieurs jobs ont échoué définitivement : ${err.message}`);
+    }
+
+    logger.info("✅ Tous les jobs ont été traités.");
+
+    const resultsSummary = state.jobs.completed.map(({ cmd, cmd2 }) => [cmd, cmd2 > 0 ? cmd2 : ""]);
     logger.info(
       `📊 Résumé des commandes traitées :\n[${resultsSummary
         .map(([cmd, cmd2]) => `${cmd}${cmd2 ? " + " + cmd2 : ""}`)
@@ -776,15 +789,6 @@ async function runJobs(req, res) {
     state.jobs.jobs = state.jobs.jobs.filter(
       (job) => !state.jobs.completed.some((completedJob) => completedJob._id === job._id),
     );
-
-    try {
-      if (fs.existsSync(backupPath)) {
-        fs.unlinkSync(backupPath);
-        logger.info("✔️  Backup supprimé après exécution des jobs");
-      }
-    } catch (e) {
-      logger.error("❌ Impossible de supprimer le backup", e);
-    }
 
     const endTime = performance.now();
     broadcastWS({ type: "end", endTime });
@@ -902,4 +906,5 @@ module.exports = {
   deleteCompletedJobs,
   generateStickersOnly,
   getHistory,
+  processJob,
 };
