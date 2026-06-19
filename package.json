@@ -5,7 +5,7 @@
   "description": "Permet de produire plus facilement l'imposition des visuels sur les plaques à imprimer.",
   "scripts": {
     "start": "set NODE_ENV=production&& node ./server/server.js -e js,css,html",
-    "server": "set NODE_ENV=development&& nodemon ./server/server.js -e js,css,html --ignore server/public/",
+    "server": "docker compose up redis -d && set NODE_ENV=development&& nodemon ./server/server.js -e js,css,html --ignore server/public/",
     "format": "prettier-eslint \"./server/**/*.js\" --write && prettier-eslint \"./client/src/**/*.{js,jsx}\" --write",
     "client": "set NODE_ENV=development&& cd client && npm run dev",
     "build": "set NODE_ENV=production&& cd client && npm run build",
