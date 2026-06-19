@@ -12,6 +12,7 @@ function makeConnection() {
   });
 }
 
+// BullMQ requiert une connexion IORedis distincte pour Queue, QueueEvents et Worker.
 const decoQueue = new Queue('deco-jobs', { connection: makeConnection() });
 const queueEvents = new QueueEvents('deco-jobs', { connection: makeConnection() });
 
@@ -22,11 +23,11 @@ function initWorker(processor) {
   });
 
   worker.on('failed', (job, err) => {
-    logger.error(`BullMQ job ${job?.data?.job?.cmd} echoue (tentative ${job?.attemptsMade}) : ${err.message}`);
+    logger.error(`BullMQ job ${job?.data?.job?.cmd ?? 'unknown'} échoué (tentative ${job?.attemptsMade}) : ${err.message}`);
   });
 
   worker.on('completed', (job) => {
-    logger.info(`BullMQ job ${job?.data?.job?.cmd} termine`);
+    logger.info(`BullMQ job ${job?.data?.job?.cmd ?? 'unknown'} terminé`);
   });
 
   return worker;
