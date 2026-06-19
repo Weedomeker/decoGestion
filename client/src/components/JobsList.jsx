@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "semantic-ui-react";
 import "../css/JobsList.css";
-import { API_BASE } from "../utils/api";
+import { API_BASE, WS_BASE } from "../utils/api";
 
 function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
   const [data, setData] = useState([]);
@@ -87,7 +87,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
     const MAX_DELAY = 30000;
 
     function connect() {
-      ws = new WebSocket(`ws://${HOST}:${PORT}`);
+      ws = new WebSocket(WS_BASE);
       ws.onopen = () => {
         attempt = 0;
         setWsConnected(true);
