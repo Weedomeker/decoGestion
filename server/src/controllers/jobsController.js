@@ -769,10 +769,10 @@ async function runJobs(req, res) {
       ),
     );
 
-    logger.info(`📥 ${bullJobs.length} job(s) enqueués dans BullMQ.`);
+    logger.info(`📥 ${bullJobs.length} job(s) ajoutés à la queue BullMQ.`);
 
     try {
-      await Promise.all(bullJobs.map((bj) => bj.waitUntilFinished(queueEvents)));
+      await Promise.all(bullJobs.map((bj) => bj.waitUntilFinished(queueEvents, 7200000)));
     } catch (err) {
       logger.error(`⚠️ Un ou plusieurs jobs ont échoué définitivement : ${err.message}`);
     }
