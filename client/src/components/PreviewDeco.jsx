@@ -69,7 +69,6 @@ function PreviewDeco({ fileSelected, show }) {
 PreviewDeco.propTypes = {
   fileSelected: PropTypes.string,
   show: PropTypes.bool,
-  client: PropTypes.string,
 };
 
 export default PreviewDeco;

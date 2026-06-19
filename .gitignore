@@ -50,5 +50,6 @@ visu_casto/
 .claude/notify-stop.ps1
 .superpowers
 coverage/
+.nyc_output/
 server/scripts/reports/*.md
 server/scripts/reports/*.txt

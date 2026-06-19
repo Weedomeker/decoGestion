@@ -10,13 +10,6 @@ function castoName(name) {
     .trim();
 }
 
-function parseDimensions(format) {
-  const [width, height] = format.toLowerCase().split("_").pop().split("x");
-
-  return [parseFloat(width), parseFloat(height)];
-}
-
 module.exports = {
   castoName,
-  parseDimensions,
 };
