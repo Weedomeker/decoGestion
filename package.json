@@ -12,7 +12,7 @@
     "test": "mocha \"test/**/*.test.js\" --timeout 10000 --exit",
     "test:unit": "mocha \"test/unit/**/*.test.js\" --timeout 10000 --exit",
     "test:integration": "mocha \"test/integration/**/*.test.js\" --timeout 60000 --exit",
-    "test:coverage": "nyc --reporter=text --reporter=html mocha \"test/**/*.test.js\" --timeout 10000 --exit",
+    "test:coverage": "nyc --reporter=text --reporter=html --reporter=lcov mocha \"test/**/*.test.js\" --timeout 10000 --exit",
     "lint": "eslint \"server/src/**/*.js\""
   },
   "keywords": [],

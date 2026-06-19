@@ -49,5 +49,6 @@ visu_casto/
 .claude/statusline.ps1
 .claude/notify-stop.ps1
 .superpowers
+coverage/
 server/scripts/reports/*.md
 server/scripts/reports/*.txt
