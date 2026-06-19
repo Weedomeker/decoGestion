@@ -59,20 +59,6 @@ function loadAppVersion() {
   }
 }
 
-function restoreJobsBackup() {
-  const backupPath = path.join(serverRoot, "./backups/jobs_backup.json");
-
-  if (fs.existsSync(backupPath)) {
-    try {
-      const backupData = JSON.parse(fs.readFileSync(backupPath, "utf8"));
-      state.jobs.jobs = backupData;
-      logger.info("♻️ Jobs restaurés depuis le backup.");
-    } catch (e) {
-      logger.error("❌ Erreur lors de la restauration du backup", e);
-    }
-  }
-}
-
 function updateSourcePath(key) {
   switch (key) {
     case "ECOM":
@@ -98,6 +84,5 @@ function updateSourcePath(key) {
 module.exports = {
   state,
   loadAppVersion,
-  restoreJobsBackup,
   updateSourcePath,
 };

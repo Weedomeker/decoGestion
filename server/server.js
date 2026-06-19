@@ -13,12 +13,17 @@ const checkVersion = require("./src/checkVersion");
 const connectMongo = require("./src/mongoose");
 const { processAllPDFs } = require("./src/generatePreview");
 const registerRoutes = require("./src/routes");
-const { state, loadAppVersion, restoreJobsBackup } = require("./src/services/appState");
+const { state, loadAppVersion } = require("./src/services/appState");
 const { linkFolders } = require("./src/services/configService");
 const { initWebSocket, broadcastHealth } = require("./src/services/websocketService");
 const { checkOdbcConnection, getOdbcStatus } = require("./src/gamesys/config/db");
 const { checkNetworkPaths } = require("./src/services/networkChecker");
 const mongooseLib = require("mongoose");
+const { createBullBoard } = require("@bull-board/api");
+const { BullMQAdapter } = require("@bull-board/api/bullMQAdapter");
+const { ExpressAdapter } = require("@bull-board/express");
+const { decoQueue, initWorker } = require("./src/services/queueService");
+const { processJob } = require("./src/controllers/jobsController");
 
 const PORT = process.env.PORT || 8000;
 
@@ -37,7 +42,6 @@ const server = http.createServer(app);
 const accessLogStream = fs.createWriteStream(path.join(__dirname, "server.log"), { flags: "a" });
 
 loadAppVersion();
-restoreJobsBackup();
 initWebSocket(server);
 
 app.use(cors({
@@ -76,6 +80,22 @@ app.get("/", (req, res) => {
 });
 
 registerRoutes(app);
+
+// Bull Board — dashboard /admin/queues
+const serverAdapter = new ExpressAdapter();
+serverAdapter.setBasePath("/admin/queues");
+createBullBoard({
+  queues: [new BullMQAdapter(decoQueue)],
+  serverAdapter,
+});
+app.use("/admin/queues", serverAdapter.getRouter());
+
+// Worker BullMQ — traite les jobs process-job avec processJob
+initWorker(async (bullJob) => {
+  const { job, sortFolder, ip } = bullJob.data;
+  const fakeReq = { body: { sortFolder }, ip };
+  await processJob(job, fakeReq);
+});
 
 // 404 — doit être après toutes les routes
 app.use((req, res) => {
