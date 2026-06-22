@@ -489,15 +489,10 @@ img.ui.image:not(.header-logo) {
 }
 
 .options-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--s-sm);
-}
-
-.options-col {
   display: flex;
-  flex-direction: column;
-  gap: var(--s-xs);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-sm);
 }
 
 /* ===================== MODE TABS ===================== */

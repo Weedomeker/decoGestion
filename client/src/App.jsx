@@ -1653,47 +1653,43 @@ function App() {
             <div className="form-section">
               <span className="form-section-label">Options de production</span>
               <div className="options-grid">
-                <div className="options-col">
-                  {activeTab !== "dossier" && (
-                    <Checkbox
-                      name="Prod avec blanc"
-                      label="Prod avec blanc"
-                      checked={checkProdBlanc}
-                      onChange={(e, data) => setCheckProdBlanc(data.checked)}
-                    />
-                  )}
-                  {checkFolder == "LM" && activeTab !== "dossier" && (
-                    <Checkbox
-                      name="Teinte Masse"
-                      label="Teinte Masse"
-                      checked={checkGenerate.teinteMasse}
-                      onChange={(e, data) => {
-                        setCheckGenerate({ ...checkGenerate, teinteMasse: data.checked });
-                      }}
-                    />
-                  )}
-                </div>
-                <div className="options-col">
+                {activeTab !== "dossier" && (
                   <Checkbox
-                    name="Générer regmarks"
-                    label="Générer regmarks"
-                    checked={checkGenerate.reg}
+                    name="Prod avec blanc"
+                    label="Prod avec blanc"
+                    checked={checkProdBlanc}
+                    onChange={(e, data) => setCheckProdBlanc(data.checked)}
+                  />
+                )}
+                {checkFolder == "LM" && activeTab !== "dossier" && (
+                  <Checkbox
+                    name="Teinte Masse"
+                    label="Teinte Masse"
+                    checked={checkGenerate.teinteMasse}
                     onChange={(e, data) => {
-                      setCheckGenerate({ ...checkGenerate, reg: data.checked });
+                      setCheckGenerate({ ...checkGenerate, teinteMasse: data.checked });
                     }}
                   />
-                  {checkFolder === "LM" && (
-                    <Checkbox
-                      className="decoupe"
-                      name="Générer découpe"
-                      label="Générer découpe"
-                      checked={checkGenerate.cut}
-                      onChange={(e, data) => {
-                        setCheckGenerate({ cut: data.checked, reg: data.checked });
-                      }}
-                    />
-                  )}
-                </div>
+                )}
+                <Checkbox
+                  name="Générer regmarks"
+                  label="Générer regmarks"
+                  checked={checkGenerate.reg}
+                  onChange={(e, data) => {
+                    setCheckGenerate({ ...checkGenerate, reg: data.checked });
+                  }}
+                />
+                {checkFolder === "LM" && (
+                  <Checkbox
+                    className="decoupe"
+                    name="Générer découpe"
+                    label="Générer découpe"
+                    checked={checkGenerate.cut}
+                    onChange={(e, data) => {
+                      setCheckGenerate({ cut: data.checked, reg: data.checked });
+                    }}
+                  />
+                )}
               </div>
             </div>
 
