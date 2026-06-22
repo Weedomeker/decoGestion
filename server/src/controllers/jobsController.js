@@ -886,25 +886,22 @@ async function generateStickersForJobs(jobs) {
   await fs.promises.rm(tempFolder, { recursive: true, force: true });
 }
 
-async function getHistory(req, res) {
-  const limit = Math.min(parseInt(req.query.limit) || 20, 100);
-  const skip = Math.max(parseInt(req.query.skip) || 0, 0);
-
-  // Construire le filtre MongoDB
+// Fonction interne partagée pour construire le filtre MongoDB
+function buildHistoryFilter(query) {
   const filter = {};
 
-  if (req.query.client) {
-    filter.client = req.query.client;
+  if (query.client) {
+    filter.client = query.client;
   }
 
-  if (req.query.from || req.query.to) {
+  if (query.from || query.to) {
     filter.date = {};
-    if (req.query.from) filter.date.$gte = new Date(req.query.from);
-    if (req.query.to) filter.date.$lte = new Date(req.query.to);
+    if (query.from) filter.date.$gte = new Date(query.from);
+    if (query.to) filter.date.$lte = new Date(query.to);
   }
 
-  if (req.query.q) {
-    const q = req.query.q.trim();
+  if (query.q) {
+    const q = query.q.trim();
     const numericQ = /^\d+$/.test(q) ? Number(q) : null;
     const textRegex = new RegExp(q, "i");
     const orClauses = [
@@ -917,6 +914,16 @@ async function getHistory(req, res) {
     }
     filter.$or = orClauses;
   }
+
+  return filter;
+}
+
+async function getHistory(req, res) {
+  const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+  const skip = Math.max(parseInt(req.query.skip) || 0, 0);
+
+  // Utiliser la fonction partagée pour construire le filtre
+  const filter = buildHistoryFilter(req.query);
 
   try {
     const [entries, totalDocs] = await Promise.all([
@@ -931,33 +938,8 @@ async function getHistory(req, res) {
 }
 
 async function exportHistory(req, res) {
-  // Construire le filtre MongoDB (identique à getHistory, sans limit/skip)
-  const filter = {};
-
-  if (req.query.client) {
-    filter.client = req.query.client;
-  }
-
-  if (req.query.from || req.query.to) {
-    filter.date = {};
-    if (req.query.from) filter.date.$gte = new Date(req.query.from);
-    if (req.query.to) filter.date.$lte = new Date(req.query.to);
-  }
-
-  if (req.query.q) {
-    const q = req.query.q.trim();
-    const numericQ = /^\d+$/.test(q) ? Number(q) : null;
-    const textRegex = new RegExp(q, "i");
-    const orClauses = [
-      { mag: textRegex },
-      { deco: textRegex },
-      { ref: textRegex },
-    ];
-    if (numericQ !== null) {
-      orClauses.push({ numCmd: numericQ });
-    }
-    filter.$or = orClauses;
-  }
+  // Utiliser la fonction partagée pour construire le filtre
+  const filter = buildHistoryFilter(req.query);
 
   // Helper : échapper et entourer de guillemets une valeur texte
   function csvText(val) {
@@ -965,7 +947,7 @@ async function exportHistory(req, res) {
     return '"' + String(val).replace(/"/g, '""') + '"';
   }
 
-  // Helper : formater une date en YYYY-MM-DD HH:mm
+  // Helper : formater une date en YYYY-MM-DD HH:mm (retourne chaîne vide avec guillemets pour date absente)
   function formatDate(d) {
     if (!d) return '""';
     const dt = new Date(d);
