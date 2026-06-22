@@ -930,6 +930,93 @@ async function getHistory(req, res) {
   }
 }
 
+async function exportHistory(req, res) {
+  // Construire le filtre MongoDB (identique à getHistory, sans limit/skip)
+  const filter = {};
+
+  if (req.query.client) {
+    filter.client = req.query.client;
+  }
+
+  if (req.query.from || req.query.to) {
+    filter.date = {};
+    if (req.query.from) filter.date.$gte = new Date(req.query.from);
+    if (req.query.to) filter.date.$lte = new Date(req.query.to);
+  }
+
+  if (req.query.q) {
+    const q = req.query.q.trim();
+    const numericQ = /^\d+$/.test(q) ? Number(q) : null;
+    const textRegex = new RegExp(q, "i");
+    const orClauses = [
+      { mag: textRegex },
+      { deco: textRegex },
+      { ref: textRegex },
+    ];
+    if (numericQ !== null) {
+      orClauses.push({ numCmd: numericQ });
+    }
+    filter.$or = orClauses;
+  }
+
+  // Helper : échapper et entourer de guillemets une valeur texte
+  function csvText(val) {
+    if (val === null || val === undefined) return '""';
+    return '"' + String(val).replace(/"/g, '""') + '"';
+  }
+
+  // Helper : formater une date en YYYY-MM-DD HH:mm
+  function formatDate(d) {
+    if (!d) return '""';
+    const dt = new Date(d);
+    const pad = (n) => String(n).padStart(2, "0");
+    const yyyy = dt.getFullYear();
+    const MM = pad(dt.getMonth() + 1);
+    const dd = pad(dt.getDate());
+    const HH = pad(dt.getHours());
+    const mm = pad(dt.getMinutes());
+    return '"' + yyyy + "-" + MM + "-" + dd + " " + HH + ":" + mm + '"';
+  }
+
+  // Nom de fichier avec la date du jour
+  const today = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const dateStr = today.getFullYear() + "-" + pad(today.getMonth() + 1) + "-" + pad(today.getDate());
+
+  try {
+    const entries = await modelDeco.find(filter).sort({ date: -1 }).lean();
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="historique-${dateStr}.csv"`);
+
+    // En-tête CSV
+    res.write("date,client,numCmd,mag,deco,ref,format,finition,ex,temps,perte,prodBlanc\n");
+
+    for (const entry of entries) {
+      const line = [
+        formatDate(entry.date),
+        csvText(entry.client),
+        entry.numCmd !== undefined && entry.numCmd !== null ? entry.numCmd : 0,
+        csvText(entry.mag),
+        csvText(entry.deco),
+        csvText(entry.ref),
+        csvText(entry.format),
+        csvText(entry.finition),
+        entry.ex !== undefined && entry.ex !== null ? entry.ex : 0,
+        entry.temps !== undefined && entry.temps !== null ? entry.temps : 0,
+        entry.perte !== undefined && entry.perte !== null ? entry.perte : 0,
+        entry.prodBlanc ? 1 : 0,
+      ].join(",");
+      res.write(line + "\n");
+    }
+
+    res.end();
+  } catch (error) {
+    logger.error("Erreur exportHistory:", error);
+    res.status(500).json({ error: "Erreur lors de l'export de l'historique" });
+  }
+}
+
 async function getStats(req, res) {
   const period = req.query.period || "week";
 
@@ -1022,6 +1109,7 @@ module.exports = {
   deleteCompletedJobs,
   generateStickersOnly,
   getHistory,
+  exportHistory,
   getStats,
   processJob,
 };
