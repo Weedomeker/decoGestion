@@ -26,6 +26,9 @@ const Header = ({ appVersion, onFichiers, configNode, statusNode, activeView, on
         <button className={`header-tab${activeView === "stats" ? " active" : ""}`} onClick={() => onViewChange("stats")}>
           Stats
         </button>
+        <button className={`header-tab${activeView === "historique" ? " active" : ""}`} onClick={() => onViewChange("historique")}>
+          Historique
+        </button>
       </div>
 
       <div className="header-actions">

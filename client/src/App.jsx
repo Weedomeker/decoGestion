@@ -18,6 +18,7 @@ import ServerStatus from "./components/ServerStatus";
 import LouisPreview from "./components/LouisPreview";
 import Place from "./components/Place";
 import PreviewDeco from "./components/PreviewDeco";
+import HistoriqueView from "./components/HistoriqueView";
 import ReferencesView from "./components/ReferencesView";
 import StatsView from "./components/StatsView";
 import TeinteMasseDropdown from "./components/TeinteMasseDropdown";
@@ -1713,6 +1714,10 @@ function App() {
 
       <div className={`stats-view-wrapper${activeView !== "stats" ? " hidden" : ""}`}>
         {activeView === "stats" && <StatsView />}
+      </div>
+
+      <div className={`historique-view-wrapper${activeView !== "historique" ? " hidden" : ""}`}>
+        {activeView === "historique" && <HistoriqueView />}
       </div>
       </div>
 
