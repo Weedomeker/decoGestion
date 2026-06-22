@@ -20,13 +20,12 @@ function formatDate(iso) {
   return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
-function formatDuration(ms) {
-  if (ms == null || ms === "") return "—";
-  const n = Number(ms);
+function formatDuration(s) {
+  if (s == null || s === "") return "—";
+  const n = Number(s);
   if (isNaN(n)) return "—";
-  if (n < 1000) return `${n} ms`;
-  if (n < 60000) return `${(n / 1000).toFixed(1)} s`;
-  return `${Math.floor(n / 60000)} min ${Math.round((n % 60000) / 1000)} s`;
+  if (n < 60) return `${n}s`;
+  return `${Math.floor(n / 60)}m ${n % 60}s`;
 }
 
 function HistoriqueView() {
@@ -206,12 +205,12 @@ function HistoriqueView() {
                       </span>
                     </td>
                     <td className="historique-mono">{row.numCmd ?? "—"}</td>
-                    <td>{row.ville ?? "—"}</td>
+                    <td>{row.mag ?? "—"}</td>
                     <td>{row.deco ?? "—"}</td>
                     <td className="historique-mono">{row.format ?? row.format_visu ?? "—"}</td>
                     <td>{row.finition ?? "—"}</td>
                     <td>{row.ex ?? "—"}</td>
-                    <td className="historique-mono">{formatDuration(row.duration)}</td>
+                    <td className="historique-mono">{formatDuration(row.temps)}</td>
                     <td className="historique-mono">{row.perte != null ? row.perte : "—"}</td>
                   </tr>
                 ))}

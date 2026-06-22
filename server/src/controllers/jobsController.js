@@ -903,7 +903,7 @@ function buildHistoryFilter(query) {
   if (query.q) {
     const q = query.q.trim();
     const numericQ = /^\d+$/.test(q) ? Number(q) : null;
-    const textRegex = new RegExp(q, "i");
+    const textRegex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "i");
     const orClauses = [
       { mag: textRegex },
       { deco: textRegex },
