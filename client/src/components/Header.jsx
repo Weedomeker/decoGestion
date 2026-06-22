@@ -23,6 +23,9 @@ const Header = ({ appVersion, onFichiers, configNode, statusNode, activeView, on
         <button className={`header-tab${activeView === "references" ? " active" : ""}`} onClick={() => onViewChange("references")}>
           Références
         </button>
+        <button className={`header-tab${activeView === "stats" ? " active" : ""}`} onClick={() => onViewChange("stats")}>
+          Stats
+        </button>
       </div>
 
       <div className="header-actions">

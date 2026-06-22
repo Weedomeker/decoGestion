@@ -19,6 +19,7 @@ import LouisPreview from "./components/LouisPreview";
 import Place from "./components/Place";
 import PreviewDeco from "./components/PreviewDeco";
 import ReferencesView from "./components/ReferencesView";
+import StatsView from "./components/StatsView";
 import TeinteMasseDropdown from "./components/TeinteMasseDropdown";
 import VisuelDropdown from "./components/VisuelDropdown";
 import { isCredenceFormat } from "./utils/credence";
@@ -1708,6 +1709,10 @@ function App() {
 
       <div className={`references-view-wrapper${activeView !== "references" ? " hidden" : ""}`}>
         <ReferencesView />
+      </div>
+
+      <div className={`stats-view-wrapper${activeView !== "stats" ? " hidden" : ""}`}>
+        {activeView === "stats" && <StatsView />}
       </div>
       </div>
 
