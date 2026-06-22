@@ -1161,7 +1161,7 @@ function App() {
               <>
                 {(() => {
                   const hint =
-                    enabled.format  ? "Sélectionne un format de plaque Tauro pour commencer" :
+                    enabled.format  ? "Choisis un client, puis un format de plaque Tauro" :
                     enabled.visu    ? "Choisis un format de visuel" :
                     enabled.numCmd  ? "Sélectionne le visuel" :
                     enabled.ville   ? "Renseigne le numéro de commande (5 ou 6 chiffres)" :
@@ -1174,6 +1174,49 @@ function App() {
                     </div>
                   ) : null;
                 })()}
+
+                {/* Sélecteur client */}
+                <div className="form-section">
+                  <span className="form-section-label">Client</span>
+                  <Button.Group size="small" className="client-selector">
+                    {["LM", "CASTO", "BRICO", "ECOM"].map((c) => {
+                      const isKo = symlinkStatus[c] === false;
+                      const dotCls =
+                        healthData === null        ? "client-dot client-dot--unknown" :
+                        symlinkStatus[c] === true  ? "client-dot client-dot--ok"      :
+                        symlinkStatus[c] === false ? "client-dot client-dot--ko"      :
+                                                     "client-dot client-dot--unknown";
+                      return (
+                        <Popup
+                          key={c}
+                          content={`Accès réseau ${c} indisponible`}
+                          disabled={!isKo}
+                          trigger={
+                            <span className="client-btn-wrap">
+                              <Button
+                                toggle
+                                type="button"
+                                active={checkFolder === c}
+                                color={checkFolder === c ? clientColor(c) : undefined}
+                                onClick={() => {
+                                  if (isKo) return;
+                                  handleResetForm();
+                                  setCheckFolder(c);
+                                }}
+                                disabled={isKo}
+                                icon={CLIENT_ICONS[c]}
+                                content={c}
+                                style={isKo ? { pointerEvents: "none", opacity: 0.45 } : {}}
+                              />
+                              <span className={dotCls} />
+                            </span>
+                          }
+                        />
+                      );
+                    })}
+                  </Button.Group>
+                </div>
+
                 <div className="form-section">
                   <span className="form-section-label">Plaque Tauro</span>
                 <Form.Field className="format-tauro" required error={error.formatTauro}>
@@ -1234,48 +1277,6 @@ function App() {
                   {showAddFormat && <Input id="addFormatTauro" size="small" label="Add format" placeholder="ex: 101x215" />}
                   {error.formatTauro && <span className="field-error-msg">Sélectionne un format de plaque Tauro</span>}
                 </Form.Field>
-                </div>
-
-                {/* Sélecteur client */}
-                <div className="form-section">
-                  <span className="form-section-label">Client</span>
-                  <Button.Group size="small" className="client-selector">
-                    {["LM", "CASTO", "BRICO", "ECOM"].map((c) => {
-                      const isKo = symlinkStatus[c] === false;
-                      const dotCls =
-                        healthData === null        ? "client-dot client-dot--unknown" :
-                        symlinkStatus[c] === true  ? "client-dot client-dot--ok"      :
-                        symlinkStatus[c] === false ? "client-dot client-dot--ko"      :
-                                                     "client-dot client-dot--unknown";
-                      return (
-                        <Popup
-                          key={c}
-                          content={`Accès réseau ${c} indisponible`}
-                          disabled={!isKo}
-                          trigger={
-                            <span className="client-btn-wrap">
-                              <Button
-                                toggle
-                                type="button"
-                                active={checkFolder === c}
-                                color={checkFolder === c ? clientColor(c) : undefined}
-                                onClick={() => {
-                                  if (isKo) return;
-                                  handleResetForm();
-                                  setCheckFolder(c);
-                                }}
-                                disabled={isKo}
-                                icon={CLIENT_ICONS[c]}
-                                content={c}
-                                style={isKo ? { pointerEvents: "none", opacity: 0.45 } : {}}
-                              />
-                              <span className={dotCls} />
-                            </span>
-                          }
-                        />
-                      );
-                    })}
-                  </Button.Group>
                 </div>
 
                 {/* Format + Visuel + N° Cmd */}
