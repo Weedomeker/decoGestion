@@ -1604,6 +1604,32 @@ img.ui.image:not(.header-logo) {
   color: var(--accent);
 }
 
+/* ===================== RESET BTN ===================== */
+.reset-btn {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: 'Figtree', -apple-system, sans-serif;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  transition: color 0.15s, background 0.15s;
+}
+
+.reset-btn:hover {
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+}
+
+.reset-btn .icon {
+  margin: 0 !important;
+}
+
 /* ===================== TOASTS ===================== */
 .toast-container {
   position: fixed;

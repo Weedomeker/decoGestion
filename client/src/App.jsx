@@ -696,6 +696,14 @@ function App() {
   const symlinkStatus = healthData?.symlinks ?? {};
   const anySymlinkOk = Object.values(symlinkStatus).some(Boolean);
 
+  const hasFormContent =
+    dossierJobs.length > 0 ||
+    !!selectedFormatTauro ||
+    !!selectedFormat ||
+    !!selectedFile ||
+    !!numCmd ||
+    !!ville;
+
   return (
     <div className="container">
       <Header
@@ -744,6 +752,17 @@ function App() {
               icon="edit"
               content="Saisie manuelle"
             />
+            {hasFormContent && (
+              <button
+                type="button"
+                className="reset-btn"
+                onClick={handleResetForm}
+                title="Vider le formulaire"
+              >
+                <Icon name="times" size="small" />
+                Vider
+              </button>
+            )}
           </div>
 
           <Form onSubmit={handleJobSubmit}>
