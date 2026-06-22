@@ -1696,26 +1696,29 @@ function App() {
               </div>
             </div>
 
-            <InfoMessage
-              isHidden={warnMsg.hidden}
-              title={warnMsg.header}
-              text={warnMsg.msg}
-              icon={warnMsg.icon}
-              color={warnMsg.color}
-            />
-
-            <Button
-              type="submit"
-              color="vk"
-              size="small"
-              className="submit-button"
-              disabled={dossierJobs.length > 0 && selectedJobIds.size === 0}
-              content={
-                dossierJobs.length > 0
-                  ? `Ajouter (${selectedJobIds.size} sélectionné${selectedJobIds.size > 1 ? "s" : ""})`
-                  : "Ajouter"
-              }
-            />
+            <div className={`submit-bar${
+              activeTab === "dossier" && dossierJobs.length > 0 ? " submit-bar--sticky" : ""
+            }`}>
+              <InfoMessage
+                isHidden={warnMsg.hidden}
+                title={warnMsg.header}
+                text={warnMsg.msg}
+                icon={warnMsg.icon}
+                color={warnMsg.color}
+              />
+              <Button
+                type="submit"
+                color="vk"
+                size="small"
+                className="submit-button"
+                disabled={dossierJobs.length > 0 && selectedJobIds.size === 0}
+                content={
+                  dossierJobs.length > 0
+                    ? `Ajouter (${selectedJobIds.size} sélectionné${selectedJobIds.size > 1 ? "s" : ""})`
+                    : "Ajouter"
+                }
+              />
+            </div>
           </Form>
         </div>
 

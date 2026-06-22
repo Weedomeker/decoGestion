@@ -1630,6 +1630,27 @@ img.ui.image:not(.header-logo) {
   margin: 0 !important;
 }
 
+/* ===================== SUBMIT BAR ===================== */
+.submit-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+}
+
+.submit-bar--sticky {
+  position: sticky;
+  bottom: 0;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border-default);
+  padding: var(--s-sm) var(--s-md);
+  margin: 0 calc(-1 * var(--s-lg));
+  z-index: 10;
+}
+
+.submit-bar--sticky .submit-button.ui.button {
+  margin-top: 0 !important;
+}
+
 /* ===================== TOASTS ===================== */
 .toast-container {
   position: fixed;
