@@ -24,8 +24,8 @@ function formatDuration(s) {
   if (s == null || s === "") return "—";
   const n = Number(s);
   if (isNaN(n)) return "—";
-  if (n < 60) return `${n}s`;
-  return `${Math.floor(n / 60)}m ${n % 60}s`;
+  if (n < 60) return `${Math.round(n)}s`;
+  return `${Math.floor(n / 60)}m ${Math.round(n % 60)}s`;
 }
 
 function HistoriqueView() {
