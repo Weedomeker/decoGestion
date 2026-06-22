@@ -891,7 +891,7 @@ function buildHistoryFilter(query) {
   const filter = {};
 
   if (query.client) {
-    filter.client = query.client;
+    filter.client = new RegExp(`^${query.client}$`, "i");
   }
 
   if (query.from || query.to) {
