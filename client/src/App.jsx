@@ -11,6 +11,7 @@ import FormatTauro from "./components/FormatTauro";
 import Header from "./components/Header";
 import InfoMessage from "./components/InfoMessage";
 import InfoModal from "./components/InfoModal";
+import Toast from "./components/Toast";
 import InfoStockModal from "./components/InfoStockModal";
 import JobsList from "./components/JobsList";
 import ServerStatus from "./components/ServerStatus";
@@ -58,6 +59,7 @@ function App() {
   const [pendingCount, setPendingCount] = useState(0);
   const [isLouisOpen, setIsLouisOpen] = useState(false);
   const [preview, setPreview] = useState(null);
+  const [preview2, setPreview2] = useState(null);
   const [dossierPreview, setDossierPreview] = useState(null);
   const [theme, setTheme] = useState(() =>
     localStorage.getItem('deco-theme') ||
@@ -109,12 +111,44 @@ function App() {
     object: null,
     use: false,
   });
+  const [toasts, setToasts] = useState([]);
+  const [stockBadge, setStockBadge] = useState(null);
   const [credenceEditId, setCredenceEditId] = useState(null);
   const [credence2NumCmd, setCredence2NumCmd] = useState("");
   const [credence2File, setCredence2File] = useState(null);
   const [credence2Client, setCredence2Client] = useState("");
   const [credence2Format, setCredence2Format] = useState("");
   const [healthData, setHealthData] = useState(null);
+
+  async function checkStockForVisuel(filename) {
+    const base = filename.split("/").pop();
+    const refMatch = base.match(/\b\d{7,}\b/) || base.match(/[A-Z]+-\d+/i);
+    const ref = refMatch?.[0];
+    if (!ref || ref === "00000000") { setStockBadge(null); return; }
+    try {
+      const res = await fetch(`${API_BASE}/stock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ref }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStockBadge(data.stock ?? null);
+      } else {
+        setStockBadge(null);
+      }
+    } catch {
+      setStockBadge(null);
+    }
+  }
+
+  function showToast(message, type = "success") {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+  }
+  function dismissToast(id) {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }
 
   function autoPairCredences(jobs) {
     const result = jobs.map((j) => ({ ...j }));
@@ -569,13 +603,17 @@ function App() {
         ]
           .filter(Boolean)
           .join(" · ");
-        setModalData({
-          open: true,
-          message: result.message,
-          object: result.object,
-          error: null,
-          warning: notices || null,
-        });
+        if (!notices && !result.object?.visuel2) {
+          showToast(result.message || "Commande ajoutée");
+        } else {
+          setModalData({
+            open: true,
+            message: result.message,
+            object: result.object,
+            error: null,
+            warning: notices || null,
+          });
+        }
       }
     } catch (err) {
       setModalData({
@@ -618,6 +656,8 @@ function App() {
     setPerte("");
     setCheckProdBlanc(false);
     setPreview(null);
+    setPreview2(null);
+    setStockBadge(null);
     setDossierJobs([]);
     setCheckGenerate({
       cut: false,
@@ -759,15 +799,30 @@ function App() {
                             <Table.HeaderCell>N° Cmd</Table.HeaderCell>
                             <Table.HeaderCell>Ville</Table.HeaderCell>
                             <Table.HeaderCell>Ex</Table.HeaderCell>
-                            <Table.HeaderCell title="Prod avec blanc" style={{ textAlign: "center" }}>
-                              <Icon name="adjust" size="small" />
+                            <Table.HeaderCell style={{ textAlign: "center" }}>
+                              <Popup
+                                content="Prod avec blanc — impression sur fond blanc"
+                                trigger={<Icon name="adjust" size="small" aria-label="Prod avec blanc" style={{ cursor: "help" }} />}
+                                position="top center"
+                                size="mini"
+                              />
                             </Table.HeaderCell>
-                            <Table.HeaderCell title="Teinte masse" style={{ textAlign: "center" }}>
-                              <Icon name="tint" size="small" />
+                            <Table.HeaderCell style={{ textAlign: "center" }}>
+                              <Popup
+                                content="Teinte masse — couleur de fond du panneau"
+                                trigger={<Icon name="tint" size="small" aria-label="Teinte masse" style={{ cursor: "help" }} />}
+                                position="top center"
+                                size="mini"
+                              />
                             </Table.HeaderCell>
                             {hasCredences && (
-                              <Table.HeaderCell title="Crédence — 2e panneau">
-                                <Icon name="clone" size="small" /> 2e panneau
+                              <Table.HeaderCell>
+                                <Popup
+                                  content="Crédence — 2e panneau à amalgamer"
+                                  trigger={<span style={{ cursor: "help" }} aria-label="Crédence — 2e panneau"><Icon name="clone" size="small" /> 2e panneau</span>}
+                                  position="top center"
+                                  size="mini"
+                                />
                               </Table.HeaderCell>
                             )}
                           </Table.Row>
@@ -1075,6 +1130,21 @@ function App() {
             {/* Mode manuel */}
             {activeTab === "manuel" && (
               <>
+                {(() => {
+                  const hint =
+                    enabled.format  ? "Sélectionne un format de plaque Tauro pour commencer" :
+                    enabled.visu    ? "Choisis un format de visuel" :
+                    enabled.numCmd  ? "Sélectionne le visuel" :
+                    enabled.ville   ? "Renseigne le numéro de commande (5 ou 6 chiffres)" :
+                    enabled.ex      ? "Saisis la ville ou le magasin" :
+                    null;
+                  return hint ? (
+                    <div className="form-step-hint">
+                      <Icon name="arrow right" size="small" />
+                      {hint}
+                    </div>
+                  ) : null;
+                })()}
                 <div className="form-section">
                   <span className="form-section-label">Plaque Tauro</span>
                 <Form.Field className="format-tauro" required error={error.formatTauro}>
@@ -1234,6 +1304,7 @@ function App() {
                         error={error.visuel}
                         id="visuel"
                         className="visuel"
+                        isLoading={isLoading}
                         isFile={isFile}
                         files={files}
                         value={selectedFile}
@@ -1245,6 +1316,8 @@ function App() {
                           setSelectedFile(value.name);
                           setFileSize(value.size);
                           setPreview(value.name);
+                          setStockBadge(null);
+                          checkStockForVisuel(value.name);
                           if (value.name == "" || value.name == undefined) {
                             setError({ ...error, visuel: true });
                           } else {
@@ -1307,6 +1380,13 @@ function App() {
 
                     {error.visuel && <span className="field-error-msg">Sélectionne un visuel</span>}
                     {fileSize && <p style={{ fontSize: "10px", textAlign: "right", marginTop: "2px" }}>{fileSize}</p>}
+                    {stockBadge && (
+                      <div className="stock-badge">
+                        <Icon name="archive" size="small" />
+                        En stock&nbsp;: <strong>{stockBadge.ex} ex</strong>
+                        {stockBadge.finition && <span className="stock-badge-detail">{stockBadge.finition}</span>}
+                      </div>
+                    )}
                   </Form.Field>
 
                   <Form.Field required error={error.numCmd} inline>
@@ -1384,6 +1464,7 @@ function App() {
                         error={error.visuel}
                         id="visuel"
                         className="visuel"
+                        isLoading={isLoading}
                         isFile={isFile2}
                         files={files2}
                         value={selectedFile2}
@@ -1392,7 +1473,7 @@ function App() {
                         onSelectedFile={(value) => {
                           if (!value) {
                             setSelectedFile2(null);
-                            setPreview(null);
+                            setPreview2(null);
                             setFileSize2("");
                             setCheckProdBlanc(false);
                             return;
@@ -1400,7 +1481,7 @@ function App() {
                           const name = value.name.split("/").pop();
                           setCheckProdBlanc(REGEX_BLANC.test(name));
                           setSelectedFile2(value.name);
-                          setPreview(value.name);
+                          setPreview2(value.name);
                           setFileSize2(value.size);
                           if (value.name == "" || value.name == undefined) {
                             setError({ ...error, visuel: true });
@@ -1615,7 +1696,7 @@ function App() {
           return (
             <div className={`preview-panel${activePreview ? " visible" : ""}`}>
               <p className="preview-label">Aperçu visuel</p>
-              <PreviewDeco fileSelected={activePreview} show={!!activePreview} client={checkFolder} />
+              <PreviewDeco fileSelected={activePreview} fileSelected2={activeTab === "manuel" ? preview2 : null} show={!!activePreview} client={checkFolder} />
             </div>
           );
         })()}
@@ -1649,6 +1730,8 @@ function App() {
         onValidate={handleValidateStock}
         stock={modalInfoStock.stock}
       />
+
+      <Toast toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

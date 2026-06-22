@@ -14,9 +14,21 @@ function extractFormat(filename) {
   return isCredence ? { isCredence: true, format: isCredence[0] } : { isCredence: false, format: format?.[0] };
 }
 
-function PreviewDeco({ fileSelected, show }) {
+function resolveImageUrl(fileSelected, previewList) {
+  if (!fileSelected || previewList.length === 0) return null;
+  const filename = fileSelected.split("/").pop();
+  const name = filename.replace(".pdf", "");
+  const reference = extractReference(filename);
+  const matched = reference
+    ? previewList.find((e) => e.name.includes(reference))
+    : previewList.find((e) => e.name.replace(".jpg", "") === name);
+  return matched ? `${API_BASE}/${matched.path.split("\\").slice(1).join("/")}` : null;
+}
+
+function PreviewDeco({ fileSelected, fileSelected2, show }) {
   const [previewList, setPreviewList] = useState([]);
   const [imageUrl, setImageUrl] = useState(null);
+  const [imageUrl2, setImageUrl2] = useState(null);
 
   useEffect(() => {
     fetch(`${API_BASE}/path`)
@@ -28,17 +40,12 @@ function PreviewDeco({ fileSelected, show }) {
   }, []);
 
   useEffect(() => {
-    if (!fileSelected || previewList.length === 0) return;
-    const filename = fileSelected.split("/").pop();
-    const name = filename.replace(".pdf", "");
-    const reference = extractReference(filename);
-
-    const matched = reference
-      ? previewList.find((e) => e.name.includes(reference))
-      : previewList.find((e) => e.name.replace(".jpg", "") === name);
-
-    setImageUrl(matched ? `${API_BASE}/${matched.path.split("\\").slice(1).join("/")}` : null);
+    setImageUrl(resolveImageUrl(fileSelected, previewList));
   }, [fileSelected, previewList]);
+
+  useEffect(() => {
+    setImageUrl2(fileSelected2 ? resolveImageUrl(fileSelected2, previewList) : null);
+  }, [fileSelected2, previewList]);
 
   if (!fileSelected || !show || !imageUrl) {
     return (
@@ -48,8 +55,32 @@ function PreviewDeco({ fileSelected, show }) {
     );
   }
 
-  const fname = fileSelected.split("/").pop() ?? "";
   const { isCredence } = extractFormat(imageUrl);
+  const fname = fileSelected.split("/").pop() ?? "";
+  const fname2 = fileSelected2?.split("/").pop() ?? "";
+
+  if (imageUrl2) {
+    return (
+      <div className="preview-c preview-c--dual">
+        <div className="preview-c-top">
+          <span className="preview-c-label">Panneau 1</span>
+          <span className="preview-c-label">Panneau 2</span>
+        </div>
+        <div className="preview-c-dual-images">
+          <div className="preview-c-image">
+            <Image src={imageUrl} alt="Aperçu déco 1" style={{ transform: isCredence ? "rotate(90deg)" : undefined }} />
+          </div>
+          <div className="preview-c-image">
+            <Image src={imageUrl2} alt="Aperçu déco 2" style={{ transform: isCredence ? "rotate(90deg)" : undefined }} />
+          </div>
+        </div>
+        <div className="preview-c-bottom preview-c-bottom--dual">
+          <span className="preview-c-fname">{fname.replace(".pdf", ".jpg")}</span>
+          <span className="preview-c-fname">{fname2.replace(".pdf", ".jpg")}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="preview-c">
@@ -68,6 +99,7 @@ function PreviewDeco({ fileSelected, show }) {
 
 PreviewDeco.propTypes = {
   fileSelected: PropTypes.string,
+  fileSelected2: PropTypes.string,
   show: PropTypes.bool,
 };
 
