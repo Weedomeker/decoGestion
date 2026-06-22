@@ -755,6 +755,12 @@ function App() {
                   formatTauro={formatTauro}
                   onAutoFill={handleDossierAutoFill}
                 />
+                {dossierJobs.length === 0 && (
+                  <div className="dossier-empty-state">
+                    <Icon name="folder outline" size="large" />
+                    <span>Saisis un N° de dossier ou un nom de client</span>
+                  </div>
+                )}
                 {dossierJobs.length > 0 && (() => {
                   const groups = dossierJobs.reduce((acc, job, i) => {
                     if (job._absorbedBy) return acc;

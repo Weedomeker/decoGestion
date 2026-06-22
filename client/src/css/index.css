@@ -1558,6 +1558,23 @@ img.ui.image:not(.header-logo) {
   color: #7aa8e8;
 }
 
+/* ===================== DOSSIER EMPTY STATE ===================== */
+.dossier-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-sm);
+  padding: var(--s-xl) var(--s-md);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-family: 'Figtree', -apple-system, sans-serif;
+}
+
+.dossier-empty-state .icon {
+  color: var(--text-muted) !important;
+}
+
 /* ===================== TOASTS ===================== */
 .toast-container {
   position: fixed;
