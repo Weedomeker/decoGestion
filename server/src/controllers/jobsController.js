@@ -897,6 +897,89 @@ async function getHistory(req, res) {
   }
 }
 
+async function getStats(req, res) {
+  const period = req.query.period || "week";
+
+  const now = new Date();
+  let from = null;
+  const to = new Date(now);
+  to.setHours(23, 59, 59, 999);
+
+  if (period === "week") {
+    from = new Date(now);
+    from.setDate(from.getDate() - 6);
+    from.setHours(0, 0, 0, 0);
+  } else if (period === "month") {
+    from = new Date(now);
+    from.setDate(from.getDate() - 29);
+    from.setHours(0, 0, 0, 0);
+  }
+  // period === "all" : from reste null, pas de filtre date
+
+  const matchStage = from ? { $match: { date: { $gte: from, $lte: to } } } : null;
+
+  const pipeline = [
+    ...(matchStage ? [matchStage] : []),
+    {
+      $facet: {
+        byClient: [
+          {
+            $group: {
+              _id: "$client",
+              count: { $sum: 1 },
+              avgTemps: { $avg: "$temps" },
+              totalPerte: { $sum: "$perte" },
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              client: "$_id",
+              count: 1,
+              avgTemps: { $round: ["$avgTemps", 1] },
+              totalPerte: { $round: ["$totalPerte", 2] },
+            },
+          },
+          { $sort: { count: -1 } },
+        ],
+        totals: [
+          {
+            $group: {
+              _id: null,
+              count: { $sum: 1 },
+              avgTemps: { $avg: "$temps" },
+              totalPerte: { $sum: "$perte" },
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              count: 1,
+              avgTemps: { $round: ["$avgTemps", 1] },
+              totalPerte: { $round: ["$totalPerte", 2] },
+            },
+          },
+        ],
+      },
+    },
+  ];
+
+  try {
+    const [result] = await modelDeco.aggregate(pipeline);
+    const totals = result.totals[0] || { count: 0, avgTemps: 0, totalPerte: 0 };
+    res.json({
+      period,
+      from: from ? from.toISOString() : null,
+      to: to.toISOString(),
+      totals,
+      byClient: result.byClient,
+    });
+  } catch (error) {
+    logger.error("Erreur getStats:", error);
+    res.status(500).json({ error: "Erreur lors du calcul des statistiques" });
+  }
+}
+
 module.exports = {
   getJobs,
   editJob,
@@ -906,5 +989,6 @@ module.exports = {
   deleteCompletedJobs,
   generateStickersOnly,
   getHistory,
+  getStats,
   processJob,
 };
