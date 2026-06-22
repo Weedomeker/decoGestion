@@ -941,25 +941,27 @@ function App() {
                                         />
                                       </Table.Cell>
                                       <Table.Cell style={{ textAlign: "center" }}>
-                                        <Icon
-                                          name={job.prodBlanc ? "adjust" : "circle outline"}
-                                          color={job.prodBlanc ? "yellow" : "grey"}
-                                          link
+                                        <button
+                                          type="button"
+                                          className={`toggle-chip toggle-chip--pb${job.prodBlanc ? " toggle-chip--on" : ""}`}
                                           title={job.prodBlanc ? "Prod avec blanc : ON" : "Prod avec blanc : OFF"}
                                           onClick={() => updateDossierJob(job._idx, { prodBlanc: !job.prodBlanc })}
-                                        />
+                                        >
+                                          PB
+                                        </button>
                                       </Table.Cell>
                                       <Table.Cell style={{ textAlign: "center" }}>
-                                        <Icon
-                                          name="tint"
-                                          color={job.teinteMasse ? "blue" : "grey"}
-                                          link
+                                        <button
+                                          type="button"
+                                          className={`toggle-chip toggle-chip--tm${job.teinteMasse ? " toggle-chip--on" : ""}`}
                                           title={job.teinteMasse ? "Teinte masse : ON" : "Teinte masse : OFF"}
                                           onClick={() => updateDossierJob(job._idx, {
                                             teinteMasse: !job.teinteMasse,
                                             selectedFileObject: null,
                                           })}
-                                        />
+                                        >
+                                          TM
+                                        </button>
                                       </Table.Cell>
                                       {hasCredences && (
                                         <Table.Cell>
