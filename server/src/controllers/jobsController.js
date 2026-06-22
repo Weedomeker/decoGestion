@@ -887,10 +887,43 @@ async function generateStickersForJobs(jobs) {
 }
 
 async function getHistory(req, res) {
-  const limit = Math.min(parseInt(req.query.limit) || 10, 100);
+  const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+  const skip = Math.max(parseInt(req.query.skip) || 0, 0);
+
+  // Construire le filtre MongoDB
+  const filter = {};
+
+  if (req.query.client) {
+    filter.client = req.query.client;
+  }
+
+  if (req.query.from || req.query.to) {
+    filter.date = {};
+    if (req.query.from) filter.date.$gte = new Date(req.query.from);
+    if (req.query.to) filter.date.$lte = new Date(req.query.to);
+  }
+
+  if (req.query.q) {
+    const q = req.query.q.trim();
+    const numericQ = /^\d+$/.test(q) ? Number(q) : null;
+    const textRegex = new RegExp(q, "i");
+    const orClauses = [
+      { mag: textRegex },
+      { deco: textRegex },
+      { ref: textRegex },
+    ];
+    if (numericQ !== null) {
+      orClauses.push({ numCmd: numericQ });
+    }
+    filter.$or = orClauses;
+  }
+
   try {
-    const entries = await modelDeco.find({}).sort({ date: -1 }).limit(limit).lean();
-    res.json({ data: entries, count: entries.length });
+    const [entries, totalDocs] = await Promise.all([
+      modelDeco.find(filter).sort({ date: -1 }).skip(skip).limit(limit).lean(),
+      modelDeco.countDocuments(filter),
+    ]);
+    res.json({ data: entries, count: entries.length, total: totalDocs });
   } catch (error) {
     logger.error("Erreur getHistory:", error);
     res.status(500).json({ error: "Erreur lors de la récupération de l'historique" });
