@@ -886,6 +886,152 @@ async function generateStickersForJobs(jobs) {
   await fs.promises.rm(tempFolder, { recursive: true, force: true });
 }
 
+const SUGGESTION_FIELDS = { ville: "mag", ref: "ref", visuel: "deco", format: "format", client: "client" };
+
+async function getSuggestions(req, res) {
+  const { field, q } = req.query;
+  const mongoField = SUGGESTION_FIELDS[field];
+  if (!mongoField) return res.status(400).json({ error: "Champ invalide" });
+  try {
+    const filter = q ? { [mongoField]: { $regex: q, $options: "i" } } : {};
+    const values = await modelDeco.distinct(mongoField, filter);
+    res.json(values.filter(Boolean).sort().slice(0, 20));
+  } catch (error) {
+    logger.error("Erreur getSuggestions:", error);
+    res.status(500).json({ error: "Erreur lors de la récupération des suggestions" });
+  }
+}
+
+async function lookupVisuel(req, res) {
+  const { visuel, format } = req.query;
+  if (!visuel) return res.status(400).json({ error: "visuel requis" });
+  try {
+    const filter = { deco: { $regex: visuel.trim(), $options: "i" } };
+    if (format) filter.format = { $regex: format.trim(), $options: "i" };
+    const entry = await modelDeco.findOne(filter).sort({ createdAt: -1 });
+    if (!entry) return res.json({});
+    res.json({
+      ref: entry.ref || "",
+      ville: entry.mag || "",
+      format: entry.format || "",
+      client: entry.client || "",
+    });
+  } catch (error) {
+    logger.error("Erreur lookupVisuel:", error);
+    res.status(500).json({ error: "Erreur lookup" });
+  }
+}
+
+async function getRefVisuels(req, res) {
+  const { q, client } = req.query;
+  if (!q || q.length < 2) return res.json([]);
+  try {
+    const filter = { model: { $regex: q.trim(), $options: "i" } };
+    const targets = client && refModels[client] ? [refModels[client]] : Object.values(refModels);
+    const sets = await Promise.all(targets.map((m) => m.distinct("model", filter)));
+    const visuels = [...new Set(sets.flat().filter(Boolean))].sort().slice(0, 20);
+    res.json(visuels);
+  } catch (error) {
+    logger.error("Erreur getRefVisuels:", error);
+    res.status(500).json({ error: "Erreur lookup visuels" });
+  }
+}
+
+async function getRefFormats(req, res) {
+  try {
+    const models = Object.values(refModels);
+    const sets = await Promise.all(models.map((m) => m.distinct("format")));
+    const clean = /^\d+x\d+$/i;
+    const formats = [...new Set(
+      sets.flat()
+        .map((f) => (f != null ? String(f).trim().toLowerCase() : ""))
+        .filter((f) => clean.test(f)),
+    )].sort((a, b) => {
+      const [aw, ah] = a.split("x").map(Number);
+      const [bw, bh] = b.split("x").map(Number);
+      return aw - bw || ah - bh;
+    });
+    res.json(formats);
+  } catch (error) {
+    logger.error("Erreur getRefFormats:", error);
+    res.status(500).json({ error: "Erreur récupération formats" });
+  }
+}
+
+async function previewStickerQuick(req, res) {
+  const { client, numCmd, ex, ville, ref, visuel, format_visu, isStock } = req.body;
+  if (!client) return res.status(400).json({ error: "client est requis" });
+  if (!isStock && !numCmd) return res.status(400).json({ error: "numCmd est requis" });
+
+  const syntheticJob = {
+    cmd: Number(numCmd) || 0,
+    ex: 1,
+    client,
+    ville: (ville || "").toUpperCase(),
+    ref: ref || "",
+    visuel: visuel || "",
+    format_visu: format_visu || "",
+    visuelIndex: 1,
+    showStock: Boolean(isStock),
+    visuPath2: null,
+    visuel2: null,
+    format2_visu: null,
+    commandId: numCmd ? String(numCmd) : "STOCK",
+  };
+
+  const tmpDir = path.join(os.tmpdir(), `sticker_preview_${Date.now()}`);
+  try {
+    await fs.promises.mkdir(tmpDir, { recursive: true });
+    await generateStickers([syntheticJob], tmpDir, true);
+
+    const files = await fs.promises.readdir(tmpDir);
+    const pdfFile = files.find((f) => f.endsWith(".pdf"));
+    if (!pdfFile) return res.status(500).json({ error: "Aucun sticker généré" });
+
+    const pdfBytes = await fs.promises.readFile(path.join(tmpDir, pdfFile));
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "inline");
+    res.send(pdfBytes);
+  } catch (error) {
+    logger.error("Erreur previewStickerQuick:", error);
+    res.status(500).json({ error: "Erreur lors de la génération de l'aperçu" });
+  } finally {
+    await fs.promises.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+async function generateStickerQuick(req, res) {
+  const { client, numCmd, ex, ville, ref, visuel, format_visu, isStock } = req.body;
+  if (!client) return res.status(400).json({ error: "client est requis" });
+  if (!isStock && !numCmd) return res.status(400).json({ error: "numCmd est requis" });
+  if (!state.paths.sessionPRINTSA)
+    return res.status(400).json({ error: "sessionPRINTSA est manquant" });
+
+  const syntheticJob = {
+    cmd: Number(numCmd) || 0,
+    ex: Number(ex) || 1,
+    client,
+    ville: (ville || "").toUpperCase(),
+    ref: ref || "",
+    visuel: visuel || "",
+    format_visu: format_visu || "",
+    visuelIndex: 1,
+    showStock: Boolean(isStock),
+    visuPath2: null,
+    visuel2: null,
+    format2_visu: null,
+    commandId: numCmd ? String(numCmd) : "STOCK",
+  };
+
+  try {
+    await generateStickersForJobs([syntheticJob]);
+    res.status(200).json({ message: "Sticker généré avec succès !" });
+  } catch (error) {
+    logger.error("❌ Erreur lors de la génération du sticker rapide :", error);
+    res.status(500).json({ error: "Erreur lors de la génération du sticker" });
+  }
+}
+
 // Fonction interne partagée pour construire le filtre MongoDB
 function buildHistoryFilter(query) {
   const filter = {};
@@ -1090,6 +1236,12 @@ module.exports = {
   deleteJob,
   deleteCompletedJobs,
   generateStickersOnly,
+  generateStickerQuick,
+  previewStickerQuick,
+  getSuggestions,
+  lookupVisuel,
+  getRefVisuels,
+  getRefFormats,
   getHistory,
   exportHistory,
   getStats,

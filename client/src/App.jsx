@@ -21,6 +21,7 @@ import PreviewDeco from "./components/PreviewDeco";
 import HistoriqueView from "./components/HistoriqueView";
 import ReferencesView from "./components/ReferencesView";
 import StatsView from "./components/StatsView";
+import StickerView from "./components/StickerView";
 import TeinteMasseDropdown from "./components/TeinteMasseDropdown";
 import VisuelDropdown from "./components/VisuelDropdown";
 import { isCredenceFormat } from "./utils/credence";
@@ -1745,6 +1746,10 @@ function App() {
 
       <div className={`historique-view-wrapper${activeView !== "historique" ? " hidden" : ""}`}>
         {activeView === "historique" && <HistoriqueView />}
+      </div>
+
+      <div className={`sticker-view-wrapper${activeView !== "sticker" ? " hidden" : ""}`}>
+        {activeView === "sticker" && <StickerView />}
       </div>
       </div>
 
