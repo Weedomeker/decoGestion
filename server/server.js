@@ -88,7 +88,22 @@ createBullBoard({
   queues: [new BullMQAdapter(decoQueue)],
   serverAdapter,
 });
-app.use("/admin/queues", serverAdapter.getRouter());
+
+app.get("/admin-theme.css", (req, res) => {
+  res.setHeader("Content-Type", "text/css");
+  res.sendFile(path.join(__dirname, "src/admin-theme.css"));
+});
+
+app.use("/admin/queues", (req, res, next) => {
+  const _send = res.send.bind(res);
+  res.send = function (body) {
+    if (typeof body === "string" && body.includes("</head>")) {
+      body = body.replace("</head>", '<link rel="stylesheet" href="/admin-theme.css"></head>');
+    }
+    return _send(body);
+  };
+  next();
+}, serverAdapter.getRouter());
 
 // Worker BullMQ — traite les jobs process-job avec processJob
 initWorker(async (bullJob) => {

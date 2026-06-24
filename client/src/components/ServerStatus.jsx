@@ -70,6 +70,15 @@ export default function ServerStatus({ onHealthChange }) {
       {["LM", "CASTO", "BRICO", "ECOM", "PREVIEW"].map((k) => (
         <ServiceRow key={k} ok={symlinks[k] ?? null} label={k} />
       ))}
+      <Divider style={{ margin: "4px 0" }} />
+      <a
+        href={`${API_BASE}/admin/queues`}
+        target="_blank"
+        rel="noreferrer"
+        style={{ fontSize: "0.75rem", color: "var(--text-secondary)", textDecoration: "none" }}
+      >
+        ↗ Bull Board (file Redis)
+      </a>
     </div>
   );
 
@@ -79,6 +88,7 @@ export default function ServerStatus({ onHealthChange }) {
       content={content}
       position="bottom right"
       on={["hover", "click", "focus"]}
+      hoverable
       style={{
         minWidth: 160,
         background: "var(--bg-elevated)",
