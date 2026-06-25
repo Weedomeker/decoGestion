@@ -538,28 +538,24 @@ async function buildDetail(connection, dossier) {
 
   const relatedBatch = async () => {
     if (!textValues) return new Array(11).fill([]);
-    const conn2 = await getDbConnection();
-    try {
-      // IN clauses : échappement manuel maintenu (ODBC ne supporte pas les placeholders IN dynamiques)
-      const docOperations = await fetchOptionalRows(conn2, `select * from public.fd_elem_doc_ope where dev_code_devis in (${textValues})`);
-      const fichierForme = await fetchOptionalRows(conn2, `select * from public.fd_fichier_forme where placoul_devis in (${textValues})`);
-      const listeMarges = await fetchOptionalRows(conn2, `select * from public.fd_liste_marges where mgdev_seq = ?`, [dosSeq]);
-      const descriptifs = await fetchOptionalRows(conn2, `select * from public.fdescriptif where devis in (${textValues})`);
-      const livraisons = await fetchOptionalRows(conn2, `select * from public.ff_livraison where bo_no_dossier = ? or bo_devis = ?`, [dossierCommande, dossierCode]);
-      const signatures = await fetchOptionalRows(conn2, `select * from public.fi_sol_signature where sign_dossier = ? or sign_devis = ?`, [dossierCommande, dossierCode]);
-      const impositions = await fetchOptionalRows(conn2, `select * from public.fi_sol_imposition where impo_code_devis = ?`, [dossierCode]);
-      const agendaProduction = await fetchOptionalRows(conn2, `select * from public.fp_agenda_prod where ag_dossier = ?`, [dossierCommande]);
-      const etatsDossier = await fetchOptionalRows(conn2, `select * from public.fp_lien_etat_dossier where fled_num_dossier = ?`, [dossierCommande]);
-      const likeCommande = `${escapeSqlLike(dossierCommande)}%`;
-      const suiviOperations = await fetchOptionalRows(conn2, `select * from public.fp_opera_suivi where suivi_dossier = ? or suivi_dossier_element like ? ESCAPE '\\'`, [dossierCommande, likeCommande]);
-      const pages = await fetchOptionalRows(conn2, `select * from public.fp_pages where pages_dossier = ?`, [dossierCommande]);
-      return [docOperations, fichierForme, listeMarges, descriptifs, livraisons, signatures, impositions, agendaProduction, etatsDossier, suiviOperations, pages];
-    } finally {
-      await closeConnection(conn2);
-    }
+    // IN clauses : échappement manuel maintenu (ODBC ne supporte pas les placeholders IN dynamiques)
+    const docOperations = await fetchOptionalRows(connection, `select * from public.fd_elem_doc_ope where dev_code_devis in (${textValues})`);
+    const fichierForme = await fetchOptionalRows(connection, `select * from public.fd_fichier_forme where placoul_devis in (${textValues})`);
+    const listeMarges = await fetchOptionalRows(connection, `select * from public.fd_liste_marges where mgdev_seq = ?`, [dosSeq]);
+    const descriptifs = await fetchOptionalRows(connection, `select * from public.fdescriptif where devis in (${textValues})`);
+    const livraisons = await fetchOptionalRows(connection, `select * from public.ff_livraison where bo_no_dossier = ? or bo_devis = ?`, [dossierCommande, dossierCode]);
+    const signatures = await fetchOptionalRows(connection, `select * from public.fi_sol_signature where sign_dossier = ? or sign_devis = ?`, [dossierCommande, dossierCode]);
+    const impositions = await fetchOptionalRows(connection, `select * from public.fi_sol_imposition where impo_code_devis = ?`, [dossierCode]);
+    const agendaProduction = await fetchOptionalRows(connection, `select * from public.fp_agenda_prod where ag_dossier = ?`, [dossierCommande]);
+    const etatsDossier = await fetchOptionalRows(connection, `select * from public.fp_lien_etat_dossier where fled_num_dossier = ?`, [dossierCommande]);
+    const likeCommande = `${escapeSqlLike(dossierCommande)}%`;
+    const suiviOperations = await fetchOptionalRows(connection, `select * from public.fp_opera_suivi where suivi_dossier = ? or suivi_dossier_element like ? ESCAPE '\\'`, [dossierCommande, likeCommande]);
+    const pages = await fetchOptionalRows(connection, `select * from public.fp_pages where pages_dossier = ?`, [dossierCommande]);
+    return [docOperations, fichierForme, listeMarges, descriptifs, livraisons, signatures, impositions, agendaProduction, etatsDossier, suiviOperations, pages];
   };
 
-  const [primary, relatedResults] = await Promise.all([primaryBatch(), relatedBatch()]);
+  const primary = await primaryBatch();
+  const relatedResults = await relatedBatch();
   const [docOperations, fichierForme, listeMarges, descriptifs, livraisons, signatures, impositions, agendaProduction, etatsDossier, suiviOperations, pages] = relatedResults;
 
   let visualReferences = [];
