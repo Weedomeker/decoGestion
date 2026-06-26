@@ -5,11 +5,15 @@ const { isProfileLabel, isKitPoseLabel } = require("../gamesys/utils/reference")
 const StockArticle = require("../models/StockArticle");
 const ConsommationCommande = require("../models/ConsommationCommande");
 
-function sumQtyByLabel(sousDossiers, predicate) {
-  return (sousDossiers || [])
-    .flatMap((s) => s.enteteDevis || [])
-    .filter((e) => predicate(e.endv_identif || ""))
-    .reduce((sum, e) => sum + (Number(e.endv_quant) || 0), 0);
+function getQtyForArticle(sousDossiers, predicate, refLibelle) {
+  const allEntetes = (sousDossiers || []).flatMap((s) => s.enteteDevis || []);
+  const typeEntetes = allEntetes.filter((e) => predicate(e.endv_identif || ""));
+  const distinctLabels = [...new Set(typeEntetes.map((e) => e.endv_identif))];
+  if (distinctLabels.length <= 1) {
+    return typeEntetes.reduce((sum, e) => sum + (Number(e.endv_quant) || 0), 0);
+  }
+  const matched = typeEntetes.filter((e) => e.endv_identif === refLibelle);
+  return (matched.length ? matched : typeEntetes).reduce((sum, e) => sum + (Number(e.endv_quant) || 0), 0);
 }
 
 async function upsertArticle(ref, fields) {
@@ -44,9 +48,6 @@ async function saveProfilsKits(job) {
 
   if (profileReferences.length === 0 && kitPosesReferences.length === 0) return;
 
-  const profilQty = sumQtyByLabel(grouped.sousDossiers, isProfileLabel);
-  const kitQty = sumQtyByLabel(grouped.sousDossiers, isKitPoseLabel);
-
   const articles = [];
 
   for (const r of profileReferences) {
@@ -57,7 +58,7 @@ async function saveProfilsKits(job) {
     } catch (err) {
       logger.warn(`saveProfilsKits: upsert profil ref=${ref} échoué : ${err.message}`);
     }
-    articles.push({ ref, type: "profil", libelle: r.libelle || "", quantite: profilQty });
+    articles.push({ ref, type: "profil", libelle: r.libelle || "", quantite: getQtyForArticle(grouped.sousDossiers, isProfileLabel, r.libelle || "") });
   }
 
   for (const r of kitPosesReferences) {
@@ -68,14 +69,20 @@ async function saveProfilsKits(job) {
     } catch (err) {
       logger.warn(`saveProfilsKits: upsert kit ref=${ref} échoué : ${err.message}`);
     }
-    articles.push({ ref, type: "kit", libelle: r.libelle || "", quantite: kitQty });
+    articles.push({ ref, type: "kit", libelle: r.libelle || "", quantite: getQtyForArticle(grouped.sousDossiers, isKitPoseLabel, r.libelle || "") });
   }
 
   if (articles.length === 0) return;
 
+  const numCmd = parseInt(job.cmd, 10);
+  if (!numCmd || isNaN(numCmd)) {
+    logger.warn(`saveProfilsKits: numCmd invalide (cmd=${job.cmd}), consommation ignorée`);
+    return;
+  }
+
   try {
     await ConsommationCommande.create({
-      numCmd: job.cmd,
+      numCmd,
       client: job.client,
       dateJob: new Date(),
       articles,

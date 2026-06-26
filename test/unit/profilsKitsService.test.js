@@ -126,4 +126,35 @@ describe("profilsKitsService.saveProfilsKits()", () => {
     catch { threw = true; }
     expect(threw).to.be.false;
   });
+
+  it("attribue la quantité correcte par libelle quand plusieurs profils distincts existent", async () => {
+    const groupedMultiProfil = {
+      profileReferences: [
+        { reference: "P001", articleReference: "P001", modele: "PROFIL BLANC", libelle: "PROFIL BLANC 255", codeTarif: "" },
+        { reference: "P002", articleReference: "P002", modele: "CORNIERE", libelle: "CORNIERE ALU", codeTarif: "" },
+      ],
+      kitPosesReferences: [],
+      sousDossiers: [
+        {
+          enteteDevis: [
+            { endv_identif: "PROFIL BLANC 255", endv_quant: 3 },
+            { endv_identif: "CORNIERE ALU", endv_quant: 1 },
+          ],
+        },
+      ],
+    };
+
+    getDossierDetailStub.resolves(groupedMultiProfil);
+
+    await saveProfilsKits(fakeJob(164629, "LM"));
+
+    expect(consommationCreateStub.calledOnce).to.be.true;
+    const created = consommationCreateStub.firstCall.args[0];
+    expect(created.articles).to.have.length(2);
+
+    const profilBlanc = created.articles.find((a) => a.ref === "P001");
+    const corniere = created.articles.find((a) => a.ref === "P002");
+    expect(profilBlanc.quantite).to.equal(3);
+    expect(corniere.quantite).to.equal(1);
+  });
 });
