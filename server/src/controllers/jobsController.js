@@ -18,6 +18,7 @@ const getPreview = require("../getPreview");
 const findStock = require("../findStock");
 const Stocks = require("../models/Stocks");
 const { state } = require("../services/appState");
+const { saveProfilsKits } = require("../services/profilsKitsService");
 const { saveFormatsTauroIfNeeded } = require("../services/formatsService");
 const { broadcastWS, broadcastCompletedJob } = require("../services/websocketService");
 const usePdfWorker = require("../utils/pdfWorker");
@@ -691,6 +692,12 @@ async function processJob(job, req) {
     }
   } catch (error) {
     logger.error(`Erreur sauvegarde dossier pour le job ${job.cmd}: ${error.message}`);
+  }
+
+  try {
+    await saveProfilsKits(job);
+  } catch (err) {
+    logger.warn(`Profils/kits non enregistrés pour le job ${job.cmd} : ${err.message}`);
   }
 
   if (isStock) {
