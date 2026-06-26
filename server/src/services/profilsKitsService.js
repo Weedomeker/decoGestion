@@ -21,7 +21,7 @@ async function upsertArticle(ref, fields) {
         modele: fields.modele || "",
         libelle: fields.libelle || "",
         type: fields.type,
-        codeArticle: fields.codeArticle || "",
+        codeArticle: fields.codeTarif || "",
         famille: fields.famille || "",
         sousFamille: fields.sousFamille || "",
       },
