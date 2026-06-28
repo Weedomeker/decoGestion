@@ -11,44 +11,160 @@ const {
   getVisualReferenceFromEntete,
 } = require("../utils/reference");
 const { cleanDbValue, pickFields, uniqueBy, countRows } = require("../utils/data");
+const RefDeco  = require("../../models/RefDeco");
+const RefEcom  = require("../../models/RefEcom");
+const RefBrico = require("../../models/RefBrico");
+const RefCasto = require("../../models/RefCasto");
+
+function mapStockRow(row) {
+  return {
+    reference: row.st_art_ref_client || row.st_modele,
+    modele: row.st_modele,
+    libelle: [row.st_lib_1_conso, row.st_lib_2_conso].filter(Boolean).join(" - "),
+    gencod: row.st_art_gencod,
+    codeTarif: row.st_code_tarif,
+    famille: row.st_art_famille,
+    sousFamille: row.st_art_sfamille,
+    type: row.st_type,
+    source: "fs_stock",
+  };
+}
+
+const STOCK_SELECT = `
+  select
+    st_seq,
+    st_modele,
+    st_art_ref_client,
+    st_lib_1_conso,
+    st_lib_2_conso,
+    st_art_gencod,
+    st_code_tarif,
+    st_art_famille,
+    st_art_sfamille,
+    st_type
+  from public.fs_stock
+`;
+
+async function findMongoRef(ref) {
+  const [deco, ecom, brico, casto] = await Promise.all([
+    RefDeco.findOne({ ref }).lean().catch(() => null),
+    RefEcom.findOne({ ref }).lean().catch(() => null),
+    RefBrico.findOne({ ref }).lean().catch(() => null),
+    RefCasto.findOne({ ref }).lean().catch(() => null),
+  ]);
+  return deco || ecom || brico || casto || null;
+}
+
+function extractDimensionFormat(text) {
+  const m = String(text || "").match(/(\d{2,4})\s*x\s*(\d{2,4})/i);
+  if (!m) return null;
+  const w = Number(m[1]);
+  const h = Number(m[2]);
+  return `${w > 500 ? Math.round(w / 10) : w}x${h > 500 ? Math.round(h / 10) : h}`;
+}
+
+function extractModelFromIdentif(identif) {
+  // Retire les dimensions (NNNxNNNcm) pour isoler le nom du modèle
+  return String(identif || "")
+    .replace(/\s*\d{2,4}\s*x\s*\d{2,4}\s*(?:cm|mm)?\b\.?\s*/gi, " ")
+    .trim();
+}
+
+async function enrichRowsWithMongoRef(rows, identif) {
+  const format = extractDimensionFormat(identif);
+  const model = extractModelFromIdentif(identif);
+  return Promise.all(
+    rows.map(async (row) => {
+      // Si st_art_ref_client est déjà connu dans MongoDB, la ref est valide → pas besoin d'enrichir
+      if (row.st_art_ref_client) {
+        const existing = await findMongoRef(row.st_art_ref_client);
+        if (existing) return row;
+      }
+      // st_art_ref_client absent ou non reconnu en MongoDB → chercher par model (identif) + format
+      if (!model) return row;
+      const query = format ? { model, format } : { model };
+      const [deco, ecom, brico, casto] = await Promise.all([
+        RefDeco.findOne(query).lean().catch(() => null),
+        RefEcom.findOne(query).lean().catch(() => null),
+        RefBrico.findOne(query).lean().catch(() => null),
+        RefCasto.findOne(query).lean().catch(() => null),
+      ]);
+      const mongoDoc = deco || ecom || brico || casto;
+      return mongoDoc ? { ...row, st_art_ref_client: mongoDoc.ref, st_modele: mongoDoc.ref } : row;
+    })
+  );
+}
 
 async function findStockReferences(connection, enteteDevis) {
   const identif = enteteDevis[0]?.endv_identif || "";
   if (isKitPoseLabel(identif)) {
     const rows = await query(
       connection,
-      `
-        select
-          st_seq,
-          st_modele,
-          st_art_ref_client,
-          st_lib_1_conso,
-          st_lib_2_conso,
-          st_art_gencod,
-          st_code_tarif,
-          st_art_famille,
-          st_art_sfamille,
-          st_type
-        from public.fs_stock
-        where st_code_tarif = 'KITPOSE' and st_lib_1_conso = 'KIT DE POSE'
-        order by st_seq desc
-        limit 25
-      `
+      `${STOCK_SELECT} where st_code_tarif = 'KITPOSE' and st_lib_1_conso = 'KIT DE POSE' order by st_seq desc limit 25`
     );
-
-    return rows.map((row) => ({
-      reference: row.st_art_ref_client || row.st_modele,
-      modele: row.st_modele,
-      libelle: [row.st_lib_1_conso, row.st_lib_2_conso].filter(Boolean).join(" - "),
-      gencod: row.st_art_gencod,
-      codeTarif: row.st_code_tarif,
-      famille: row.st_art_famille,
-      sousFamille: row.st_art_sfamille,
-      type: row.st_type,
-      source: "fs_stock",
-    }));
+    return rows.map(mapStockRow);
   }
 
+  // Priorité 1 : correspondance directe via les champs de référence explicites du devis
+  // Validation croisée MongoDB + libellé stock pour éviter les fausses correspondances
+  // (endv_ref_client peut contenir une référence d'un autre article, ex : ancienne commande LM)
+  const directRefs = enteteDevis
+    .map((e) => getVisualReferenceFromEntete(e))
+    .filter(Boolean)
+    .map((ref) => String(ref).trim().toUpperCase());
+
+  if (directRefs.length > 0) {
+    const identifAlphaTerms = getSearchTerms(identif).filter((t) => /^[A-Z]{3,}$/.test(t));
+
+    const validatedRefs = (
+      await Promise.all(
+        directRefs.map(async (ref) => {
+          const mongoDoc = await findMongoRef(ref);
+          if (mongoDoc) {
+            if (identifAlphaTerms.length === 0) return ref;
+            const mongoModel = normalizeSearchText(mongoDoc.model || "");
+            return identifAlphaTerms.some((t) => mongoModel.includes(t)) ? ref : null;
+          }
+          return null; // Inconnu de MongoDB → ref non fiable (peut être une ancienne commande), laisser Priorité 3 trouver la bonne
+        })
+      )
+    ).filter(Boolean);
+
+    if (validatedRefs.length > 0) {
+      const validRefsText = sqlTextList(validatedRefs);
+      const rows = await query(
+        connection,
+        `${STOCK_SELECT} where upper(st_art_ref_client) in (${validRefsText}) or upper(st_modele) in (${validRefsText}) order by st_seq desc limit 25`
+      );
+      if (rows.length > 0) {
+        const confirmedRows =
+          identifAlphaTerms.length === 0
+            ? rows
+            : rows.filter((row) => {
+                const stockText = normalizeSearchText(
+                  [row.st_lib_1_conso, row.st_lib_2_conso, row.st_modele].filter(Boolean).join(" ")
+                );
+                return identifAlphaTerms.some((t) => stockText.includes(t));
+              });
+        if (confirmedRows.length > 0) return (await enrichRowsWithMongoRef(confirmedRows, identif)).map(mapStockRow);
+        // La confirmation textuelle échoue mais la ref directe existe dans Gamesys → plus fiable que Priorité 3
+        return (await enrichRowsWithMongoRef(rows, identif)).map(mapStockRow);
+      }
+    }
+  }
+
+  // Priorité 2 : EAN/gencod (nombre de 13 chiffres dans le libellé)
+  const eanMatch = identif.match(/\b(\d{13})\b/);
+  if (eanMatch) {
+    const rows = await query(
+      connection,
+      `${STOCK_SELECT} where st_art_gencod = ? order by st_seq desc limit 5`,
+      [eanMatch[1]]
+    );
+    if (rows.length > 0) return (await enrichRowsWithMongoRef(rows, identif)).map(mapStockRow);
+  }
+
+  // Priorité 3 : recherche LIKE textuelle (fallback — ne retourne que les correspondances exactes confirmées)
   const terms = isProfileLabel(identif) ? getProfileSearchTerms(identif) : getSearchTerms(identif);
   const numericTerms = terms.filter((term) => /^\d+$/.test(term));
   const firstLabelTerm = terms.find((term) => /^[A-Z]+$/.test(term));
@@ -63,30 +179,14 @@ async function findStockReferences(connection, enteteDevis) {
   const where = usefulTerms
     .map((term) => {
       const likeVal = `%${escapeSqlLike(term)}%`;
-      likeParams.push(likeVal, likeVal, likeVal, likeVal);
-      return `(upper(st_lib_1_conso) like ? ESCAPE '\\' or upper(st_lib_2_conso) like ? ESCAPE '\\' or upper(st_art_ref_client) like ? ESCAPE '\\' or upper(st_modele) like ? ESCAPE '\\')`;
+      likeParams.push(likeVal, likeVal, likeVal, likeVal, likeVal);
+      return `(upper(st_lib_1_conso) like ? ESCAPE '\\' or upper(st_lib_2_conso) like ? ESCAPE '\\' or upper(st_art_ref_client) like ? ESCAPE '\\' or upper(st_modele) like ? ESCAPE '\\' or upper(st_code_tarif) like ? ESCAPE '\\')`;
     })
     .join(" and ");
 
   const rows = await query(
     connection,
-    `
-      select
-        st_seq,
-        st_modele,
-        st_art_ref_client,
-        st_lib_1_conso,
-        st_lib_2_conso,
-        st_art_gencod,
-        st_code_tarif,
-        st_art_famille,
-        st_art_sfamille,
-        st_type
-      from public.fs_stock
-      where ${where}
-      order by st_seq desc
-      limit 25
-    `,
+    `${STOCK_SELECT} where ${where} order by st_seq desc limit 25`,
     likeParams
   );
 
@@ -95,23 +195,12 @@ async function findStockReferences(connection, enteteDevis) {
       row.st_lib_1_conso,
       row.st_lib_2_conso,
       row.st_art_ref_client,
+      row.st_code_tarif,
     ].filter(Boolean).join(" "));
     return terms.every((term) => haystack.includes(term));
   });
 
-  const selectedRows = exactRows.length ? exactRows : rows.slice(0, 5);
-
-  return selectedRows.map((row) => ({
-    reference: row.st_art_ref_client || row.st_modele,
-    modele: row.st_modele,
-    libelle: [row.st_lib_1_conso, row.st_lib_2_conso].filter(Boolean).join(" - "),
-    gencod: row.st_art_gencod,
-    codeTarif: row.st_code_tarif,
-    famille: row.st_art_famille,
-    sousFamille: row.st_art_sfamille,
-    type: row.st_type,
-    source: "fs_stock",
-  }));
+  return (await enrichRowsWithMongoRef(exactRows, identif)).map(mapStockRow);
 }
 
 function getStockReferenceCategory(reference) {
@@ -188,19 +277,30 @@ function buildVisualReferences(enteteDevis, stockVisualReferences) {
         if (isProfileLabel(entete.endv_identif)) return null;
         if (isKitPoseLabel(entete.endv_identif)) return null;
 
-        const stockReference = stockVisualReferences?.find((stock) => {
-          const stockText = normalizeSearchText([
-            stock.libelle,
-            stock.codeTarif,
-            stock.reference,
-            stock.modele,
-          ].filter(Boolean).join(" "));
-          const enteteText = normalizeSearchText(entete.endv_identif);
-          return enteteText && stockText.includes(enteteText);
-        }) || stockVisualReferences?.[0];
-
         const explicitReference = getVisualReferenceFromEntete(entete);
-        const reference = stockReference?.reference || stockReference?.modele || explicitReference || entete.endv_identif;
+        const explicitRefNorm = String(explicitReference || "").toUpperCase();
+
+        // Priorité sémantique : le matching par mots-clés passe avant l'exact match sur la ref explicite.
+        // La ref explicite (endv_ref_client) peut pointer sur une ancienne version du même article ;
+        // la recherche textuelle (ordonnée par st_seq desc) remonte l'article courant en premier.
+        const stockReference =
+          stockVisualReferences?.find((stock) => {
+            const stockKeyTerms = getSearchTerms(stock.libelle || stock.modele || "");
+            const enteteText = normalizeSearchText(entete.endv_identif);
+            return stockKeyTerms.length >= 1 && stockKeyTerms.every((term) => enteteText.includes(term));
+          }) ||
+          (explicitRefNorm
+            ? stockVisualReferences?.find(
+                (stock) =>
+                  String(stock.reference || "").toUpperCase() === explicitRefNorm ||
+                  String(stock.modele || "").toUpperCase() === explicitRefNorm
+              )
+            : undefined) ||
+          stockVisualReferences?.[0];
+        const stockRef = stockReference?.reference;
+        // Si st_art_ref_client = gencod (EAN barcode), ignorer — pas une référence visuelle utilisable
+        const refIsGencod = stockRef && stockRef === stockReference?.gencod;
+        const reference = (refIsGencod ? null : stockRef) || stockReference?.modele || explicitReference || entete.endv_identif;
         if (!reference) return null;
 
         return {
@@ -563,7 +663,12 @@ async function buildDetail(connection, dossier) {
   let kitPosesReferences = [];
 
   try {
-    const stockReferences = await findStockReferences(connection, primary.enteteDevis);
+    const stockRefSets = await Promise.all(
+      primary.enteteDevis.map((entete) =>
+        findStockReferences(connection, [entete]).catch(() => [])
+      )
+    );
+    const stockReferences = uniqueBy(stockRefSets.flat(), (r) => r.reference || r.modele);
     const categorizedReferences = splitVisualAndProfileReferences(stockReferences);
     visualReferences = buildVisualReferences(primary.enteteDevis, categorizedReferences.visuals);
     profileReferences = buildProfileReferences(primary.enteteDevis, categorizedReferences.profiles);

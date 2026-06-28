@@ -126,21 +126,29 @@ app.use((err, req, res, next) => {
 });
 
 server.listen(PORT, async () => {
-  await checkVersion()
-    .then((result) => {
-      logger.info(result.message);
-    })
-    .catch((error) => {
-      logger.error("Error:", error);
-    });
+  // checkVersion et linkFolders sont indépendants — on les lance en parallèle
+  await Promise.all([
+    checkVersion()
+      .then((result) => logger.info(result.message))
+      .catch((error) => logger.error("Error:", error)),
+    linkFolders(false),
+  ]);
 
-  await linkFolders(false);
-
+  // checkNetworkPaths dépend des state.paths peuplés par linkFolders
   await checkNetworkPaths();
 
   // MongoDB doit être prêt avant processAllPDFs (scan long) pour que les requêtes
   // arrivant pendant le scan ne buffèrent pas et ne timeout pas.
-  await connectMongo().catch((err) => logger.error(`MongoDB: ${err.message || err.code || err}`));
+  // ODBC n'a aucune dépendance — on le connecte en parallèle avec MongoDB.
+  const [, odbcOk] = await Promise.all([
+    connectMongo().catch((err) => logger.error(`MongoDB: ${err.message || err.code || err}`)),
+    checkOdbcConnection(),
+  ]);
+  if (odbcOk) {
+    logger.info("ODBC: connexion établie");
+  } else {
+    logger.warn("ODBC: connexion échouée — API Gamesys indisponible (mode dégradé)");
+  }
 
   logger.info(`Server start on port ${PORT}`);
 
@@ -149,9 +157,14 @@ server.listen(PORT, async () => {
 
   if (previewDir) {
     try {
-      for (const pdfDir of sourceDirs) {
-        if (pdfDir) {
-          await processAllPDFs({
+      // Les 4 répertoires source sont indépendants — traitement en parallèle
+      await Promise.all(
+        sourceDirs.map((pdfDir) => {
+          if (!pdfDir) {
+            logger.warn("processAllPDFs ignoré: symlink source non disponible");
+            return Promise.resolve();
+          }
+          return processAllPDFs({
             pdfDirectory: pdfDir,
             jpgDirectory: previewDir,
             height: 1920,
@@ -159,22 +172,13 @@ server.listen(PORT, async () => {
             parallelLimit: 5,
             verbose: false,
           });
-        } else {
-          logger.warn("processAllPDFs ignoré: symlink source non disponible");
-        }
-      }
+        }),
+      );
     } catch (error) {
       logger.error("Erreur génération JPG:", error);
     }
   } else {
     logger.warn("processAllPDFs ignoré: dossier preview non disponible");
-  }
-
-  const odbcOk = await checkOdbcConnection();
-  if (odbcOk) {
-    logger.info("ODBC: connexion établie");
-  } else {
-    logger.warn("ODBC: connexion échouée — API Gamesys indisponible (mode dégradé)");
   }
 
   const MONGO_STATES = ["disconnected", "connected", "connecting", "disconnecting"];

@@ -65,8 +65,15 @@ function normalizeDossierApiPayload(payload) {
         warnings.push(`Format plaque introuvable pour ${commande}`);
       }
 
+      const libelle = visualRef?.libelle || entete?.endv_identif || "";
+      const reference = visualRef?.reference || visualRef?.articleReference || visualRef?.modele || "";
+
+      if (reference && reference === libelle) {
+        warnings.push(`Référence fallback sur libellé brut pour ${commande} : "${libelle}"`);
+      }
+
       return {
-        id: `${commande}-${visualRef?.reference || visualIndex}`,
+        id: `${commande}-${reference || visualIndex}`,
         commande,
         sousNumero,
         numCmd: String(payload?.numero || ""),
@@ -75,9 +82,10 @@ function normalizeDossierApiPayload(payload) {
             ? livraison?.bo_adlivr_nom_1 || livraison?.bo_ref_de_livraison || livraison?.bo_ville || ""
             : livraison?.bo_ville || livraison?.bo_adlivr_nom_1 || livraison?.bo_ref_de_livraison || "",
         ex: entete?.endv_quant ?? livraison?.bo_quant_livree_total ?? 1,
-        reference: visualRef?.reference || visualRef?.articleReference || visualRef?.modele || "",
+        reference,
         articleReference: visualRef?.articleReference || "",
-        libelle: visualRef?.libelle || entete?.endv_identif || "",
+        modele: visualRef?.modele || "",
+        libelle,
         formatVisu,
         formatTauro,
         codeTarif: visualRef?.codeTarif || "",

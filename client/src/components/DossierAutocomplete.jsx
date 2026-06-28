@@ -40,6 +40,18 @@ function findFormatTauro(formatTauro, format) {
   return formatTauro.find((value) => normalizeText(value).includes(token)) || "";
 }
 
+// Vérifie si une référence apparaît dans un nom de fichier.
+// Compare d'abord tel quel (après normalisation), puis avec séparateurs effacés
+// pour gérer ALOHAD-150210 vs ALOHAD_150210 ou LM92938901 vs LM-92938901.
+function referenceMatchesName(ref, filename) {
+  if (!ref || !filename) return false;
+  const r = normalizeText(ref);
+  const n = normalizeText(filename);
+  if (n.includes(r)) return true;
+  const rs = r.replace(/[-_.\s]/g, "");
+  return rs.length >= 4 && n.replace(/[-_.\s]/g, "").includes(rs);
+}
+
 function scoreFile(file, job) {
   const name = normalizeText(file?.name);
   const labelWords = normalizeText(job.libelle)
@@ -47,8 +59,10 @@ function scoreFile(file, job) {
     .filter((word) => word.length > 3 && !/^\d/.test(word));
 
   let score = 0;
-  if (job.reference && name.includes(normalizeText(job.reference))) score += 100;
-  if (job.articleReference && name.includes(normalizeText(job.articleReference))) score += 80;
+  if (referenceMatchesName(job.reference, file?.name)) score += 1000;
+  if (referenceMatchesName(job.codeTarif, file?.name)) score += 900;
+  if (referenceMatchesName(job.modele, file?.name)) score += 850;
+  if (referenceMatchesName(job.articleReference, file?.name)) score += 800;
   if (job.formatVisu && name.includes(formatToken(job.formatVisu))) score += 30;
   score += labelWords.filter((word) => name.includes(word)).length * 8;
 
@@ -56,11 +70,21 @@ function scoreFile(file, job) {
 }
 
 function findFileCandidates(files, job) {
-  return files
-    .map((file) => ({ ...file, score: scoreFile(file, job) }))
-    .filter((file) => file.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 10);
+  const scored = files.map((file) => ({ ...file, score: scoreFile(file, job) }));
+
+  // Les références priment : si un fichier correspond à une référence, ne retourner que ceux-là.
+  const refMatches = scored.filter(
+    (f) =>
+      referenceMatchesName(job.reference, f.name) ||
+      referenceMatchesName(job.codeTarif, f.name) ||
+      referenceMatchesName(job.modele, f.name) ||
+      referenceMatchesName(job.articleReference, f.name)
+  );
+  if (refMatches.length > 0) {
+    return refMatches.sort((a, b) => b.score - a.score).slice(0, 10);
+  }
+
+  return scored.filter((f) => f.score > 0).sort((a, b) => b.score - a.score).slice(0, 10);
 }
 
 const REGEX_BLANC = /\+\s*blanc\b/i;

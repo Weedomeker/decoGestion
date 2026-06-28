@@ -85,7 +85,7 @@ async function processSinglePDF(
 
   if (existingReferences.has(pdfReference)) {
     counters.skipped++;
-  } else if (existingNames.has(outputFilename)) {
+  } else if (existingNames.has(outputFilename.toUpperCase())) {
     counters.skipped++;
   } else {
     sendLog(`Génération de la JPG pour la référence ${pdfReference}...`, verbose);
@@ -160,15 +160,15 @@ async function processAllPDFs({
     const existingJPGFiles = await fs.promises.readdir(jpgDirectory);
     const existingReferences = new Set(existingJPGFiles.map(extractReference).filter((ref) => ref !== null));
     const existingNames = new Set(
-      existingJPGFiles.map((file) => path.parse(file).name).filter((name) => name !== null),
+      existingJPGFiles.map((file) => path.parse(file).name.toUpperCase()).filter((name) => name !== null),
     );
 
     // 3. Filtrer uniquement les PDFs dont le JPG n'existe PAS encore
     const pdfsToGenerate = pdfFiles.filter((pdfPath) => {
       const ref = extractReference(path.basename(pdfPath));
-      const name = path.parse(path.basename(pdfPath)).name;
+      const name = path.parse(path.basename(pdfPath)).name.toUpperCase();
 
-      // Vérifier à la fois par référence et par nom de fichier
+      // Vérifier à la fois par référence et par nom de fichier (comparaison insensible à la casse)
       if (ref) {
         return !existingReferences.has(ref) && !existingNames.has(name);
       }

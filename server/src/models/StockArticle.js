@@ -14,7 +14,6 @@ const stockArticleSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-stockArticleSchema.index({ ref: 1 });
 stockArticleSchema.index({ type: 1 });
 
 const StockArticle = mongoose.model("StockArticle", stockArticleSchema, "stock_articles");
