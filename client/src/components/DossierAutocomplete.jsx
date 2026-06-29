@@ -124,10 +124,11 @@ function detectTeinteMasse(job) {
 }
 
 function buildRows(payload, pathData, formatTauro) {
-  const client = findKnownClient(payload.client) || "";
-  const folders = pathData?.[client] || [];
+  const defaultClient = findKnownClient(payload.client) || "";
 
   return payload.visualJobs.map((job, index) => {
+    const client = findKnownClient(job.clientVisu) || defaultClient;
+    const folders = pathData?.[client] || [];
     const baseId = job.id || `${job.numCmd || job.libelle || "row"}-${index}`;
     const formatTauroValue = findFormatTauro(formatTauro, job.formatTauro);
 
@@ -160,8 +161,11 @@ function buildRows(payload, pathData, formatTauro) {
     const bestCandidate = candidates[0] || null;
     const selectedFile = bestCandidate?.name || "";
     const selectedFileObject = bestCandidate || null;
+    const bestScore = candidates[0]?.score ?? 0;
+    const hasRefMatch = bestScore >= 800; // au moins articleReference (800 pts) — mot seul < 800
     const hasStrongMatch =
-      candidates.length === 1 || (candidates.length > 1 && candidates[0].score > (candidates[1]?.score || 0) + 20);
+      hasRefMatch &&
+      (candidates.length === 1 || (candidates.length > 1 && candidates[0].score > (candidates[1]?.score || 0) + 20));
 
     const isCredence = isCredenceFormat(job.formatVisu);
     return {

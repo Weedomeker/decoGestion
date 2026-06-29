@@ -34,8 +34,8 @@ describe("referencesCheckService", () => {
       expect(extractRefFromFilename("ACIER 100x255 94963978 MAT.pdf", "CASTO")).to.be.null;
     });
 
-    it("LM alphanumérique : extrait AURALIN-100210", () => {
-      expect(extractRefFromFilename("AURALIN NATUREL MAT 100x210 AURALIN-100210.pdf", "LM")).to.equal("AURALIN-100210");
+    it("LM alphanumérique : retourne null (LM = 8 chiffres uniquement)", () => {
+      expect(extractRefFromFilename("AURALIN NATUREL MAT 100x210 AURALIN-100210.pdf", "LM")).to.be.null;
     });
 
     it("BRICO/ECOM : pas de 'x' dans la partie numérique de la ref", () => {
@@ -47,8 +47,8 @@ describe("referencesCheckService", () => {
 
   describe("validateRefFormat()", () => {
     it("LM 8 chiffres : valide", () => expect(validateRefFormat("94963978", "LM")).to.be.true);
-    it("LM alphanumérique : valide", () => expect(validateRefFormat("AURALIN-100210", "LM")).to.be.true);
-    it("LM avec chiffres dans le préfixe : valide", () => expect(validateRefFormat("U548-100210", "LM")).to.be.true);
+    it("LM alphanumérique : invalide (LM = 8 chiffres uniquement)", () => expect(validateRefFormat("AURALIN-100210", "LM")).to.be.false);
+    it("LM avec chiffres dans le préfixe : invalide (LM = 8 chiffres uniquement)", () => expect(validateRefFormat("U548-100210", "LM")).to.be.false);
     it("LM 7 chiffres : invalide", () => expect(validateRefFormat("9496397", "LM")).to.be.false);
     it("LM 9 chiffres : invalide", () => expect(validateRefFormat("949639780", "LM")).to.be.false);
     it("LM EAN-13 : invalide", () => expect(validateRefFormat("3664711694254", "LM")).to.be.false);

@@ -16,11 +16,9 @@ export function isDefinitelyWrongClient(fileName, client) {
   const name = fileName.split(/[\\/]/).pop();
   const hasEAN13    = /(?<!\d)\d{13}(?!\d)/.test(name);
   const has8digit   = /(?<!\d)\d{8}(?!\d)/.test(name);
-  const hasAlphanum = /[A-Z]+\d*-\d+/.test(name);
 
   if (hasEAN13 && client !== "CASTO") return true;
-  if (has8digit && !hasEAN13 && !hasAlphanum && client !== "LM") return true;
-  if (hasAlphanum && !has8digit && !hasEAN13 && client === "LM") return true;
+  if (has8digit && !hasEAN13 && client !== "LM") return true;
 
   return false;
 }

@@ -4,13 +4,11 @@ const { expect } = require("chai");
 // (impossible de require() un module ESM directement depuis mocha CJS)
 function isDefinitelyWrongClient(fileName, client) {
   const name = fileName.split(/[\\/]/).pop();
-  const hasEAN13    = /(?<!\d)\d{13}(?!\d)/.test(name);
-  const has8digit   = /(?<!\d)\d{8}(?!\d)/.test(name);
-  const hasAlphanum = /[A-Z]+\d*-\d+/.test(name);
+  const hasEAN13  = /(?<!\d)\d{13}(?!\d)/.test(name);
+  const has8digit = /(?<!\d)\d{8}(?!\d)/.test(name);
 
   if (hasEAN13 && client !== "CASTO") return true;
-  if (has8digit && !hasEAN13 && !hasAlphanum && client !== "LM") return true;
-  if (hasAlphanum && !has8digit && !hasEAN13 && client === "LM") return true;
+  if (has8digit && !hasEAN13 && client !== "LM") return true;
 
   return false;
 }
@@ -51,12 +49,10 @@ describe("isDefinitelyWrongClient()", () => {
     });
   });
 
-  describe("Ref alphanum (BRICO/ECOM) dans LM", () => {
-    it("rejette un fichier BRICO dans LM", () => {
-      expect(isDefinitelyWrongClient("VELTIS BRILLANT 255x60 VELTIS-25560.pdf", "LM")).to.be.true;
-    });
-    it("rejette un fichier ECOM dans LM", () => {
-      expect(isDefinitelyWrongClient("ALOHA 100x210 ALOHAD-100210 MAT.pdf", "LM")).to.be.true;
+  describe("Ref alphanum (BRICO/ECOM) — pas de rejet possible par nom seul", () => {
+    it("ne rejette pas un fichier alphanum dans LM (pas de ref identifiable → conservé)", () => {
+      // Sans 8 chiffres ni EAN-13, on ne peut pas affirmer que le fichier est wrong pour LM
+      expect(isDefinitelyWrongClient("VELTIS BRILLANT 255x60 VELTIS-25560.pdf", "LM")).to.be.false;
     });
     it("accepte un fichier BRICO dans BRICO", () => {
       expect(isDefinitelyWrongClient("VELTIS-25560.pdf", "BRICO")).to.be.false;

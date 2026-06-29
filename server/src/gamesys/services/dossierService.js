@@ -16,6 +16,17 @@ const RefEcom  = require("../../models/RefEcom");
 const RefBrico = require("../../models/RefBrico");
 const RefCasto = require("../../models/RefCasto");
 
+// Mapping dos_client (Gamesys) → collection MongoDB préférée pour la résolution des références
+const CLIENT_REF_MODEL = { LM: RefDeco, CAS: RefCasto, BM: RefBrico, ECOM: RefEcom };
+
+function getPreferredRefModel(dosClient) {
+  const key = String(dosClient || "").toUpperCase();
+  for (const prefix of Object.keys(CLIENT_REF_MODEL)) {
+    if (key.startsWith(prefix)) return CLIENT_REF_MODEL[prefix];
+  }
+  return null;
+}
+
 function mapStockRow(row) {
   return {
     reference: row.st_art_ref_client || row.st_modele,
@@ -70,32 +81,37 @@ function extractModelFromIdentif(identif) {
     .trim();
 }
 
-async function enrichRowsWithMongoRef(rows, identif) {
+async function enrichRowsWithMongoRef(rows, identif, preferredRefModel) {
   const format = extractDimensionFormat(identif);
   const model = extractModelFromIdentif(identif);
+  const allModels = [RefDeco, RefEcom, RefBrico, RefCasto];
+  // Réordonner : collection client en premier, les autres après
+  const orderedModels = preferredRefModel
+    ? [preferredRefModel, ...allModels.filter((m) => m !== preferredRefModel)]
+    : allModels;
+
   return Promise.all(
     rows.map(async (row) => {
-      // Si st_art_ref_client est déjà connu dans MongoDB, la ref est valide → pas besoin d'enrichir
+      // Court-circuitage uniquement si st_art_ref_client est valide dans la collection du client.
+      // Si la ref est dans une autre collection (ex: TRZTER-100210 dans RefEcom pour un dossier LM),
+      // on continue vers le lookup model+format pour trouver la ref de la bonne collection.
       if (row.st_art_ref_client) {
-        const existing = await findMongoRef(row.st_art_ref_client);
-        if (existing) return row;
+        const preferredMatch = preferredRefModel
+          ? await preferredRefModel.findOne({ ref: row.st_art_ref_client }).lean().catch(() => null)
+          : await findMongoRef(row.st_art_ref_client);
+        if (preferredMatch) return row;
       }
-      // st_art_ref_client absent ou non reconnu en MongoDB → chercher par model (identif) + format
+      // st_art_ref_client absent ou non trouvé dans la collection client → chercher par model + format
       if (!model) return row;
-      const query = format ? { model, format } : { model };
-      const [deco, ecom, brico, casto] = await Promise.all([
-        RefDeco.findOne(query).lean().catch(() => null),
-        RefEcom.findOne(query).lean().catch(() => null),
-        RefBrico.findOne(query).lean().catch(() => null),
-        RefCasto.findOne(query).lean().catch(() => null),
-      ]);
-      const mongoDoc = deco || ecom || brico || casto;
+      const q = format ? { model, format } : { model };
+      const docs = await Promise.all(orderedModels.map((m) => m.findOne(q).lean().catch(() => null)));
+      const mongoDoc = docs.find(Boolean);
       return mongoDoc ? { ...row, st_art_ref_client: mongoDoc.ref, st_modele: mongoDoc.ref } : row;
     })
   );
 }
 
-async function findStockReferences(connection, enteteDevis) {
+async function findStockReferences(connection, enteteDevis, preferredRefModel) {
   const identif = enteteDevis[0]?.endv_identif || "";
   if (isKitPoseLabel(identif)) {
     const rows = await query(
@@ -146,9 +162,9 @@ async function findStockReferences(connection, enteteDevis) {
                 );
                 return identifAlphaTerms.some((t) => stockText.includes(t));
               });
-        if (confirmedRows.length > 0) return (await enrichRowsWithMongoRef(confirmedRows, identif)).map(mapStockRow);
+        if (confirmedRows.length > 0) return (await enrichRowsWithMongoRef(confirmedRows, identif, preferredRefModel)).map(mapStockRow);
         // La confirmation textuelle échoue mais la ref directe existe dans Gamesys → plus fiable que Priorité 3
-        return (await enrichRowsWithMongoRef(rows, identif)).map(mapStockRow);
+        return (await enrichRowsWithMongoRef(rows, identif, preferredRefModel)).map(mapStockRow);
       }
     }
   }
@@ -161,7 +177,7 @@ async function findStockReferences(connection, enteteDevis) {
       `${STOCK_SELECT} where st_art_gencod = ? order by st_seq desc limit 5`,
       [eanMatch[1]]
     );
-    if (rows.length > 0) return (await enrichRowsWithMongoRef(rows, identif)).map(mapStockRow);
+    if (rows.length > 0) return (await enrichRowsWithMongoRef(rows, identif, preferredRefModel)).map(mapStockRow);
   }
 
   // Priorité 3 : recherche LIKE textuelle (fallback — ne retourne que les correspondances exactes confirmées)
@@ -200,7 +216,7 @@ async function findStockReferences(connection, enteteDevis) {
     return terms.every((term) => haystack.includes(term));
   });
 
-  return (await enrichRowsWithMongoRef(exactRows, identif)).map(mapStockRow);
+  return (await enrichRowsWithMongoRef(exactRows, identif, preferredRefModel)).map(mapStockRow);
 }
 
 function getStockReferenceCategory(reference) {
@@ -663,9 +679,10 @@ async function buildDetail(connection, dossier) {
   let kitPosesReferences = [];
 
   try {
+    const preferredRefModel = getPreferredRefModel(dossier.dos_client);
     const stockRefSets = await Promise.all(
       primary.enteteDevis.map((entete) =>
-        findStockReferences(connection, [entete]).catch(() => [])
+        findStockReferences(connection, [entete], preferredRefModel).catch(() => [])
       )
     );
     const stockReferences = uniqueBy(stockRefSets.flat(), (r) => r.reference || r.modele);

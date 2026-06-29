@@ -35,6 +35,15 @@ function extractTauroFormat(sousDossier) {
   );
 }
 
+// Si la référence résolue est un code LM (8 chiffres), le client est LM même si codeTarif indique "EC-".
+// Si la référence reste alphanum ET codeTarif commence par "EC-", le visuel est du catalogue ECOM.
+function detectVisuClient(visualRef, defaultClient) {
+  const ref = visualRef?.reference || visualRef?.articleReference || "";
+  if (/^\d{8}$/.test(ref)) return defaultClient;
+  if (/^EC-/i.test(visualRef?.codeTarif || "")) return "ECOM";
+  return defaultClient;
+}
+
 function normalizeDossierApiPayload(payload) {
   const warnings = [];
   const sousDossiers = Array.isArray(payload?.sousDossiers) ? payload.sousDossiers : [];
@@ -67,6 +76,8 @@ function normalizeDossierApiPayload(payload) {
 
       const libelle = visualRef?.libelle || entete?.endv_identif || "";
       const reference = visualRef?.reference || visualRef?.articleReference || visualRef?.modele || "";
+      const defaultClient = payload?.clientName || payload?.client || "";
+      const clientVisu = detectVisuClient(visualRef, defaultClient);
 
       if (reference && reference === libelle) {
         warnings.push(`Référence fallback sur libellé brut pour ${commande} : "${libelle}"`);
@@ -89,6 +100,7 @@ function normalizeDossierApiPayload(payload) {
         formatVisu,
         formatTauro,
         codeTarif: visualRef?.codeTarif || "",
+        clientVisu: clientVisu !== defaultClient ? clientVisu : undefined,
       };
     });
   });

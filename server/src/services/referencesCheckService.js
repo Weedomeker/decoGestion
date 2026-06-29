@@ -2,13 +2,13 @@ const path = require("path");
 const { isProfileLabel, isTeinteMasseModel } = require("../gamesys/utils/reference");
 
 // Formats de référence par client :
-//   LM    : 8 chiffres isolés (ex: "94953676") OU alphanumérique avec tiret (ex: "AURALIN-100210")
+//   LM    : 8 chiffres isolés (ex: "94953676")
 //           (?<!\d) / (?!\d) empêchent d'extraire 8 chiffres au milieu d'un EAN-13 CASTO.
 //   CASTO : EAN-13 strictement 13 chiffres isolés — mêmes garde-fous que LM.
 //   BRICO / ECOM : lettres + tiret + chiffres SANS "x" (ex: "VELTIS-25560", "CALACA-100255").
 //           \d+ ne capture jamais "x", donc le format sans séparateur est garanti par construction.
 const REF_REGEX_BY_CLIENT = {
-  LM: /(?<!\d)\d{8}(?!\d)|[A-Z]+\d*-\d+/,
+  LM: /(?<!\d)\d{8}(?!\d)/,
   CASTO: /(?<!\d)\d{13}(?!\d)/,
   BRICO: /[A-Z]+\d*-\d+/,
   ECOM: /[A-Z]+\d*-\d+/,
@@ -17,7 +17,7 @@ const REF_REGEX_BY_CLIENT = {
 // Validation stricte du format de la référence extraite (patterns ancrés début/fin).
 // Empêche les faux positifs avant la requête MongoDB.
 const REF_FORMAT_BY_CLIENT = {
-  LM: /^(\d{8}|[A-Z]+\d*-\d{4,})$/,
+  LM: /^\d{8}$/,
   CASTO: /^\d{13}$/,
   BRICO: /^[A-Z]+\d*-\d{4,}$/,
   ECOM: /^[A-Z]+\d*-\d{4,}$/,
@@ -25,7 +25,7 @@ const REF_FORMAT_BY_CLIENT = {
 
 // Messages d'aide affichés dans les erreurs 400 REF_FORMAT_INVALID.
 const REF_FORMAT_HINT = {
-  LM: "8 chiffres (ex: 94953676) ou alphanumérique sans 'x' (ex: AURALIN-100210)",
+  LM: "8 chiffres (ex: 94953676)",
   CASTO: "EAN-13 — exactement 13 chiffres (ex: 3664711694254)",
   BRICO: "lettres + chiffres sans 'x' (ex: VELTIS-25560, CALACA-100255)",
   ECOM: "lettres + chiffres sans 'x' (ex: HOKUSAID-100210)",
