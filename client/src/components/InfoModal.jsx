@@ -2,7 +2,7 @@ import PropTypes from "prop-types";
 import { API_BASE } from "../utils/api";
 import { useEffect, useState } from "react";
 import { Button, Input, Message, Modal } from "semantic-ui-react";
-const InfoModal = ({ open, onClose, message, object, error, warning }) => {
+const InfoModal = ({ open, onClose, message, object, error, warning, pkSaved }) => {
   const [data, setData] = useState(object);
   const [saveError, setSaveError] = useState(null);
   const visuelName =
@@ -64,6 +64,16 @@ const InfoModal = ({ open, onClose, message, object, error, warning }) => {
                 </pre>
               )}
             </Message>
+            {pkSaved && pkSaved.length > 0 && (
+              <Message info>
+                <Message.Header>Profils / Kits enregistrés en base</Message.Header>
+                <Message.List>
+                  {pkSaved.map((line, i) => (
+                    <Message.Item key={i}>{line}</Message.Item>
+                  ))}
+                </Message.List>
+              </Message>
+            )}
             {warning && (
               <Message warning>
                 <Message.Header>Attention</Message.Header>
@@ -111,6 +121,7 @@ InfoModal.propTypes = {
   object: PropTypes.object,
   error: PropTypes.string,
   warning: PropTypes.string,
+  pkSaved: PropTypes.arrayOf(PropTypes.string),
 };
 
 export default InfoModal;

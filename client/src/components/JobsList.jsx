@@ -5,6 +5,7 @@ import {
   Checkbox,
   Confirm,
   Icon,
+  Message,
   Progress,
   Table,
   TableBody,
@@ -184,24 +185,23 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
   const runJobsList = async () => {
     setActionError(null);
     try {
-      const response = await fetch(`${API_BASE}/run_jobs`, {
-        method: "POST",
-        headers: { Accept: "application/json", "Content-Type": "application/json" },
-        body: JSON.stringify({
-          run: true,
-          formatTauro: formatTauro,
-          // sortFolder: sortFolder,
-          // stickersData: stickersData,
-          // paperSticker: paperSticker,
-        }),
-      });
+      if (nbJobs > 0) {
+        const response = await fetch(`${API_BASE}/run_jobs`, {
+          method: "POST",
+          headers: { Accept: "application/json", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            run: true,
+            formatTauro: formatTauro,
+          }),
+        });
 
-      if (!response.ok) {
-        const result = await response.json().catch(() => ({}));
-        setActionError(result.error || `Erreur traitement des jobs (${response.status})`);
-        return;
+        if (!response.ok) {
+          const result = await response.json().catch(() => ({}));
+          setActionError(result.error || `Erreur traitement des jobs (${response.status})`);
+          return;
+        }
+        setRefreshFlag((prev) => prev + 1);
       }
-      setRefreshFlag((prev) => prev + 1);
     } catch (error) {
       console.error("Error running jobs:", error);
       setActionError("Impossible de contacter le serveur.");
@@ -445,7 +445,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
                             icon="send"
                             content="Traiter la file"
                             onClick={() => setConfirmRunJobs(true)}
-                            disabled={onLoading}
+                            disabled={onLoading || nbJobs === 0}
                           />
                         ))}
 
@@ -510,11 +510,11 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
     return newTable;
   };
 
-  const jobs = ItemsJob("jobs");
-  const completed = ItemsJob("completed");
-
   const nbJobs = data?.[0]?.jobs?.length ?? 0;
   const nbCompleted = data?.[0]?.completed?.length ?? 0;
+
+  const jobs = ItemsJob("jobs");
+  const completed = ItemsJob("completed");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>

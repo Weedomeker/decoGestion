@@ -116,7 +116,7 @@ async function findStockReferences(connection, enteteDevis, preferredRefModel) {
   if (isKitPoseLabel(identif)) {
     const rows = await query(
       connection,
-      `${STOCK_SELECT} where st_code_tarif = 'KITPOSE' and st_lib_1_conso = 'KIT DE POSE' order by st_seq desc limit 25`
+      `${STOCK_SELECT} where st_code_tarif = 'KITPOSE' order by st_seq desc limit 25`
     );
     return rows.map(mapStockRow);
   }

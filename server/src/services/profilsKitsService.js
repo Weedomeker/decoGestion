@@ -81,15 +81,21 @@ async function saveProfilsKits(job) {
   }
 
   try {
+    const existing = await ConsommationCommande.findOne({ numCmd });
+    if (existing) {
+      logger.info(`saveProfilsKits: ConsommationCommande déjà présente pour cmd=${job.cmd}, ignorée`);
+      return null;
+    }
     await ConsommationCommande.create({
       numCmd,
       client: job.client,
       dateJob: new Date(),
       articles,
     });
+    return articles;
   } catch (err) {
     logger.warn(`saveProfilsKits: création ConsommationCommande échouée pour cmd=${job.cmd} : ${err.message}`);
   }
 }
 
-module.exports = { saveProfilsKits };
+module.exports = { saveProfilsKits, getQtyForArticle };

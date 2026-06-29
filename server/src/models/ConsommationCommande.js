@@ -20,7 +20,7 @@ const consommationCommandeSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-consommationCommandeSchema.index({ numCmd: 1 });
+consommationCommandeSchema.index({ numCmd: 1 }, { unique: true });
 consommationCommandeSchema.index({ dateJob: -1 });
 
 const ConsommationCommande = mongoose.model(

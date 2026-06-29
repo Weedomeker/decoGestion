@@ -886,6 +886,23 @@ async function generateStickersForJobs(jobs) {
   await fs.promises.rm(tempFolder, { recursive: true, force: true });
 }
 
+async function saveProfilsKitsFromCmd(req, res) {
+  const { numCmd, client } = req.body;
+  if (!numCmd || !client) {
+    return res.status(400).json({ error: "numCmd et client sont requis." });
+  }
+  try {
+    const articles = await saveProfilsKits({ cmd: String(numCmd), client });
+    if (articles === null) {
+      return res.json({ message: "Déjà enregistré en base.", alreadyExists: true });
+    }
+    res.json({ message: "Profils/kits enregistrés.", articles: articles || [] });
+  } catch (err) {
+    logger.warn(`saveProfilsKitsFromCmd échoué pour cmd=${numCmd} : ${err.message}`);
+    res.status(500).json({ error: err.message || "Erreur lors de l'enregistrement." });
+  }
+}
+
 const SUGGESTION_FIELDS = { ville: "mag", ref: "ref", visuel: "deco", format: "format", client: "client" };
 
 async function getSuggestions(req, res) {
@@ -1246,4 +1263,5 @@ module.exports = {
   exportHistory,
   getStats,
   processJob,
+  saveProfilsKitsFromCmd,
 };

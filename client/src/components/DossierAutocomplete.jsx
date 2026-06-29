@@ -123,6 +123,29 @@ function detectTeinteMasse(job) {
   );
 }
 
+function buildProfilsKitsRows(payload, defaultClient) {
+  return (payload.profilsKitsJobs || []).map((pkJob) => ({
+    id: pkJob.id,
+    type: "profils_kits",
+    numCmd: pkJob.numCmd,
+    client: findKnownClient(pkJob.client) || defaultClient,
+    dossierNumero: payload.numero,
+    ville: pkJob.ville || "",
+    ref: pkJob.ref || "",
+    articleType: pkJob.articleType || "profil",
+    libelle: pkJob.libelle || "",
+    quantite: pkJob.quantite ?? 0,
+    checked: true,
+    status: "Prêt",
+    formatPath: null,
+    formatTauroValue: null,
+    selectedFileObject: null,
+    isCredence: false,
+    credence2: null,
+    _absorbedBy: null,
+  }));
+}
+
 function buildRows(payload, pathData, formatTauro) {
   const defaultClient = findKnownClient(payload.client) || "";
 
@@ -345,10 +368,15 @@ function DossierAutocomplete({ pathData, formatTauro, onAutoFill, gamesysOk }) {
 
       const clientKey = findKnownClient(body.client) || "";
       const rows = buildRows(body, pathData, formatTauro);
+      const pkRows = buildProfilsKitsRows(body, clientKey);
       const validRows = rows.filter((r) => (r.formatPath || r.teinteMasse) && r.selectedFileObject);
+      const allRows = [
+        ...validRows.map((row) => ({ ...row, dossierNumero: body.numero })),
+        ...pkRows,
+      ];
 
-      if (validRows.length === 0) {
-        errors.push(`${numero} : Aucun visuel exploitable.`);
+      if (allRows.length === 0) {
+        errors.push(`${numero} : Aucun visuel exploitable et aucun profil/kit trouvé.`);
         continue;
       }
 
@@ -356,7 +384,7 @@ function DossierAutocomplete({ pathData, formatTauro, onAutoFill, gamesysOk }) {
         numero: body.numero,
         client: body.client,
         clientKey,
-        jobs: validRows.map((row) => ({ ...row, dossierNumero: body.numero })),
+        jobs: allRows,
       });
     }
 

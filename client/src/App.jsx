@@ -107,6 +107,7 @@ function App() {
     object: null,
     error: null,
     warning: null,
+    pkSaved: null,
   });
   const [modalInfoStock, setModalInfoStock] = useState({
     open: false,
@@ -219,7 +220,7 @@ function App() {
       pairedJobs.forEach((j) => {
         if (j._absorbedBy) {
           next.delete(j.id); // Force-déselectionne les partenaires absorbés même si déjà sélectionnés
-        } else if (!prev.has(j.id) && j.selectedFileObject) {
+        } else if (!prev.has(j.id) && (j.selectedFileObject || j.type === "profils_kits")) {
           next.add(j.id);
         }
       });
@@ -428,7 +429,10 @@ function App() {
       const jobsToSubmit = dossierJobs.filter((j) => selectedJobIds.has(j.id) && !j._absorbedBy);
       if (jobsToSubmit.length === 0) return;
 
-      const unpairedCredences = jobsToSubmit.filter(
+      const visualJobsToSubmit = jobsToSubmit.filter((j) => j.type !== "profils_kits");
+      const pkJobsToSubmit = jobsToSubmit.filter((j) => j.type === "profils_kits");
+
+      const unpairedCredences = visualJobsToSubmit.filter(
         (j) =>
           j.isCredence &&
           !j.credence2 &&
@@ -446,7 +450,7 @@ function App() {
         return;
       }
 
-      const incompatibleFinitions = jobsToSubmit.filter((j) => {
+      const incompatibleFinitions = visualJobsToSubmit.filter((j) => {
         if (!j.isCredence || !j.credence2) return false;
         const v1 = j.selectedFileObject?.name || "";
         const v2 = j.credence2?.selectedFileObject?.name || "";
@@ -471,7 +475,8 @@ function App() {
         const errors = [];
         const warnings = [];
         const succeededIds = [];
-        for (const job of jobsToSubmit) {
+
+        for (const job of visualJobsToSubmit) {
           const payload = {
             client: job.client || checkFolder,
             client2: job.credence2?.client || job.client || checkFolder,
@@ -508,11 +513,41 @@ function App() {
               warnings.push(`N°${job.numCmd || job.id} : Prod blanc activé automatiquement (ref base marquée blanc)`);
           }
         }
+
+        const pkConfirmations = [];
+        const pkByNumCmd = new Map();
+        for (const pk of pkJobsToSubmit) {
+          if (!pkByNumCmd.has(pk.numCmd)) pkByNumCmd.set(pk.numCmd, []);
+          pkByNumCmd.get(pk.numCmd).push(pk);
+        }
+        for (const [numCmd, pks] of pkByNumCmd.entries()) {
+          const pk = pks[0];
+          const response = await fetch(`${API_BASE}/save_profils_kits`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ numCmd, client: pk.client }),
+          });
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            errors.push(result.error || `Erreur ${response.status} (profils/kits ${numCmd})`);
+          } else {
+            pks.forEach((p) => succeededIds.push(p.id));
+            if (result.alreadyExists) {
+              pkConfirmations.push(`N°${numCmd} (${pk.client}) — déjà présent en base`);
+            } else if (result.articles?.length > 0) {
+              const lines = result.articles.map(
+                (a) => `${a.type === "kit" ? "Kit de pose" : "Profil"} — ${a.libelle || a.ref} × ${a.quantite ?? "?"}`,
+              );
+              pkConfirmations.push(`N°${numCmd} (${pk.client}) — ${result.articles.length} article(s) enregistré(s) : ${lines.join(" | ")}`);
+            }
+          }
+        }
+
         if (errors.length === 0) {
           setDossierJobs([]);
           setSelectedJobIds(new Set());
-          if (warnings.length > 0) {
-            setModalData({ open: true, message: "Commandes ajoutées", object: null, error: null, warning: warnings.join("\n") });
+          if (warnings.length > 0 || pkConfirmations.length > 0) {
+            setModalData({ open: true, message: "Commandes ajoutées", object: null, error: null, warning: warnings.length > 0 ? warnings.join("\n") : null, pkSaved: pkConfirmations.length > 0 ? pkConfirmations : null });
           }
         } else {
           const succeededSet = new Set(succeededIds);
@@ -522,7 +557,7 @@ function App() {
             succeededSet.forEach((id) => next.delete(id));
             return next;
           });
-          setModalData({ open: true, message: "", object: null, error: errors.join(" · "), warning: warnings.length > 0 ? warnings.join("\n") : null });
+          setModalData({ open: true, message: "", object: null, error: errors.join(" · "), warning: warnings.length > 0 ? warnings.join("\n") : null, pkSaved: pkConfirmations.length > 0 ? pkConfirmations : null });
         }
         setJobsRefresh((prev) => prev + 1);
       } catch (err) {
@@ -884,6 +919,46 @@ function App() {
                                   );
                                   return (
                                     <Fragment key={job.id || job._idx}>
+                                    {job.type === "profils_kits" ? (
+                                      <Table.Row className={isSelected ? "" : "job-row-deselected"}>
+                                        <Table.Cell>
+                                          <Checkbox
+                                            checked={isSelected}
+                                            onChange={() => toggleJobSelection(job.id)}
+                                          />
+                                        </Table.Cell>
+                                        <Table.Cell colSpan={3} style={{ verticalAlign: "middle" }}>
+                                          <Label size="mini" color={job.articleType === "kit" ? "teal" : "purple"}>
+                                            <Icon name="configure" />
+                                            {job.articleType === "kit" ? "Kit de pose" : "Profil"}
+                                          </Label>
+                                          <span style={{ marginLeft: 8, fontSize: "0.85em", opacity: 0.75 }}>
+                                            {job.libelle || job.ref}
+                                          </span>
+                                        </Table.Cell>
+                                        <Table.Cell>
+                                          <Input
+                                            size="small"
+                                            type="number"
+                                            value={job.numCmd || ""}
+                                            onChange={(_, d) => updateDossierJob(job._idx, { numCmd: d.value })}
+                                          />
+                                        </Table.Cell>
+                                        <Table.Cell>
+                                          <Input
+                                            size="small"
+                                            value={job.ville || ""}
+                                            onChange={(_, d) => updateDossierJob(job._idx, { ville: d.value.toUpperCase() })}
+                                          />
+                                        </Table.Cell>
+                                        <Table.Cell style={{ textAlign: "center" }}>
+                                          <strong>{job.quantite > 0 ? job.quantite : "—"}</strong>
+                                        </Table.Cell>
+                                        <Table.Cell style={{ textAlign: "center", color: "var(--text-muted, #aaa)" }}>—</Table.Cell>
+                                        <Table.Cell style={{ textAlign: "center", color: "var(--text-muted, #aaa)" }}>—</Table.Cell>
+                                        {hasCredences && <Table.Cell />}
+                                      </Table.Row>
+                                    ) : (
                                     <Table.Row
                                       className={isSelected ? "" : "job-row-deselected"}
                                     >
@@ -1048,7 +1123,8 @@ function App() {
                                         </Table.Cell>
                                       )}
                                     </Table.Row>
-                                    {credenceEditId === job.id && (() => {
+                                    )}
+                                    {job.type !== "profils_kits" && credenceEditId === job.id && (() => {
                                       const c2Client = credence2Client || job.client;
                                       const c2Folders = (data[0]?.[c2Client] || []).filter((f) =>
                                         /\d{3}x\d{2}/.test(f.name)
@@ -1731,7 +1807,11 @@ function App() {
       </div>
 
       <div className={`jobs-view${activeView !== "jobs" ? " hidden" : ""}`}>
-        <JobsList formatTauro={formatTauro} refreshToken={jobsRefresh} onPendingCountChange={setPendingCount} />
+        <JobsList
+          formatTauro={formatTauro}
+          refreshToken={jobsRefresh}
+          onPendingCountChange={setPendingCount}
+        />
       </div>
 
       <div className={`references-view-wrapper${activeView !== "references" ? " hidden" : ""}`}>
@@ -1762,6 +1842,7 @@ function App() {
         object={modalData.object}
         error={modalData.error}
         warning={modalData.warning}
+        pkSaved={modalData.pkSaved}
       />
 
       <InfoStockModal

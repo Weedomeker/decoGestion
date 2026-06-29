@@ -1,5 +1,7 @@
 const dossierService = require("../gamesys/services/dossierService");
 const { getOdbcStatus } = require("../gamesys/config/db");
+const { getQtyForArticle } = require("../services/profilsKitsService");
+const { isProfileLabel, isKitPoseLabel } = require("../gamesys/utils/reference");
 
 function parseFormat(value) {
   if (!value) return "";
@@ -109,10 +111,46 @@ function normalizeDossierApiPayload(payload) {
     warnings.push("Aucun sous-dossier avec visuel n'a été trouvé.");
   }
 
+  const profileRefs = payload?.profileReferences || [];
+  const kitRefs = payload?.kitPosesReferences || [];
+
+  const numero = String(payload?.numero || "");
+  const pkClient = payload?.clientName || payload?.client || "";
+  const pkVille = (() => {
+    const firstLiv = sousDossiers[0]?.livraison?.[0];
+    return firstLiv?.bo_ville || firstLiv?.bo_adlivr_nom_1 || "";
+  })();
+
+  const profilsKitsJobs = [
+    ...profileRefs.map((r, i) => ({
+      id: `${numero}-profil-${i}`,
+      type: "profils_kits",
+      numCmd: numero,
+      client: pkClient,
+      ville: pkVille,
+      ref: r.reference || r.modele || r.libelle || "",
+      articleType: "profil",
+      libelle: r.libelle || "",
+      quantite: getQtyForArticle(sousDossiers, isProfileLabel, r.libelle || ""),
+    })),
+    ...kitRefs.map((r, i) => ({
+      id: `${numero}-kit-${i}`,
+      type: "profils_kits",
+      numCmd: numero,
+      client: pkClient,
+      ville: pkVille,
+      ref: r.reference || r.modele || r.libelle || "",
+      articleType: "kit",
+      libelle: r.libelle || "",
+      quantite: getQtyForArticle(sousDossiers, isKitPoseLabel, r.libelle || ""),
+    })),
+  ];
+
   return {
     numero: String(payload?.numero || ""),
     client: payload?.clientName || payload?.client || "",
     visualJobs,
+    profilsKitsJobs,
     warnings,
   };
 }

@@ -19,5 +19,6 @@ router.get("/lookup_visuel", jobsController.lookupVisuel);
 router.get("/ref_formats", jobsController.getRefFormats);
 router.get("/ref_visuels", jobsController.getRefVisuels);
 router.post("/preview_sticker_quick", jobsController.previewStickerQuick);
+router.post("/save_profils_kits", jobsController.saveProfilsKitsFromCmd);
 
 module.exports = router;

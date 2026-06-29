@@ -1,5 +1,13 @@
 /* ===================== JOBS TABLE ===================== */
 
+.jobs-table-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .jobs-table-container {
   overflow: auto;
   width: 100%;
