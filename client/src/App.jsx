@@ -123,16 +123,14 @@ function App() {
   const [credence2Format, setCredence2Format] = useState("");
   const [healthData, setHealthData] = useState(null);
 
-  async function checkStockForVisuel(filename) {
-    const base = filename.split("/").pop();
-    const refMatch = base.match(/\b\d{7,}\b/) || base.match(/[A-Z]+-\d+/i);
-    const ref = refMatch?.[0];
-    if (!ref || ref === "00000000") { setStockBadge(null); return; }
+  async function checkStockForVisuel(filename, client) {
+    const base = filename.split(/[\\/]/).pop();
+    if (!base || !client) { setStockBadge(null); return; }
     try {
       const res = await fetch(`${API_BASE}/stock`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ref }),
+        body: JSON.stringify({ filename: base, client }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -1348,7 +1346,7 @@ function App() {
                           setFileSize(value.size);
                           setPreview(value.name);
                           setStockBadge(null);
-                          checkStockForVisuel(value.name);
+                          checkStockForVisuel(value.name, checkFolder);
                           if (value.name == "" || value.name == undefined) {
                             setError({ ...error, visuel: true });
                           } else {

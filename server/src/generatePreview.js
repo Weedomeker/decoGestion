@@ -32,9 +32,10 @@ function createProgressBar(totalFiles) {
   return progressBar;
 }
 
-// Extract the reference number from the filename
+// Extrait la première séquence de 7+ chiffres isolés (lookahead/lookbehind évitent les captures partielles).
+// LM → 8 chiffres, CASTO → EAN-13 (13 chiffres), BRICO/ECOM → alphanumérique sans 7+ chiffres → retourne null.
 function extractReference(filename) {
-  const regex = /\d{7,}/;
+  const regex = /(?<!\d)\d{7,}(?!\d)/;
   const match = filename.match(regex);
   return match ? match[0] : null;
 }

@@ -137,10 +137,8 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
   let images = refStr
     ? files.filter((file) => file.toLowerCase().endsWith(".jpg") && file.toLowerCase().includes(refStr.toLowerCase()))
     : [];
-  if (images.length === 0 && visuelNoExt) {
-    images = files.filter(
-      (file) => file.toLowerCase().endsWith(".jpg") && file.toLowerCase().includes(visuelNoExt.toLowerCase()),
-    );
+  if (images.length === 0) {
+    logger.warn(`generateStickers: aucun JPG trouvé par référence "${refStr}" pour "${visuel}"`);
   }
 
   const match = (useSecond ? cmd.visuel2 : cmd.visuel)?.match(/(gauche|droit|centre)/i);

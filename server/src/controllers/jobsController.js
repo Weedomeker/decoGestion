@@ -127,13 +127,6 @@ async function addJob(req, res) {
   let visuel = data.visuel?.split("/").pop() || "";
   let visuel2 = data.visuel2?.split("/").pop() || "";
 
-  if (client === "LM") {
-    visuel = visuel.includes("-") ? visuel.split("-")?.pop() : visuel;
-  }
-  if (client2 === "LM") {
-    visuel2 = visuel2.includes("-") ? visuel2.split("-")?.pop() : visuel2;
-  }
-
   if (client === "BRICO") {
     visuel = visuel.replace(".pdf", "").trim();
   }
