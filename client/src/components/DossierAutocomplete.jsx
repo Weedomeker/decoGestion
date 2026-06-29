@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Icon, Input, Label, Message, Segment } from "semantic-ui-react";
 import { isCredenceFormat } from "../utils/credence";
 import { API_BASE } from "../utils/api";
+import { isDefinitelyWrongClient } from "../utils/referenceValidation";
 
 const CLIENTS = ["LM", "CASTO", "ECOM", "BRICO"];
 const CLIENT_ALIASES = {
@@ -52,7 +53,10 @@ function referenceMatchesName(ref, filename) {
   return rs.length >= 4 && n.replace(/[-_.\s]/g, "").includes(rs);
 }
 
-function scoreFile(file, job) {
+function scoreFile(file, job, client) {
+  const rawName = (file?.name || "").split(/[\\/]/).pop();
+  if (isDefinitelyWrongClient(rawName, client)) return -Infinity;
+
   const name = normalizeText(file?.name);
   const labelWords = normalizeText(job.libelle)
     .split(/\s+/)
@@ -69,8 +73,10 @@ function scoreFile(file, job) {
   return score;
 }
 
-function findFileCandidates(files, job) {
-  const scored = files.map((file) => ({ ...file, score: scoreFile(file, job) }));
+function findFileCandidates(files, job, client) {
+  const scored = files
+    .map((file) => ({ ...file, score: scoreFile(file, job, client) }))
+    .filter((f) => isFinite(f.score));
 
   // Les références priment : si un fichier correspond à une référence, ne retourner que ceux-là.
   const refMatches = scored.filter(
@@ -150,7 +156,7 @@ function buildRows(payload, pathData, formatTauro) {
 
     const formatFolder = findFormatFolder(folders, job.formatVisu);
     const files = formatFolder?.files || [];
-    const candidates = findFileCandidates(files, job);
+    const candidates = findFileCandidates(files, job, client);
     const bestCandidate = candidates[0] || null;
     const selectedFile = bestCandidate?.name || "";
     const selectedFileObject = bestCandidate || null;
