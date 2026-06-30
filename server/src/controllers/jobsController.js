@@ -887,12 +887,12 @@ async function generateStickersForJobs(jobs) {
 }
 
 async function saveProfilsKitsFromCmd(req, res) {
-  const { numCmd, client } = req.body;
+  const { numCmd, client, pkOnly, ville } = req.body;
   if (!numCmd || !client) {
     return res.status(400).json({ error: "numCmd et client sont requis." });
   }
   try {
-    const articles = await saveProfilsKits({ cmd: String(numCmd), client });
+    const articles = await saveProfilsKits({ cmd: String(numCmd), client, isPkOnly: !!pkOnly, ville: ville || "" });
     if (articles === null) {
       return res.json({ message: "Déjà enregistré en base.", alreadyExists: true });
     }

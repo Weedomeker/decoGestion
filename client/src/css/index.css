@@ -849,6 +849,37 @@ img.ui.image:not(.header-logo) {
 .client-badge--ecom  { background: rgba(35,120,115,0.10); color: var(--color-ecom);  border: 1px solid rgba(35,120,115,0.25); }
 .client-badge--brico { background: rgba(160,85,35,0.10);  color: var(--color-brico); border: 1px solid rgba(160,85,35,0.25); }
 
+/* Badge toggle profils/kits dans l'en-tête de groupe */
+.pk-toggle-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  background: #2d2d32;
+  color: #f0f0f2;
+  border: 1px solid #1a1a1e;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+  vertical-align: middle;
+}
+.pk-toggle-badge:hover {
+  background: #3e3e45;
+}
+
+/* Mini label profil/kit sur les lignes PK */
+.ui.label.pk-article-label {
+  background: #2d2d32 !important;
+  color: #f0f0f2 !important;
+  border: 1px solid #1a1a1e !important;
+  box-shadow: none !important;
+}
+
 /* Ligne désélectionnée */
 .dossier-table .job-row-deselected td {
   opacity: 0.35 !important;

@@ -16,6 +16,6 @@ const stockArticleSchema = new mongoose.Schema(
 
 stockArticleSchema.index({ type: 1 });
 
-const StockArticle = mongoose.model("StockArticle", stockArticleSchema, "stock_articles");
+const StockArticle = mongoose.model("StockArticle", stockArticleSchema, "stock_profiles");
 
 module.exports = StockArticle;

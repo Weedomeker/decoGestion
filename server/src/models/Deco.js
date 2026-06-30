@@ -24,6 +24,7 @@ const decoSchema = new mongoose.Schema({
   ip: { type: String },
   comment: { type: String, default: "" },
   prodBlanc: { type: Boolean, default: false },
+  pkOnly: { type: Boolean, default: false },
 }, { timestamps: true });
 
 decoSchema.index({ numCmd: 1, client: 1 });

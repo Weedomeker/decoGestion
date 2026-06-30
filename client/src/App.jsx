@@ -101,6 +101,7 @@ function App() {
   const [perte, setPerte] = useState(0);
   const [dossierJobs, setDossierJobs] = useState([]);
   const [selectedJobIds, setSelectedJobIds] = useState(new Set());
+  const [expandedPkGroups, setExpandedPkGroups] = useState(new Set());
   const [modalData, setModalData] = useState({
     open: false,
     message: "",
@@ -212,6 +213,12 @@ function App() {
     setCredence2Format("");
 
     // Auto-sélectionne les nouveaux jobs valides, préserve les sélections existantes
+    // PK dans groupes mixtes (avec visuels) : pas d'auto-sélection — soumis automatiquement avec leurs visuels
+    const pkOnlyDossiers = new Set(
+      pairedJobs.filter(j => j.type === "profils_kits").map(j => j.dossierNumero)
+    );
+    pairedJobs.filter(j => j.type !== "profils_kits").forEach(j => pkOnlyDossiers.delete(j.dossierNumero));
+
     setSelectedJobIds((prev) => {
       const next = new Set(prev);
       const incomingIds = new Set(pairedJobs.map((j) => j.id));
@@ -220,7 +227,10 @@ function App() {
       pairedJobs.forEach((j) => {
         if (j._absorbedBy) {
           next.delete(j.id); // Force-déselectionne les partenaires absorbés même si déjà sélectionnés
-        } else if (!prev.has(j.id) && (j.selectedFileObject || j.type === "profils_kits")) {
+        } else if (!prev.has(j.id) && (
+          (j.type !== "profils_kits" && j.selectedFileObject) ||
+          (j.type === "profils_kits" && pkOnlyDossiers.has(j.dossierNumero))
+        )) {
           next.add(j.id);
         }
       });
@@ -246,11 +256,26 @@ function App() {
   }
 
   function toggleGroupSelection(dossierNumero) {
-    const groupJobs = dossierJobs.filter((j) => j.dossierNumero === dossierNumero && !j._absorbedBy);
+    const numerosWithVisuals = new Set(
+      dossierJobs.filter(j => j.type !== "profils_kits" && !j._absorbedBy).map(j => j.dossierNumero)
+    );
+    const allGroupJobs = dossierJobs.filter((j) => j.dossierNumero === dossierNumero && !j._absorbedBy);
+    const groupJobs = numerosWithVisuals.has(dossierNumero)
+      ? allGroupJobs.filter(j => j.type !== "profils_kits")
+      : allGroupJobs;
     const allSelected = groupJobs.length > 0 && groupJobs.every((j) => selectedJobIds.has(j.id));
     setSelectedJobIds((prev) => {
       const next = new Set(prev);
       groupJobs.forEach((j) => { if (allSelected) next.delete(j.id); else next.add(j.id); });
+      return next;
+    });
+  }
+
+  function togglePkRows(dossierNumero) {
+    setExpandedPkGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(dossierNumero)) next.delete(dossierNumero);
+      else next.add(dossierNumero);
       return next;
     });
   }
@@ -430,7 +455,20 @@ function App() {
       if (jobsToSubmit.length === 0) return;
 
       const visualJobsToSubmit = jobsToSubmit.filter((j) => j.type !== "profils_kits");
-      const pkJobsToSubmit = jobsToSubmit.filter((j) => j.type === "profils_kits");
+      // PK groupes 100% PK : explicitement sélectionnés via checkbox de groupe
+      const explicitPkJobs = jobsToSubmit.filter((j) => j.type === "profils_kits");
+      // PK groupes mixtes : dérivés des numéros de dossier des visuels soumis
+      const selectedDossierNumeros = new Set(visualJobsToSubmit.map(j => j.dossierNumero));
+      const dossierNumerosWithVisualsSet = new Set(
+        dossierJobs.filter(j => j.type !== "profils_kits" && !j._absorbedBy).map(j => j.dossierNumero)
+      );
+      const derivedPkJobs = dossierJobs.filter(j =>
+        j.type === "profils_kits" &&
+        !j._absorbedBy &&
+        dossierNumerosWithVisualsSet.has(j.dossierNumero) &&
+        selectedDossierNumeros.has(j.dossierNumero)
+      );
+      const pkJobsToSubmit = [...explicitPkJobs, ...derivedPkJobs];
 
       const unpairedCredences = visualJobsToSubmit.filter(
         (j) =>
@@ -516,6 +554,7 @@ function App() {
 
         const pkConfirmations = [];
         const pkByNumCmd = new Map();
+        const explicitPkNumCmds = new Set(explicitPkJobs.map((j) => j.numCmd));
         for (const pk of pkJobsToSubmit) {
           if (!pkByNumCmd.has(pk.numCmd)) pkByNumCmd.set(pk.numCmd, []);
           pkByNumCmd.get(pk.numCmd).push(pk);
@@ -525,7 +564,7 @@ function App() {
           const response = await fetch(`${API_BASE}/save_profils_kits`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ numCmd, client: pk.client }),
+            body: JSON.stringify({ numCmd, client: pk.client, pkOnly: explicitPkNumCmds.has(numCmd), ville: pk.ville || "" }),
           });
           const result = await response.json().catch(() => ({}));
           if (!response.ok) {
@@ -822,7 +861,13 @@ function App() {
                     acc[key].jobs.push({ ...job, _idx: i });
                     return acc;
                   }, {});
-                  const visibleJobs = dossierJobs.filter((j) => !j._absorbedBy);
+                  const dossierNumerosWithVisuals = new Set(
+                    dossierJobs.filter(j => j.type !== "profils_kits" && !j._absorbedBy).map(j => j.dossierNumero)
+                  );
+                  const visibleJobs = dossierJobs.filter((j) =>
+                    !j._absorbedBy &&
+                    (j.type !== "profils_kits" || !dossierNumerosWithVisuals.has(j.dossierNumero))
+                  );
                   const visibleSelectedCount = visibleJobs.filter((j) => selectedJobIds.has(j.id)).length;
                   const allSelected = visibleJobs.length > 0 && visibleSelectedCount === visibleJobs.length;
                   const someSelected = visibleSelectedCount > 0 && !allSelected;
@@ -891,8 +936,12 @@ function App() {
                         <Table.Body>
                           {Object.entries(groups).map(([dossierNumero, group]) => {
                             const groupJobs = group.jobs;
-                            const allGroupSel = groupJobs.every((j) => selectedJobIds.has(j.id));
-                            const someGroupSel = groupJobs.some((j) => selectedJobIds.has(j.id)) && !allGroupSel;
+                            const isMixedGroup = dossierNumerosWithVisuals.has(dossierNumero);
+                            const selectableGroupJobs = isMixedGroup
+                              ? groupJobs.filter(j => j.type !== "profils_kits")
+                              : groupJobs;
+                            const allGroupSel = selectableGroupJobs.length > 0 && selectableGroupJobs.every((j) => selectedJobIds.has(j.id));
+                            const someGroupSel = selectableGroupJobs.some((j) => selectedJobIds.has(j.id)) && !allGroupSel;
                             return (
                               <Fragment key={`grp-${dossierNumero}`}>
                                 <Table.Row className="dossier-group-header">
@@ -907,7 +956,25 @@ function App() {
                                     <span className={`client-badge client-badge--${group.client?.toLowerCase()}`}>
                                       {group.client}
                                     </span>
-                                    Dossier {dossierNumero} — {groupJobs.length} job{groupJobs.length > 1 ? "s" : ""}
+                                    {(() => {
+                                      const pkGroupJobs = groupJobs.filter(j => j.type === "profils_kits");
+                                      const visualCount = groupJobs.length - pkGroupJobs.length;
+                                      const pkExpanded = expandedPkGroups.has(dossierNumero);
+                                      return (
+                                        <>
+                                          Dossier {dossierNumero} — {visualCount} job{visualCount > 1 ? "s" : ""}
+                                          {isMixedGroup && pkGroupJobs.length > 0 && (
+                                            <span
+                                              className="pk-toggle-badge"
+                                              onClick={() => togglePkRows(dossierNumero)}
+                                            >
+                                              <Icon name={pkExpanded ? "chevron up" : "chevron down"} size="small" style={{ margin: 0 }} />
+                                              {pkGroupJobs.length} profil{pkGroupJobs.length > 1 ? "s" : ""}/kit{pkGroupJobs.length > 1 ? "s" : ""}
+                                            </span>
+                                          )}
+                                        </>
+                                      );
+                                    })()}
                                   </Table.Cell>
                                 </Table.Row>
                                 {groupJobs.map((job) => {
@@ -920,15 +987,18 @@ function App() {
                                   return (
                                     <Fragment key={job.id || job._idx}>
                                     {job.type === "profils_kits" ? (
-                                      <Table.Row className={isSelected ? "" : "job-row-deselected"}>
+                                      isMixedGroup && !expandedPkGroups.has(dossierNumero) ? null :
+                                      <Table.Row className={(!isMixedGroup && !isSelected) ? "job-row-deselected" : ""}>
                                         <Table.Cell>
-                                          <Checkbox
-                                            checked={isSelected}
-                                            onChange={() => toggleJobSelection(job.id)}
-                                          />
+                                          {!isMixedGroup && (
+                                            <Checkbox
+                                              checked={isSelected}
+                                              onChange={() => toggleJobSelection(job.id)}
+                                            />
+                                          )}
                                         </Table.Cell>
                                         <Table.Cell colSpan={3} style={{ verticalAlign: "middle" }}>
-                                          <Label size="mini" color={job.articleType === "kit" ? "teal" : "purple"}>
+                                          <Label size="mini" className="pk-article-label">
                                             <Icon name="configure" />
                                             {job.articleType === "kit" ? "Kit de pose" : "Profil"}
                                           </Label>

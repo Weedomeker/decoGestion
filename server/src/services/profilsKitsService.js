@@ -4,6 +4,7 @@ const dossierService = require("../gamesys/services/dossierService");
 const { isProfileLabel, isKitPoseLabel } = require("../gamesys/utils/reference");
 const StockArticle = require("../models/StockArticle");
 const ConsommationCommande = require("../models/ConsommationCommande");
+const Deco = require("../models/Deco");
 
 function getQtyForArticle(sousDossiers, predicate, refLibelle) {
   const allEntetes = (sousDossiers || []).flatMap((s) => s.enteteDevis || []);
@@ -92,6 +93,25 @@ async function saveProfilsKits(job) {
       dateJob: new Date(),
       articles,
     });
+
+    if (job.isPkOnly) {
+      await Deco.findOneAndUpdate(
+        { numCmd, pkOnly: true },
+        {
+          $setOnInsert: {
+            client: job.client,
+            numCmd,
+            mag: job.ville || "",
+            date: new Date(),
+            status: "",
+            pkOnly: true,
+          },
+        },
+        { upsert: true }
+      );
+      logger.info(`saveProfilsKits: entrée lm_commandes pkOnly créée pour cmd=${job.cmd}`);
+    }
+
     return articles;
   } catch (err) {
     logger.warn(`saveProfilsKits: création ConsommationCommande échouée pour cmd=${job.cmd} : ${err.message}`);
