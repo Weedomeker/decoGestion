@@ -191,43 +191,72 @@ async function findStockReferences(connection, enteteDevis, preferredRefModel) {
     if (rows.length > 0) return (await enrichRowsWithMongoRef(rows, identif, preferredRefModel)).map(mapStockRow);
   }
 
-  // Priorité 3 : recherche LIKE textuelle (fallback — ne retourne que les correspondances exactes confirmées)
-  const terms = isProfileLabel(identif) ? getProfileSearchTerms(identif) : getSearchTerms(identif);
-  const numericTerms = terms.filter((term) => /^\d+$/.test(term));
-  const firstLabelTerm = terms.find((term) => /^[A-Z]+$/.test(term));
-  const candidateTerms = isProfileLabel(identif) ? terms : [firstLabelTerm, ...numericTerms];
-  const usefulTerms = candidateTerms
-    .filter(Boolean)
-    .filter((term) => !["CM", "MM"].includes(term));
+  // Priorité 3 (profils) : recherche LIKE textuelle inchangée — hors scope du fix référence visuelle.
+  if (isProfileLabel(identif)) {
+    const terms = getProfileSearchTerms(identif);
+    const usefulTerms = terms.filter(Boolean).filter((term) => !["CM", "MM"].includes(term));
 
-  if (usefulTerms.length < 2) return [];
+    if (usefulTerms.length < 2) return [];
 
-  const likeParams = [];
-  const where = usefulTerms
-    .map((term) => {
-      const likeVal = `%${escapeSqlLike(term)}%`;
-      likeParams.push(likeVal, likeVal, likeVal, likeVal, likeVal);
-      return `(upper(st_lib_1_conso) like ? ESCAPE '\\' or upper(st_lib_2_conso) like ? ESCAPE '\\' or upper(st_art_ref_client) like ? ESCAPE '\\' or upper(st_modele) like ? ESCAPE '\\' or upper(st_code_tarif) like ? ESCAPE '\\')`;
-    })
-    .join(" and ");
+    const likeParams = [];
+    const where = usefulTerms
+      .map((term) => {
+        const likeVal = `%${escapeSqlLike(term)}%`;
+        likeParams.push(likeVal, likeVal, likeVal, likeVal, likeVal);
+        return `(upper(st_lib_1_conso) like ? ESCAPE '\\' or upper(st_lib_2_conso) like ? ESCAPE '\\' or upper(st_art_ref_client) like ? ESCAPE '\\' or upper(st_modele) like ? ESCAPE '\\' or upper(st_code_tarif) like ? ESCAPE '\\')`;
+      })
+      .join(" and ");
 
-  const rows = await query(
-    connection,
-    `${STOCK_SELECT} where ${where} order by st_seq desc limit 25`,
-    likeParams
-  );
+    const rows = await query(
+      connection,
+      `${STOCK_SELECT} where ${where} order by st_seq desc limit 25`,
+      likeParams
+    );
 
-  const exactRows = rows.filter((row) => {
-    const haystack = normalizeSearchText([
-      row.st_lib_1_conso,
-      row.st_lib_2_conso,
-      row.st_art_ref_client,
-      row.st_code_tarif,
-    ].filter(Boolean).join(" "));
-    return terms.every((term) => haystack.includes(term));
-  });
+    const exactRows = rows.filter((row) => {
+      const haystack = normalizeSearchText([
+        row.st_lib_1_conso,
+        row.st_lib_2_conso,
+        row.st_art_ref_client,
+        row.st_code_tarif,
+      ].filter(Boolean).join(" "));
+      return terms.every((term) => haystack.includes(term));
+    });
 
-  return (await enrichRowsWithMongoRef(exactRows, identif, preferredRefModel)).map(mapStockRow);
+    return (await enrichRowsWithMongoRef(exactRows, identif, preferredRefModel)).map(mapStockRow);
+  }
+
+  // Priorité 3 (visuels) : lookup MongoDB direct par {model, format} — pas de recherche
+  // approximative sur fs_stock. La déaccentuation du terme de recherche (normalizeSearchText)
+  // ne s'appliquait jamais à la colonne SQL comparée (st_lib_1_conso reste accentué en base),
+  // ce qui faisait échouer silencieusement toute correspondance sur les libellés accentués
+  // (ex: "POSÉIDON") sans doublon historique non-accentué compatible.
+  const model = extractModelFromIdentif(identif);
+  if (!model) return [];
+
+  const format = extractDimensionFormat(identif);
+  const allModels = [RefDeco, RefEcom, RefBrico, RefCasto];
+  const orderedModels = preferredRefModel
+    ? [preferredRefModel, ...allModels.filter((m) => m !== preferredRefModel)]
+    : allModels;
+  const mongoQuery = format ? { model, format } : { model };
+  const docs = await Promise.all(orderedModels.map((m) => m.findOne(mongoQuery).lean().catch(() => null)));
+  const mongoDoc = docs.find(Boolean);
+  if (!mongoDoc) return [];
+
+  return [
+    {
+      reference: mongoDoc.ref,
+      modele: mongoDoc.ref,
+      libelle: identif,
+      gencod: undefined,
+      codeTarif: undefined,
+      famille: undefined,
+      sousFamille: undefined,
+      type: undefined,
+      source: "mongo_model_format",
+    },
+  ];
 }
 
 function getStockReferenceCategory(reference) {
