@@ -27,6 +27,17 @@ function getPreferredRefModel(dosClient) {
   return null;
 }
 
+// Mapping dos_client (Gamesys) → enum client applicatif (ConsommationCommande.client)
+const CLIENT_APP_NAME = { LM: "LM", CAS: "CASTO", BM: "BRICO", ECOM: "ECOM" };
+
+function mapDosClientToAppClient(dosClient) {
+  const key = String(dosClient || "").toUpperCase();
+  for (const prefix of Object.keys(CLIENT_APP_NAME)) {
+    if (key.startsWith(prefix)) return CLIENT_APP_NAME[prefix];
+  }
+  return null;
+}
+
 function mapStockRow(row) {
   return {
     reference: row.st_art_ref_client || row.st_modele,
@@ -772,6 +783,64 @@ async function listDossiers({ limit = 20, client, commande } = {}) {
   }
 }
 
+// Pure — pas d'accès ODBC — regroupe les lignes fd_dossier/fd_entete_devi en candidats
+// { cmd, client } uniques, en ne gardant que les lignes profil/kit de pose.
+function groupCandidatesFromRows(rows) {
+  const candidates = new Map();
+  for (const row of rows || []) {
+    if (!row.dos_no_cmde) continue;
+    if (!isProfileLabel(row.endv_identif) && !isKitPoseLabel(row.endv_identif)) continue;
+
+    const cmd = String(row.dos_no_cmde).split("/")[0];
+    const appClient = mapDosClientToAppClient(row.dos_client);
+    if (!appClient) continue;
+
+    const key = `${cmd}|${appClient}`;
+    if (!candidates.has(key)) candidates.set(key, { cmd, client: appClient });
+  }
+
+  return [...candidates.values()];
+}
+
+async function listCommandesAvecProfilsKits({ sinceDate, client } = {}) {
+  if (!sinceDate) {
+    const error = new Error("sinceDate est requis.");
+    error.code = "SINCE_DATE_REQUIRED";
+    error.status = 400;
+    throw error;
+  }
+
+  // node-odbc ne sait pas binder un objet Date JS — on passe une date texte (YYYY-MM-DD),
+  // comparable nativement à une colonne PostgreSQL `date`.
+  const sinceDateText = sinceDate instanceof Date ? sinceDate.toISOString().slice(0, 10) : String(sinceDate);
+
+  const connection = await getDbConnection();
+  let rows;
+  try {
+    rows = await query(
+      connection,
+      `
+      select
+        d.dos_no_cmde,
+        d.dos_client,
+        d.dos_date,
+        e.endv_identif
+      from public.fd_dossier d
+      join public.fd_entete_devi e on e.endv_seq = d.dos_seq
+      where d.dos_date >= ?
+    `,
+      [sinceDateText]
+    );
+  } finally {
+    await closeConnection(connection);
+  }
+
+  const candidates = groupCandidatesFromRows(rows);
+  // Filtrage sur l'enum applicatif (LM/CASTO/BRICO/ECOM) — dos_client contient des codes bruts
+  // Gamesys (ex: "LM01", "CAS02", "BM01") non comparables directement en SQL à cet enum.
+  return client ? candidates.filter((c) => c.client === client) : candidates;
+}
+
 async function searchDossiers({ q = "", limit = 10 } = {}) {
   const search = String(q || "").trim();
   if (search.length < 2) return [];
@@ -874,6 +943,9 @@ async function getDossierDetail({ seq, commande, numero, q, view = "summary", ra
 
 module.exports = {
   listDossiers,
+  listCommandesAvecProfilsKits,
+  groupCandidatesFromRows,
   searchDossiers,
   getDossierDetail,
+  mapDosClientToAppClient,
 };

@@ -24,6 +24,7 @@ const { BullMQAdapter } = require("@bull-board/api/bullMQAdapter");
 const { ExpressAdapter } = require("@bull-board/express");
 const { decoQueue, initWorker } = require("./src/services/queueService");
 const { processJob } = require("./src/controllers/jobsController");
+const { syncConsommationsHistorique } = require("./src/services/gamesysConsommationSyncService");
 
 const PORT = process.env.PORT || 8000;
 
@@ -203,4 +204,27 @@ server.listen(PORT, async () => {
       uptime: Math.floor(process.uptime()),
     });
   }, 30_000);
+
+  // Sync récurrente des consommations profils/kits (Gamesys → ConsommationCommande/StockArticle),
+  // pour couvrir les commandes qui ne passent jamais par le pipeline normal de jobs decoGestion.
+  // Fenêtre glissante (10j) plus large que l'intervalle : rattrape les retards Gamesys sans créer
+  // de doublons (syncConsommationsHistorique ignore les numCmd déjà connus).
+  const SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
+  const SYNC_LOOKBACK_DAYS = 10;
+  const SYNC_INITIAL_DELAY_MS = 5 * 60 * 1000;
+
+  setTimeout(() => {
+    setInterval(async () => {
+      try {
+        const sinceDate = new Date(Date.now() - SYNC_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+        const resume = await syncConsommationsHistorique({ sinceDate, concurrency: 3 });
+        logger.info(
+          `Sync Gamesys consommations : ${resume.traites} traitées, ${resume.dejaExistants} déjà connues, ${resume.erreurs} erreurs (sur ${resume.candidats} candidats). ` +
+            `Réconciliation stock_profiles : ${resume.orphelinsReconcilies}/${resume.orphelinsDetectes} orphelines corrigées.`,
+        );
+      } catch (error) {
+        logger.warn(`Sync Gamesys consommations échouée : ${error.message}`);
+      }
+    }, SYNC_INTERVAL_MS);
+  }, SYNC_INITIAL_DELAY_MS);
 });
