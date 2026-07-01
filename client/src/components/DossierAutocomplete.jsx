@@ -194,11 +194,13 @@ function buildRows(payload, pathData, formatTauro) {
       _absorbedBy: null,
       status: !formatTauroValue
         ? "Format Tauro requis"
-        : candidates.length === 0
+        : files.length === 0
           ? "Aucun fichier local trouvé"
-          : hasStrongMatch
-            ? "Prêt"
-            : "Choix requis",
+          : candidates.length === 0
+            ? "Aucune référence trouvée — sélection manuelle requise"
+            : hasStrongMatch
+              ? "Prêt"
+              : "Choix requis",
     };
   });
 }
