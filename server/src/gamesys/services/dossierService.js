@@ -297,7 +297,31 @@ function buildKitPoseReferences(enteteDevis, stockKitPoseReferences) {
   );
 }
 
-function buildVisualReferences(enteteDevis, stockVisualReferences) {
+// Le libellé Gamesys (endv_identif) ne mentionne jamais la finition (Mat/Brillant) — elle ne vit que
+// côté stock (st_lib_2_conso) et côté dossier (dos_imp_1_fac_p_1, ex: "pelli. Ro (Vernis Brillant) sur VERNI/").
+// Sans ce filtre, deux SKUs "identiques" ne différant que par la finition font tous les deux match par
+// mots-clés (getSearchTerms exclut "MAT" comme mot vide), et l'ordre st_seq desc tranche arbitrairement —
+// biaisant systématiquement la résolution vers la finition Mat.
+function detectPrintFinish(dossier) {
+  const text = normalizeSearchText(dossier?.dos_imp_1_fac_p_1 || "");
+  if (text.includes("BRILLANT")) return "BRILLANT";
+  if (text.includes("MAT")) return "MAT";
+  return null;
+}
+
+function filterStockByFinish(stockRefs, finish) {
+  if (!finish || !stockRefs?.length) return stockRefs;
+  const mentionsFinish = (s) => normalizeSearchText(`${s.libelle || ""} ${s.modele || ""}`);
+  const matching = stockRefs.filter((s) => mentionsFinish(s).includes(finish));
+  if (matching.length > 0) return matching;
+  const neutral = stockRefs.filter((s) => {
+    const text = mentionsFinish(s);
+    return !text.includes("MAT") && !text.includes("BRILLANT");
+  });
+  return neutral.length > 0 ? neutral : stockRefs;
+}
+
+function buildVisualReferences(enteteDevis, stockVisualReferences, printFinish) {
   return uniqueBy(
     (enteteDevis || [])
       .map((entete) => {
@@ -306,24 +330,25 @@ function buildVisualReferences(enteteDevis, stockVisualReferences) {
 
         const explicitReference = getVisualReferenceFromEntete(entete);
         const explicitRefNorm = String(explicitReference || "").toUpperCase();
+        const finishCandidates = filterStockByFinish(stockVisualReferences, printFinish);
 
         // Priorité sémantique : le matching par mots-clés passe avant l'exact match sur la ref explicite.
         // La ref explicite (endv_ref_client) peut pointer sur une ancienne version du même article ;
         // la recherche textuelle (ordonnée par st_seq desc) remonte l'article courant en premier.
         const stockReference =
-          stockVisualReferences?.find((stock) => {
+          finishCandidates?.find((stock) => {
             const stockKeyTerms = getSearchTerms(stock.libelle || stock.modele || "");
             const enteteText = normalizeSearchText(entete.endv_identif);
             return stockKeyTerms.length >= 1 && stockKeyTerms.every((term) => enteteText.includes(term));
           }) ||
           (explicitRefNorm
-            ? stockVisualReferences?.find(
+            ? finishCandidates?.find(
                 (stock) =>
                   String(stock.reference || "").toUpperCase() === explicitRefNorm ||
                   String(stock.modele || "").toUpperCase() === explicitRefNorm
               )
             : undefined) ||
-          stockVisualReferences?.[0];
+          finishCandidates?.[0];
         const stockRef = stockReference?.reference;
         // Si st_art_ref_client = gencod (EAN barcode), ignorer — pas une référence visuelle utilisable
         const refIsGencod = stockRef && stockRef === stockReference?.gencod;
@@ -698,7 +723,8 @@ async function buildDetail(connection, dossier) {
     );
     const stockReferences = uniqueBy(stockRefSets.flat(), (r) => r.reference || r.modele);
     const categorizedReferences = splitVisualAndProfileReferences(stockReferences);
-    visualReferences = buildVisualReferences(primary.enteteDevis, categorizedReferences.visuals);
+    const printFinish = detectPrintFinish(dossier);
+    visualReferences = buildVisualReferences(primary.enteteDevis, categorizedReferences.visuals, printFinish);
     profileReferences = buildProfileReferences(primary.enteteDevis, categorizedReferences.profiles);
     kitPosesReferences = buildKitPoseReferences(primary.enteteDevis, categorizedReferences.kitPoses);
   } catch (error) {

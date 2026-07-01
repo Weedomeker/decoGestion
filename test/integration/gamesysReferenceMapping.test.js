@@ -97,6 +97,33 @@ describe("Gamesys — correspondance références / visuels (intégration live)"
     });
   });
 
+  // ── Dossier 166311 : LM MARBRE NERF finition Brillant (biais Mat) ────────────
+  describe("Dossier 166311 — LM MARBRE NERF Brillant 100x255 + 150x255", () => {
+    let api;
+
+    before(async () => {
+      api = await fetchDossierApi("166311");
+    });
+
+    it("le job 100x255 résout la référence Brillant (94953644), pas la référence Mat (94953664)", () => {
+      const job = api.visualJobs.find((j) => j.formatVisu === "100x255");
+      expect(job, "job 100x255 introuvable").to.exist;
+      expect(job.reference).to.equal(
+        "94953644",
+        `Le dossier est en finition Brillant (dos_imp_1_fac_p_1) mais la référence Mat "${job.reference}" a été résolue à la place.`
+      );
+    });
+
+    it("le job 150x255 résout la référence Brillant (94922918), pas la référence Mat (94953642)", () => {
+      const job = api.visualJobs.find((j) => j.formatVisu === "150x255");
+      expect(job, "job 150x255 introuvable").to.exist;
+      expect(job.reference).to.equal(
+        "94922918",
+        `Le dossier est en finition Brillant (dos_imp_1_fac_p_1) mais la référence Mat "${job.reference}" a été résolue à la place.`
+      );
+    });
+  });
+
   // ── Anti-régression : références non-vides et distinctes ────────────────────
   describe("Dossier 165191 — ECOM multi-visuel (anti-régression)", () => {
     let api;
