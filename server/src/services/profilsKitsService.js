@@ -82,17 +82,16 @@ async function saveProfilsKits(job) {
   }
 
   try {
-    const existing = await ConsommationCommande.findOne({ numCmd });
-    if (existing) {
+    const upsertResult = await ConsommationCommande.findOneAndUpdate(
+      { numCmd },
+      { $setOnInsert: { numCmd, client: job.client, dateJob: new Date(), articles } },
+      { upsert: true, rawResult: true }
+    );
+    const alreadyExisted = !!upsertResult?.lastErrorObject?.updatedExisting;
+    if (alreadyExisted) {
       logger.info(`saveProfilsKits: ConsommationCommande déjà présente pour cmd=${job.cmd}, ignorée`);
       return null;
     }
-    await ConsommationCommande.create({
-      numCmd,
-      client: job.client,
-      dateJob: new Date(),
-      articles,
-    });
 
     if (job.isPkOnly) {
       await Deco.findOneAndUpdate(

@@ -25,9 +25,10 @@ describe("Modèle ConsommationCommande (intégration)", () => {
   });
 
   it("accepte un client valide", async () => {
+    let numCmd = 2000;
     for (const client of ["LM", "CASTO", "BRICO", "ECOM"]) {
       const doc = await ConsommationCommande.create({
-        numCmd: 1,
+        numCmd: numCmd++,
         client,
         articles: [],
       });
@@ -38,23 +39,30 @@ describe("Modèle ConsommationCommande (intégration)", () => {
   it("refuse un client invalide", async () => {
     let err;
     try {
-      await ConsommationCommande.create({ numCmd: 1, client: "INCONNU", articles: [] });
+      await ConsommationCommande.create({ numCmd: 3000, client: "INCONNU", articles: [] });
     } catch (e) { err = e; }
     expect(err).to.exist;
     expect(err.name).to.equal("ValidationError");
   });
 
-  it("le même numCmd peut avoir plusieurs documents (pas d'unicité)", async () => {
-    await ConsommationCommande.create({ numCmd: 99999, client: "LM", articles: [] });
+  it("refuse un numCmd en doublon", async () => {
     await ConsommationCommande.create({ numCmd: 99999, client: "LM", articles: [] });
 
+    let err;
+    try {
+      await ConsommationCommande.create({ numCmd: 99999, client: "LM", articles: [] });
+    } catch (e) { err = e; }
+
+    expect(err).to.exist;
+    expect(err.code).to.equal(11000);
+
     const count = await ConsommationCommande.countDocuments({ numCmd: 99999 });
-    expect(count).to.equal(2);
+    expect(count).to.equal(1);
   });
 
   it("dateJob prend la valeur courante par défaut", async () => {
     const before = new Date();
-    const doc = await ConsommationCommande.create({ numCmd: 1, client: "LM", articles: [] });
+    const doc = await ConsommationCommande.create({ numCmd: 4000, client: "LM", articles: [] });
     const after = new Date();
 
     expect(doc.dateJob.getTime()).to.be.at.least(before.getTime());

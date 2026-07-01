@@ -5,6 +5,7 @@ const sinon = require("sinon");
 const dossierService = require("../../server/src/gamesys/services/dossierService");
 const StockArticle = require("../../server/src/models/StockArticle");
 const ConsommationCommande = require("../../server/src/models/ConsommationCommande");
+const Deco = require("../../server/src/models/Deco");
 const { saveProfilsKits } = require("../../server/src/services/profilsKitsService");
 
 const GROUPED_WITH_PROFIL = {
@@ -45,12 +46,21 @@ const GROUPED_EMPTY = {
 describe("profilsKitsService.saveProfilsKits()", () => {
   let getDossierDetailStub;
   let stockArticleStub;
+  let consommationUpsertStub;
   let consommationCreateStub;
+  let decoUpsertStub;
 
   beforeEach(() => {
     getDossierDetailStub = sinon.stub(dossierService, "getDossierDetail");
     stockArticleStub = sinon.stub(StockArticle, "findOneAndUpdate").resolves({});
-    consommationCreateStub = sinon.stub(ConsommationCommande, "create").resolves({});
+    consommationUpsertStub = sinon
+      .stub(ConsommationCommande, "findOneAndUpdate")
+      .resolves({ lastErrorObject: { updatedExisting: false } });
+    // create() ne doit plus être utilisé (remplacé par l'upsert atomique ci-dessus)
+    consommationCreateStub = sinon
+      .stub(ConsommationCommande, "create")
+      .rejects(new Error("create() ne doit plus être appelé — utiliser findOneAndUpdate"));
+    decoUpsertStub = sinon.stub(Deco, "findOneAndUpdate").resolves({});
   });
 
   afterEach(() => {
@@ -76,7 +86,7 @@ describe("profilsKitsService.saveProfilsKits()", () => {
 
     await saveProfilsKits(fakeJob());
 
-    expect(consommationCreateStub.called).to.be.false;
+    expect(consommationUpsertStub.called).to.be.false;
     expect(stockArticleStub.called).to.be.false;
   });
 
@@ -92,13 +102,17 @@ describe("profilsKitsService.saveProfilsKits()", () => {
     expect(opts.upsert).to.be.true;
   });
 
-  it("crée ConsommationCommande avec quantité issue de l'entête devis (profil)", async () => {
+  it("crée ConsommationCommande avec quantité issue de l'entête devis (profil) via upsert atomique", async () => {
     getDossierDetailStub.resolves(GROUPED_WITH_PROFIL);
 
     await saveProfilsKits(fakeJob(164629, "LM"));
 
-    expect(consommationCreateStub.calledOnce).to.be.true;
-    const created = consommationCreateStub.firstCall.args[0];
+    expect(consommationUpsertStub.calledOnce).to.be.true;
+    expect(consommationCreateStub.called).to.be.false;
+    const [filter, update, opts] = consommationUpsertStub.firstCall.args;
+    expect(filter).to.deep.equal({ numCmd: 164629 });
+    expect(opts.upsert).to.be.true;
+    const created = update.$setOnInsert;
     expect(created.numCmd).to.equal(164629);
     expect(created.client).to.equal("LM");
     expect(created.articles).to.have.length(1);
@@ -112,9 +126,20 @@ describe("profilsKitsService.saveProfilsKits()", () => {
 
     await saveProfilsKits(fakeJob());
 
-    const created = consommationCreateStub.firstCall.args[0];
+    const [, update] = consommationUpsertStub.firstCall.args;
+    const created = update.$setOnInsert;
     expect(created.articles[0].type).to.equal("kit");
     expect(created.articles[0].quantite).to.equal(2);
+  });
+
+  it("ne recrée pas la consommation si elle existe déjà (upsert idempotent)", async () => {
+    getDossierDetailStub.resolves(GROUPED_WITH_PROFIL);
+    consommationUpsertStub.resolves({ lastErrorObject: { updatedExisting: true } });
+
+    const result = await saveProfilsKits(fakeJob(164629, "LM"));
+
+    expect(result).to.be.null;
+    expect(decoUpsertStub.called).to.be.false;
   });
 
   it("ne propage pas une exception si getDossierDetail échoue", async () => {
@@ -148,8 +173,9 @@ describe("profilsKitsService.saveProfilsKits()", () => {
 
     await saveProfilsKits(fakeJob(164629, "LM"));
 
-    expect(consommationCreateStub.calledOnce).to.be.true;
-    const created = consommationCreateStub.firstCall.args[0];
+    expect(consommationUpsertStub.calledOnce).to.be.true;
+    const [, update] = consommationUpsertStub.firstCall.args;
+    const created = update.$setOnInsert;
     expect(created.articles).to.have.length(2);
 
     const profilBlanc = created.articles.find((a) => a.ref === "P001");
