@@ -341,6 +341,7 @@ function DossierAutocomplete({ pathData, formatTauro, onAutoFill, gamesysOk }) {
 
     const newDossiers = [];
     const errors = [];
+    const warnings = [];
 
     for (const result of results) {
       if (result.status === "rejected") {
@@ -356,7 +357,11 @@ function DossierAutocomplete({ pathData, formatTauro, onAutoFill, gamesysOk }) {
       const clientKey = findKnownClient(body.client) || "";
       const rows = buildRows(body, pathData, formatTauro);
       const pkRows = buildProfilsKitsRows(body, clientKey);
-      const validRows = rows.filter((r) => (r.formatPath || r.teinteMasse) && r.selectedFileObject);
+      // On garde toute ligne dont le dossier de format a été résolu (ou teinte masse),
+      // même sans fichier présélectionné, pour permettre un choix manuel dans le tableau
+      // plutôt que de la faire disparaître silencieusement.
+      const validRows = rows.filter((r) => r.formatPath || r.teinteMasse);
+      const manualSelectionRows = validRows.filter((r) => !r.teinteMasse && !r.selectedFileObject);
       const allRows = [
         ...validRows.map((row) => ({ ...row, dossierNumero: body.numero })),
         ...pkRows,
@@ -365,6 +370,13 @@ function DossierAutocomplete({ pathData, formatTauro, onAutoFill, gamesysOk }) {
       if (allRows.length === 0) {
         errors.push(`${numero} : Aucun visuel exploitable et aucun profil/kit trouvé.`);
         continue;
+      }
+
+      if (manualSelectionRows.length > 0) {
+        const libelles = manualSelectionRows.map((r) => r.libelle || r.reference || r.id).join(", ");
+        warnings.push(
+          `${numero} : ${manualSelectionRows.length} visuel(s) sans référence trouvée — sélection manuelle requise (${libelles})`,
+        );
       }
 
       newDossiers.push({
@@ -382,10 +394,11 @@ function DossierAutocomplete({ pathData, formatTauro, onAutoFill, gamesysOk }) {
       emitJobs(allDossiers);
     }
 
-    if (errors.length > 0) {
+    const messages = [...errors, ...warnings];
+    if (messages.length > 0) {
       setMessage({
-        type: errors.length === newNumbers.length ? "error" : "warning",
-        text: errors.join(" · "),
+        type: errors.length > 0 && errors.length === newNumbers.length ? "error" : "warning",
+        text: messages.join(" · "),
       });
     }
   }
