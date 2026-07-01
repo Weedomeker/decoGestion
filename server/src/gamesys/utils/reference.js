@@ -74,15 +74,14 @@ function isTeinteMasseModel(model) {
   return TEINTE_MASSE_MODELS.some((tm) => normalized === tm || normalized.startsWith(`${tm  } `));
 }
 
+// Un numéro de commande client ("NO CC" dans endv_rmq) n'est structurellement jamais une
+// référence produit — ne dériver une référence QUE des champs explicites du devis.
 function getVisualReferenceFromEntete(entete) {
   const explicitReference = [entete?.endv_ref_client, entete?.endv_no_modele, entete?.endv_code_complet_modele].find(
     (value) => value && String(value).trim(),
   );
 
-  if (explicitReference) return String(explicitReference).trim();
-
-  const noCcMatch = String(entete?.endv_rmq || "").match(/\bNO\s*CC\s*[:#-]?\s*([0-9]{3,})\b/i);
-  return noCcMatch?.[1] || "";
+  return explicitReference ? String(explicitReference).trim() : "";
 }
 
 module.exports = {
