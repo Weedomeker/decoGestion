@@ -517,8 +517,8 @@ function buildGroupedResponse(details, view) {
   const kitPosesReferences = flattenKitPoseReferences(sortedDetails);
   let clientName;
   if (first.dossier?.dos_client || first.enteteDevis?.[0]?.endv_cclient) {
-    let client = first.dossier?.dos_client || first.enteteDevis?.[0]?.endv_cclient;
-    let client_name = ['LM', 'BM', 'CAS', 'ECOM'];
+    const client = first.dossier?.dos_client || first.enteteDevis?.[0]?.endv_cclient;
+    const client_name = ['LM', 'BM', 'CAS', 'ECOM'];
     for (const name of client_name) {
       if (String(client).startsWith(name)) {
         clientName = name;

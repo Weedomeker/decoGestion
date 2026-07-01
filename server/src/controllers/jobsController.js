@@ -122,7 +122,7 @@ async function addJob(req, res) {
     return res.status(400).json({ error: "Champs obligatoires manquants : client, visuel, format, formatTauro." });
   }
 
-  let client = data.client.toUpperCase();
+  const client = data.client.toUpperCase();
   const client2 = (req.body.client2 || data.client)?.toUpperCase();
   let visuel = data.visuel?.split("/").pop() || "";
   let visuel2 = data.visuel2?.split("/").pop() || "";
@@ -136,7 +136,7 @@ async function addJob(req, res) {
 
   const visuPath = data.visuel;
   let visuPath2 = data.visuel2;
-  let formatTauro = data.formatTauro?.split("_")?.pop() || "";
+  const formatTauro = data.formatTauro?.split("_")?.pop() || "";
   let prodBlanc = data.prodBlanc;
   const format = data.format;
   let format2 = data.format2;
@@ -215,14 +215,14 @@ async function addJob(req, res) {
   else if (client2 === "ECOM") prefixClient2 = "ECOM";
 
   state.process.fileName = `${data.numCmd} - ${prefixClient} ${
-    data.ville ? data.ville.toUpperCase() + " - " : ""
+    data.ville ? `${data.ville.toUpperCase()  } - ` : ""
   }${teinteMasse === true ? format?.split("_").pop()?.replace("/", "") : formatTauro} - ${visuel.replace(
     /\.[^/.]+$/,
     "",
   )} ${data.ex}_EX`;
 
-  state.process.fileName2 = `${data.numCmd2 === 0 ? "" : data.numCmd2 + " - "}${prefixClient2} ${
-    data.ville ? data.ville.toUpperCase() + " - " : ""
+  state.process.fileName2 = `${data.numCmd2 === 0 ? "" : `${data.numCmd2  } - `}${prefixClient2} ${
+    data.ville ? `${data.ville.toUpperCase()  } - ` : ""
   }${teinteMasse === true ? format2?.split("_").pop() : formatTauro} - ${visuel2.replace(/\.[^/.]+$/, "")} ${
     data.ex
   }_EX`;
@@ -258,8 +258,8 @@ async function addJob(req, res) {
     }
   }
 
-  let matchRef = data.teinteMasse ? findRefTeinteMasse?.[0]?.ref : extractRefFromFilename(visuel, client);
-  let matchRef2 = visuel2 ? extractRefFromFilename(visuel2, client2) : null;
+  const matchRef = data.teinteMasse ? findRefTeinteMasse?.[0]?.ref : extractRefFromFilename(visuel, client);
+  const matchRef2 = visuel2 ? extractRefFromFilename(visuel2, client2) : null;
 
   // Validation du format de la référence extraite (avant toute requête MongoDB)
   if (matchRef && !teinteMasse && !validateRefFormat(matchRef, client)) {
@@ -464,7 +464,7 @@ async function processJob(job, req) {
   } - ${job.visuel.replace(/\.[^/.]+$/, "")} ${job.ex}_EX`;
 
   const fileName2 = isCredences
-    ? `${job.cmd2 === 0 ? "" : job.cmd2 + " - "}${job.client} ${job.ville.toUpperCase()} - ${
+    ? `${job.cmd2 === 0 ? "" : `${job.cmd2  } - `}${job.client} ${job.ville.toUpperCase()} - ${
         job.teinteMasse ? job.format2_visu.split("_").pop() : job.format_Plaque.split("_").pop()
       } - ${job.visuel2.replace(/\.[^/.]+$/, "")} ${job.ex}_EX` || ""
     : "";
@@ -506,7 +506,7 @@ async function processJob(job, req) {
           { visuals, plaque: job.format_Plaque },
           path.join(
             job.writePath,
-            `${castoName(fileName)}${job.visuPath2 ? " + " + castoName(fileName2) : ""}.pdf`,
+            `${castoName(fileName)}${job.visuPath2 ? ` + ${  castoName(fileName2)}` : ""}.pdf`,
           ),
         );
         const endPdf = performance.now();
@@ -522,7 +522,7 @@ async function processJob(job, req) {
 
     if (!job.teinteMasse) {
       const outPdfPath = isCredences
-        ? path.join(job.writePath, `${castoName(fileName)}${job.visuPath2 ? " + " + castoName(fileName2) : ""}.pdf`)
+        ? path.join(job.writePath, `${castoName(fileName)}${job.visuPath2 ? ` + ${  castoName(fileName2)}` : ""}.pdf`)
         : `${pdfName}.pdf`;
       try {
         if (!fs.existsSync(outPdfPath) || fs.statSync(outPdfPath).size === 0) {
@@ -782,7 +782,7 @@ async function runJobs(req, res) {
     const resultsSummary = state.jobs.completed.map(({ cmd, cmd2 }) => [cmd, cmd2 > 0 ? cmd2 : ""]);
     logger.info(
       `📊 Résumé des commandes traitées :\n[${resultsSummary
-        .map(([cmd, cmd2]) => `${cmd}${cmd2 ? " + " + cmd2 : ""}`)
+        .map(([cmd, cmd2]) => `${cmd}${cmd2 ? ` + ${  cmd2}` : ""}`)
         .join(", ")}]`,
     );
 
@@ -976,7 +976,7 @@ async function getRefFormats(req, res) {
 }
 
 async function previewStickerQuick(req, res) {
-  const { client, numCmd, ex, ville, ref, visuel, format_visu, isStock } = req.body;
+  const { client, numCmd, ville, ref, visuel, format_visu, isStock } = req.body;
   if (!client) return res.status(400).json({ error: "client est requis" });
   if (!isStock && !numCmd) return res.status(400).json({ error: "numCmd est requis" });
 
@@ -1107,7 +1107,7 @@ async function exportHistory(req, res) {
   // Helper : échapper et entourer de guillemets une valeur texte
   function csvText(val) {
     if (val === null || val === undefined) return '""';
-    return '"' + String(val).replace(/"/g, '""') + '"';
+    return `"${  String(val).replace(/"/g, '""')  }"`;
   }
 
   // Helper : formater une date en YYYY-MM-DD HH:mm (retourne chaîne vide avec guillemets pour date absente)
@@ -1120,13 +1120,13 @@ async function exportHistory(req, res) {
     const dd = pad(dt.getDate());
     const HH = pad(dt.getHours());
     const mm = pad(dt.getMinutes());
-    return '"' + yyyy + "-" + MM + "-" + dd + " " + HH + ":" + mm + '"';
+    return `"${  yyyy  }-${  MM  }-${  dd  } ${  HH  }:${  mm  }"`;
   }
 
   // Nom de fichier avec la date du jour
   const today = new Date();
   const pad = (n) => String(n).padStart(2, "0");
-  const dateStr = today.getFullYear() + "-" + pad(today.getMonth() + 1) + "-" + pad(today.getDate());
+  const dateStr = `${today.getFullYear()  }-${  pad(today.getMonth() + 1)  }-${  pad(today.getDate())}`;
 
   try {
     const entries = await modelDeco.find(filter).sort({ date: -1 }).lean();
@@ -1152,7 +1152,7 @@ async function exportHistory(req, res) {
         entry.perte !== undefined && entry.perte !== null ? entry.perte : 0,
         entry.prodBlanc ? 1 : 0,
       ].join(",");
-      res.write(line + "\n");
+      res.write(`${line  }\n`);
     }
 
     res.end();

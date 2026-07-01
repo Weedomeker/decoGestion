@@ -28,8 +28,6 @@ function filterVerni(name) {
 
   if (find) {
     return find.toUpperCase();
-  } else {
-    return;
   }
 }
 

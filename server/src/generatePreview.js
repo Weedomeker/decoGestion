@@ -3,7 +3,6 @@ const path = require("path");
 const { fromPath } = require("pdf2pic");
 const pLimit = require("p-limit");
 const cliProgress = require("cli-progress");
-const e = require("express");
 const logger = require("./logger/logger");
 
 // Function to send logs to the terminal
@@ -67,7 +66,7 @@ async function processSinglePDF(
   counters,
   verbose,
 ) {
-  const { jpgDirectory, density, width, height } = pdfOptions;
+  const { jpgDirectory, density, height } = pdfOptions;
   const pdfFilename = path.basename(pdfPath);
   const pdfReference = extractReference(pdfFilename);
   const outputFilename = path.parse(pdfFilename).name;

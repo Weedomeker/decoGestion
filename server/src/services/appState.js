@@ -53,7 +53,7 @@ function loadAppVersion() {
   try {
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
     state.appVersion = packageJson.version;
-    logger.info("Version de l'application: " + state.appVersion);
+    logger.info(`Version de l'application: ${  state.appVersion}`);
   } catch (err) {
     logger.error("Erreur lors de la lecture du fichier package.json: ", err);
   }

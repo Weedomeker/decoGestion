@@ -6,7 +6,6 @@
 const { degrees, PDFDocument, rgb, StandardFonts } = require("pdf-lib");
 const fs = require("fs");
 const path = require("path");
-const m = require("gm");
 const logger = require("./logger/logger");
 
 function getVisuelsForCmd(cmdInfo) {
@@ -62,7 +61,7 @@ async function generateStickers(commande, outPath, showDataCmd = false) {
   // Générer les stickers pour chaque commande
   const promises = [];
 
-  Object.values(groupedCommands).forEach(({ items, maxEx, cmd, cmd2 }) => {
+  Object.values(groupedCommands).forEach(({ items, maxEx }) => {
     let currentEx = 0;
 
     items.forEach((cmdInfo) => {
@@ -106,7 +105,6 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
 
   const ref = useSecond ? cmd.ref2 : cmd.ref;
   const visuel = useSecond ? cmd.visuel2 : cmd.visuel;
-  const format = useSecond ? cmd.format2_visu : cmd.format_visu;
 
   // if (!ref || !visuel) {
   //   logger.error("❌ Données manquantes sur la commande " + numCmd);
@@ -127,14 +125,10 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
   // Récupération de la référence ou nom
   //const teinteMasse = ['blanc zero', 'noir zero', 'alu brosse', 'granit 3'];
 
-  const ref2 = null;
-  const name2 = null;
-
   const refStr = ref && ref !== 0 ? String(ref) : null;
-  const visuelNoExt = visuel ? visuel.replace(/\.[^.]+$/, "") : "";
 
   // Priorité ref (case-insensitive) ; fallback nom visuel si aucun match
-  let images = refStr
+  const images = refStr
     ? files.filter((file) => file.toLowerCase().endsWith(".jpg") && file.toLowerCase().includes(refStr.toLowerCase()))
     : [];
   if (images.length === 0) {
@@ -319,7 +313,6 @@ async function createStickersPage(directory, outputPath, pageSize = "A4") {
       ? { width: 420, height: 595 } // Dimensions pour A5
       : { width: 595, height: 842 }; // Dimensions pour A4
 
-  const margin = 0; // Marge entre les pages
   const outputPdf = await PDFDocument.create();
   const files = fs.readdirSync(directory).filter((file) => file.endsWith(".pdf"));
   //.filter((file) => /^[\d]/.test(file));

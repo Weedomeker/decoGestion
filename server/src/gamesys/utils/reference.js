@@ -71,7 +71,7 @@ const TEINTE_MASSE_MODELS = [
 
 function isTeinteMasseModel(model) {
   const normalized = normalizeSearchText(model);
-  return TEINTE_MASSE_MODELS.some((tm) => normalized === tm || normalized.startsWith(tm + " "));
+  return TEINTE_MASSE_MODELS.some((tm) => normalized === tm || normalized.startsWith(`${tm  } `));
 }
 
 function getVisualReferenceFromEntete(entete) {

@@ -9,8 +9,8 @@ dns.setServers(["8.8.8.8", "8.8.4.4"]);
 
 const MONGO_URL =
   process.env.NODE_ENV === "development"
-    ? process.env.MONGO_URL + "Test?retryWrites=true&w=majority&appName=Orphea"
-    : process.env.MONGO_URL + "DecoKin?retryWrites=true&w=majority&appName=Orphea";
+    ? `${process.env.MONGO_URL  }Test?retryWrites=true&w=majority&appName=Orphea`
+    : `${process.env.MONGO_URL  }DecoKin?retryWrites=true&w=majority&appName=Orphea`;
 
 mongoose.connection.on("connected", () => logger.info("MongoDB: connexion établie"));
 mongoose.connection.on("disconnected", () => logger.warn("MongoDB: déconnecté"));

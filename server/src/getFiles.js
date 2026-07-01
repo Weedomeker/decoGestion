@@ -1,7 +1,5 @@
 const path = require("path");
 const fs = require("fs");
-const { PDFDocument } = require("pdf-lib");
-const { cmToPoints, pointsToCm } = require("./convertUnits");
 
 const getFiles = (dir, files = [], directories = []) => {
   if (!fs.existsSync(dir)) return { directories, files };
@@ -40,7 +38,7 @@ const getData = async (dir) => {
   const { directories } = getFiles(dir);
 
   for (const folderPath of directories) {
-    let nameFolder = folderPath.split("\\").pop();
+    const nameFolder = folderPath.split("\\").pop();
 
     const listFiles = await Promise.all(
       getFiles(folderPath).files.map(async (file) => {
@@ -59,7 +57,7 @@ const getData = async (dir) => {
 
     arr.push({
       name: nameFolder,
-      path: folderPath.replace(/\\/g, "/") + "/",
+      path: `${folderPath.replace(/\\/g, "/")  }/`,
       files: listFiles.filter(Boolean),
     });
   }

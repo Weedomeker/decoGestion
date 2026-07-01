@@ -13,7 +13,7 @@ async function getProcess(req, res) {
     res.status(200).json({
       jpgTime: parseFloat(jpgTime),
       pdfTime: parseFloat(pdfTime),
-      jpgPath: jpgName.split("/").slice(2).join("/") + ".jpg",
+      jpgPath: `${jpgName.split("/").slice(2).join("/")  }.jpg`,
       fileName,
       time,
       version,

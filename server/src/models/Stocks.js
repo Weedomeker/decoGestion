@@ -13,7 +13,7 @@ const stocksSchema = new mongoose.Schema(
   },
 );
 
-stocksSchema.post("findOneAndUpdate", async function (doc) {
+stocksSchema.post("findOneAndUpdate", async (doc) => {
   if (doc && doc.ex === 0) {
     await doc.deleteOne();
   }
