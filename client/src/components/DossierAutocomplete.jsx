@@ -53,44 +53,29 @@ function referenceMatchesName(ref, filename) {
   return rs.length >= 4 && n.replace(/[-_.\s]/g, "").includes(rs);
 }
 
+// Le matching ne se base QUE sur les références produit Gamesys (reference,
+// codeTarif, modele, articleReference) — jamais sur le libellé ou le format
+// présents dans le nom de fichier, pour éviter qu'un fichier mal classé ou
+// une coïncidence de mots ne gagne un fichier sans lien réel avec le visuel.
 function scoreFile(file, job, client) {
   const rawName = (file?.name || "").split(/[\\/]/).pop();
   if (isDefinitelyWrongClient(rawName, client)) return -Infinity;
-
-  const name = normalizeText(file?.name);
-  const labelWords = normalizeText(job.libelle)
-    .split(/\s+/)
-    .filter((word) => word.length > 3 && !/^\d/.test(word));
 
   let score = 0;
   if (referenceMatchesName(job.reference, file?.name)) score += 1000;
   if (referenceMatchesName(job.codeTarif, file?.name)) score += 900;
   if (referenceMatchesName(job.modele, file?.name)) score += 850;
   if (referenceMatchesName(job.articleReference, file?.name)) score += 800;
-  if (job.formatVisu && name.includes(formatToken(job.formatVisu))) score += 30;
-  score += labelWords.filter((word) => name.includes(word)).length * 8;
 
   return score;
 }
 
 function findFileCandidates(files, job, client) {
-  const scored = files
+  return files
     .map((file) => ({ ...file, score: scoreFile(file, job, client) }))
-    .filter((f) => isFinite(f.score));
-
-  // Les références priment : si un fichier correspond à une référence, ne retourner que ceux-là.
-  const refMatches = scored.filter(
-    (f) =>
-      referenceMatchesName(job.reference, f.name) ||
-      referenceMatchesName(job.codeTarif, f.name) ||
-      referenceMatchesName(job.modele, f.name) ||
-      referenceMatchesName(job.articleReference, f.name)
-  );
-  if (refMatches.length > 0) {
-    return refMatches.sort((a, b) => b.score - a.score).slice(0, 10);
-  }
-
-  return scored.filter((f) => f.score > 0).sort((a, b) => b.score - a.score).slice(0, 10);
+    .filter((f) => f.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10);
 }
 
 const REGEX_BLANC = /\+\s*blanc\b/i;
