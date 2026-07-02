@@ -660,13 +660,20 @@ function buildGroupedResponse(details, view) {
   return grouped;
 }
 
-async function fetchEnteteDevis(connection, commande, code) {
+// endv_seq = dos_seq : lien direct fiable entre un dossier et son entête (celui utilisé par
+// listCommandesAvecProfilsKits pour détecter les candidats profils/kits). Les critères textuels
+// (endv_no_dossier/endv_no_commande/...) peuvent diverger de dos_no_cmde quand Gamesys renumérote
+// un dossier après coup — sans ce fallback par seq, l'entête d'origine (et ses profils/kits) devient
+// introuvable ici alors qu'elle avait bien été repérée à la détection, et la commande est ignorée
+// silencieusement (aucune erreur, aucun article sauvegardé).
+async function fetchEnteteDevis(connection, commande, code, seq) {
   try {
-    return await query(
+    const rows = await query(
       connection,
-      `select * from public.fd_entete_devi where endv_no_dossier = ? or endv_no_commande = ? or endv_no_cmde_globale = ? or endv_no_dossier_site_donneur = ? or endv_coduniq = ?`,
-      [commande, commande, commande, commande, code]
+      `select * from public.fd_entete_devi where endv_no_dossier = ? or endv_no_commande = ? or endv_no_cmde_globale = ? or endv_no_dossier_site_donneur = ? or endv_coduniq = ? or endv_seq = ?`,
+      [commande, commande, commande, commande, code, seq]
     );
+    return uniqueBy(rows, (row) => row.endv_seq);
   } catch (error) {
     logger.warn(`Erreur entête devis: ${error.message}`);
     return [];
@@ -692,7 +699,7 @@ async function buildDetail(connection, dossier) {
 
   // Batch principal (connection) + batch lié (conn2) en parallèle
   const primaryBatch = async () => {
-    const enteteDevis = await fetchEnteteDevis(connection, dossierCommande, dossierCode);
+    const enteteDevis = await fetchEnteteDevis(connection, dossierCommande, dossierCode, dosSeq);
     const dossierExtRows = dossierCommande
       ? await fetchOptionalRows(connection, `select * from public.fd_dossier_ext where dos_seq = ? or dos_no_cmde = ?`, [dosSeq, dossierCommande])
       : await fetchOptionalRows(connection, `select * from public.fd_dossier_ext where dos_seq = ?`, [dosSeq]);
@@ -869,26 +876,36 @@ async function listCommandesAvecProfilsKits({ sinceDate, client } = {}) {
   // comparable nativement à une colonne PostgreSQL `date`.
   const sinceDateText = sinceDate instanceof Date ? sinceDate.toISOString().slice(0, 10) : String(sinceDate);
 
+  // Scan direct de fd_entete_devi (via endv_date_cmde, renseigné sur 100% des lignes) plutôt
+  // qu'une jointure fd_dossier/fd_entete_devi sur endv_seq = dos_seq : cette jointure stricte
+  // s'est révélée peu fiable en pratique (dos_seq et endv_seq ne sont pas systématiquement
+  // alignés 1:1) et faisait manquer ~74% des candidats profils/kits réels sur une fenêtre d'un
+  // an (2558 manqués sur 3453 vérifiés par scan indépendant). endv_no_commande (avec suffixe
+  // /NN) est préféré à endv_no_dossier pour rester cohérent avec le format "cmd/sous-dossier"
+  // attendu par groupCandidatesFromRows — le fallback est fait en JS (pas en SQL via
+  // coalesce/nullif, qui fait planter le driver ODBC : "Error allocating or reallocating
+  // memory when fetching data").
   const connection = await getDbConnection();
-  let rows;
+  let rawRows;
   try {
-    rows = await query(
+    rawRows = await query(
       connection,
       `
-      select
-        d.dos_no_cmde,
-        d.dos_client,
-        d.dos_date,
-        e.endv_identif
-      from public.fd_dossier d
-      join public.fd_entete_devi e on e.endv_seq = d.dos_seq
-      where d.dos_date >= ?
+      select endv_no_dossier, endv_no_commande, endv_cclient, endv_identif
+      from public.fd_entete_devi
+      where endv_date_cmde >= ?
     `,
       [sinceDateText]
     );
   } finally {
     await closeConnection(connection);
   }
+
+  const rows = rawRows.map((row) => ({
+    dos_no_cmde: row.endv_no_commande || row.endv_no_dossier,
+    dos_client: row.endv_cclient,
+    endv_identif: row.endv_identif,
+  }));
 
   const candidates = groupCandidatesFromRows(rows);
   // Filtrage sur l'enum applicatif (LM/CASTO/BRICO/ECOM) — dos_client contient des codes bruts
@@ -996,11 +1013,42 @@ async function getDossierDetail({ seq, commande, numero, q, view = "summary", ra
   return buildGroupedResponse(details, view);
 }
 
+// Requête minimale (une seule colonne) pour retrouver la date Gamesys d'une commande racine
+// (ex: "100473" → matche "100473/00", "100473/01", ...) sans payer le coût de getDossierDetail
+// (entêtes, stock, livraisons, etc.) — utilisé pour peupler ConsommationCommande.dateCommande
+// en masse lors d'un backfill. Connexion injectée (comme fetchEnteteDevis) pour permettre au
+// backfill de réutiliser une seule connexion sur toute la boucle, et pour la testabilité.
+async function fetchDossierDate(connection, commande) {
+  const search = String(commande || "");
+  if (!search) return null;
+
+  const searchLike = `${escapeSqlLike(search)}/%`;
+  const rows = await query(
+    connection,
+    `select min(dos_date) as dos_date from public.fd_dossier where dos_no_cmde = ? or dos_no_cmde LIKE ? ESCAPE '\\'`,
+    [search, searchLike]
+  );
+  const value = rows?.[0]?.dos_date;
+  return value ? new Date(value) : null;
+}
+
+async function getDossierDate(commande) {
+  const connection = await getDbConnection();
+  try {
+    return await fetchDossierDate(connection, commande);
+  } finally {
+    await closeConnection(connection);
+  }
+}
+
 module.exports = {
   listDossiers,
   listCommandesAvecProfilsKits,
   groupCandidatesFromRows,
   searchDossiers,
   getDossierDetail,
+  getDossierDate,
+  fetchDossierDate,
   mapDosClientToAppClient,
+  fetchEnteteDevis,
 };

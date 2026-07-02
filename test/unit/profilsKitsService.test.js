@@ -15,6 +15,7 @@ const GROUPED_WITH_PROFIL = {
   kitPosesReferences: [],
   sousDossiers: [
     {
+      dossier: { dos_date: "2025-02-19" },
       enteteDevis: [
         { endv_identif: "PROFIL BLANC 255", endv_quant: 3 },
         { endv_identif: "VISUEL MOSAIQUE", endv_quant: 1 },
@@ -119,6 +120,26 @@ describe("profilsKitsService.saveProfilsKits()", () => {
     expect(created.articles[0].ref).to.equal("P001");
     expect(created.articles[0].type).to.equal("profil");
     expect(created.articles[0].quantite).to.equal(3);
+  });
+
+  it("renseigne dateCommande à partir de dos_date du premier sous-dossier", async () => {
+    getDossierDetailStub.resolves(GROUPED_WITH_PROFIL);
+
+    await saveProfilsKits(fakeJob(164629, "LM"));
+
+    const [, update] = consommationUpsertStub.firstCall.args;
+    const created = update.$setOnInsert;
+    expect(created.dateCommande).to.be.instanceOf(Date);
+    expect(created.dateCommande.toISOString().slice(0, 10)).to.equal("2025-02-19");
+  });
+
+  it("laisse dateCommande indéfini si aucun sous-dossier n'a de dos_date", async () => {
+    getDossierDetailStub.resolves(GROUPED_WITH_KIT); // sousDossiers sans champ dossier
+
+    await saveProfilsKits(fakeJob());
+
+    const [, update] = consommationUpsertStub.firstCall.args;
+    expect(update.$setOnInsert.dateCommande).to.be.undefined;
   });
 
   it("crée ConsommationCommande avec quantité pour un kit", async () => {

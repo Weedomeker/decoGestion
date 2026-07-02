@@ -11,7 +11,7 @@ describe("Modèle ConsommationCommande (intégration)", () => {
     const doc = await ConsommationCommande.create({
       numCmd: 164629,
       client: "LM",
-      dateJob: new Date("2026-06-26"),
+      dateCommande: new Date("2026-06-26"),
       articles: [
         { ref: "P001", type: "profil", libelle: "PROFIL BLANC 255", quantite: 2 },
         { ref: "KIT001", type: "kit", libelle: "KIT DE POSE", quantite: 1 },
@@ -60,12 +60,12 @@ describe("Modèle ConsommationCommande (intégration)", () => {
     expect(count).to.equal(1);
   });
 
-  it("dateJob prend la valeur courante par défaut", async () => {
+  it("createdAt prend la valeur courante par défaut (timestamps)", async () => {
     const before = new Date();
     const doc = await ConsommationCommande.create({ numCmd: 4000, client: "LM", articles: [] });
     const after = new Date();
 
-    expect(doc.dateJob.getTime()).to.be.at.least(before.getTime());
-    expect(doc.dateJob.getTime()).to.be.at.most(after.getTime());
+    expect(doc.createdAt.getTime()).to.be.at.least(before.getTime());
+    expect(doc.createdAt.getTime()).to.be.at.most(after.getTime());
   });
 });

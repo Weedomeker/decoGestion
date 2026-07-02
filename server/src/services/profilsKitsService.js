@@ -81,10 +81,17 @@ async function saveProfilsKits(job) {
     return;
   }
 
+  // dos_date est déjà présent dans les sous-dossiers récupérés par getDossierDetail
+  // (view=summary inclut dos_date) — pas besoin d'une requête Gamesys supplémentaire.
+  const dossierDate = (grouped.sousDossiers || [])
+    .map((s) => s.dossier?.dos_date)
+    .find(Boolean);
+  const dateCommande = dossierDate ? new Date(dossierDate) : undefined;
+
   try {
     const upsertResult = await ConsommationCommande.findOneAndUpdate(
       { numCmd },
-      { $setOnInsert: { numCmd, client: job.client, dateJob: new Date(), articles } },
+      { $setOnInsert: { numCmd, client: job.client, dateCommande, articles } },
       { upsert: true, rawResult: true }
     );
     const alreadyExisted = !!upsertResult?.lastErrorObject?.updatedExisting;

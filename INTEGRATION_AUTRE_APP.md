@@ -41,13 +41,16 @@ Chaque commande traitée par decoGestion crée une entrée dans cette collection
 
 Créée lors de la soumission d'un dossier contenant des profils ou kits de pose (qu'il soit PK uniquement ou mixte).
 
-| Champ       | Type     | Description |
-|-------------|----------|-------------|
-| `_id`       | ObjectId | Identifiant MongoDB |
-| `numCmd`    | Number   | Numéro de commande — clé de jointure avec `lm_commandes` |
-| `client`    | String   | Enseigne |
-| `dateJob`   | Date     | Date de soumission |
-| `articles`  | Array    | Liste des articles consommés (voir ci-dessous) |
+| Champ          | Type     | Description |
+|----------------|----------|-------------|
+| `_id`          | ObjectId | Identifiant MongoDB |
+| `numCmd`       | Number   | Numéro de commande — clé de jointure avec `lm_commandes` |
+| `client`       | String   | Enseigne |
+| `dateCommande` | Date     | Date réelle de la commande Gamesys — à utiliser pour les prévisions par période |
+| `createdAt`    | Date     | Date d'enregistrement du document (horodatage technique, auto-généré) |
+| `articles`     | Array    | Liste des articles consommés (voir ci-dessous) |
+
+> `dateJob` a été retiré du schéma (redondant avec `createdAt`, jamais utilisé pour du filtrage). Si votre code lit encore ce champ, basculez sur `createdAt`.
 
 **Sous-document `articles[]` :**
 

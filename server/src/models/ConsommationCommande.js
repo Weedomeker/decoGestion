@@ -14,14 +14,16 @@ const consommationCommandeSchema = new mongoose.Schema(
   {
     numCmd: { type: Number, required: true },
     client: { type: String, enum: ["LM", "CASTO", "BRICO", "ECOM"] },
-    dateJob: { type: Date, default: Date.now },
+    // Date réelle de la commande Gamesys (dos_date) — à ne pas confondre avec createdAt
+    // (timestamps: true) qui reflète le moment du traitement/import. Nécessaire pour les
+    // prévisions de stock par période réelle d'achat.
+    dateCommande: { type: Date },
     articles: [articleSchema],
   },
   { timestamps: true },
 );
 
 consommationCommandeSchema.index({ numCmd: 1 }, { unique: true });
-consommationCommandeSchema.index({ dateJob: -1 });
 
 const ConsommationCommande = mongoose.model(
   "ConsommationCommande",
