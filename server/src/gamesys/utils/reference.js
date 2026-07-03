@@ -24,7 +24,11 @@ function getSearchTerms(label) {
 
 function getProfileSearchTerms(label) {
   const normalized = normalizeSearchText(label);
-  const terms = ["PROFILE"];
+  // Les cornières sont une famille d'articles Gamesys distincte des profilés de
+  // finition : leur libellé stock ne contient jamais le mot "PROFILE", donc
+  // l'imposer comme terme AND fait échouer la recherche à coup sûr.
+  const isCorniere = normalized.includes("CORNIERE");
+  const terms = [isCorniere ? "CORNIERE" : "PROFILE"];
 
   if (normalized.includes("BLANC")) terms.push("BLANC");
   if (normalized.includes("NOIR")) terms.push("NOIR");
@@ -37,8 +41,6 @@ function getProfileSearchTerms(label) {
   if (normalized.includes("RACCORD")) terms.push(" B ");
   if (normalized.includes("INTERIEUR")) terms.push(" C ");
   if (normalized.includes("EXTERIEUR")) terms.push(" D ");
-
-  if (normalized.includes("CORNIERE")) terms.push("CORNIERE");
 
   return terms;
 }
