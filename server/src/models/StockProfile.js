@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const stockArticleSchema = new mongoose.Schema(
+const stockProfileSchema = new mongoose.Schema(
   {
     ref: { type: String, required: true, unique: true },
     modele: { type: String, default: "" },
@@ -14,8 +14,8 @@ const stockArticleSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-stockArticleSchema.index({ type: 1 });
+stockProfileSchema.index({ type: 1 });
 
-const StockArticle = mongoose.model("StockArticle", stockArticleSchema, "stock_profiles");
+const StockProfile = mongoose.model("StockProfile", stockProfileSchema, "stock_profiles");
 
-module.exports = StockArticle;
+module.exports = StockProfile;

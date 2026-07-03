@@ -3,7 +3,7 @@ const sinon = require("sinon");
 
 // On stub les modules avant de require le service
 const dossierService = require("../../server/src/gamesys/services/dossierService");
-const StockArticle = require("../../server/src/models/StockArticle");
+const StockProfile = require("../../server/src/models/StockProfile");
 const ConsommationCommande = require("../../server/src/models/ConsommationCommande");
 const Deco = require("../../server/src/models/Deco");
 const { saveProfilsKits } = require("../../server/src/services/profilsKitsService");
@@ -53,7 +53,7 @@ describe("profilsKitsService.saveProfilsKits()", () => {
 
   beforeEach(() => {
     getDossierDetailStub = sinon.stub(dossierService, "getDossierDetail");
-    stockArticleStub = sinon.stub(StockArticle, "findOneAndUpdate").resolves({});
+    stockArticleStub = sinon.stub(StockProfile, "findOneAndUpdate").resolves({});
     consommationUpsertStub = sinon
       .stub(ConsommationCommande, "findOneAndUpdate")
       .resolves({ lastErrorObject: { updatedExisting: false } });
@@ -91,7 +91,7 @@ describe("profilsKitsService.saveProfilsKits()", () => {
     expect(stockArticleStub.called).to.be.false;
   });
 
-  it("upserte un StockArticle pour un profil trouvé", async () => {
+  it("upserte un StockProfile pour un profil trouvé", async () => {
     getDossierDetailStub.resolves(GROUPED_WITH_PROFIL);
 
     await saveProfilsKits(fakeJob());

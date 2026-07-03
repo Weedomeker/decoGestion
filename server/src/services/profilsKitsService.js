@@ -2,7 +2,7 @@ const logger = require("../logger/logger");
 // Import via objet module (pas destructuré) pour permettre le stub sinon en test
 const dossierService = require("../gamesys/services/dossierService");
 const { isProfileLabel, isKitPoseLabel } = require("../gamesys/utils/reference");
-const StockArticle = require("../models/StockArticle");
+const StockProfile = require("../models/StockProfile");
 const ConsommationCommande = require("../models/ConsommationCommande");
 const Deco = require("../models/Deco");
 
@@ -18,7 +18,7 @@ function getQtyForArticle(sousDossiers, predicate, refLibelle) {
 }
 
 async function upsertArticle(ref, fields) {
-  await StockArticle.findOneAndUpdate(
+  await StockProfile.findOneAndUpdate(
     { ref },
     {
       $setOnInsert: {

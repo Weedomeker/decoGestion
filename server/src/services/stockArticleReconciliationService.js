@@ -1,9 +1,9 @@
 const logger = require("../logger/logger");
 const ConsommationCommande = require("../models/ConsommationCommande");
-const StockArticle = require("../models/StockArticle");
+const StockProfile = require("../models/StockProfile");
 
 // Détecte les références présentes dans consommations_commandes.articles mais absentes
-// du catalogue stock_profiles (cas d'un upsert StockArticle ayant échoué au moment de saveProfilsKits,
+// du catalogue stock_profiles (cas d'un upsert StockProfile ayant échoué au moment de saveProfilsKits,
 // alors que la consommation, elle, a bien été enregistrée), et les crée à partir des données déjà connues.
 async function reconcileStockArticlesFromConsommations({ dryRun = false } = {}) {
   const parRef = await ConsommationCommande.aggregate([
@@ -12,7 +12,7 @@ async function reconcileStockArticlesFromConsommations({ dryRun = false } = {}) 
     { $group: { _id: "$articles.ref", type: { $first: "$articles.type" }, libelle: { $first: "$articles.libelle" } } },
   ]);
 
-  const refsExistantes = new Set(await StockArticle.distinct("ref"));
+  const refsExistantes = new Set(await StockProfile.distinct("ref"));
   const orphelines = parRef.filter((r) => !refsExistantes.has(r._id));
 
   if (dryRun) {
@@ -22,7 +22,7 @@ async function reconcileStockArticlesFromConsommations({ dryRun = false } = {}) 
   let crees = 0;
   for (const orpheline of orphelines) {
     try {
-      await StockArticle.findOneAndUpdate(
+      await StockProfile.findOneAndUpdate(
         { ref: orpheline._id },
         {
           $setOnInsert: {
@@ -40,7 +40,7 @@ async function reconcileStockArticlesFromConsommations({ dryRun = false } = {}) 
       crees += 1;
     } catch (err) {
       logger.warn(
-        `reconcileStockArticlesFromConsommations: échec création StockArticle ref=${orpheline._id} : ${err.message}`,
+        `reconcileStockArticlesFromConsommations: échec création StockProfile ref=${orpheline._id} : ${err.message}`,
       );
     }
   }

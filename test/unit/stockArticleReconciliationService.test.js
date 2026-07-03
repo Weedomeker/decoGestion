@@ -2,7 +2,7 @@ const { expect } = require("chai");
 const sinon = require("sinon");
 
 const ConsommationCommande = require("../../server/src/models/ConsommationCommande");
-const StockArticle = require("../../server/src/models/StockArticle");
+const StockProfile = require("../../server/src/models/StockProfile");
 const { reconcileStockArticlesFromConsommations } = require("../../server/src/services/stockArticleReconciliationService");
 
 describe("stockArticleReconciliationService.reconcileStockArticlesFromConsommations()", () => {
@@ -12,8 +12,8 @@ describe("stockArticleReconciliationService.reconcileStockArticlesFromConsommati
 
   beforeEach(() => {
     aggregateStub = sinon.stub(ConsommationCommande, "aggregate");
-    distinctStub = sinon.stub(StockArticle, "distinct");
-    upsertStub = sinon.stub(StockArticle, "findOneAndUpdate").resolves({});
+    distinctStub = sinon.stub(StockProfile, "distinct");
+    upsertStub = sinon.stub(StockProfile, "findOneAndUpdate").resolves({});
   });
 
   afterEach(() => {
@@ -30,7 +30,7 @@ describe("stockArticleReconciliationService.reconcileStockArticlesFromConsommati
     expect(upsertStub.called).to.be.false;
   });
 
-  it("crée un StockArticle pour chaque ref orpheline", async () => {
+  it("crée un StockProfile pour chaque ref orpheline", async () => {
     aggregateStub.resolves([
       { _id: "94953593", type: "kit", libelle: "KIT DE POSE" },
       { _id: "Kit de pose pour 1 panneau", type: "kit", libelle: "Kit de pose pour 1 panneau" },
