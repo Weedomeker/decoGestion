@@ -18,6 +18,10 @@ const consommationCommandeSchema = new mongoose.Schema(
     // (timestamps: true) qui reflète le moment du traitement/import. Nécessaire pour les
     // prévisions de stock par période réelle d'achat.
     dateCommande: { type: Date },
+    // Dates issues de Gamesys (ff_livraison.bo_date_depart_usine / bo_date_souhaitee) — utiles
+    // pour les prévisions de stock par échéance de production/livraison.
+    dateDepartUsine: { type: Date },
+    dateLivraisonSouhaitee: { type: Date },
     articles: [articleSchema],
   },
   { timestamps: true },

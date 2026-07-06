@@ -20,6 +20,7 @@ const GROUPED_WITH_PROFIL = {
         { endv_identif: "PROFIL BLANC 255", endv_quant: 3 },
         { endv_identif: "VISUEL MOSAIQUE", endv_quant: 1 },
       ],
+      livraison: [{ bo_date_depart_usine: "2025-02-20", bo_date_souhaitee: "2025-03-01" }],
     },
   ],
 };
@@ -140,6 +141,29 @@ describe("profilsKitsService.saveProfilsKits()", () => {
 
     const [, update] = consommationUpsertStub.firstCall.args;
     expect(update.$setOnInsert.dateCommande).to.be.undefined;
+  });
+
+  it("renseigne dateDepartUsine et dateLivraisonSouhaitee à partir de la livraison du premier sous-dossier", async () => {
+    getDossierDetailStub.resolves(GROUPED_WITH_PROFIL);
+
+    await saveProfilsKits(fakeJob(164629, "LM"));
+
+    const [, update] = consommationUpsertStub.firstCall.args;
+    const created = update.$setOnInsert;
+    expect(created.dateDepartUsine).to.be.instanceOf(Date);
+    expect(created.dateDepartUsine.toISOString().slice(0, 10)).to.equal("2025-02-20");
+    expect(created.dateLivraisonSouhaitee).to.be.instanceOf(Date);
+    expect(created.dateLivraisonSouhaitee.toISOString().slice(0, 10)).to.equal("2025-03-01");
+  });
+
+  it("laisse dateDepartUsine et dateLivraisonSouhaitee indéfinis si aucun sous-dossier n'a de livraison", async () => {
+    getDossierDetailStub.resolves(GROUPED_WITH_KIT); // sousDossiers sans champ livraison
+
+    await saveProfilsKits(fakeJob());
+
+    const [, update] = consommationUpsertStub.firstCall.args;
+    expect(update.$setOnInsert.dateDepartUsine).to.be.undefined;
+    expect(update.$setOnInsert.dateLivraisonSouhaitee).to.be.undefined;
   });
 
   it("crée ConsommationCommande avec quantité pour un kit", async () => {

@@ -12,6 +12,8 @@ describe("Modèle ConsommationCommande (intégration)", () => {
       numCmd: 164629,
       client: "LM",
       dateCommande: new Date("2026-06-26"),
+      dateDepartUsine: new Date("2026-06-28"),
+      dateLivraisonSouhaitee: new Date("2026-07-02"),
       articles: [
         { ref: "P001", type: "profil", libelle: "PROFIL BLANC 255", quantite: 2 },
         { ref: "KIT001", type: "kit", libelle: "KIT DE POSE", quantite: 1 },
@@ -22,6 +24,8 @@ describe("Modèle ConsommationCommande (intégration)", () => {
     expect(doc.articles).to.have.length(2);
     expect(doc.articles[0].ref).to.equal("P001");
     expect(doc.articles[1].quantite).to.equal(1);
+    expect(doc.dateDepartUsine.toISOString().slice(0, 10)).to.equal("2026-06-28");
+    expect(doc.dateLivraisonSouhaitee.toISOString().slice(0, 10)).to.equal("2026-07-02");
   });
 
   it("accepte un client valide", async () => {

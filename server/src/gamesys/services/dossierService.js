@@ -1041,6 +1041,31 @@ async function getDossierDate(commande) {
   }
 }
 
+// Requête minimale équivalente à fetchDossierDate, mais pour les dates de livraison
+// (ff_livraison.bo_date_depart_usine / bo_date_souhaitee) — utilisé pour le backfill de
+// ConsommationCommande.dateDepartUsine / dateLivraisonSouhaitee. Jointure identique à celle
+// utilisée dans buildDetail pour retrouver les livraisons d'un dossier (bo_no_dossier = dos_no_cmde
+// ou bo_devis = dos_codeuniq).
+async function fetchDossierLivraisonDates(connection, commande) {
+  const search = String(commande || "");
+  if (!search) return { dateDepartUsine: null, dateLivraisonSouhaitee: null };
+
+  const searchLike = `${escapeSqlLike(search)}/%`;
+  const rows = await query(
+    connection,
+    `select min(l.bo_date_depart_usine) as bo_date_depart_usine, min(l.bo_date_souhaitee) as bo_date_souhaitee
+     from public.fd_dossier d
+     join public.ff_livraison l on (l.bo_no_dossier = d.dos_no_cmde or l.bo_devis = d.dos_codeuniq)
+     where d.dos_no_cmde = ? or d.dos_no_cmde LIKE ? ESCAPE '\\'`,
+    [search, searchLike]
+  );
+  const row = rows?.[0] || {};
+  return {
+    dateDepartUsine: row.bo_date_depart_usine ? new Date(row.bo_date_depart_usine) : null,
+    dateLivraisonSouhaitee: row.bo_date_souhaitee ? new Date(row.bo_date_souhaitee) : null,
+  };
+}
+
 module.exports = {
   listDossiers,
   listCommandesAvecProfilsKits,
@@ -1049,6 +1074,7 @@ module.exports = {
   getDossierDetail,
   getDossierDate,
   fetchDossierDate,
+  fetchDossierLivraisonDates,
   mapDosClientToAppClient,
   fetchEnteteDevis,
 };

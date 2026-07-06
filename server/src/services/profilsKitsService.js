@@ -88,10 +88,18 @@ async function saveProfilsKits(job) {
     .find(Boolean);
   const dateCommande = dossierDate ? new Date(dossierDate) : undefined;
 
+  // bo_date_depart_usine / bo_date_souhaitee sont déjà présents dans grouped.sousDossiers[].livraison
+  // (view=summary inclut ces champs via ff_livraison) — pas besoin d'une requête Gamesys supplémentaire.
+  const livraisonRows = (grouped.sousDossiers || []).flatMap((s) => s.livraison || []);
+  const departUsineRaw = livraisonRows.map((l) => l.bo_date_depart_usine).find(Boolean);
+  const livraisonSouhaiteeRaw = livraisonRows.map((l) => l.bo_date_souhaitee).find(Boolean);
+  const dateDepartUsine = departUsineRaw ? new Date(departUsineRaw) : undefined;
+  const dateLivraisonSouhaitee = livraisonSouhaiteeRaw ? new Date(livraisonSouhaiteeRaw) : undefined;
+
   try {
     const upsertResult = await ConsommationCommande.findOneAndUpdate(
       { numCmd },
-      { $setOnInsert: { numCmd, client: job.client, dateCommande, articles } },
+      { $setOnInsert: { numCmd, client: job.client, dateCommande, dateDepartUsine, dateLivraisonSouhaitee, articles } },
       { upsert: true, rawResult: true }
     );
     const alreadyExisted = !!upsertResult?.lastErrorObject?.updatedExisting;
