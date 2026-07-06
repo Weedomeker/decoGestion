@@ -763,11 +763,26 @@ async function buildDetail(connection, dossier) {
       )
     );
     const stockReferences = uniqueBy(stockRefSets.flat(), (r) => r.reference || r.modele);
-    const categorizedReferences = splitVisualAndProfileReferences(stockReferences);
+    const categorizedAll = splitVisualAndProfileReferences(stockReferences);
     const printFinish = detectPrintFinish(dossier);
-    visualReferences = buildVisualReferences(primary.enteteDevis, categorizedReferences.visuals, printFinish);
-    profileReferences = buildProfileReferences(primary.enteteDevis, categorizedReferences.profiles);
-    kitPosesReferences = buildKitPoseReferences(primary.enteteDevis, categorizedReferences.kitPoses);
+    visualReferences = buildVisualReferences(primary.enteteDevis, categorizedAll.visuals, printFinish);
+    // Profils/kits : résolution par entête pour éviter qu'une ref d'une autre ligne
+    // soit retournée (buildProfileReferences prend le 1er numérique du pool, donc
+    // toutes les lignes reçoivent la même ref si le pool est fusionné).
+    profileReferences = uniqueBy(
+      primary.enteteDevis.flatMap((entete, i) => {
+        const { profiles } = splitVisualAndProfileReferences(stockRefSets[i] || []);
+        return buildProfileReferences([entete], profiles);
+      }),
+      (r) => r.reference || r.libelle
+    );
+    kitPosesReferences = uniqueBy(
+      primary.enteteDevis.flatMap((entete, i) => {
+        const { kitPoses } = splitVisualAndProfileReferences(stockRefSets[i] || []);
+        return buildKitPoseReferences([entete], kitPoses);
+      }),
+      (r) => r.reference || r.libelle
+    );
   } catch (error) {
     logger.warn(`Erreur références stock pour seq ${dossier.dos_seq}: ${error.message}`);
   }

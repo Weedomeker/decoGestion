@@ -8,6 +8,12 @@
   overflow: hidden;
 }
 
+.references-count {
+  font-size: 0.85em;
+  color: var(--text-muted, #666);
+  white-space: nowrap;
+}
+
 .references-table-wrapper {
   flex: 1;
   min-height: 0;
