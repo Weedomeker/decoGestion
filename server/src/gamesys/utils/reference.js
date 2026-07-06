@@ -36,11 +36,24 @@ function getProfileSearchTerms(label) {
   if (normalized.includes("OR")) terms.push("OR");
   if (normalized.includes("255")) terms.push("255");
   if (normalized.includes("210")) terms.push("210");
+  if (normalized.includes("240")) terms.push("240");
+  if (normalized.includes("300")) terms.push("300");
+  if (normalized.includes("PLATE")) terms.push("PLATE");
+  if (normalized.includes("ANGLE")) terms.push("ANGLE");
+  // Finition mutuellement exclusive : sans elle, une commande "Mat" peut matcher un SKU
+  // "Brillant" (et inversement) dès que RACCORD/INTERIEUR/etc. existent dans les deux finitions.
+  if (normalized.includes("BRILLANT")) terms.push("BRILLANT");
+  else if (normalized.includes("MAT")) terms.push("MAT");
 
-  if (normalized.includes("FINITION")) terms.push(" A ");
-  if (normalized.includes("RACCORD")) terms.push(" B ");
-  if (normalized.includes("INTERIEUR")) terms.push(" C ");
-  if (normalized.includes("EXTERIEUR")) terms.push(" D ");
+  // Mots-clés de variante mutuellement exclusifs : "de finition" est le nom générique de la
+  // catégorie chez certains articles legacy (présent dans les 4 variantes), donc le combiner en
+  // AND avec RACCORD/INTERIEUR/EXTERIEUR empêcherait toute ligne stock de jamais matcher. On ne
+  // garde FINITION que si aucune variante plus précise n'est mentionnée.
+  if (normalized.includes("RACCORD")) terms.push("RACCORD");
+  else if (normalized.includes("INTERIEUR")) terms.push("INTERIEUR");
+  else if (normalized.includes("EXTERIEUR")) terms.push("EXTERIEUR");
+  else if (normalized.includes("FERMETURE")) terms.push("FERMETURE");
+  else if (normalized.includes("FINITION")) terms.push("FINITION");
 
   return terms;
 }

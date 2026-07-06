@@ -198,12 +198,17 @@ async function findStockReferences(connection, enteteDevis, preferredRefModel) {
 
     if (usefulTerms.length < 2) return [];
 
+    // upper() ne désaccentue pas : les termes de recherche sont désaccentués par
+    // normalizeSearchText (ex: "PROFILE") mais certains libellés stock legacy conservent
+    // l'accent ("Profilé de finition..."), ce qui les fait échouer silencieusement au LIKE.
+    // translate() neutralise les voyelles/cédille accentuées des deux côtés de la comparaison.
+    const unaccentUpper = (col) => `translate(upper(${col}), 'ÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ', 'AAAEEEEIIOOUUUC')`;
     const likeParams = [];
     const where = usefulTerms
       .map((term) => {
         const likeVal = `%${escapeSqlLike(term)}%`;
         likeParams.push(likeVal, likeVal, likeVal, likeVal, likeVal);
-        return `(upper(st_lib_1_conso) like ? ESCAPE '\\' or upper(st_lib_2_conso) like ? ESCAPE '\\' or upper(st_art_ref_client) like ? ESCAPE '\\' or upper(st_modele) like ? ESCAPE '\\' or upper(st_code_tarif) like ? ESCAPE '\\')`;
+        return `(${unaccentUpper("st_lib_1_conso")} like ? ESCAPE '\\' or ${unaccentUpper("st_lib_2_conso")} like ? ESCAPE '\\' or ${unaccentUpper("st_art_ref_client")} like ? ESCAPE '\\' or ${unaccentUpper("st_modele")} like ? ESCAPE '\\' or ${unaccentUpper("st_code_tarif")} like ? ESCAPE '\\')`;
       })
       .join(" and ");
 

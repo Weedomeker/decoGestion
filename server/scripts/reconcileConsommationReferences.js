@@ -21,6 +21,13 @@ const mongoose = require("mongoose");
 const connectMongo = require("../src/mongoose");
 const { reconcileConsommationReferences } = require("../src/services/consommationReferenceReconciliationService");
 
+// Contient le mot "cornière" (comme accessoire du bundle) et se fait donc classer comme un
+// profil "cornière" par isProfileLabel, alors que ce n'est pas un article cornière — exclu pour
+// éviter de lui attribuer par erreur une référence stock de cornière.
+const EXCLUDED_LIBELLES = [
+  "Kit box à échantillon - PLV 50x150 + cornière à crochet + Echantillons 14x28 + Echantillons 14x14",
+];
+
 async function main() {
   const apply = process.argv.includes("--apply");
 
@@ -32,7 +39,7 @@ async function main() {
   }
   console.log(`Connecté à la base "${mongoose.connection.name}".`);
 
-  const resultat = await reconcileConsommationReferences({ dryRun: !apply });
+  const resultat = await reconcileConsommationReferences({ dryRun: !apply, excludeLibelles: EXCLUDED_LIBELLES });
 
   console.log("\nRésumé :");
   console.log(`  Commandes analysées      : ${resultat.commandesAnalysees}`);

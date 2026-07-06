@@ -10,11 +10,14 @@ function resolveRef(r) {
 // Corrige les articles de consommations_commandes dont la ref n'est pas numérique (fallback
 // vers le libellé brut faute de correspondance stock au moment de saveProfilsKits — cas des
 // cornières avant le fix de getProfileSearchTerms) en rejouant getDossierDetail sur Gamesys.
-async function reconcileConsommationReferences({ dryRun = false } = {}) {
-  const commandesAvecRefsCassees = await ConsommationCommande.aggregate([
-    { $match: { "articles.ref": { $not: /^\d+$/ } } },
-    { $project: { numCmd: 1, _id: 0 } },
-  ]);
+async function reconcileConsommationReferences({ dryRun = false, excludeLibelles = [] } = {}) {
+  // $elemMatch (et non "articles.ref": {$not}) : ce dernier exige que TOUS les éléments du
+  // tableau échouent au test, donc ignore silencieusement les documents mélangeant des articles
+  // déjà corrects et des articles encore cassés — le cas le plus courant en pratique.
+  const commandesAvecRefsCassees = await ConsommationCommande.find(
+    { articles: { $elemMatch: { ref: { $not: /^\d+$/ } } } },
+    { numCmd: 1, _id: 0 },
+  ).lean();
 
   let articlesCorriges = 0;
   const details = [];
@@ -33,15 +36,20 @@ async function reconcileConsommationReferences({ dryRun = false } = {}) {
     );
 
     for (const [libelle, freshRef] of freshRefsByLibelle) {
+      if (excludeLibelles.includes(libelle)) continue;
       if (!freshRef || !isNumericReference(freshRef)) continue;
 
       details.push({ numCmd, libelle, nouveauRef: freshRef });
       if (!dryRun) {
-        await ConsommationCommande.updateOne(
-          { numCmd, "articles.libelle": libelle, "articles.ref": { $not: /^\d+$/ } },
+        // $elemMatch obligatoire ici : sans lui, "articles.libelle" et "articles.ref" sont deux
+        // conditions indépendantes sur le même tableau — Mongo ne garantit alors pas que
+        // l'opérateur positionnel $ cible le même élément, et l'écriture peut silencieusement
+        // ne rien modifier (cas observé en pratique sur des documents à plusieurs articles).
+        const result = await ConsommationCommande.updateOne(
+          { numCmd, articles: { $elemMatch: { libelle, ref: { $not: /^\d+$/ } } } },
           { $set: { "articles.$.ref": freshRef } },
         );
-        articlesCorriges += 1;
+        if (result.modifiedCount) articlesCorriges += 1;
       }
     }
   }
