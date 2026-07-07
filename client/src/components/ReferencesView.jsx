@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, Checkbox, Confirm, Form, Icon, Image, Input, Modal, Select, Table } from "semantic-ui-react";
+import { Button, Checkbox, Confirm, Form, Icon, Image, Input, Modal, Table } from "semantic-ui-react";
 import "../css/ReferencesView.css";
 import { API_BASE } from "../utils/api";
 
@@ -16,7 +16,6 @@ const clientColor = (c) => {
 
 const EMPTY_FORM = { ref: "", model: "", finition: "", format: "", blanc: false };
 const EMPTY_PK_FORM = { ref: "", modele: "", libelle: "", type: "profil", codeArticle: "", famille: "", sousFamille: "", stockDisponible: 0 };
-const TYPE_OPTIONS = [{ key: "profil", value: "profil", text: "Profil" }, { key: "kit", value: "kit", text: "Kit de pose" }];
 
 function sortItems(arr, col, dir) {
   if (!col) return arr;
@@ -393,90 +392,93 @@ function ReferencesView() {
         </div>
       )}
 
-      {/* ── Formulaire création/édition profil & kit ── */}
-      {isProfilsKits && pkEditingId && (
-        <div className="references-form form-section--accented">
-          <Form error={Boolean(pkFormError)} onSubmit={submitPkForm}>
-            <Form.Group widths="equal">
-              <Form.Field>
-                <label>Référence</label>
-                <Input value={pkFormData.ref} onChange={(e, v) => setPkFormData((d) => ({ ...d, ref: v.value }))} />
-              </Form.Field>
-              <Form.Field>
-                <label>Type</label>
-                <Select options={TYPE_OPTIONS} value={pkFormData.type} onChange={(e, v) => setPkFormData((d) => ({ ...d, type: v.value }))} />
-              </Form.Field>
-              <Form.Field>
-                <label>Libellé</label>
-                <Input value={pkFormData.libelle} onChange={(e, v) => setPkFormData((d) => ({ ...d, libelle: v.value }))} />
-              </Form.Field>
-              <Form.Field>
-                <label>Modèle</label>
-                <Input value={pkFormData.modele} onChange={(e, v) => setPkFormData((d) => ({ ...d, modele: v.value }))} />
-              </Form.Field>
-              <Form.Field>
-                <label>Code article</label>
-                <Input value={pkFormData.codeArticle} onChange={(e, v) => setPkFormData((d) => ({ ...d, codeArticle: v.value }))} />
-              </Form.Field>
-              <Form.Field>
-                <label>Famille</label>
-                <Input value={pkFormData.famille} onChange={(e, v) => setPkFormData((d) => ({ ...d, famille: v.value }))} />
-              </Form.Field>
-              <Form.Field>
-                <label>Sous-famille</label>
-                <Input value={pkFormData.sousFamille} onChange={(e, v) => setPkFormData((d) => ({ ...d, sousFamille: v.value }))} />
-              </Form.Field>
-              <Form.Field>
-                <label>Stock dispo</label>
-                <Input type="number" min="0" value={pkFormData.stockDisponible} onChange={(e, v) => setPkFormData((d) => ({ ...d, stockDisponible: v.value }))} />
-              </Form.Field>
-            </Form.Group>
-            {pkFormError && <p className="references-error">{pkFormError}</p>}
-            <div className="references-form-actions">
-              <Button basic type="button" onClick={closePkForm}>Annuler</Button>
-              <Button primary type="submit">{pkEditingId === "new" ? "Créer" : "Enregistrer"}</Button>
-            </div>
-          </Form>
-        </div>
-      )}
-
-      {/* ── Table profils & kits ── */}
+      {/* ── Table profils & kits (édition à la ligne) ── */}
       {isProfilsKits && (
         <div className="references-table-wrapper">
+          {pkFormError && <p className="references-error">{pkFormError}</p>}
           <Table compact celled sortable className="references-table">
             <Table.Header>
               <Table.Row>
                 <Table.HeaderCell sorted={pkSorted("ref")} onClick={() => handlePkSort("ref")}>Référence</Table.HeaderCell>
-                <Table.HeaderCell sorted={pkSorted("codeArticle")} onClick={() => handlePkSort("codeArticle")}>Code article</Table.HeaderCell>
                 <Table.HeaderCell sorted={pkSorted("libelle")} onClick={() => handlePkSort("libelle")}>Libellé</Table.HeaderCell>
-                <Table.HeaderCell sorted={pkSorted("modele")} onClick={() => handlePkSort("modele")}>Modèle</Table.HeaderCell>
-                <Table.HeaderCell sorted={pkSorted("famille")} onClick={() => handlePkSort("famille")}>Famille</Table.HeaderCell>
-                <Table.HeaderCell sorted={pkSorted("sousFamille")} onClick={() => handlePkSort("sousFamille")}>Sous-famille</Table.HeaderCell>
                 <Table.HeaderCell sorted={pkSorted("stockDisponible")} onClick={() => handlePkSort("stockDisponible")}>Stock dispo</Table.HeaderCell>
                 <Table.HeaderCell>Actions</Table.HeaderCell>
               </Table.Row>
             </Table.Header>
             <Table.Body>
-              {!pkLoading && sortedPkItems.length === 0 && (
+              {!pkLoading && sortedPkItems.length === 0 && pkEditingId !== "new" && (
                 <Table.Row>
-                  <Table.Cell colSpan={8}>Aucun article trouvé.</Table.Cell>
+                  <Table.Cell colSpan={4}>Aucun article trouvé.</Table.Cell>
                 </Table.Row>
               )}
-              {sortedPkItems.map((item) => (
-                <Table.Row key={item._id}>
-                  <Table.Cell>{item.ref}</Table.Cell>
-                  <Table.Cell>{item.codeArticle}</Table.Cell>
-                  <Table.Cell>{item.libelle}</Table.Cell>
-                  <Table.Cell>{item.modele}</Table.Cell>
-                  <Table.Cell>{item.famille}</Table.Cell>
-                  <Table.Cell>{item.sousFamille}</Table.Cell>
-                  <Table.Cell>{item.stockDisponible ?? 0}</Table.Cell>
+              {pkEditingId === "new" && (
+                <Table.Row className="references-row-editing">
                   <Table.Cell>
-                    <Button compact size="mini" icon="pencil" onClick={() => openPkEditForm(item)} title="Modifier" />
-                    <Button compact size="mini" color="red" icon="trash" onClick={() => setPkConfirmDeleteId(item._id)} title="Supprimer" />
+                    <Input
+                      size="small"
+                      autoFocus
+                      value={pkFormData.ref}
+                      onChange={(e, v) => setPkFormData((d) => ({ ...d, ref: v.value }))}
+                      onKeyDown={(e) => e.key === "Enter" && submitPkForm()}
+                    />
+                  </Table.Cell>
+                  <Table.Cell>
+                    <Input
+                      size="small"
+                      value={pkFormData.libelle}
+                      onChange={(e, v) => setPkFormData((d) => ({ ...d, libelle: v.value }))}
+                      onKeyDown={(e) => e.key === "Enter" && submitPkForm()}
+                    />
+                  </Table.Cell>
+                  <Table.Cell>{pkFormData.stockDisponible ?? 0}</Table.Cell>
+                  <Table.Cell>
+                    <Button compact size="mini" color="green" icon="check" onClick={submitPkForm} title="Enregistrer" />
+                    <Button compact size="mini" icon="cancel" onClick={closePkForm} title="Annuler" />
                   </Table.Cell>
                 </Table.Row>
-              ))}
+              )}
+              {sortedPkItems.map((item) => {
+                const isEditing = item._id === pkEditingId;
+                return (
+                  <Table.Row key={item._id} className={isEditing ? "references-row-editing" : undefined}>
+                    <Table.Cell>
+                      {isEditing ? (
+                        <Input
+                          size="small"
+                          autoFocus
+                          value={pkFormData.ref}
+                          onChange={(e, v) => setPkFormData((d) => ({ ...d, ref: v.value }))}
+                          onKeyDown={(e) => e.key === "Enter" && submitPkForm()}
+                        />
+                      ) : item.ref}
+                    </Table.Cell>
+                    <Table.Cell>
+                      {isEditing ? (
+                        <Input
+                          size="small"
+                          value={pkFormData.libelle}
+                          onChange={(e, v) => setPkFormData((d) => ({ ...d, libelle: v.value }))}
+                          onKeyDown={(e) => e.key === "Enter" && submitPkForm()}
+                        />
+                      ) : item.libelle}
+                    </Table.Cell>
+                    <Table.Cell>{item.stockDisponible ?? 0}</Table.Cell>
+                    <Table.Cell>
+                      {isEditing ? (
+                        <>
+                          <Button compact size="mini" color="green" icon="check" onClick={submitPkForm} title="Enregistrer" />
+                          <Button compact size="mini" icon="cancel" onClick={closePkForm} title="Annuler" />
+                        </>
+                      ) : (
+                        <>
+                          <Button compact size="mini" icon="pencil" onClick={() => openPkEditForm(item)} title="Modifier" />
+                          <Button compact size="mini" color="red" icon="trash" onClick={() => setPkConfirmDeleteId(item._id)} title="Supprimer" />
+                        </>
+                      )}
+                    </Table.Cell>
+                  </Table.Row>
+                );
+              })}
             </Table.Body>
           </Table>
         </div>
