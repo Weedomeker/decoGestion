@@ -86,7 +86,7 @@ function normalizeDossierApiPayload(payload) {
       }
 
       return {
-        id: `${commande}-${reference || visualIndex}`,
+        id: `${commande}-${visualIndex}-${reference || ""}`,
         commande,
         sousNumero,
         numCmd: String(payload?.numero || ""),

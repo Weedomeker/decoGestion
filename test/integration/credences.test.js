@@ -209,6 +209,41 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
   });
 
   // ════════════════════════════════════════════════════════════════════════════
+  // 1bis. normalizeDossierApiPayload — id unique par visuel (anti-écrasement)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  describe("normalizeDossierApiPayload — id unique par visuel", function () {
+    before(function () {
+      if (!normalizeDossierApiPayload) this.skip();
+    });
+
+    it("2 visuels avec la même référence dans le même sous-dossier → ids distincts", () => {
+      const payload = {
+        numero: "164629",
+        clientName: "CASTO",
+        sousDossiers: [{
+          sousNumero: "01",
+          commande: "164629/01",
+          dossier: { dos_forme_et_format: "100x255" },
+          visualReferences: [
+            { reference: "ABC123", libelle: "VISUEL TEST" },
+            { reference: "ABC123", libelle: "VISUEL TEST" },
+          ],
+          livraison: [{ bo_ville: "PARIS" }],
+          enteteDevis: [{ endv_quant: 1 }],
+        }],
+      };
+      const result = normalizeDossierApiPayload(payload);
+      expect(result.visualJobs).to.have.length(2);
+      const ids = result.visualJobs.map((j) => j.id);
+      expect(new Set(ids).size).to.equal(
+        2,
+        `Ids dupliqués pour des visuels identiques : ${JSON.stringify(ids)} — provoque un écrasement côté front (sélection, suppression après soumission, appariement crédence).`
+      );
+    });
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
   // 2. CASTO — crédence 300x60 — 1 visuel seul → REJETÉ (400)
   //    Règle : les crédences BRICO/CASTO doivent toujours être amalgamées
   // ════════════════════════════════════════════════════════════════════════════
