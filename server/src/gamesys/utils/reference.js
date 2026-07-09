@@ -39,7 +39,11 @@ function getProfileSearchTerms(label) {
   if (normalized.includes("240")) terms.push("240");
   if (normalized.includes("300")) terms.push("300");
   if (normalized.includes("PLATE")) terms.push("PLATE");
-  if (normalized.includes("ANGLE")) terms.push("ANGLE");
+  // "ANGLE" ne distingue un SKU que pour les cornières (CORNR vs CHAMP) : le catalogue stock des
+  // profilés classiques ne l'écrit jamais (il dit juste "Intérieur"/"Extérieur"), donc l'imposer
+  // en AND pour un profilé fait échouer la recherche à coup sûr (ex: "PROFILE ANGLE INTERIEUR
+  // NOIR MAT 255cm" ne matchait jamais la ref 94964473, "PROFILE Noir Mat - C - Intérieur - 255cm").
+  if (isCorniere && normalized.includes("ANGLE")) terms.push("ANGLE");
   // Finition mutuellement exclusive : sans elle, une commande "Mat" peut matcher un SKU
   // "Brillant" (et inversement) dès que RACCORD/INTERIEUR/etc. existent dans les deux finitions.
   if (normalized.includes("BRILLANT")) terms.push("BRILLANT");
