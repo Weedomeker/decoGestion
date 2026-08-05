@@ -60,7 +60,7 @@ function getJobs(req, res) {
   res.json(state.jobs);
 }
 
-function editJob(req, res) {
+async function editJob(req, res) {
   const updates = req.body;
 
   if (!updates._id) {
@@ -71,6 +71,12 @@ function editJob(req, res) {
 
   if (objIndex === -1) {
     return res.status(404).json({ error: "Objet non trouvé" });
+  }
+
+  // Prise de stock : recalculée côté serveur à partir de la quantité réellement disponible
+  // (jamais depuis les valeurs envoyées par le client, potentiellement obsolètes).
+  if (updates.useStock === true) {
+    return applyStockToJob(objIndex, res);
   }
 
   const allowedFields = ["ville", "ex", "format", "visuel", "stock", "use", "useStock"];
@@ -96,6 +102,55 @@ function editJob(req, res) {
     message: "Objet mis à jour avec succès",
     object: state.jobs.jobs[objIndex],
   });
+}
+
+// Retire du stock la quantité disponible pour un job (jusqu'à `job.ex`).
+// Si le stock ne couvre qu'une partie de la commande, le job existant est réduit
+// au solde à produire (production normale) et un job jumeau, marqué `useStock`,
+// est créé pour la quantité couverte par le stock — les deux partagent le même
+// `cmd`, donc `generateStickers` (qui groupe par `cmd` et cumule les `ex`) numérote
+// correctement les étiquettes sur le total réel de la commande.
+async function applyStockToJob(objIndex, res) {
+  const job = state.jobs.jobs[objIndex];
+  const requestedEx = parseInt(job.ex) || 0;
+
+  if (!job.ref || requestedEx < 1) {
+    return res.status(400).json({ error: "Job invalide pour une prise en stock." });
+  }
+
+  try {
+    const stock = await findStock(job.ref);
+    const availableEx = parseInt(stock?.ex) || 0;
+
+    if (availableEx < 1) {
+      return res.status(409).json({ error: "Ce visuel n'est plus disponible en stock." });
+    }
+
+    const stockQty = Math.min(availableEx, requestedEx);
+    const remainingEx = requestedEx - stockQty;
+
+    if (remainingEx > 0) {
+      state.jobs.jobs[objIndex] = { ...job, ex: remainingEx, useStock: false };
+      const stockJob = { ...job, _id: Date.now(), ex: stockQty, useStock: true };
+      state.jobs.jobs.push(stockJob);
+    } else {
+      state.jobs.jobs[objIndex] = { ...job, useStock: true };
+    }
+
+    broadcastWS({ type: "update" });
+
+    return res.status(200).json({
+      message:
+        remainingEx > 0
+          ? `${stockQty} ex pris en stock, ${remainingEx} ex ajouté(s) en production pour la commande N°${job.cmd}.`
+          : `Commande N°${job.cmd} entièrement couverte par le stock (${stockQty} ex).`,
+      stockQty,
+      remainingEx,
+    });
+  } catch (error) {
+    logger.error(`Erreur lors de la prise en stock du job ${job.cmd} (ref ${job.ref}) : ${error.message}`);
+    return res.status(500).json({ error: "Erreur serveur lors de la prise en stock." });
+  }
 }
 
 async function addJob(req, res) {
@@ -695,9 +750,13 @@ async function processJob(job, req) {
 
   if (isStock) {
     try {
-      await Stocks.findOneAndUpdate({ ref: job.ref }, { $inc: { ex: -1 } }, { new: true });
+      // job.ex correspond ici exactement à la quantité prise en stock : en cas de couverture
+      // partielle, applyStockToJob() (editJob) a scindé la commande et ce job ne porte que
+      // la portion "stock" — le solde à produire est un job séparé avec useStock=false.
+      const stockQtyUsed = parseInt(job.ex) || 1;
+      await Stocks.findOneAndUpdate({ ref: job.ref }, { $inc: { ex: -stockQtyUsed } }, { new: true });
       logger.info(
-        `Stock mis à jour pour la référence: ${job.cmd} ${job.visuel?.replace(".pdf", "")} ${job.ref} ${job.format_visu} (1ex déduit)`,
+        `Stock mis à jour pour la référence: ${job.cmd} ${job.visuel?.replace(".pdf", "")} ${job.ref} ${job.format_visu} (${stockQtyUsed}ex déduit)`,
       );
     } catch (error) {
       logger.error(

@@ -116,6 +116,7 @@ function App() {
     object: null,
     use: false,
   });
+  const [stockConfirmQueue, setStockConfirmQueue] = useState([]);
   const [toasts, setToasts] = useState([]);
   const [stockBadge, setStockBadge] = useState(null);
   const [credenceEditId, setCredenceEditId] = useState(null);
@@ -422,25 +423,42 @@ function App() {
     });
   };
 
+  // Ouvre la confirmation suivante de la file (soumission dossier en masse : un visuel en stock
+  // à la fois pour ne pas empiler les modales), ou ferme s'il n'y en a plus.
+  const advanceStockQueue = (queue) => {
+    if (queue.length > 0) {
+      const [next, ...rest] = queue;
+      setStockConfirmQueue(rest);
+      setModalInfoStock({ open: true, stock: next.stock, object: next.object, use: false });
+    } else {
+      setModalInfoStock({ open: false, stock: null, object: null, use: false });
+    }
+  };
+
   const handleCloseStock = () => {
-    setModalInfoStock({ open: false, stock: null, object: null, use: false });
+    advanceStockQueue(stockConfirmQueue);
   };
 
   const handleValidateStock = async () => {
     const jobToUpdate = modalInfoStock.object;
+    const queue = stockConfirmQueue;
 
-    setModalInfoStock((prev) => ({ ...prev, open: false }));
+    advanceStockQueue(queue);
 
     try {
+      // Le serveur recalcule la quantité réellement disponible et scinde le job si le
+      // stock ne couvre pas toute la commande (voir applyStockToJob côté back).
       const response = await fetch(`${API_BASE}/edit_job`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...jobToUpdate, useStock: true }),
+        body: JSON.stringify({ _id: jobToUpdate?._id, useStock: true }),
       });
       const result = await response.json();
       if (!response.ok) {
         throw new Error(result.error || "Une erreur est survenue");
       }
+      if (result.message) showToast(result.message);
+      setJobsRefresh((prev) => prev + 1);
     } catch (error) {
       setModalData({ open: true, message: "", object: null, error: error.message });
     }
@@ -513,6 +531,7 @@ function App() {
         const errors = [];
         const warnings = [];
         const succeededIds = [];
+        const stockHits = [];
 
         for (const job of visualJobsToSubmit) {
           const payload = {
@@ -549,6 +568,7 @@ function App() {
               warnings.push(`N°${job.numCmd || job.id} : ${result.refCrossClientWarning}`);
             if (result.prodBlancCorrected)
               warnings.push(`N°${job.numCmd || job.id} : Prod blanc activé automatiquement (ref base marquée blanc)`);
+            if (result.stock?.ex > 0) stockHits.push({ stock: result.stock, object: result.object });
           }
         }
 
@@ -597,6 +617,11 @@ function App() {
             return next;
           });
           setModalData({ open: true, message: "", object: null, error: errors.join(" · "), warning: warnings.length > 0 ? warnings.join("\n") : null, pkSaved: pkConfirmations.length > 0 ? pkConfirmations : null });
+        }
+        if (stockHits.length > 0) {
+          const [first, ...rest] = stockHits;
+          setStockConfirmQueue(rest);
+          setModalInfoStock({ open: true, stock: first.stock, object: first.object, use: false });
         }
         setJobsRefresh((prev) => prev + 1);
       } catch (err) {
@@ -1920,6 +1945,8 @@ function App() {
         onClose={handleCloseStock}
         onValidate={handleValidateStock}
         stock={modalInfoStock.stock}
+        job={modalInfoStock.object}
+        remaining={stockConfirmQueue.length}
       />
 
       <Toast toasts={toasts} onDismiss={dismissToast} />
