@@ -92,7 +92,22 @@ function extractModelFromIdentif(identif) {
     .trim();
 }
 
-async function enrichRowsWithMongoRef(rows, identif, preferredRefModel) {
+// Résout {model, format} sur plusieurs collections Mongo en tenant compte de la finition connue
+// (Mat/Brillant) quand elle est disponible — évite de trancher arbitrairement entre deux documents
+// qui ne diffèrent que par leur finition (seul `ref` est unique dans les schémas Ref*, donc
+// `model`+`format` peuvent légitimement matcher plusieurs SKUs). Repli sur le 1er document trouvé
+// (comportement historique) si aucun ne correspond à la finition demandée.
+async function findRefByModelFormat(orderedModels, mongoQuery, printFinish) {
+  const docsPerModel = await Promise.all(orderedModels.map((m) => m.find(mongoQuery).lean().catch(() => [])));
+  const allDocs = docsPerModel.flat();
+  if (printFinish) {
+    const matching = allDocs.find((d) => normalizeSearchText(d.finition || "").includes(printFinish));
+    if (matching) return matching;
+  }
+  return allDocs[0] || null;
+}
+
+async function enrichRowsWithMongoRef(rows, identif, preferredRefModel, printFinish) {
   const format = extractDimensionFormat(identif);
   const model = extractModelFromIdentif(identif);
   const allModels = [RefDeco, RefEcom, RefBrico, RefCasto];
@@ -115,14 +130,13 @@ async function enrichRowsWithMongoRef(rows, identif, preferredRefModel) {
       // st_art_ref_client absent ou non trouvé dans la collection client → chercher par model + format
       if (!model) return row;
       const q = format ? { model, format } : { model };
-      const docs = await Promise.all(orderedModels.map((m) => m.findOne(q).lean().catch(() => null)));
-      const mongoDoc = docs.find(Boolean);
+      const mongoDoc = await findRefByModelFormat(orderedModels, q, printFinish);
       return mongoDoc ? { ...row, st_art_ref_client: mongoDoc.ref, st_modele: mongoDoc.ref } : row;
     })
   );
 }
 
-async function findStockReferences(connection, enteteDevis, preferredRefModel) {
+async function findStockReferences(connection, enteteDevis, preferredRefModel, printFinish) {
   const identif = enteteDevis[0]?.endv_identif || "";
   if (isKitPoseLabel(identif)) {
     const rows = await query(
@@ -173,9 +187,9 @@ async function findStockReferences(connection, enteteDevis, preferredRefModel) {
                 );
                 return identifAlphaTerms.some((t) => stockText.includes(t));
               });
-        if (confirmedRows.length > 0) return (await enrichRowsWithMongoRef(confirmedRows, identif, preferredRefModel)).map(mapStockRow);
+        if (confirmedRows.length > 0) return (await enrichRowsWithMongoRef(confirmedRows, identif, preferredRefModel, printFinish)).map(mapStockRow);
         // La confirmation textuelle échoue mais la ref directe existe dans Gamesys → plus fiable que Priorité 3
-        return (await enrichRowsWithMongoRef(rows, identif, preferredRefModel)).map(mapStockRow);
+        return (await enrichRowsWithMongoRef(rows, identif, preferredRefModel, printFinish)).map(mapStockRow);
       }
     }
   }
@@ -188,7 +202,7 @@ async function findStockReferences(connection, enteteDevis, preferredRefModel) {
       `${STOCK_SELECT} where st_art_gencod = ? order by st_seq desc limit 5`,
       [eanMatch[1]]
     );
-    if (rows.length > 0) return (await enrichRowsWithMongoRef(rows, identif, preferredRefModel)).map(mapStockRow);
+    if (rows.length > 0) return (await enrichRowsWithMongoRef(rows, identif, preferredRefModel, printFinish)).map(mapStockRow);
   }
 
   // Priorité 3 (profils) : recherche LIKE textuelle inchangée — hors scope du fix référence visuelle.
@@ -228,7 +242,7 @@ async function findStockReferences(connection, enteteDevis, preferredRefModel) {
       return terms.every((term) => haystack.includes(term));
     });
 
-    return (await enrichRowsWithMongoRef(exactRows, identif, preferredRefModel)).map(mapStockRow);
+    return (await enrichRowsWithMongoRef(exactRows, identif, preferredRefModel, printFinish)).map(mapStockRow);
   }
 
   // Priorité 3 (visuels) : lookup MongoDB direct par {model, format} — pas de recherche
@@ -245,8 +259,7 @@ async function findStockReferences(connection, enteteDevis, preferredRefModel) {
     ? [preferredRefModel, ...allModels.filter((m) => m !== preferredRefModel)]
     : allModels;
   const mongoQuery = format ? { model, format } : { model };
-  const docs = await Promise.all(orderedModels.map((m) => m.findOne(mongoQuery).lean().catch(() => null)));
-  const mongoDoc = docs.find(Boolean);
+  const mongoDoc = await findRefByModelFormat(orderedModels, mongoQuery, printFinish);
   if (!mongoDoc) return [];
 
   return [
@@ -757,14 +770,14 @@ async function buildDetail(connection, dossier) {
 
   try {
     const preferredRefModel = getPreferredRefModel(dossier.dos_client);
+    const printFinish = detectPrintFinish(dossier);
     const stockRefSets = await Promise.all(
       primary.enteteDevis.map((entete) =>
-        findStockReferences(connection, [entete], preferredRefModel).catch(() => [])
+        findStockReferences(connection, [entete], preferredRefModel, printFinish).catch(() => [])
       )
     );
     const stockReferences = uniqueBy(stockRefSets.flat(), (r) => r.reference || r.modele);
     const categorizedAll = splitVisualAndProfileReferences(stockReferences);
-    const printFinish = detectPrintFinish(dossier);
     visualReferences = buildVisualReferences(primary.enteteDevis, categorizedAll.visuals, printFinish);
     // Profils/kits : résolution par entête pour éviter qu'une ref d'une autre ligne
     // soit retournée (buildProfileReferences prend le 1er numérique du pool, donc
