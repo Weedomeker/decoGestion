@@ -119,6 +119,7 @@ async function saveProfilsKits(job) {
             date: new Date(),
             status: "",
             pkOnly: true,
+            dateLivraisonSouhaitee,
           },
         },
         { upsert: true }

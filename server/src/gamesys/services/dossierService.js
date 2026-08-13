@@ -1099,6 +1099,18 @@ async function fetchDossierLivraisonDates(connection, commande) {
   };
 }
 
+// Wrapper avec connexion dédiée pour fetchDossierLivraisonDates, sur le modèle de getDossierDate
+// — utilisé pour peupler Deco.dateLivraisonSouhaitee à la volée (une commande à la fois, pas de
+// connexion à réutiliser sur une boucle contrairement au backfill).
+async function getDossierLivraisonDates(commande) {
+  const connection = await getDbConnection();
+  try {
+    return await fetchDossierLivraisonDates(connection, commande);
+  } finally {
+    await closeConnection(connection);
+  }
+}
+
 module.exports = {
   listDossiers,
   listCommandesAvecProfilsKits,
@@ -1108,6 +1120,7 @@ module.exports = {
   getDossierDate,
   fetchDossierDate,
   fetchDossierLivraisonDates,
+  getDossierLivraisonDates,
   mapDosClientToAppClient,
   fetchEnteteDevis,
 };
