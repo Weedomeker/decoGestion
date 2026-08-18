@@ -1111,6 +1111,45 @@ async function getDossierLivraisonDates(commande) {
   }
 }
 
+// Requête minimale (une seule colonne agrégée) pour retrouver le prix total Gamesys d'une commande
+// racine (ex: "100473" → somme sur "100473/00", "100473/01", ...) — utilisé pour peupler
+// Deco.prixTotal. Requête directement sur fd_entete_devi (pas de jointure fd_dossier) : vérifié
+// empiriquement que endv_seq = dos_seq n'est PAS un lien fiable (les deux séquences dérivent
+// indépendamment — ex. dossier 167435 : dos_seq 60765-60769 vs endv_seq 23145-23149, aucune égalité),
+// contrairement à ce que suggérait le commentaire au-dessus de fetchEnteteDevis. endv_no_dossier et
+// endv_no_cmde_globale portent directement le numéro de dossier racine sur chaque ligne
+// fd_entete_devi ; endv_no_commande (exact ou LIKE 'racine/%') est gardé en repli pour les lignes où
+// endv_no_dossier/endv_no_cmde_globale seraient absents.
+// Connexion injectée (comme fetchDossierDate/fetchDossierLivraisonDates) pour permettre au backfill
+// de réutiliser une seule connexion sur toute la boucle, et pour la testabilité.
+async function fetchDossierPrixTotal(connection, commande) {
+  const search = String(commande || "");
+  if (!search) return null;
+
+  const searchLike = `${escapeSqlLike(search)}/%`;
+  const rows = await query(
+    connection,
+    `select sum(e.endv_px_total) as prix_total
+     from public.fd_entete_devi e
+     where e.endv_no_dossier = ? or e.endv_no_cmde_globale = ?
+        or e.endv_no_commande = ? or e.endv_no_commande LIKE ? ESCAPE '\\'`,
+    [search, search, search, searchLike]
+  );
+  const value = rows?.[0]?.prix_total;
+  return value != null ? Number(value) : null;
+}
+
+// Wrapper avec connexion dédiée pour fetchDossierPrixTotal, sur le modèle de getDossierDate
+// — utilisé pour peupler Deco.prixTotal à la volée (une commande à la fois).
+async function getDossierPrixTotal(commande) {
+  const connection = await getDbConnection();
+  try {
+    return await fetchDossierPrixTotal(connection, commande);
+  } finally {
+    await closeConnection(connection);
+  }
+}
+
 module.exports = {
   listDossiers,
   listCommandesAvecProfilsKits,
@@ -1121,6 +1160,8 @@ module.exports = {
   fetchDossierDate,
   fetchDossierLivraisonDates,
   getDossierLivraisonDates,
+  fetchDossierPrixTotal,
+  getDossierPrixTotal,
   mapDosClientToAppClient,
   fetchEnteteDevis,
 };

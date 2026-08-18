@@ -698,16 +698,23 @@ async function processJob(job, req) {
   const saveDeco = async ({ cmd, visuel, formatVisu, ref, temps }) => {
     const safeRef = ref && String(ref) !== "0" ? ref : null;
     let dateLivraisonSouhaitee;
+    let prixTotal;
     if (cmd) {
       try {
         ({ dateLivraisonSouhaitee } = await dossierService.getDossierLivraisonDates(cmd));
       } catch (err) {
         logger.warn(`saveDeco: dateLivraisonSouhaitee non récupérée pour cmd=${cmd} : ${err.message}`);
       }
+      try {
+        prixTotal = await dossierService.getDossierPrixTotal(cmd);
+      } catch (err) {
+        logger.warn(`saveDeco: prixTotal non récupéré pour cmd=${cmd} : ${err.message}`);
+      }
     }
     const data = {
       date: job.date,
       dateLivraisonSouhaitee: dateLivraisonSouhaitee || undefined,
+      prixTotal: prixTotal != null ? prixTotal : undefined,
       client: job.client,
       numCmd: cmd || 0,
       mag: job.ville,

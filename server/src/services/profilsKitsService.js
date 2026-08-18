@@ -17,6 +17,25 @@ function getQtyForArticle(sousDossiers, predicate, refLibelle) {
   return (matched.length ? matched : typeEntetes).reduce((sum, e) => sum + (Number(e.endv_quant) || 0), 0);
 }
 
+// Même logique de sélection que getQtyForArticle (par libellé quand plusieurs profils/kits
+// distincts existent dans le dossier), mais somme endv_px_total au lieu de endv_quant.
+// undefined si aucune ligne retenue n'a de prix exploitable (à distinguer d'un prix de 0) —
+// Number(null) vaut 0 en JS, donc on filtre explicitement null/undefined avant conversion.
+function getPrixForArticle(sousDossiers, predicate, refLibelle) {
+  const allEntetes = (sousDossiers || []).flatMap((s) => s.enteteDevis || []);
+  const typeEntetes = allEntetes.filter((e) => predicate(e.endv_identif || ""));
+  const distinctLabels = [...new Set(typeEntetes.map((e) => e.endv_identif))];
+  const relevant =
+    distinctLabels.length <= 1 ? typeEntetes : typeEntetes.filter((e) => e.endv_identif === refLibelle);
+  const chosen = relevant.length ? relevant : typeEntetes;
+  const values = chosen
+    .map((e) => e.endv_px_total)
+    .filter((px) => px !== null && px !== undefined)
+    .map((px) => Number(px))
+    .filter((px) => Number.isFinite(px));
+  return values.length > 0 ? values.reduce((a, b) => a + b, 0) : undefined;
+}
+
 async function upsertArticle(ref, fields) {
   await StockProfile.findOneAndUpdate(
     { ref },
@@ -59,7 +78,13 @@ async function saveProfilsKits(job) {
     } catch (err) {
       logger.warn(`saveProfilsKits: upsert profil ref=${ref} échoué : ${err.message}`);
     }
-    articles.push({ ref, type: "profil", libelle: r.libelle || "", quantite: getQtyForArticle(grouped.sousDossiers, isProfileLabel, r.libelle || "") });
+    articles.push({
+      ref,
+      type: "profil",
+      libelle: r.libelle || "",
+      quantite: getQtyForArticle(grouped.sousDossiers, isProfileLabel, r.libelle || ""),
+      prix: getPrixForArticle(grouped.sousDossiers, isProfileLabel, r.libelle || ""),
+    });
   }
 
   for (const r of kitPosesReferences) {
@@ -70,7 +95,13 @@ async function saveProfilsKits(job) {
     } catch (err) {
       logger.warn(`saveProfilsKits: upsert kit ref=${ref} échoué : ${err.message}`);
     }
-    articles.push({ ref, type: "kit", libelle: r.libelle || "", quantite: getQtyForArticle(grouped.sousDossiers, isKitPoseLabel, r.libelle || "") });
+    articles.push({
+      ref,
+      type: "kit",
+      libelle: r.libelle || "",
+      quantite: getQtyForArticle(grouped.sousDossiers, isKitPoseLabel, r.libelle || ""),
+      prix: getPrixForArticle(grouped.sousDossiers, isKitPoseLabel, r.libelle || ""),
+    });
   }
 
   if (articles.length === 0) return;
@@ -133,4 +164,4 @@ async function saveProfilsKits(job) {
   }
 }
 
-module.exports = { saveProfilsKits, getQtyForArticle };
+module.exports = { saveProfilsKits, getQtyForArticle, getPrixForArticle };

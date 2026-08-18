@@ -6,6 +6,7 @@ const articleSchema = new mongoose.Schema(
     type: { type: String, enum: ["profil", "kit"] },
     libelle: { type: String, default: "" },
     quantite: { type: Number, default: 0 },
+    prix: { type: Number },
   },
   { _id: false },
 );

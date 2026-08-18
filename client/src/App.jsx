@@ -25,6 +25,7 @@ import StickerView from "./components/StickerView";
 import TeinteMasseDropdown from "./components/TeinteMasseDropdown";
 import VisuelDropdown from "./components/VisuelDropdown";
 import { isCredenceFormat } from "./utils/credence";
+import { formatPrix } from "./utils/prix";
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -882,7 +883,7 @@ function App() {
                   const groups = dossierJobs.reduce((acc, job, i) => {
                     if (job._absorbedBy) return acc;
                     const key = job.dossierNumero || "?";
-                    if (!acc[key]) acc[key] = { client: job.client, jobs: [] };
+                    if (!acc[key]) acc[key] = { client: job.client, prixTotal: job.dossierPrixTotal, jobs: [] };
                     acc[key].jobs.push({ ...job, _idx: i });
                     return acc;
                   }, {});
@@ -988,6 +989,11 @@ function App() {
                                       return (
                                         <>
                                           Dossier {dossierNumero} — {visualCount} job{visualCount > 1 ? "s" : ""}
+                                          {group.prixTotal !== undefined && (
+                                            <span style={{ opacity: 0.7, marginLeft: 6, fontWeight: "normal" }}>
+                                              · {formatPrix(group.prixTotal)}
+                                            </span>
+                                          )}
                                           {isMixedGroup && pkGroupJobs.length > 0 && (
                                             <span
                                               className="pk-toggle-badge"
@@ -1030,6 +1036,11 @@ function App() {
                                           <span style={{ marginLeft: 8, fontSize: "0.85em", opacity: 0.75 }}>
                                             {job.libelle || job.ref}
                                           </span>
+                                          {job.prix !== undefined && (
+                                            <span style={{ marginLeft: 8, fontSize: "0.75em", opacity: 0.6 }}>
+                                              {formatPrix(job.prix)}
+                                            </span>
+                                          )}
                                         </Table.Cell>
                                         <Table.Cell>
                                           <Input
@@ -1108,6 +1119,11 @@ function App() {
                                               setDossierPreview(sel?.name || null);
                                             }}
                                           />
+                                        )}
+                                        {job.prix !== undefined && (
+                                          <div style={{ fontSize: "0.75em", opacity: 0.6, marginTop: 2 }}>
+                                            {formatPrix(job.prix)}
+                                          </div>
                                         )}
                                       </Table.Cell>
                                       <Table.Cell>

@@ -6,7 +6,8 @@ const dossierService = require("../../server/src/gamesys/services/dossierService
 const StockProfile = require("../../server/src/models/StockProfile");
 const ConsommationCommande = require("../../server/src/models/ConsommationCommande");
 const Deco = require("../../server/src/models/Deco");
-const { saveProfilsKits } = require("../../server/src/services/profilsKitsService");
+const { saveProfilsKits, getPrixForArticle } = require("../../server/src/services/profilsKitsService");
+const { isProfileLabel, isKitPoseLabel } = require("../../server/src/gamesys/utils/reference");
 
 const GROUPED_WITH_PROFIL = {
   profileReferences: [
@@ -17,8 +18,8 @@ const GROUPED_WITH_PROFIL = {
     {
       dossier: { dos_date: "2025-02-19" },
       enteteDevis: [
-        { endv_identif: "PROFIL BLANC 255", endv_quant: 3 },
-        { endv_identif: "VISUEL MOSAIQUE", endv_quant: 1 },
+        { endv_identif: "PROFIL BLANC 255", endv_quant: 3, endv_px_total: 34.39 },
+        { endv_identif: "VISUEL MOSAIQUE", endv_quant: 1, endv_px_total: 243.69 },
       ],
       livraison: [{ bo_date_depart_usine: "2025-02-20", bo_date_souhaitee: "2025-03-01" }],
     },
@@ -33,7 +34,7 @@ const GROUPED_WITH_KIT = {
   sousDossiers: [
     {
       enteteDevis: [
-        { endv_identif: "KIT DE POSE", endv_quant: 2 },
+        { endv_identif: "KIT DE POSE", endv_quant: 2, endv_px_total: 19.9 },
       ],
     },
   ],
@@ -121,6 +122,7 @@ describe("profilsKitsService.saveProfilsKits()", () => {
     expect(created.articles[0].ref).to.equal("P001");
     expect(created.articles[0].type).to.equal("profil");
     expect(created.articles[0].quantite).to.equal(3);
+    expect(created.articles[0].prix).to.equal(34.39);
   });
 
   it("renseigne dateCommande à partir de dos_date du premier sous-dossier", async () => {
@@ -175,6 +177,7 @@ describe("profilsKitsService.saveProfilsKits()", () => {
     const created = update.$setOnInsert;
     expect(created.articles[0].type).to.equal("kit");
     expect(created.articles[0].quantite).to.equal(2);
+    expect(created.articles[0].prix).to.equal(19.9);
   });
 
   it("ne recrée pas la consommation si elle existe déjà (upsert idempotent)", async () => {
@@ -227,5 +230,56 @@ describe("profilsKitsService.saveProfilsKits()", () => {
     const corniere = created.articles.find((a) => a.ref === "P002");
     expect(profilBlanc.quantite).to.equal(3);
     expect(corniere.quantite).to.equal(1);
+  });
+});
+
+describe("profilsKitsService.getPrixForArticle()", () => {
+  it("somme endv_px_total pour un seul type d'article présent", () => {
+    const sousDossiers = [
+      { enteteDevis: [{ endv_identif: "PROFIL BLANC 255", endv_px_total: 10 }, { endv_identif: "PROFIL BLANC 255", endv_px_total: 5 }] },
+    ];
+
+    const prix = getPrixForArticle(sousDossiers, isProfileLabel, "PROFIL BLANC 255");
+
+    expect(prix).to.equal(15);
+  });
+
+  it("filtre par libellé quand plusieurs profils distincts existent", () => {
+    const sousDossiers = [
+      {
+        enteteDevis: [
+          { endv_identif: "PROFIL BLANC 255", endv_px_total: 34.39 },
+          { endv_identif: "CORNIERE ALU", endv_px_total: 28.48 },
+        ],
+      },
+    ];
+
+    expect(getPrixForArticle(sousDossiers, isProfileLabel, "PROFIL BLANC 255")).to.equal(34.39);
+    expect(getPrixForArticle(sousDossiers, isProfileLabel, "CORNIERE ALU")).to.equal(28.48);
+  });
+
+  it("retourne undefined si aucune ligne n'a de endv_px_total exploitable", () => {
+    const sousDossiers = [{ enteteDevis: [{ endv_identif: "PROFIL BLANC 255", endv_px_total: null }] }];
+
+    expect(getPrixForArticle(sousDossiers, isProfileLabel, "PROFIL BLANC 255")).to.be.undefined;
+  });
+
+  it("préserve un prix de 0 (ne le traite pas comme absent)", () => {
+    const sousDossiers = [{ enteteDevis: [{ endv_identif: "PROFIL BLANC 255", endv_px_total: 0 }] }];
+
+    expect(getPrixForArticle(sousDossiers, isProfileLabel, "PROFIL BLANC 255")).to.equal(0);
+  });
+
+  it("ignore les lignes ne matchant pas le prédicat (kit vs profil)", () => {
+    const sousDossiers = [
+      {
+        enteteDevis: [
+          { endv_identif: "KIT DE POSE", endv_px_total: 19.9 },
+          { endv_identif: "PROFIL BLANC 255", endv_px_total: 34.39 },
+        ],
+      },
+    ];
+
+    expect(getPrixForArticle(sousDossiers, isKitPoseLabel, "KIT DE POSE")).to.equal(19.9);
   });
 });

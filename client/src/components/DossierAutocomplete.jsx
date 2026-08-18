@@ -4,6 +4,7 @@ import { Button, Icon, Input, Label, Message, Segment } from "semantic-ui-react"
 import { isCredenceFormat } from "../utils/credence";
 import { API_BASE } from "../utils/api";
 import { isDefinitelyWrongClient } from "../utils/referenceValidation";
+import { formatPrix } from "../utils/prix";
 
 const CLIENTS = ["LM", "CASTO", "ECOM", "BRICO"];
 const CLIENT_ALIASES = {
@@ -115,11 +116,13 @@ function buildProfilsKitsRows(payload, defaultClient) {
     numCmd: pkJob.numCmd,
     client: findKnownClient(pkJob.client) || defaultClient,
     dossierNumero: payload.numero,
+    dossierPrixTotal: payload.prixTotal,
     ville: pkJob.ville || "",
     ref: pkJob.ref || "",
     articleType: pkJob.articleType || "profil",
     libelle: pkJob.libelle || "",
     quantite: pkJob.quantite ?? 0,
+    prix: pkJob.prix,
     checked: true,
     status: "Prêt",
     formatPath: null,
@@ -148,6 +151,7 @@ function buildRows(payload, pathData, formatTauro) {
         ...job,
         client,
         dossierNumero: payload.numero,
+        dossierPrixTotal: payload.prixTotal,
         checked: Boolean(formatTauroValue),
         formatPath: teinteFormatFolder?.path || job.formatVisu || "",
         formatTauroValue,
@@ -181,6 +185,7 @@ function buildRows(payload, pathData, formatTauro) {
       ...job,
       client,
       dossierNumero: payload.numero,
+      dossierPrixTotal: payload.prixTotal,
       checked: Boolean(selectedFile && hasStrongMatch),
       formatPath: formatFolder?.path || "",
       formatTauroValue,
@@ -383,6 +388,7 @@ function DossierAutocomplete({ pathData, formatTauro, onAutoFill, gamesysOk }) {
         numero: body.numero,
         client: body.client,
         clientKey,
+        prixTotal: body.prixTotal,
         jobs: allRows,
       });
     }
@@ -484,6 +490,9 @@ function DossierAutocomplete({ pathData, formatTauro, onAutoFill, gamesysOk }) {
               <Icon name="check circle" />
               {d.numero}
               <span style={{ opacity: 0.7, marginLeft: 3 }}>({d.jobs.length})</span>
+              {d.prixTotal !== undefined && (
+                <span style={{ opacity: 0.7, marginLeft: 4 }}>· {formatPrix(d.prixTotal)}</span>
+              )}
               <Icon name="delete" link style={{ marginLeft: 4 }} onClick={() => handleClearDossier(d.numero)} />
             </Label>
           ))}

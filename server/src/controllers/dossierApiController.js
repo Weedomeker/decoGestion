@@ -1,6 +1,6 @@
 const dossierService = require("../gamesys/services/dossierService");
 const { getOdbcStatus } = require("../gamesys/config/db");
-const { getQtyForArticle } = require("../services/profilsKitsService");
+const { getQtyForArticle, getPrixForArticle } = require("../services/profilsKitsService");
 const { isProfileLabel, isKitPoseLabel } = require("../gamesys/utils/reference");
 
 function parseFormat(value) {
@@ -46,11 +46,28 @@ function detectVisuClient(visualRef, defaultClient) {
   return defaultClient;
 }
 
+// Somme les endv_px_total de toutes les lignes fd_entete_devi d'un sous-dossier — cette donnée est
+// déjà remontée par dossierService (view par défaut/summary, cf. selectDetailView), aucun aller-retour
+// Gamesys supplémentaire n'est nécessaire. undefined si aucune ligne n'a de prix exploitable (à
+// distinguer d'un prix de 0, qui est une valeur valide).
+function sumEntetePrix(enteteDevisList) {
+  const values = (Array.isArray(enteteDevisList) ? enteteDevisList : [])
+    .map((e) => e?.endv_px_total)
+    .filter((px) => px !== null && px !== undefined)
+    .map((px) => Number(px))
+    .filter((px) => Number.isFinite(px));
+  return values.length > 0 ? values.reduce((a, b) => a + b, 0) : undefined;
+}
+
 function normalizeDossierApiPayload(payload) {
   const warnings = [];
   const sousDossiers = Array.isArray(payload?.sousDossiers) ? payload.sousDossiers : [];
 
+  let prixTotal;
   const visualJobs = sousDossiers.flatMap((sousDossier) => {
+    const prixSousDossier = sumEntetePrix(sousDossier?.enteteDevis);
+    if (prixSousDossier !== undefined) prixTotal = (prixTotal || 0) + prixSousDossier;
+
     const visualReferences = Array.isArray(sousDossier?.visualReferences) ? sousDossier.visualReferences : [];
     if (visualReferences.length === 0) return [];
 
@@ -103,6 +120,7 @@ function normalizeDossierApiPayload(payload) {
         formatTauro,
         codeTarif: visualRef?.codeTarif || "",
         clientVisu: clientVisu !== defaultClient ? clientVisu : undefined,
+        prix: prixSousDossier,
       };
     });
   });
@@ -132,6 +150,7 @@ function normalizeDossierApiPayload(payload) {
       articleType: "profil",
       libelle: r.libelle || "",
       quantite: getQtyForArticle(sousDossiers, isProfileLabel, r.libelle || ""),
+      prix: getPrixForArticle(sousDossiers, isProfileLabel, r.libelle || ""),
     })),
     ...kitRefs.map((r, i) => ({
       id: `${numero}-kit-${i}`,
@@ -143,12 +162,14 @@ function normalizeDossierApiPayload(payload) {
       articleType: "kit",
       libelle: r.libelle || "",
       quantite: getQtyForArticle(sousDossiers, isKitPoseLabel, r.libelle || ""),
+      prix: getPrixForArticle(sousDossiers, isKitPoseLabel, r.libelle || ""),
     })),
   ];
 
   return {
     numero: String(payload?.numero || ""),
     client: payload?.clientName || payload?.client || "",
+    prixTotal: prixTotal !== undefined ? Math.round(prixTotal * 100) / 100 : undefined,
     visualJobs,
     profilsKitsJobs,
     warnings,
