@@ -43,6 +43,19 @@ function getPrixForArticle(sousDossiers, predicate, refLibelle) {
   return values.length > 0 ? values.reduce((a, b) => a + b, 0) : undefined;
 }
 
+// Total d'une commande "profils/kits seulement" (pkOnly) — pas de visuel dans ce cas, donc pas de
+// prix par visuel possible, mais le total des articles (déjà résolus via getPrixForArticle
+// ci-dessus) donne le prix réel de la commande. undefined si aucun article n'a de prix exploitable
+// (à distinguer d'un total à 0) — mêmes filtres que getPrixForArticle.
+function sumArticlesPrix(articles) {
+  const values = (articles || [])
+    .map((a) => a.prix)
+    .filter((px) => px !== null && px !== undefined)
+    .map((px) => Number(px))
+    .filter((px) => Number.isFinite(px));
+  return values.length > 0 ? Math.round(values.reduce((a, b) => a + b, 0) * 100) / 100 : undefined;
+}
+
 // Prix Gamesys d'un visuel décoratif précis (pas un profil/kit) — même principe que
 // getPrixForArticle, mais la ligne fd_entete_devi recherchée est retrouvée via
 // grouped.visualReferences (déjà résolu par buildVisualReferences en amont) plutôt que via un
@@ -214,6 +227,7 @@ async function saveProfilsKits(job) {
             status: "",
             pkOnly: true,
             dateLivraisonSouhaitee,
+            prixTotal: sumArticlesPrix(articles),
           },
         },
         { upsert: true }
@@ -227,4 +241,4 @@ async function saveProfilsKits(job) {
   }
 }
 
-module.exports = { saveProfilsKits, getQtyForArticle, getPrixForArticle, getPrixVisuel };
+module.exports = { saveProfilsKits, getQtyForArticle, getPrixForArticle, getPrixVisuel, sumArticlesPrix };

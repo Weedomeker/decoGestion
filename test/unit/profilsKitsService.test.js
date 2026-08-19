@@ -6,7 +6,12 @@ const dossierService = require("../../server/src/gamesys/services/dossierService
 const StockProfile = require("../../server/src/models/StockProfile");
 const ConsommationCommande = require("../../server/src/models/ConsommationCommande");
 const Deco = require("../../server/src/models/Deco");
-const { saveProfilsKits, getPrixForArticle, getPrixVisuel } = require("../../server/src/services/profilsKitsService");
+const {
+  saveProfilsKits,
+  getPrixForArticle,
+  getPrixVisuel,
+  sumArticlesPrix,
+} = require("../../server/src/services/profilsKitsService");
 const { isProfileLabel, isKitPoseLabel } = require("../../server/src/gamesys/utils/reference");
 
 const GROUPED_WITH_PROFIL = {
@@ -180,6 +185,18 @@ describe("profilsKitsService.saveProfilsKits()", () => {
     expect(created.articles[0].prix).to.equal(19.9);
   });
 
+  it("peuple prixTotal du stub pkOnly à partir de la somme des articles", async () => {
+    getDossierDetailStub.resolves(GROUPED_WITH_PROFIL);
+
+    await saveProfilsKits({ ...fakeJob(164629, "LM"), isPkOnly: true, ville: "Lille" });
+
+    expect(decoUpsertStub.calledOnce).to.be.true;
+    const [filter, update, opts] = decoUpsertStub.firstCall.args;
+    expect(filter).to.deep.equal({ numCmd: 164629, pkOnly: true });
+    expect(opts.upsert).to.be.true;
+    expect(update.$setOnInsert.prixTotal).to.equal(34.39);
+  });
+
   it("ne recrée pas la consommation si elle existe déjà (upsert idempotent)", async () => {
     getDossierDetailStub.resolves(GROUPED_WITH_PROFIL);
     consommationUpsertStub.resolves({ lastErrorObject: { updatedExisting: true } });
@@ -281,6 +298,29 @@ describe("profilsKitsService.getPrixForArticle()", () => {
     ];
 
     expect(getPrixForArticle(sousDossiers, isKitPoseLabel, "KIT DE POSE")).to.equal(19.9);
+  });
+});
+
+describe("profilsKitsService.sumArticlesPrix()", () => {
+  it("additionne le prix de plusieurs articles", () => {
+    expect(sumArticlesPrix([{ prix: 68.6 }, { prix: 47.66 }])).to.equal(116.26);
+  });
+
+  it("ignore les articles sans prix exploitable et somme le reste", () => {
+    expect(sumArticlesPrix([{ prix: undefined }, { prix: 50.05 }])).to.equal(50.05);
+  });
+
+  it("retourne undefined si aucun article n'a de prix (à distinguer d'un total à 0)", () => {
+    expect(sumArticlesPrix([{ prix: undefined }])).to.be.undefined;
+  });
+
+  it("retourne undefined pour une liste vide ou absente", () => {
+    expect(sumArticlesPrix([])).to.be.undefined;
+    expect(sumArticlesPrix(undefined)).to.be.undefined;
+  });
+
+  it("préserve un total à 0 (ne le traite pas comme absent)", () => {
+    expect(sumArticlesPrix([{ prix: 0 }])).to.equal(0);
   });
 });
 
