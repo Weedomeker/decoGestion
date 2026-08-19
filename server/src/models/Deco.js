@@ -10,6 +10,7 @@ const decoSchema = new mongoose.Schema({
   date: { type: Date, default: Date.now },
   dateLivraisonSouhaitee: { type: Date },
   prixTotal: { type: Number },
+  prix: { type: Number },
   client: { type: String, enum: ["LM", "CASTO", "BRICO", "ECOM", ""] },
   numCmd: { type: Number, min: 1 },
   mag: { type: String },

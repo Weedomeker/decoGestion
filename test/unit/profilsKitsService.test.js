@@ -6,7 +6,7 @@ const dossierService = require("../../server/src/gamesys/services/dossierService
 const StockProfile = require("../../server/src/models/StockProfile");
 const ConsommationCommande = require("../../server/src/models/ConsommationCommande");
 const Deco = require("../../server/src/models/Deco");
-const { saveProfilsKits, getPrixForArticle } = require("../../server/src/services/profilsKitsService");
+const { saveProfilsKits, getPrixForArticle, getPrixVisuel } = require("../../server/src/services/profilsKitsService");
 const { isProfileLabel, isKitPoseLabel } = require("../../server/src/gamesys/utils/reference");
 
 const GROUPED_WITH_PROFIL = {
@@ -281,5 +281,95 @@ describe("profilsKitsService.getPrixForArticle()", () => {
     ];
 
     expect(getPrixForArticle(sousDossiers, isKitPoseLabel, "KIT DE POSE")).to.equal(19.9);
+  });
+});
+
+describe("profilsKitsService.getPrixVisuel()", () => {
+  let getDossierDetailStub;
+
+  beforeEach(() => {
+    getDossierDetailStub = sinon.stub(dossierService, "getDossierDetail");
+  });
+
+  afterEach(() => {
+    sinon.restore();
+  });
+
+  const GROUPED_TWO_VISUELS = {
+    visualReferences: [
+      { reference: "V001", libelle: "VISUEL MOSAIQUE" },
+      { reference: "V002", libelle: "VISUEL RAYURES" },
+    ],
+    sousDossiers: [
+      {
+        enteteDevis: [
+          { endv_identif: "VISUEL MOSAIQUE", endv_px_total: 243.69 },
+          { endv_identif: "VISUEL RAYURES", endv_px_total: 187.5 },
+          { endv_identif: "PROFIL BLANC 255", endv_px_total: 34.39 },
+        ],
+      },
+    ],
+  };
+
+  it("retourne undefined sans cmd", async () => {
+    expect(await getPrixVisuel({ cmd: null, ref: "V001" })).to.be.undefined;
+    expect(getDossierDetailStub.called).to.be.false;
+  });
+
+  it("matche par référence et retourne le prix de la ligne correspondante", async () => {
+    getDossierDetailStub.resolves(GROUPED_TWO_VISUELS);
+
+    const prix = await getPrixVisuel({ cmd: 164629, ref: "V002" });
+
+    expect(getDossierDetailStub.firstCall.args[0]).to.deep.equal({ commande: "164629", view: "summary" });
+    expect(prix).to.equal(187.5);
+  });
+
+  it("se rabat sur le libellé du visuel quand la référence ne matche aucune ligne", async () => {
+    getDossierDetailStub.resolves(GROUPED_TWO_VISUELS);
+
+    const prix = await getPrixVisuel({ cmd: 164629, ref: "INCONNUE", deco: "MOSAIQUE" });
+
+    expect(prix).to.equal(243.69);
+  });
+
+  it("retourne undefined si ni la référence ni le libellé ne matchent", async () => {
+    getDossierDetailStub.resolves(GROUPED_TWO_VISUELS);
+
+    const prix = await getPrixVisuel({ cmd: 164629, ref: "INCONNUE", deco: "AUTRE CHOSE" });
+
+    expect(prix).to.be.undefined;
+  });
+
+  it("retourne undefined si getDossierDetail échoue", async () => {
+    getDossierDetailStub.rejects(new Error("ODBC timeout"));
+
+    const prix = await getPrixVisuel({ cmd: 164629, ref: "V001" });
+
+    expect(prix).to.be.undefined;
+  });
+
+  it("désambiguïse par format quand deux formats du même visuel matchent le libellé (cas réel cmd 167602)", async () => {
+    const groupedDeuxFormats = {
+      visualReferences: [
+        { reference: "", libelle: "JARDIN SECRET GAUCHE 100x255cm" },
+        { reference: "", libelle: "JARDIN SECRET GAUCHE 150x255cm" },
+      ],
+      sousDossiers: [
+        {
+          enteteDevis: [
+            { endv_identif: "JARDIN SECRET GAUCHE 100x255cm", endv_px_total: 199.39 },
+            { endv_identif: "JARDIN SECRET GAUCHE 150x255cm", endv_px_total: 243.69 },
+          ],
+        },
+      ],
+    };
+    getDossierDetailStub.resolves(groupedDeuxFormats);
+
+    const prix150 = await getPrixVisuel({ cmd: 167602, ref: "94964359", deco: "JARDIN SECRET GAUCHE", format: "150x255" });
+    const prix100 = await getPrixVisuel({ cmd: 167602, ref: "94956940", deco: "JARDIN SECRET GAUCHE", format: "100x255" });
+
+    expect(prix150).to.equal(243.69);
+    expect(prix100).to.equal(199.39);
   });
 });

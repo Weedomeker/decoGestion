@@ -1,7 +1,14 @@
 const logger = require("../logger/logger");
 // Import via objet module (pas destructuré) pour permettre le stub sinon en test
 const dossierService = require("../gamesys/services/dossierService");
-const { isProfileLabel, isKitPoseLabel } = require("../gamesys/utils/reference");
+const {
+  isProfileLabel,
+  isKitPoseLabel,
+  isVisualLabel,
+  normalizeSearchText,
+  extractOrientationHint,
+  labelMatchesOrientation,
+} = require("../gamesys/utils/reference");
 const StockProfile = require("../models/StockProfile");
 const ConsommationCommande = require("../models/ConsommationCommande");
 const Deco = require("../models/Deco");
@@ -34,6 +41,62 @@ function getPrixForArticle(sousDossiers, predicate, refLibelle) {
     .map((px) => Number(px))
     .filter((px) => Number.isFinite(px));
   return values.length > 0 ? values.reduce((a, b) => a + b, 0) : undefined;
+}
+
+// Prix Gamesys d'un visuel décoratif précis (pas un profil/kit) — même principe que
+// getPrixForArticle, mais la ligne fd_entete_devi recherchée est retrouvée via
+// grouped.visualReferences (déjà résolu par buildVisualReferences en amont) plutôt que via un
+// libellé passé directement, car un visuel n'a pas d'équivalent à profileReferences/kitPosesReferences
+// côté appelant (saveDeco ne dispose que de cmd/ref/deco, pas des sousDossiers).
+async function getPrixVisuel({ cmd, ref, deco, format }) {
+  if (!cmd) return undefined;
+  let grouped;
+  try {
+    grouped = await dossierService.getDossierDetail({ commande: String(cmd), view: "summary" });
+  } catch (err) {
+    logger.warn(`getPrixVisuel: getDossierDetail échoué pour cmd=${cmd} : ${err.message}`);
+    return undefined;
+  }
+
+  const visualReferences = grouped.visualReferences || [];
+  const safeRef = ref ? String(ref).toUpperCase() : null;
+  let matched = safeRef
+    ? visualReferences.find((v) => String(v.reference || "").toUpperCase() === safeRef)
+    : null;
+
+  if (!matched && deco) {
+    const normDeco = normalizeSearchText(deco);
+    let candidates = visualReferences.filter((v) => {
+      const normLibelle = normalizeSearchText(v.libelle || "");
+      return normLibelle && (normLibelle.includes(normDeco) || normDeco.includes(normLibelle));
+    });
+
+    // Plusieurs visuels peuvent partager le même nom mais représenter des formats différents
+    // (ex: "JARDIN SECRET GAUCHE 100x255cm" vs "... 150x255cm") — sans référence explicite pour les
+    // départager, le format déjà résolu pour ce job permet de lever l'ambiguïté puisque le libellé
+    // Gamesys l'inclut généralement.
+    if (candidates.length > 1 && format) {
+      const normFormat = normalizeSearchText(format);
+      const narrowed = candidates.filter((v) => normalizeSearchText(v.libelle || "").includes(normFormat));
+      if (narrowed.length > 0) candidates = narrowed;
+    }
+
+    // Deux panneaux miroir (Gauche/Droit/Centre) du même visuel et même format peuvent avoir un prix
+    // différent — l'orientation n'apparaît pas toujours dans deco, mais est parfois encodée en
+    // suffixe dans ref (ex: "HOKUSAID-150210"/"HOKUSAIG-150210"). Voir decoPrixVisuelBackfillService.js.
+    if (candidates.length > 1) {
+      const orientation = extractOrientationHint(ref, deco);
+      if (orientation) {
+        const narrowed = candidates.filter((v) => labelMatchesOrientation(v.libelle || "", orientation));
+        if (narrowed.length > 0) candidates = narrowed;
+      }
+    }
+
+    matched = candidates[0];
+  }
+
+  if (!matched) return undefined;
+  return getPrixForArticle(grouped.sousDossiers, isVisualLabel, matched.libelle);
 }
 
 async function upsertArticle(ref, fields) {
@@ -164,4 +227,4 @@ async function saveProfilsKits(job) {
   }
 }
 
-module.exports = { saveProfilsKits, getQtyForArticle, getPrixForArticle };
+module.exports = { saveProfilsKits, getQtyForArticle, getPrixForArticle, getPrixVisuel };

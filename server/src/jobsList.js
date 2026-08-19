@@ -25,6 +25,8 @@ function createJob(
   client2,
   refDbData,
   refDbData2,
+  prix,
+  prix2,
 ) {
   const date = new Date();
 
@@ -57,6 +59,11 @@ function createJob(
     prodBlanc: !!prodBlanc,
     refDbData: refDbData || null,
     refDbData2: refDbData2 || null,
+    // Prix du sous-dossier Gamesys, déjà calculé sans ambiguïté côté frontend au moment de la
+    // sélection du visuel (voir dossierApiController.js:sumEntetePrix) — undefined pour le flux de
+    // saisie manuelle, où saveDeco retombe sur le matching approximatif getPrixVisuel.
+    prix: prix != null && prix !== "" ? Number(prix) : undefined,
+    prix2: prix2 != null && prix2 !== "" ? Number(prix2) : undefined,
   };
 
   return newJob;

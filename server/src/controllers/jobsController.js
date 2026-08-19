@@ -18,7 +18,7 @@ const getPreview = require("../getPreview");
 const findStock = require("../findStock");
 const Stocks = require("../models/Stocks");
 const { state } = require("../services/appState");
-const { saveProfilsKits } = require("../services/profilsKitsService");
+const { saveProfilsKits, getPrixVisuel } = require("../services/profilsKitsService");
 const dossierService = require("../gamesys/services/dossierService");
 const { saveFormatsTauroIfNeeded } = require("../services/formatsService");
 const { broadcastWS, broadcastCompletedJob } = require("../services/websocketService");
@@ -166,6 +166,8 @@ async function addJob(req, res) {
     visuel2: req.body.visuel2,
     numCmd: req.body.numCmd ? req.body.numCmd : 0,
     numCmd2: req.body.numCmd2 ? req.body.numCmd2 : 0,
+    prix: req.body.prix,
+    prix2: req.body.prix2,
     ville: typeof req.body.ville === "string" ? req.body.ville.toUpperCase() : "",
     ex: req.body.ex !== null ? req.body.ex : "",
     perte: req.body.perte,
@@ -448,6 +450,8 @@ async function addJob(req, res) {
     client2,
     refValidated || null,
     refValidated2 || null,
+    data.prix,
+    data.prix2,
   );
 
   const jobExist = state.jobs.jobs.find(
@@ -695,10 +699,19 @@ async function processJob(job, req) {
         : job.visuel2.split(matchName2[0])[0].trim()
       : job.visuel2;
 
-  const saveDeco = async ({ cmd, visuel, formatVisu, ref, temps }) => {
+  const saveDeco = async ({ cmd, visuel, formatVisu, ref, temps, explicitPrix }) => {
     const safeRef = ref && String(ref) !== "0" ? ref : null;
+    const resolvedFormat = formatVisu?.split("_").pop().replace("/", "");
     let dateLivraisonSouhaitee;
     let prixTotal;
+    // Le frontend calcule déjà le prix exact du sous-dossier (sumEntetePrix sur le sous-dossier
+    // précis, ex "164668/02") au moment où l'utilisateur sélectionne le visuel via la recherche de
+    // dossier — aucune ambiguïté possible à ce stade puisqu'on n'est pas encore redescendu au
+    // numéro de commande racine. Quand ce prix est transmis, on l'utilise tel quel et on évite le
+    // matching approximatif de getPrixVisuel (par nom/format/orientation), qui reste nécessaire
+    // uniquement pour le flux de saisie manuelle (pas de recherche de dossier, donc pas de prix
+    // précalculé disponible).
+    let prix = explicitPrix != null ? Number(explicitPrix) : undefined;
     if (cmd) {
       try {
         ({ dateLivraisonSouhaitee } = await dossierService.getDossierLivraisonDates(cmd));
@@ -710,18 +723,26 @@ async function processJob(job, req) {
       } catch (err) {
         logger.warn(`saveDeco: prixTotal non récupéré pour cmd=${cmd} : ${err.message}`);
       }
+      if (prix === undefined) {
+        try {
+          prix = await getPrixVisuel({ cmd, ref: safeRef, deco: visuel, format: resolvedFormat });
+        } catch (err) {
+          logger.warn(`saveDeco: prix visuel non récupéré pour cmd=${cmd} : ${err.message}`);
+        }
+      }
     }
     const data = {
       date: job.date,
       dateLivraisonSouhaitee: dateLivraisonSouhaitee || undefined,
       prixTotal: prixTotal != null ? prixTotal : undefined,
+      prix: prix != null ? prix : undefined,
       client: job.client,
       numCmd: cmd || 0,
       mag: job.ville,
       dibond: job.format_Plaque,
       deco: visuel,
       ref: safeRef,
-      format: formatVisu?.split("_").pop().replace("/", ""),
+      format: resolvedFormat,
       ex: parseInt(job.ex),
       temps,
       perte: job.perte ? parseFloat(job.perte) : 0,
@@ -743,6 +764,7 @@ async function processJob(job, req) {
       formatVisu: job.format_visu,
       ref: job.ref,
       temps: totalTime,
+      explicitPrix: job.prix,
     });
 
     const isDuplicated = job.visuel === job.visuel2;
@@ -752,6 +774,7 @@ async function processJob(job, req) {
         visuel: deco2,
         formatVisu: job.format2_visu || job.format_visu,
         ref: job.ref2,
+        explicitPrix: job.prix2,
         temps: totalTime,
       });
     }

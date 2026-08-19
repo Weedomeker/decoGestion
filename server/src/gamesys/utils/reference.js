@@ -71,6 +71,12 @@ function isKitPoseLabel(value) {
   return /(?:KITPOSE|KITDEPOSE)/.test(text);
 }
 
+// Une ligne de devis "visuel" est tout ce qui n'est ni un profilé/cornière ni un kit de pose —
+// même distinction que celle déjà faite en dur dans buildVisualReferences (dossierService.js).
+function isVisualLabel(value) {
+  return !isProfileLabel(value) && !isKitPoseLabel(value);
+}
+
 function isNumericReference(value) {
   return /^\d+$/.test(String(value || ""));
 }
@@ -103,13 +109,44 @@ function getVisualReferenceFromEntete(entete) {
   return explicitReference ? String(explicitReference).trim() : "";
 }
 
+// Détecte une orientation (panneau miroir Gauche/Droit/Centre du même visuel/format) à partir du
+// nom du visuel ou de sa référence. Deux visuels miroir peuvent avoir un prix différent sans aucun
+// autre moyen de les distinguer (endv_ref_client vide, même libellé sauf l'orientation) — cas réel
+// constaté (ex: commande 166212, "Hokusai Droit" 283,51€ vs "Hokusai Gauche" 557,35€, avec des refs
+// Mongo "HOKUSAID-150210"/"HOKUSAIG-150210" qui codent l'orientation en suffixe mais n'apparaissent
+// dans aucun champ explicite du devis Gamesys). Le nom du visuel (deco) porte parfois l'orientation
+// en toutes lettres ; à défaut, on regarde le suffixe D/G juste avant le tiret-format de la ref.
+function extractOrientationHint(ref, deco) {
+  const text = normalizeSearchText(deco || "");
+  if (/\bGAUCHE\b/.test(text)) return "GAUCHE";
+  if (/\bDROIT/.test(text)) return "DROIT";
+  if (/\bCENTRE\b/.test(text)) return "CENTRE";
+
+  const match = /([DG])-\d+$/i.exec(String(ref || "").trim());
+  if (match) return match[1].toUpperCase() === "D" ? "DROIT" : "GAUCHE";
+
+  return null;
+}
+
+// Stem court (résiste à la faute de frappe "DROT" au lieu de "DROIT" constatée en donnée réelle).
+const ORIENTATION_STEMS = { GAUCHE: "GAU", DROIT: "DRO", CENTRE: "CEN" };
+
+function labelMatchesOrientation(label, orientation) {
+  if (!orientation) return true;
+  const stem = ORIENTATION_STEMS[orientation];
+  return stem ? normalizeSearchText(label).includes(stem) : true;
+}
+
 module.exports = {
   normalizeSearchText,
   getSearchTerms,
   getProfileSearchTerms,
   isProfileLabel,
   isKitPoseLabel,
+  isVisualLabel,
   isNumericReference,
   isTeinteMasseModel,
   getVisualReferenceFromEntete,
+  extractOrientationHint,
+  labelMatchesOrientation,
 };
