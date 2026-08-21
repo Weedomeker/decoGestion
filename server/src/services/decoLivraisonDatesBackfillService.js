@@ -5,11 +5,10 @@ const dbConfig = require("../gamesys/config/db");
 const { closeConnection } = require("../gamesys/lib/db");
 const Deco = require("../models/Deco");
 
-async function backfillDecoLivraisonDates({ concurrency = 5, dryRun = false } = {}) {
-  const aTraiter = await Deco.find(
-    { numCmd: { $gt: 0 }, dateLivraisonSouhaitee: { $exists: false } },
-    { numCmd: 1 },
-  ).lean();
+async function backfillDecoLivraisonDates({ concurrency = 5, dryRun = false, sinceDate = null } = {}) {
+  const filter = { numCmd: { $gt: 0 }, dateLivraisonSouhaitee: { $exists: false } };
+  if (sinceDate) filter.createdAt = { $gte: sinceDate };
+  const aTraiter = await Deco.find(filter, { numCmd: 1 }).lean();
 
   const resume = { candidats: aTraiter.length, misAJour: 0, introuvables: 0, erreurs: 0 };
 

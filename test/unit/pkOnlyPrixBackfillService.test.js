@@ -36,6 +36,19 @@ describe("pkOnlyPrixBackfillService.backfillPkOnlyPrixTotal()", () => {
     expect(findStub.firstCall.args[0]).to.deep.equal({ pkOnly: true, prixTotal: { $exists: false } });
   });
 
+  it("ajoute createdAt au filtre quand sinceDate est fourni", async () => {
+    mockStubs([]);
+    const sinceDate = new Date("2026-08-18T00:00:00.000Z");
+
+    await backfillPkOnlyPrixTotal({ dryRun: false, sinceDate });
+
+    expect(findStub.firstCall.args[0]).to.deep.equal({
+      pkOnly: true,
+      prixTotal: { $exists: false },
+      createdAt: { $gte: sinceDate },
+    });
+  });
+
   it("ne modifie rien en dry-run", async () => {
     mockStubs([{ _id: "a", numCmd: 167452 }]);
 

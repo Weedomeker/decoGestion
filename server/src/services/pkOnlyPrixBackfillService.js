@@ -8,8 +8,10 @@ const { sumArticlesPrix } = require("./profilsKitsService");
 // de visuel, donc pas de Deco.prix possible, mais leur "prixTotal" est bien le total des
 // profils/kits commandés. Purement Mongo-à-Mongo (aucun appel Gamesys), donc pas de souci de
 // ressources contrairement aux backfills de prix par visuel.
-async function backfillPkOnlyPrixTotal({ dryRun = false } = {}) {
-  const stubs = await Deco.find({ pkOnly: true, prixTotal: { $exists: false } }, { numCmd: 1 }).lean();
+async function backfillPkOnlyPrixTotal({ dryRun = false, sinceDate = null } = {}) {
+  const filter = { pkOnly: true, prixTotal: { $exists: false } };
+  if (sinceDate) filter.createdAt = { $gte: sinceDate };
+  const stubs = await Deco.find(filter, { numCmd: 1 }).lean();
 
   const resume = { candidats: stubs.length, misAJour: 0, introuvables: 0, erreurs: 0 };
 

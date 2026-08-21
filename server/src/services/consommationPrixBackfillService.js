@@ -12,11 +12,10 @@ function predicateForType(type) {
 // Contrairement au backfill Deco.prixTotal (un seul champ scalaire), articles est un tableau de
 // sous-documents — on reconstruit le tableau entier en ne touchant qu'aux articles sans prix
 // (ref/type/libelle/quantite existants préservés tels quels), puis on écrit le tableau complet.
-async function backfillConsommationPrix({ concurrency = 5, dryRun = false } = {}) {
-  const aTraiter = await ConsommationCommande.find(
-    { articles: { $elemMatch: { prix: { $exists: false } } } },
-    { numCmd: 1, articles: 1 },
-  ).lean();
+async function backfillConsommationPrix({ concurrency = 5, dryRun = false, sinceDate = null } = {}) {
+  const filter = { articles: { $elemMatch: { prix: { $exists: false } } } };
+  if (sinceDate) filter.createdAt = { $gte: sinceDate };
+  const aTraiter = await ConsommationCommande.find(filter, { numCmd: 1, articles: 1 }).lean();
 
   const resume = { candidats: aTraiter.length, misAJour: 0, introuvables: 0, erreurs: 0 };
 

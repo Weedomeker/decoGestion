@@ -41,6 +41,19 @@ describe("decoPrixBackfillService.backfillDecoPrix()", () => {
     });
   });
 
+  it("ajoute createdAt au filtre quand sinceDate est fourni", async () => {
+    mockPendingDocs([]);
+    const sinceDate = new Date("2026-08-18T00:00:00.000Z");
+
+    await backfillDecoPrix({ dryRun: false, sinceDate });
+
+    expect(findStub.firstCall.args[0]).to.deep.equal({
+      numCmd: { $gt: 0 },
+      prixTotal: { $exists: false },
+      createdAt: { $gte: sinceDate },
+    });
+  });
+
   it("ne modifie rien en dry-run", async () => {
     mockPendingDocs([{ _id: "a", numCmd: 100473 }]);
 

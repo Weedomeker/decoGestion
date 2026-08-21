@@ -35,6 +35,18 @@ describe("consommationPrixBackfillService.backfillConsommationPrix()", () => {
     });
   });
 
+  it("ajoute createdAt au filtre quand sinceDate est fourni", async () => {
+    mockPendingDocs([]);
+    const sinceDate = new Date("2026-08-18T00:00:00.000Z");
+
+    await backfillConsommationPrix({ dryRun: false, sinceDate });
+
+    expect(findStub.firstCall.args[0]).to.deep.equal({
+      articles: { $elemMatch: { prix: { $exists: false } } },
+      createdAt: { $gte: sinceDate },
+    });
+  });
+
   it("ne modifie rien en dry-run", async () => {
     mockPendingDocs([{ _id: "a", numCmd: 164629, articles: [{ ref: "P001", type: "profil", libelle: "PROFIL BLANC 255" }] }]);
 

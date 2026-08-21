@@ -25,6 +25,7 @@ const { ExpressAdapter } = require("@bull-board/express");
 const { decoQueue, initWorker } = require("./src/services/queueService");
 const { processJob } = require("./src/controllers/jobsController");
 const { syncConsommationsHistorique } = require("./src/services/gamesysConsommationSyncService");
+const { backfillRecentDecoData } = require("./src/services/startupPrixBackfillService");
 
 const PORT = process.env.PORT || 8000;
 
@@ -227,4 +228,21 @@ server.listen(PORT, async () => {
       }
     }, SYNC_INTERVAL_MS);
   }, SYNC_INITIAL_DELAY_MS);
+
+  // Backfill unique au démarrage des prix/date de livraison des commandes récentes ajoutées
+  // manuellement dans une autre appli (donc jamais passées par le pipeline Gamesys normal).
+  // Fenêtre glissante configurable (défaut 2j) : reste volontairement court pour ne pas alourdir
+  // chaque démarrage — les backlogs plus anciens se rattrapent via les scripts CLI manuels.
+  const PRIX_BACKFILL_LOOKBACK_DAYS = parseInt(process.env.PRIX_BACKFILL_LOOKBACK_DAYS, 10) || 2;
+  const PRIX_BACKFILL_INITIAL_DELAY_MS = 2 * 60 * 1000;
+
+  setTimeout(async () => {
+    try {
+      const sinceDate = new Date(Date.now() - PRIX_BACKFILL_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+      await backfillRecentDecoData({ sinceDate });
+      logger.info(`Backfill prix/livraison récents (${PRIX_BACKFILL_LOOKBACK_DAYS}j) terminé.`);
+    } catch (error) {
+      logger.warn(`Backfill prix/livraison récents échoué : ${error.message}`);
+    }
+  }, PRIX_BACKFILL_INITIAL_DELAY_MS);
 });
