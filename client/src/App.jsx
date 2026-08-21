@@ -155,6 +155,29 @@ function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }
 
+  function mergeIdenticalVisuals(jobs) {
+    const result = jobs.map((j) => ({ ...j }));
+    const seen = new Map();
+    result.forEach((j, idx) => {
+      if (j.type === "profils_kits" || j._absorbedBy) return;
+      const visuelName = j.selectedFileObject?.name;
+      if (!visuelName) return; // pas encore de visuel résolu, rien à fusionner
+      const key = [j.numCmd, j.reference || j.ref, visuelName].join("|");
+      if (seen.has(key)) {
+        const primaryIdx = seen.get(key);
+        const addedEx = Number(j.ex) || 0;
+        result[primaryIdx] = {
+          ...result[primaryIdx],
+          ex: (Number(result[primaryIdx].ex) || 0) + addedEx,
+        };
+        result[idx] = { ...j, _absorbedBy: result[primaryIdx].id };
+      } else {
+        seen.set(key, idx);
+      }
+    });
+    return result;
+  }
+
   function autoPairCredences(jobs) {
     const result = jobs.map((j) => ({ ...j }));
     const credencesByDossier = {};
@@ -199,7 +222,8 @@ function App() {
 
     if (!allJobs || allJobs.length === 0) return;
 
-    const pairedJobs = autoPairCredences(allJobs);
+    const dedupedJobs = mergeIdenticalVisuals(allJobs);
+    const pairedJobs = autoPairCredences(dedupedJobs);
 
     setCheckProdBlanc(false);
     setSelectedFormat2("");

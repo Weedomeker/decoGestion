@@ -455,11 +455,14 @@ async function addJob(req, res) {
   );
 
   const jobExist = state.jobs.jobs.find(
-    (item) => item.cmd === newJob.cmd && item.ref === newJob.ref && item.visuel === newJob.visuel,
+    (item) =>
+      item.cmd === newJob.cmd &&
+      item.ref === newJob.ref &&
+      item.visuel === newJob.visuel &&
+      item.visuel2 === newJob.visuel2,
   );
 
-  const result = jobExist ? { exist: true, object: jobExist } : { exist: false, object: newJob };
-  if (!result.exist) {
+  if (!jobExist) {
     state.jobs.jobs.push(newJob);
     broadcastWS({ type: "update" });
   }
@@ -473,16 +476,19 @@ async function addJob(req, res) {
     }
   }
 
-  if (result.exist) {
+  if (jobExist) {
+    jobExist.ex = parseInt(jobExist.ex) + parseInt(newJob.ex);
+    broadcastWS({ type: "update", object: jobExist });
     return res.status(200).json({
-      message: "Commande déjà existante",
-      object: result.object,
+      message: `Exemplaires fusionnés avec la commande existante (total : ${jobExist.ex} ex).`,
+      object: jobExist,
+      stock: modelStock,
     });
   }
 
   return res.status(201).json({
     message: "Commande ajoutée",
-    object: result.object,
+    object: newJob,
     stock: modelStock,
     refCrossClientWarning: refCrossClientWarning || null,
     prodBlancCorrected,
