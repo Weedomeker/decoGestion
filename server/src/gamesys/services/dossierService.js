@@ -405,6 +405,7 @@ function buildVisualReferences(enteteDevis, stockVisualReferences, printFinish) 
         return {
           reference,
           libelle: entete.endv_identif || stockReference?.libelle || reference,
+          endv_px_total: entete.endv_px_total,
           articleReference: stockReference?.reference,
           modele: stockReference?.modele,
           gencod: stockReference?.gencod,
@@ -1164,4 +1165,5 @@ module.exports = {
   getDossierPrixTotal,
   mapDosClientToAppClient,
   fetchEnteteDevis,
+  buildVisualReferences,
 };

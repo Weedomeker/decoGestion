@@ -699,7 +699,7 @@ async function processJob(job, req) {
         : job.visuel2.split(matchName2[0])[0].trim()
       : job.visuel2;
 
-  const saveDeco = async ({ cmd, visuel, formatVisu, ref, temps, explicitPrix }) => {
+  const saveDeco = async ({ cmd, visuel, formatVisu, ref, temps, explicitPrix, expectSiblingSameCmd = false }) => {
     const safeRef = ref && String(ref) !== "0" ? ref : null;
     const resolvedFormat = formatVisu?.split("_").pop().replace("/", "");
     let dateLivraisonSouhaitee;
@@ -725,7 +725,19 @@ async function processJob(job, req) {
       }
       if (prix === undefined) {
         try {
-          prix = await getPrixVisuel({ cmd, ref: safeRef, deco: visuel, format: resolvedFormat });
+          // soleDoc vérifié directement plutôt que deviné sur la forme du format (un format
+          // "255x60"-shaped ne veut pas dire que CE numCmd a réellement 2 documents Deco — cas réel
+          // constaté commande 167637/CASTO/terrazzo gris, format crédence-shaped mais un seul
+          // document) : on ne cherche le fallback "un seul visuel Gamesys" que si aucun autre
+          // document Deco n'existe déjà pour ce numCmd ET qu'aucun 2e panneau de CE job ne va être
+          // sauvegardé sous le même numCmd (crédence amalgamée avec cmd2 === cmd, cf.
+          // expectSiblingSameCmd plus bas).
+          let soleDoc = !expectSiblingSameCmd;
+          if (soleDoc && cmd) {
+            const existingSiblings = await modelDeco.countDocuments({ numCmd: cmd });
+            soleDoc = existingSiblings === 0;
+          }
+          prix = await getPrixVisuel({ cmd, ref: safeRef, deco: visuel, format: resolvedFormat, soleDoc });
         } catch (err) {
           logger.warn(`saveDeco: prix visuel non récupéré pour cmd=${cmd} : ${err.message}`);
         }
@@ -758,6 +770,13 @@ async function processJob(job, req) {
 
   try {
     const totalTime = parseFloat((((jpgTime ?? 0) + (pdfTime ?? 0)) / 1000).toFixed(2)) || 0;
+    // Calculé avant le 1er saveDeco pour savoir si un 2e panneau (crédence amalgamée) va être
+    // sauvegardé sous le MÊME numCmd juste après — auquel cas le 1er appel ne doit pas se fier au
+    // fallback "un seul visuel Gamesys" de getPrixVisuel (2 documents Deco vont bien partager ce
+    // numCmd, même si aucun n'existe encore en base au moment de ce 1er appel).
+    const isDuplicated = job.visuel === job.visuel2;
+    const secondPanelSharesCmd = isCredences && job.cmd2 && job.visuel2 && !isDuplicated && job.cmd2 === job.cmd;
+
     await saveDeco({
       cmd: job.cmd || 0,
       visuel: deco,
@@ -765,9 +784,9 @@ async function processJob(job, req) {
       ref: job.ref,
       temps: totalTime,
       explicitPrix: job.prix,
+      expectSiblingSameCmd: secondPanelSharesCmd,
     });
 
-    const isDuplicated = job.visuel === job.visuel2;
     if (isCredences && job.cmd2 && job.visuel2 && !isDuplicated) {
       await saveDeco({
         cmd: job.cmd2 || 0,

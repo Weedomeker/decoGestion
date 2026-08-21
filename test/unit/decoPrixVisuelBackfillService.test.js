@@ -51,6 +51,19 @@ describe("decoPrixVisuelBackfillService.backfillDecoPrixVisuel()", () => {
     });
   });
 
+  it("ajoute createdAt au filtre quand sinceDate est fourni", async () => {
+    mockPendingDocs([]);
+    const sinceDate = new Date("2026-08-18T00:00:00.000Z");
+
+    await backfillDecoPrixVisuel({ dryRun: false, sinceDate });
+
+    expect(findStub.firstCall.args[0]).to.deep.equal({
+      numCmd: { $gt: 0 },
+      prix: { $exists: false },
+      createdAt: { $gte: sinceDate },
+    });
+  });
+
   it("ne modifie rien en dry-run, sans ouvrir de connexion Gamesys", async () => {
     mockPendingDocs([{ _id: "a", numCmd: 100473, ref: "V001" }]);
 
@@ -88,6 +101,34 @@ describe("decoPrixVisuelBackfillService.backfillDecoPrixVisuel()", () => {
 
     expect(resume.introuvables).to.equal(1);
     expect(resume.misAJour).to.equal(0);
+    expect(updateOneStub.called).to.be.false;
+  });
+
+  it("prend le prix de l'unique ligne visuel quand c'est le seul document Deco du numCmd (fallback ligne unique)", async () => {
+    mockPendingDocs([{ _id: "a", numCmd: 167637, ref: "3664715811077", deco: "terrazzo gris", format: "255x60" }]);
+    fetchEnteteDevisStub.resolves([
+      { endv_identif: "255x60cm TERRAZZO GR BEIGE (M)", endv_px_total: 310, endv_ref_client: "" },
+    ]);
+    updateOneStub.resolves({ modifiedCount: 1 });
+
+    const resume = await backfillDecoPrixVisuel({ dryRun: false });
+
+    expect(resume.misAJour).to.equal(1);
+    expect(updateOneStub.calledWith({ _id: "a", prix: { $exists: false } }, { $set: { prix: 310 } })).to.be.true;
+  });
+
+  it("n'applique pas le fallback ligne unique quand 2 documents Deco partagent le numCmd (crédence amalgamée)", async () => {
+    mockPendingDocs([
+      { _id: "a", numCmd: 167637, ref: "", deco: "terrazzo gris", format: "255x60" },
+      { _id: "b", numCmd: 167637, ref: "", deco: "autre visuel", format: "255x60" },
+    ]);
+    fetchEnteteDevisStub.resolves([
+      { endv_identif: "255x60cm TERRAZZO GR BEIGE (M)", endv_px_total: 310, endv_ref_client: "" },
+    ]);
+
+    const resume = await backfillDecoPrixVisuel({ dryRun: false });
+
+    expect(resume.introuvables).to.equal(2);
     expect(updateOneStub.called).to.be.false;
   });
 
@@ -246,5 +287,74 @@ describe("decoPrixVisuelBackfillService.matchPrixVisuel()", () => {
       { endv_identif: "Marbre iridescent Gauche 100 x 255 cm (B)", endv_px_total: 465.08, endv_ref_client: "" },
     ];
     expect(matchPrixVisuel(rows, { deco: "MARBRE IRIDESCENT GAUCHE" })).to.equal(465.08);
+  });
+
+  it("matche par endv_ref_client quand endv_identif est un libellé générique identique sur plusieurs lignes (cas réel cmd 167500, BAMBUSA)", () => {
+    const rows = [
+      {
+        endv_identif: " Format fini : 100.0 x 255.0 cm ",
+        endv_px_total: 229.39,
+        endv_ref_client: "BAMBUSA DROITE 80 X 230 MAT",
+      },
+      {
+        endv_identif: " Format fini : 100.0 x 255.0 cm ",
+        endv_px_total: 258.12,
+        endv_ref_client: "BAMBUSA GAUCHE 100 X 230 MAT",
+      },
+    ];
+    expect(matchPrixVisuel(rows, { ref: "", deco: "BAMBUSA GAUCHE", format: "100x230" })).to.equal(258.12);
+    expect(matchPrixVisuel(rows, { ref: "", deco: "BAMBUSA DROITE", format: "80x230" })).to.equal(229.39);
+  });
+
+  it("désambiguïse par format via endv_ref_client, séparateur décimal ',' (Mongo) aligné sur '.' (Gamesys) — cas réel cmd 167431, ARCHE BEIGE sur-mesure", () => {
+    const rows = [
+      {
+        endv_identif: "Panneau déco sur-mesure 100x210 Finition Texturée",
+        endv_px_total: 189.79,
+        endv_ref_client: "ARCHE BEIGE CENTRE 86.9 X 201.5 MAT",
+      },
+      {
+        endv_identif: "Panneau déco sur-mesure 125x210 Finition Texturée",
+        endv_px_total: 230.46,
+        endv_ref_client: "ARCHE BEIGE GAUCHE 119.6 X 201.5 MAT",
+      },
+      {
+        endv_identif: "Panneau déco sur-mesure 125x210 Finition Texturée",
+        endv_px_total: 199.0,
+        endv_ref_client: "ARCHE BEIGE DROIT 117.8 X 201.5 MAT",
+      },
+    ];
+    expect(matchPrixVisuel(rows, { ref: "", deco: "ARCHE BEIGE", format: "86,9x201,5" })).to.equal(189.79);
+    expect(matchPrixVisuel(rows, { ref: "", deco: "ARCHE BEIGE", format: "119,6x201,5" })).to.equal(230.46);
+    expect(matchPrixVisuel(rows, { ref: "", deco: "ARCHE BEIGE", format: "117,8x201,5" })).to.equal(199.0);
+  });
+
+  it("n'additionne pas les prix de lignes partageant le même endv_identif (non-régression getPrixForArticle)", () => {
+    const rows = [
+      { endv_identif: "MEME LIBELLE", endv_px_total: 100, endv_ref_client: "PRODUIT A" },
+      { endv_identif: "MEME LIBELLE", endv_px_total: 250, endv_ref_client: "PRODUIT B" },
+    ];
+    expect(matchPrixVisuel(rows, { ref: "", deco: "PRODUIT A" })).to.equal(100);
+    expect(matchPrixVisuel(rows, { ref: "", deco: "PRODUIT B" })).to.equal(250);
+  });
+
+  it("prend le prix de l'unique ligne visuel quand le texte ne matche pas et qu'il n'y a qu'un seul document Deco pour ce numCmd (cas réel cmd 167637, terrazzo gris / TERRAZZO GR BEIGE)", () => {
+    const rows = [{ endv_identif: "255x60cm TERRAZZO GR BEIGE (M)", endv_px_total: 310, endv_ref_client: "" }];
+    expect(matchPrixVisuel(rows, { ref: "3664715811077", deco: "terrazzo gris", format: "255x60", soleDoc: true })).to.equal(310);
+  });
+
+  it("ne devine pas le prix de la ligne unique si plusieurs documents Deco partagent le numCmd (garde-fou crédences amalgamées)", () => {
+    const rows = [{ endv_identif: "255x60cm TERRAZZO GR BEIGE (M)", endv_px_total: 310, endv_ref_client: "" }];
+    expect(matchPrixVisuel(rows, { ref: "3664715811077", deco: "terrazzo gris", format: "255x60", soleDoc: false })).to
+      .be.undefined;
+  });
+
+  it("n'applique pas le fallback ligne unique quand plusieurs lignes visuel existent (rien à désambiguïser en toute sécurité)", () => {
+    expect(matchPrixVisuel(ENTETE_TWO_VISUELS, { ref: "", deco: "AUTRE CHOSE", soleDoc: true })).to.be.undefined;
+  });
+
+  it("sans soleDoc (valeur par défaut), n'applique pas le fallback ligne unique", () => {
+    const rows = [{ endv_identif: "255x60cm TERRAZZO GR BEIGE (M)", endv_px_total: 310, endv_ref_client: "" }];
+    expect(matchPrixVisuel(rows, { ref: "", deco: "terrazzo gris" })).to.be.undefined;
   });
 });

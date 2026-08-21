@@ -337,8 +337,8 @@ describe("profilsKitsService.getPrixVisuel()", () => {
 
   const GROUPED_TWO_VISUELS = {
     visualReferences: [
-      { reference: "V001", libelle: "VISUEL MOSAIQUE" },
-      { reference: "V002", libelle: "VISUEL RAYURES" },
+      { reference: "V001", libelle: "VISUEL MOSAIQUE", endv_px_total: 243.69 },
+      { reference: "V002", libelle: "VISUEL RAYURES", endv_px_total: 187.5 },
     ],
     sousDossiers: [
       {
@@ -392,8 +392,8 @@ describe("profilsKitsService.getPrixVisuel()", () => {
   it("désambiguïse par format quand deux formats du même visuel matchent le libellé (cas réel cmd 167602)", async () => {
     const groupedDeuxFormats = {
       visualReferences: [
-        { reference: "", libelle: "JARDIN SECRET GAUCHE 100x255cm" },
-        { reference: "", libelle: "JARDIN SECRET GAUCHE 150x255cm" },
+        { reference: "", libelle: "JARDIN SECRET GAUCHE 100x255cm", endv_px_total: 199.39 },
+        { reference: "", libelle: "JARDIN SECRET GAUCHE 150x255cm", endv_px_total: 243.69 },
       ],
       sousDossiers: [
         {
@@ -411,5 +411,81 @@ describe("profilsKitsService.getPrixVisuel()", () => {
 
     expect(prix150).to.equal(243.69);
     expect(prix100).to.equal(199.39);
+  });
+
+  it("matche par v.reference quand v.libelle est un libellé générique identique pour plusieurs visuels (cas réel cmd 167500, BAMBUSA)", async () => {
+    const groupedBambusa = {
+      visualReferences: [
+        { reference: "BAMBUSA DROITE 80 X 230 MAT", libelle: " Format fini : 100.0 x 255.0 cm ", endv_px_total: 229.39 },
+        { reference: "BAMBUSA GAUCHE 100 X 230 MAT", libelle: " Format fini : 100.0 x 255.0 cm ", endv_px_total: 258.12 },
+      ],
+    };
+    getDossierDetailStub.resolves(groupedBambusa);
+
+    const prixGauche = await getPrixVisuel({ cmd: 167500, ref: "", deco: "BAMBUSA GAUCHE", format: "100x230" });
+    const prixDroite = await getPrixVisuel({ cmd: 167500, ref: "", deco: "BAMBUSA DROITE", format: "80x230" });
+
+    expect(prixGauche).to.equal(258.12);
+    expect(prixDroite).to.equal(229.39);
+  });
+
+  it("n'additionne pas les prix de visuels partageant le même libelle (non-régression getPrixForArticle)", async () => {
+    const grouped = {
+      visualReferences: [
+        { reference: "PRODUIT A", libelle: "MEME LIBELLE", endv_px_total: 100 },
+        { reference: "PRODUIT B", libelle: "MEME LIBELLE", endv_px_total: 250 },
+      ],
+    };
+    getDossierDetailStub.resolves(grouped);
+
+    expect(await getPrixVisuel({ cmd: 1, ref: "", deco: "PRODUIT A" })).to.equal(100);
+    expect(await getPrixVisuel({ cmd: 1, ref: "", deco: "PRODUIT B" })).to.equal(250);
+  });
+
+  it("prend le prix de l'unique visuel quand le texte ne matche pas, soleDoc=true (cas réel cmd 167637, terrazzo gris / TERRAZZO GR BEIGE)", async () => {
+    const grouped = {
+      visualReferences: [
+        { reference: "255x60cm TERRAZZO GR BEIGE (M)", libelle: "255x60cm TERRAZZO GR BEIGE (M)", endv_px_total: 310 },
+      ],
+    };
+    getDossierDetailStub.resolves(grouped);
+
+    const prix = await getPrixVisuel({ cmd: 167637, ref: "3664715811077", deco: "terrazzo gris", format: "255x60", soleDoc: true });
+
+    expect(prix).to.equal(310);
+  });
+
+  it("ne devine pas le prix du visuel unique quand soleDoc=false (garde-fou crédences amalgamées)", async () => {
+    const grouped = {
+      visualReferences: [
+        { reference: "255x60cm TERRAZZO GR BEIGE (M)", libelle: "255x60cm TERRAZZO GR BEIGE (M)", endv_px_total: 310 },
+      ],
+    };
+    getDossierDetailStub.resolves(grouped);
+
+    const prix = await getPrixVisuel({ cmd: 167637, ref: "3664715811077", deco: "terrazzo gris", format: "255x60", soleDoc: false });
+
+    expect(prix).to.be.undefined;
+  });
+
+  it("sans soleDoc (valeur par défaut), n'applique pas le fallback visuel unique", async () => {
+    const grouped = {
+      visualReferences: [
+        { reference: "255x60cm TERRAZZO GR BEIGE (M)", libelle: "255x60cm TERRAZZO GR BEIGE (M)", endv_px_total: 310 },
+      ],
+    };
+    getDossierDetailStub.resolves(grouped);
+
+    const prix = await getPrixVisuel({ cmd: 167637, ref: "", deco: "terrazzo gris" });
+
+    expect(prix).to.be.undefined;
+  });
+
+  it("n'applique pas le fallback visuel unique quand plusieurs visuels existent, même avec soleDoc=true", async () => {
+    getDossierDetailStub.resolves(GROUPED_TWO_VISUELS);
+
+    const prix = await getPrixVisuel({ cmd: 164629, ref: "", deco: "AUTRE CHOSE", soleDoc: true });
+
+    expect(prix).to.be.undefined;
   });
 });

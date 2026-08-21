@@ -10,7 +10,6 @@ const {
   extractOrientationHint,
   labelMatchesOrientation,
 } = require("../gamesys/utils/reference");
-const { getPrixForArticle } = require("./profilsKitsService");
 
 // Retrouve le prix du visuel correspondant à un document Deco parmi les lignes fd_entete_devi déjà
 // chargées pour son numCmd (une seule requête par numCmd, cf. backfillDecoPrixVisuel ci-dessous).
@@ -18,30 +17,44 @@ const { getPrixForArticle } = require("./profilsKitsService");
 // par le matching stock (fs_stock) utilisé par getDossierDetail/buildVisualReferences — inutile ici
 // puisqu'on dispose déjà de la référence résolue du document Deco (doc.ref), pas besoin de la
 // redériver depuis le catalogue.
-function matchPrixVisuel(enteteRows, { ref, deco, format }) {
+function matchPrixVisuel(enteteRows, { ref, deco, format, soleDoc = false }) {
   const visualRows = enteteRows.filter((row) => isVisualLabel(row.endv_identif || ""));
   const safeRef = ref ? String(ref).toUpperCase() : null;
-  let matchedLibelle = null;
+  let matchedRow = null;
 
   if (safeRef) {
-    const direct = visualRows.find((row) => String(getVisualReferenceFromEntete(row) || "").toUpperCase() === safeRef);
-    if (direct) matchedLibelle = direct.endv_identif;
+    matchedRow =
+      visualRows.find((row) => String(getVisualReferenceFromEntete(row) || "").toUpperCase() === safeRef) || null;
   }
 
-  if (!matchedLibelle && deco) {
+  if (!matchedRow && deco) {
     const normDeco = normalizeSearchText(deco);
+    // Le nom descriptif du visuel se trouve dans endv_identif pour les références catalogue, mais
+    // dans endv_ref_client pour les panneaux sur-mesure (ex: "ARCHE BEIGE") ou certaines gammes
+    // (ex: "BAMBUSA") — endv_identif y est alors un libellé générique type "Format fini : ..." ou
+    // "Panneau déco sur-mesure ...", identique pour plusieurs lignes d'un même numCmd (cas réel
+    // constaté commandes 167500/167431). On cherche donc dans les deux champs.
     let candidates = visualRows.filter((row) => {
       const normLibelle = normalizeSearchText(row.endv_identif || "");
-      return normLibelle && (normLibelle.includes(normDeco) || normDeco.includes(normLibelle));
+      const normRefClient = normalizeSearchText(getVisualReferenceFromEntete(row));
+      return (
+        (normLibelle && (normLibelle.includes(normDeco) || normDeco.includes(normLibelle))) ||
+        (normRefClient && (normRefClient.includes(normDeco) || normDeco.includes(normRefClient)))
+      );
     });
 
-    // Plusieurs lignes peuvent partager le même nom de visuel mais représenter des formats
-    // différents (ex: "JARDIN SECRET GAUCHE 100x255cm" vs "... 150x255cm") — sans endv_ref_client
-    // pour les départager, le format Deco (déjà résolu via RefDeco au moment du job) permet de
-    // lever l'ambiguïté puisque le libellé Gamesys l'inclut généralement.
+    // Plusieurs lignes peuvent partager le même nom de visuel mais représenter des formats/orientations
+    // différents (ex: "JARDIN SECRET GAUCHE 100x255cm" vs "... 150x255cm", ou plusieurs orientations
+    // sur-mesure "ARCHE BEIGE GAUCHE/CENTRE/DROIT" avec chacune leur format) — le format Deco (déjà
+    // résolu via RefDeco au moment du job) permet de lever l'ambiguïté. Gamesys sépare les décimales
+    // par '.', la saisie manuelle Mongo parfois par ',' (FR) : on aligne avant de comparer.
     if (candidates.length > 1 && format) {
-      const normFormat = normalizeSearchText(format);
-      const narrowed = candidates.filter((row) => normalizeSearchText(row.endv_identif || "").includes(normFormat));
+      const normFormat = normalizeSearchText(String(format).replace(/,/g, "."));
+      const narrowed = candidates.filter(
+        (row) =>
+          normalizeSearchText(row.endv_identif || "").includes(normFormat) ||
+          normalizeSearchText(getVisualReferenceFromEntete(row)).includes(normFormat),
+      );
       if (narrowed.length > 0) candidates = narrowed;
     }
 
@@ -52,21 +65,42 @@ function matchPrixVisuel(enteteRows, { ref, deco, format }) {
     if (candidates.length > 1) {
       const orientation = extractOrientationHint(ref, deco);
       if (orientation) {
-        const narrowed = candidates.filter((row) => labelMatchesOrientation(row.endv_identif || "", orientation));
+        const narrowed = candidates.filter(
+          (row) =>
+            labelMatchesOrientation(row.endv_identif || "", orientation) ||
+            labelMatchesOrientation(getVisualReferenceFromEntete(row), orientation),
+        );
         if (narrowed.length > 0) candidates = narrowed;
       }
     }
 
-    if (candidates[0]) matchedLibelle = candidates[0].endv_identif;
+    if (candidates[0]) matchedRow = candidates[0];
   }
 
-  if (!matchedLibelle) return undefined;
-  return getPrixForArticle([{ enteteDevis: enteteRows }], isVisualLabel, matchedLibelle);
+  // Dossier avec un seul document Deco et une seule ligne visuel Gamesys : aucune ambiguïté à lever,
+  // le prix de cette unique ligne EST le prix cherché même si le texte ne matche pas (cas réel
+  // commande 167637 : deco="terrazzo gris" vs endv_identif="255x60cm TERRAZZO GR BEIGE (M)" — Gamesys
+  // abrège/reformule différemment, mais il n'y a qu'une ligne possible). `soleDoc` doit être vrai
+  // (un seul document Deco pour ce numCmd) pour éviter d'assigner le même prix aux deux visuels d'une
+  // crédence BRICO/CASTO amalgamée (2 documents Deco partageant le même numCmd, cf. CLAUDE.md) si
+  // Gamesys ne facture ce cas qu'avec une seule ligne de devis.
+  if (!matchedRow && soleDoc && visualRows.length === 1) {
+    matchedRow = visualRows[0];
+  }
+
+  if (!matchedRow) return undefined;
+  // Prix lu directement sur la ligne matchée plutôt que re-résolu via getPrixForArticle par libellé
+  // (endv_identif) : quand plusieurs lignes partagent le même libellé générique (cas BAMBUSA
+  // ci-dessus), une re-résolution par libellé les additionnerait toutes au lieu de ne garder que
+  // celle effectivement matchée.
+  const prix = Number(matchedRow.endv_px_total);
+  return Number.isFinite(prix) ? prix : undefined;
 }
 
-async function backfillDecoPrixVisuel({ dryRun = false, numCmds = null } = {}) {
+async function backfillDecoPrixVisuel({ dryRun = false, numCmds = null, sinceDate = null } = {}) {
   const filter = { prix: { $exists: false } };
   filter.numCmd = numCmds ? { $in: numCmds } : { $gt: 0 };
+  if (sinceDate) filter.createdAt = { $gte: sinceDate };
   const aTraiter = await Deco.find(filter, { numCmd: 1, ref: 1, deco: 1, format: 1 }).lean();
 
   const resume = { candidats: aTraiter.length, misAJour: 0, introuvables: 0, erreurs: 0 };
@@ -98,7 +132,12 @@ async function backfillDecoPrixVisuel({ dryRun = false, numCmds = null } = {}) {
 
       for (const doc of docs) {
         try {
-          const prix = matchPrixVisuel(enteteRows, { ref: doc.ref, deco: doc.deco, format: doc.format });
+          const prix = matchPrixVisuel(enteteRows, {
+            ref: doc.ref,
+            deco: doc.deco,
+            format: doc.format,
+            soleDoc: docs.length === 1,
+          });
           if (prix == null) {
             resume.introuvables += 1;
             continue;
@@ -155,7 +194,12 @@ async function repairDecoPrixVisuel({ dryRun = false, numCmds = null } = {}) {
 
       for (const doc of docs) {
         try {
-          const prix = matchPrixVisuel(enteteRows, { ref: doc.ref, deco: doc.deco, format: doc.format });
+          const prix = matchPrixVisuel(enteteRows, {
+            ref: doc.ref,
+            deco: doc.deco,
+            format: doc.format,
+            soleDoc: docs.length === 1,
+          });
           if (prix == null) {
             resume.introuvables += 1;
             continue;

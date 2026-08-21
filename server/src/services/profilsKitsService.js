@@ -4,7 +4,6 @@ const dossierService = require("../gamesys/services/dossierService");
 const {
   isProfileLabel,
   isKitPoseLabel,
-  isVisualLabel,
   normalizeSearchText,
   extractOrientationHint,
   labelMatchesOrientation,
@@ -61,7 +60,7 @@ function sumArticlesPrix(articles) {
 // grouped.visualReferences (déjà résolu par buildVisualReferences en amont) plutôt que via un
 // libellé passé directement, car un visuel n'a pas d'équivalent à profileReferences/kitPosesReferences
 // côté appelant (saveDeco ne dispose que de cmd/ref/deco, pas des sousDossiers).
-async function getPrixVisuel({ cmd, ref, deco, format }) {
+async function getPrixVisuel({ cmd, ref, deco, format, soleDoc = false }) {
   if (!cmd) return undefined;
   let grouped;
   try {
@@ -79,18 +78,32 @@ async function getPrixVisuel({ cmd, ref, deco, format }) {
 
   if (!matched && deco) {
     const normDeco = normalizeSearchText(deco);
+    // Le nom descriptif du visuel se trouve dans v.libelle (= endv_identif) pour les références
+    // catalogue, mais dans v.reference (dérivé de endv_ref_client, cf. buildVisualReferences) pour
+    // les panneaux sur-mesure/certaines gammes — endv_identif y est alors un libellé générique type
+    // "Format fini : ..." ou "Panneau déco sur-mesure ..." (cas réels commandes 167500/167431, voir
+    // decoPrixVisuelBackfillService.js). On cherche donc dans les deux champs.
     let candidates = visualReferences.filter((v) => {
       const normLibelle = normalizeSearchText(v.libelle || "");
-      return normLibelle && (normLibelle.includes(normDeco) || normDeco.includes(normLibelle));
+      const normReference = normalizeSearchText(v.reference || "");
+      return (
+        (normLibelle && (normLibelle.includes(normDeco) || normDeco.includes(normLibelle))) ||
+        (normReference && (normReference.includes(normDeco) || normDeco.includes(normReference)))
+      );
     });
 
     // Plusieurs visuels peuvent partager le même nom mais représenter des formats différents
     // (ex: "JARDIN SECRET GAUCHE 100x255cm" vs "... 150x255cm") — sans référence explicite pour les
     // départager, le format déjà résolu pour ce job permet de lever l'ambiguïté puisque le libellé
-    // Gamesys l'inclut généralement.
+    // Gamesys l'inclut généralement. Gamesys sépare les décimales par '.', la saisie manuelle Mongo
+    // parfois par ',' (FR) : on aligne avant de comparer.
     if (candidates.length > 1 && format) {
-      const normFormat = normalizeSearchText(format);
-      const narrowed = candidates.filter((v) => normalizeSearchText(v.libelle || "").includes(normFormat));
+      const normFormat = normalizeSearchText(String(format).replace(/,/g, "."));
+      const narrowed = candidates.filter(
+        (v) =>
+          normalizeSearchText(v.libelle || "").includes(normFormat) ||
+          normalizeSearchText(v.reference || "").includes(normFormat),
+      );
       if (narrowed.length > 0) candidates = narrowed;
     }
 
@@ -100,7 +113,9 @@ async function getPrixVisuel({ cmd, ref, deco, format }) {
     if (candidates.length > 1) {
       const orientation = extractOrientationHint(ref, deco);
       if (orientation) {
-        const narrowed = candidates.filter((v) => labelMatchesOrientation(v.libelle || "", orientation));
+        const narrowed = candidates.filter(
+          (v) => labelMatchesOrientation(v.libelle || "", orientation) || labelMatchesOrientation(v.reference || "", orientation),
+        );
         if (narrowed.length > 0) candidates = narrowed;
       }
     }
@@ -108,8 +123,25 @@ async function getPrixVisuel({ cmd, ref, deco, format }) {
     matched = candidates[0];
   }
 
+  // Dossier avec un seul visuel Gamesys et aucun autre document Deco possible pour ce numCmd (pas
+  // une crédence amalgamée) : aucune ambiguïté à lever, le prix de cette unique ligne EST le prix
+  // cherché même si le texte ne matche pas (cas réel commande 167637, terrazzo gris / TERRAZZO GR
+  // BEIGE — Gamesys abrège/reformule différemment). `soleDoc` doit être vrai pour éviter d'assigner
+  // le même prix aux deux visuels d'une crédence BRICO/CASTO (2 documents Deco pour un même numCmd,
+  // cf. CLAUDE.md) si Gamesys ne facture ce cas qu'avec une seule ligne de devis — voir
+  // decoPrixVisuelBackfillService.js:matchPrixVisuel pour le même correctif côté backfill.
+  if (!matched && soleDoc && visualReferences.length === 1) {
+    matched = visualReferences[0];
+  }
+
   if (!matched) return undefined;
-  return getPrixForArticle(grouped.sousDossiers, isVisualLabel, matched.libelle);
+  // Prix lu directement sur l'entrée matchée (endv_px_total porté par buildVisualReferences) plutôt
+  // que re-résolu via getPrixForArticle par libellé : quand plusieurs lignes fd_entete_devi partagent
+  // le même endv_identif générique (cas BAMBUSA ci-dessus), une re-résolution par libellé les
+  // additionnerait toutes au lieu de ne garder que celle effectivement matchée (même correctif que
+  // decoPrixVisuelBackfillService.js:matchPrixVisuel).
+  const prix = Number(matched.endv_px_total);
+  return Number.isFinite(prix) ? prix : undefined;
 }
 
 async function upsertArticle(ref, fields) {
