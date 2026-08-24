@@ -127,7 +127,18 @@ async function enrichRowsWithMongoRef(rows, identif, preferredRefModel, printFin
           : await findMongoRef(row.st_art_ref_client);
         if (preferredMatch) return row;
       }
-      // st_art_ref_client absent ou non trouvé dans la collection client → chercher par model + format
+      // st_art_ref_client absent/non trouvé : certaines gammes (crédences CASTO notamment, vérifié
+      // en prod commande 167727 "IDCUI24-029" absent du catalogue mais son gencod "3664711433747"
+      // y est bien présent) indexent le catalogue interne par gencod plutôt que par ref_client —
+      // même court-circuitage si ce gencod valide, en le substituant comme référence retenue (même
+      // idiome que le remplacement par mongoDoc.ref ci-dessous).
+      if (row.st_art_gencod) {
+        const gencodMatch = preferredRefModel
+          ? await preferredRefModel.findOne({ ref: row.st_art_gencod }).lean().catch(() => null)
+          : await findMongoRef(row.st_art_gencod);
+        if (gencodMatch) return { ...row, st_art_ref_client: row.st_art_gencod, st_modele: row.st_art_gencod };
+      }
+      // st_art_ref_client/gencod absents ou non trouvés dans la collection client → chercher par model + format
       if (!model) return row;
       const q = format ? { model, format } : { model };
       const mongoDoc = await findRefByModelFormat(orderedModels, q, printFinish);
@@ -245,7 +256,25 @@ async function findStockReferences(connection, enteteDevis, preferredRefModel, p
     return (await enrichRowsWithMongoRef(exactRows, identif, preferredRefModel, printFinish)).map(mapStockRow);
   }
 
-  // Priorité 3 (visuels) : lookup MongoDB direct par {model, format} — pas de recherche
+  // Priorité 3bis (visuels) : correspondance EXACTE (pas de LIKE) sur le libellé stock
+  // (st_lib_1_conso = identif, insensible à la casse) — comble un trou où endv_ref_client est vide
+  // et aucun EAN n'est intégré dans identif (cas réel : crédences CASTO/BRICO, plusieurs articles
+  // ECOM), alors que fs_stock porte pourtant la ligne exacte avec le bon gencod/ref_client (vérifié
+  // en prod : commande CASTO 167727 "300x60cm BETON CLAIR (M)" -> st_art_gencod "3664711433747" ;
+  // commande ECOM 167725 "Jaspe Gauche 100 x 210 cm (M)" -> st_art_ref_client "JASPEG-100210" —
+  // les deux confirmés présents et corrects dans RefCasto/RefEcom). Stricte égalité de libellé
+  // uniquement (pas de LIKE) pour ne pas réintroduire la recherche approximative volontairement
+  // évitée pour les visuels (cf. priorité suivante).
+  const exactLabelRows = await query(
+    connection,
+    `${STOCK_SELECT} where upper(st_lib_1_conso) = upper(?) order by st_seq desc limit 5`,
+    [identif]
+  );
+  if (exactLabelRows.length > 0) {
+    return (await enrichRowsWithMongoRef(exactLabelRows, identif, preferredRefModel, printFinish)).map(mapStockRow);
+  }
+
+  // Priorité 4 (visuels) : lookup MongoDB direct par {model, format} — pas de recherche
   // approximative sur fs_stock. La déaccentuation du terme de recherche (normalizeSearchText)
   // ne s'appliquait jamais à la colonne SQL comparée (st_lib_1_conso reste accentué en base),
   // ce qui faisait échouer silencieusement toute correspondance sur les libellés accentués
