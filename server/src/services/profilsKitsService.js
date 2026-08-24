@@ -228,18 +228,53 @@ async function saveProfilsKits(job) {
     .find(Boolean);
   const dateCommande = dossierDate ? new Date(dossierDate) : undefined;
 
-  // bo_date_depart_usine / bo_date_souhaitee sont déjà présents dans grouped.sousDossiers[].livraison
-  // (view=summary inclut ces champs via ff_livraison) — pas besoin d'une requête Gamesys supplémentaire.
+  // bo_date_depart_usine / bo_date_souhaitee / bo_adlivr_nom_1 / bo_ville sont déjà présents dans
+  // grouped.sousDossiers[].livraison (view=summary inclut ces champs via ff_livraison) — pas besoin
+  // d'une requête Gamesys supplémentaire.
   const livraisonRows = (grouped.sousDossiers || []).flatMap((s) => s.livraison || []);
   const departUsineRaw = livraisonRows.map((l) => l.bo_date_depart_usine).find(Boolean);
   const livraisonSouhaiteeRaw = livraisonRows.map((l) => l.bo_date_souhaitee).find(Boolean);
   const dateDepartUsine = departUsineRaw ? new Date(departUsineRaw) : undefined;
   const dateLivraisonSouhaitee = livraisonSouhaiteeRaw ? new Date(livraisonSouhaiteeRaw) : undefined;
+  const magasinRaw = livraisonRows.map((l) => l.bo_adlivr_nom_1).find(Boolean);
+  const villeRaw = livraisonRows.map((l) => l.bo_ville).find(Boolean);
+  // mag = ville de livraison (repère magasin pour LM/CASTO/BRICO), ou nom du destinataire pour ECOM
+  // (livraison directe, pas de notion de magasin) — même règle que decoGamesysStubSyncService.js.
+  const mag = job.client === "ECOM" ? magasinRaw || villeRaw : villeRaw || magasinRaw;
+
+  // endv_cclient (codeClient) n'est pas exposé par la vue "summary" de getDossierDetail déjà
+  // appelée plus haut (selectDetailView omet ce champ) — un aller-retour Gamesys dédié est donc
+  // nécessaire ici pour codeClient/refClient/nombreProfil/nombreKitPose/formatPlaqueGamesys,
+  // contrairement à dateCommande/dateDepartUsine/dateLivraisonSouhaitee/mag ci-dessus.
+  let commandeInfo;
+  let formatPlaqueGamesys;
+  try {
+    commandeInfo = await dossierService.getDossierCommandeInfo(job.cmd);
+  } catch (err) {
+    logger.warn(`saveProfilsKits: commandeInfo non récupérée pour cmd=${job.cmd} : ${err.message}`);
+  }
+  try {
+    formatPlaqueGamesys = await dossierService.getDossierFormatPlaque(job.cmd);
+  } catch (err) {
+    logger.warn(`saveProfilsKits: formatPlaqueGamesys non récupéré pour cmd=${job.cmd} : ${err.message}`);
+  }
 
   try {
     const upsertResult = await ConsommationCommande.findOneAndUpdate(
       { numCmd },
-      { $setOnInsert: { numCmd, client: job.client, dateCommande, dateDepartUsine, dateLivraisonSouhaitee, articles } },
+      {
+        $setOnInsert: {
+          numCmd,
+          client: job.client,
+          dateCommande,
+          dateDepartUsine,
+          dateLivraisonSouhaitee,
+          codeClient: commandeInfo?.codeClient ?? undefined,
+          refClient: commandeInfo?.refClient ?? undefined,
+          mag: mag || undefined,
+          articles,
+        },
+      },
       { upsert: true, rawResult: true }
     );
     const alreadyExisted = !!upsertResult?.lastErrorObject?.updatedExisting;
@@ -249,23 +284,6 @@ async function saveProfilsKits(job) {
     }
 
     if (job.isPkOnly) {
-      // endv_cclient (codeClient) n'est pas exposé par la vue "summary" de getDossierDetail déjà
-      // appelée plus haut (selectDetailView omet ce champ) — un aller-retour Gamesys dédié est donc
-      // nécessaire ici pour codeClient/refClient/nombreProfil/nombreKitPose/formatPlaqueGamesys,
-      // contrairement à dateCommande/dateDepartUsine/dateLivraisonSouhaitee ci-dessus.
-      let commandeInfo;
-      let formatPlaqueGamesys;
-      try {
-        commandeInfo = await dossierService.getDossierCommandeInfo(job.cmd);
-      } catch (err) {
-        logger.warn(`saveProfilsKits: commandeInfo non récupérée pour cmd=${job.cmd} : ${err.message}`);
-      }
-      try {
-        formatPlaqueGamesys = await dossierService.getDossierFormatPlaque(job.cmd);
-      } catch (err) {
-        logger.warn(`saveProfilsKits: formatPlaqueGamesys non récupéré pour cmd=${job.cmd} : ${err.message}`);
-      }
-
       // Sous-dossiers d'origine des profils/kits agrégés dans ce stub — déjà disponibles dans
       // grouped.sousDossiers (issu de getDossierDetail plus haut), pas de requête Gamesys
       // supplémentaire nécessaire.
@@ -274,7 +292,7 @@ async function saveProfilsKits(job) {
       await claimStubOrCreate(Deco, numCmd, {
         client: job.client,
         numCmd,
-        mag: job.ville || "",
+        mag: job.ville || mag || "",
         date: new Date(),
         status: "",
         pkOnly: true,

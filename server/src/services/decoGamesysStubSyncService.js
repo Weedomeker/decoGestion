@@ -96,12 +96,16 @@ async function syncDecoStubsDepuisGamesys({ sinceDate, concurrency = 3, dryRun =
                   matched: false,
                 };
                 // La référence Gamesys brute (texte libellé fs_stock, ex: "Jaspe Gauche 100 x 210 cm
-                // (M)") n'est pas toujours un code SKU exploitable — ne poser ref/format/finition/deco
-                // que si elle a été validée contre notre catalogue interne (RefDeco/RefCasto/RefBrico/
-                // RefEcom), sinon on ne garde que les données fiables (prix, sousDossier, commande).
+                // (M)") n'est pas toujours un code SKU exploitable — ne poser ref/deco (qui nécessitent
+                // le catalogue interne) que si elle a été validée contre RefDeco/RefCasto/RefBrico/
+                // RefEcom. format/finition ont un repli Gamesys direct qui ne dépend pas de ce
+                // catalogue (dos_forme_et_format / dos_imp_1_fac_p_1 via printFinish, cf.
+                // fetchSousDossiersVisuels) — moins précis que le catalogue (pas de nuance
+                // "texture Pierre" par ex.) mais toujours une donnée Gamesys fiable.
+                const finitionRepli = sousDossier.printFinish === "MAT" ? "Mat" : sousDossier.printFinish === "BRILLANT" ? "Brillant" : undefined;
                 const champsVisuel = refFields.matched
                   ? { ref: visuel.reference, finition: refFields.finition, format: refFields.format, deco: refFields.deco }
-                  : {};
+                  : { format: sousDossier.formatFini || undefined, finition: finitionRepli };
                 await Deco.findOneAndUpdate(
                   { numCmd: candidat.numCmd, sousDossier: sousDossier.sousNumero },
                   {

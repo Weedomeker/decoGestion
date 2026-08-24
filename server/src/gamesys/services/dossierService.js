@@ -746,6 +746,13 @@ async function fetchSousDossiersVisuels(connection, numero) {
       sousNumero: getSubDossierNumber({ dossier, enteteDevis }),
       commande,
       visualReferences,
+      // Repli quand la référence Gamesys ne valide pas contre notre catalogue interne (ref/format/
+      // finition/deco laissés vides, cf. decoGamesysStubSyncService) : dos_forme_et_format ("Ft. fini
+      // : 1000 x 2100 mm") donne le format fini réel du visuel (converti en cm par extractDimensionFormat,
+      // même fonction que la résolution model+format), et printFinish (déjà calculé ci-dessus depuis
+      // dos_imp_1_fac_p_1 pour désambiguïser le matching) donne Mat/Brillant sans dépendre du catalogue.
+      formatFini: extractDimensionFormat(dossier.dos_forme_et_format),
+      printFinish,
     });
   }
 

@@ -23,6 +23,13 @@ const consommationCommandeSchema = new mongoose.Schema(
     // pour les prévisions de stock par échéance de production/livraison.
     dateDepartUsine: { type: Date },
     dateLivraisonSouhaitee: { type: Date },
+    // Métadonnées commande Gamesys (mêmes sources que Deco, cf. server/src/models/Deco.js) — utiles
+    // pour ventiler les prévisions de stock par magasin/enseigne/client.
+    codeClient: { type: String },
+    refClient: { type: String },
+    // Ville de livraison (magasin LM/CASTO/BRICO), ou nom du destinataire pour ECOM (livraison
+    // directe au client final, pas de notion de magasin) — cf. decoGamesysStubSyncService.js.
+    mag: { type: String },
     articles: [articleSchema],
   },
   { timestamps: true },
