@@ -6,6 +6,7 @@ const pkOnlyPrixBackfillService = require("./pkOnlyPrixBackfillService");
 const decoLivraisonDatesBackfillService = require("./decoLivraisonDatesBackfillService");
 const decoPrixBackfillService = require("./decoPrixBackfillService");
 const decoPrixVisuelBackfillService = require("./decoPrixVisuelBackfillService");
+const decoCommandeInfoBackfillService = require("./decoCommandeInfoBackfillService");
 
 async function runStep(name, fn) {
   try {
@@ -40,8 +41,11 @@ async function backfillRecentDecoData({ sinceDate, concurrency = 3, dryRun = fal
   const decoPrixVisuel = await runStep("backfillDecoPrixVisuel", () =>
     decoPrixVisuelBackfillService.backfillDecoPrixVisuel({ sinceDate, dryRun }),
   );
+  const decoCommandeInfo = await runStep("backfillDecoCommandeInfo", () =>
+    decoCommandeInfoBackfillService.backfillDecoCommandeInfo({ sinceDate, concurrency, dryRun }),
+  );
 
-  return { consommationPrix, pkOnlyPrixTotal, decoLivraisonDates, decoPrix, decoPrixVisuel };
+  return { consommationPrix, pkOnlyPrixTotal, decoLivraisonDates, decoPrix, decoPrixVisuel, decoCommandeInfo };
 }
 
 module.exports = { backfillRecentDecoData };

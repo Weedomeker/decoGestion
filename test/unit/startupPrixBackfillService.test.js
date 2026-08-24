@@ -6,6 +6,7 @@ const pkOnlyPrixBackfillService = require("../../server/src/services/pkOnlyPrixB
 const decoLivraisonDatesBackfillService = require("../../server/src/services/decoLivraisonDatesBackfillService");
 const decoPrixBackfillService = require("../../server/src/services/decoPrixBackfillService");
 const decoPrixVisuelBackfillService = require("../../server/src/services/decoPrixVisuelBackfillService");
+const decoCommandeInfoBackfillService = require("../../server/src/services/decoCommandeInfoBackfillService");
 const { backfillRecentDecoData } = require("../../server/src/services/startupPrixBackfillService");
 
 describe("startupPrixBackfillService.backfillRecentDecoData()", () => {
@@ -14,6 +15,7 @@ describe("startupPrixBackfillService.backfillRecentDecoData()", () => {
   let backfillDecoLivraisonDatesStub;
   let backfillDecoPrixStub;
   let backfillDecoPrixVisuelStub;
+  let backfillDecoCommandeInfoStub;
 
   const resumeVide = { candidats: 0, misAJour: 0, introuvables: 0, erreurs: 0 };
 
@@ -30,6 +32,9 @@ describe("startupPrixBackfillService.backfillRecentDecoData()", () => {
     backfillDecoPrixStub = sinon.stub(decoPrixBackfillService, "backfillDecoPrix").resolves({ ...resumeVide });
     backfillDecoPrixVisuelStub = sinon
       .stub(decoPrixVisuelBackfillService, "backfillDecoPrixVisuel")
+      .resolves({ ...resumeVide });
+    backfillDecoCommandeInfoStub = sinon
+      .stub(decoCommandeInfoBackfillService, "backfillDecoCommandeInfo")
       .resolves({ ...resumeVide });
   });
 
@@ -63,6 +68,7 @@ describe("startupPrixBackfillService.backfillRecentDecoData()", () => {
     expect(backfillDecoLivraisonDatesStub.calledWith({ sinceDate, concurrency: 7, dryRun: true })).to.be.true;
     expect(backfillDecoPrixStub.calledWith({ sinceDate, concurrency: 7, dryRun: true })).to.be.true;
     expect(backfillDecoPrixVisuelStub.calledWith({ sinceDate, dryRun: true })).to.be.true;
+    expect(backfillDecoCommandeInfoStub.calledWith({ sinceDate, concurrency: 7, dryRun: true })).to.be.true;
   });
 
   it("utilise concurrency=3 par défaut", async () => {
@@ -83,6 +89,7 @@ describe("startupPrixBackfillService.backfillRecentDecoData()", () => {
     expect(backfillDecoLivraisonDatesStub.calledOnce).to.be.true;
     expect(backfillDecoPrixStub.calledOnce).to.be.true;
     expect(backfillDecoPrixVisuelStub.calledOnce).to.be.true;
+    expect(backfillDecoCommandeInfoStub.calledOnce).to.be.true;
   });
 
   it("retourne le résumé de chaque étape sous forme d'objet nommé", async () => {
@@ -97,6 +104,7 @@ describe("startupPrixBackfillService.backfillRecentDecoData()", () => {
       "decoLivraisonDates",
       "decoPrix",
       "decoPrixVisuel",
+      "decoCommandeInfo",
     ]);
     expect(resultats.decoPrix).to.deep.equal(resumePrix);
   });

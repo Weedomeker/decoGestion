@@ -26,6 +26,7 @@ const { decoQueue, initWorker } = require("./src/services/queueService");
 const { processJob } = require("./src/controllers/jobsController");
 const { syncConsommationsHistorique } = require("./src/services/gamesysConsommationSyncService");
 const { backfillRecentDecoData } = require("./src/services/startupPrixBackfillService");
+const { syncDecoStubsDepuisGamesys } = require("./src/services/decoGamesysStubSyncService");
 
 const PORT = process.env.PORT || 8000;
 
@@ -245,4 +246,23 @@ server.listen(PORT, async () => {
       logger.warn(`Backfill prix/livraison récents échoué : ${error.message}`);
     }
   }, PRIX_BACKFILL_INITIAL_DELAY_MS);
+
+  // Création proactive au démarrage des stubs Deco (gamesysStub:true) pour les dossiers Gamesys
+  // récents qui n'ont pas encore de document Deco — l'utilisateur les réclame ensuite via
+  // claimStubOrCreate quand il traite le job normalement. Unique au démarrage (pas de setInterval
+  // récurrent comme la sync consommations ci-dessus) : un dossier apparu après ce démarrage n'aura
+  // pas de stub avant le prochain redémarrage, sans perte fonctionnelle (repli sur la création
+  // classique dans ce cas, cf. claimStubOrCreate).
+  const DECO_STUB_SYNC_LOOKBACK_DAYS = parseInt(process.env.DECO_STUB_SYNC_LOOKBACK_DAYS, 10) || 5;
+  const DECO_STUB_SYNC_INITIAL_DELAY_MS = 3 * 60 * 1000;
+
+  setTimeout(async () => {
+    try {
+      const sinceDate = new Date(Date.now() - DECO_STUB_SYNC_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+      const resume = await syncDecoStubsDepuisGamesys({ sinceDate });
+      logger.info(`Sync stubs Deco depuis Gamesys (${DECO_STUB_SYNC_LOOKBACK_DAYS}j) : ${JSON.stringify(resume)}`);
+    } catch (error) {
+      logger.warn(`Sync stubs Deco échouée : ${error.message}`);
+    }
+  }, DECO_STUB_SYNC_INITIAL_DELAY_MS);
 });

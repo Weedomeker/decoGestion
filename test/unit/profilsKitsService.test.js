@@ -57,6 +57,8 @@ describe("profilsKitsService.saveProfilsKits()", () => {
   let consommationUpsertStub;
   let consommationCreateStub;
   let decoUpsertStub;
+  let getDossierCommandeInfoStub;
+  let getDossierFormatPlaqueStub;
 
   beforeEach(() => {
     getDossierDetailStub = sinon.stub(dossierService, "getDossierDetail");
@@ -69,6 +71,8 @@ describe("profilsKitsService.saveProfilsKits()", () => {
       .stub(ConsommationCommande, "create")
       .rejects(new Error("create() ne doit plus être appelé — utiliser findOneAndUpdate"));
     decoUpsertStub = sinon.stub(Deco, "findOneAndUpdate").resolves({});
+    getDossierCommandeInfoStub = sinon.stub(dossierService, "getDossierCommandeInfo").resolves(null);
+    getDossierFormatPlaqueStub = sinon.stub(dossierService, "getDossierFormatPlaque").resolves(null);
   });
 
   afterEach(() => {
@@ -190,11 +194,14 @@ describe("profilsKitsService.saveProfilsKits()", () => {
 
     await saveProfilsKits({ ...fakeJob(164629, "LM"), isPkOnly: true, ville: "Lille" });
 
+    // claimStubOrCreate réclame d'abord un éventuel stub gamesysStub (voir decoStubService.js) —
+    // filtre différent de l'ancien upsert direct {numCmd, pkOnly:true}.
     expect(decoUpsertStub.calledOnce).to.be.true;
     const [filter, update, opts] = decoUpsertStub.firstCall.args;
-    expect(filter).to.deep.equal({ numCmd: 164629, pkOnly: true });
-    expect(opts.upsert).to.be.true;
-    expect(update.$setOnInsert.prixTotal).to.equal(34.39);
+    expect(filter).to.deep.equal({ numCmd: 164629, gamesysStub: true });
+    expect(opts).to.deep.equal({ new: true });
+    expect(update.$set.pkOnly).to.be.true;
+    expect(update.$set.prixTotal).to.equal(34.39);
   });
 
   it("ne recrée pas la consommation si elle existe déjà (upsert idempotent)", async () => {

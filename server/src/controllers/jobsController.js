@@ -19,6 +19,7 @@ const findStock = require("../findStock");
 const Stocks = require("../models/Stocks");
 const { state } = require("../services/appState");
 const { saveProfilsKits, getPrixVisuel } = require("../services/profilsKitsService");
+const { claimStubOrCreate } = require("../services/decoStubService");
 const dossierService = require("../gamesys/services/dossierService");
 const { saveFormatsTauroIfNeeded } = require("../services/formatsService");
 const { broadcastWS, broadcastCompletedJob } = require("../services/websocketService");
@@ -718,6 +719,8 @@ async function processJob(job, req) {
     // uniquement pour le flux de saisie manuelle (pas de recherche de dossier, donc pas de prix
     // précalculé disponible).
     let prix = explicitPrix != null ? Number(explicitPrix) : undefined;
+    let commandeInfo;
+    let formatPlaqueGamesys;
     if (cmd) {
       try {
         ({ dateLivraisonSouhaitee } = await dossierService.getDossierLivraisonDates(cmd));
@@ -729,6 +732,16 @@ async function processJob(job, req) {
       } catch (err) {
         logger.warn(`saveDeco: prixTotal non récupéré pour cmd=${cmd} : ${err.message}`);
       }
+      try {
+        commandeInfo = await dossierService.getDossierCommandeInfo(cmd);
+      } catch (err) {
+        logger.warn(`saveDeco: commandeInfo non récupérée pour cmd=${cmd} : ${err.message}`);
+      }
+      try {
+        formatPlaqueGamesys = await dossierService.getDossierFormatPlaque(cmd);
+      } catch (err) {
+        logger.warn(`saveDeco: formatPlaqueGamesys non récupéré pour cmd=${cmd} : ${err.message}`);
+      }
       if (prix === undefined) {
         try {
           // soleDoc vérifié directement plutôt que deviné sur la forme du format (un format
@@ -737,10 +750,11 @@ async function processJob(job, req) {
           // document) : on ne cherche le fallback "un seul visuel Gamesys" que si aucun autre
           // document Deco n'existe déjà pour ce numCmd ET qu'aucun 2e panneau de CE job ne va être
           // sauvegardé sous le même numCmd (crédence amalgamée avec cmd2 === cmd, cf.
-          // expectSiblingSameCmd plus bas).
+          // expectSiblingSameCmd plus bas). Les stubs gamesysStub (créés proactivement, sans visuel)
+          // sont exclus du compte : ce ne sont pas des documents visuel concurrents.
           let soleDoc = !expectSiblingSameCmd;
           if (soleDoc && cmd) {
-            const existingSiblings = await modelDeco.countDocuments({ numCmd: cmd });
+            const existingSiblings = await modelDeco.countDocuments({ numCmd: cmd, gamesysStub: { $ne: true } });
             soleDoc = existingSiblings === 0;
           }
           prix = await getPrixVisuel({ cmd, ref: safeRef, deco: visuel, format: resolvedFormat, soleDoc });
@@ -769,9 +783,14 @@ async function processJob(job, req) {
       ip: req.ip.split(":").pop() === "1" || req.hostname === "localhost" ? os.hostname() : req.ip.split(":").pop(),
       comment: isStock ? `Pris en stock le ${new Date().toLocaleString()}` : "",
       prodBlanc: !!job.prodBlanc,
+      dateCommande: commandeInfo?.dateCommande ?? undefined,
+      codeClient: commandeInfo?.codeClient ?? undefined,
+      refClient: commandeInfo?.refClient ?? undefined,
+      nombreProfil: commandeInfo?.nombreProfil ?? undefined,
+      nombreKitPose: commandeInfo?.nombreKitPose ?? undefined,
+      formatPlaqueGamesys: formatPlaqueGamesys ?? undefined,
     };
-    const newDeco = new modelDeco(data);
-    await newDeco.save();
+    await claimStubOrCreate(modelDeco, cmd || 0, data);
   };
 
   try {

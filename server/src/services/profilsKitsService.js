@@ -11,6 +11,7 @@ const {
 const StockProfile = require("../models/StockProfile");
 const ConsommationCommande = require("../models/ConsommationCommande");
 const Deco = require("../models/Deco");
+const { claimStubOrCreate } = require("./decoStubService");
 
 function getQtyForArticle(sousDossiers, predicate, refLibelle) {
   const allEntetes = (sousDossiers || []).flatMap((s) => s.enteteDevis || []);
@@ -248,22 +249,39 @@ async function saveProfilsKits(job) {
     }
 
     if (job.isPkOnly) {
-      await Deco.findOneAndUpdate(
-        { numCmd, pkOnly: true },
-        {
-          $setOnInsert: {
-            client: job.client,
-            numCmd,
-            mag: job.ville || "",
-            date: new Date(),
-            status: "",
-            pkOnly: true,
-            dateLivraisonSouhaitee,
-            prixTotal: sumArticlesPrix(articles),
-          },
-        },
-        { upsert: true }
-      );
+      // endv_cclient (codeClient) n'est pas exposé par la vue "summary" de getDossierDetail déjà
+      // appelée plus haut (selectDetailView omet ce champ) — un aller-retour Gamesys dédié est donc
+      // nécessaire ici pour codeClient/refClient/nombreProfil/nombreKitPose/formatPlaqueGamesys,
+      // contrairement à dateCommande/dateDepartUsine/dateLivraisonSouhaitee ci-dessus.
+      let commandeInfo;
+      let formatPlaqueGamesys;
+      try {
+        commandeInfo = await dossierService.getDossierCommandeInfo(job.cmd);
+      } catch (err) {
+        logger.warn(`saveProfilsKits: commandeInfo non récupérée pour cmd=${job.cmd} : ${err.message}`);
+      }
+      try {
+        formatPlaqueGamesys = await dossierService.getDossierFormatPlaque(job.cmd);
+      } catch (err) {
+        logger.warn(`saveProfilsKits: formatPlaqueGamesys non récupéré pour cmd=${job.cmd} : ${err.message}`);
+      }
+
+      await claimStubOrCreate(Deco, numCmd, {
+        client: job.client,
+        numCmd,
+        mag: job.ville || "",
+        date: new Date(),
+        status: "",
+        pkOnly: true,
+        dateLivraisonSouhaitee,
+        prixTotal: sumArticlesPrix(articles),
+        dateCommande: commandeInfo?.dateCommande ?? dateCommande ?? undefined,
+        codeClient: commandeInfo?.codeClient ?? undefined,
+        refClient: commandeInfo?.refClient ?? undefined,
+        nombreProfil: commandeInfo?.nombreProfil ?? undefined,
+        nombreKitPose: commandeInfo?.nombreKitPose ?? undefined,
+        formatPlaqueGamesys: formatPlaqueGamesys ?? undefined,
+      });
       logger.info(`saveProfilsKits: entrée lm_commandes pkOnly créée pour cmd=${job.cmd}`);
     }
 

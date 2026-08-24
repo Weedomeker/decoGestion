@@ -28,6 +28,15 @@ const decoSchema = new mongoose.Schema({
   comment: { type: String, default: "" },
   prodBlanc: { type: Boolean, default: false },
   pkOnly: { type: Boolean, default: false },
+  dateCommande: { type: Date },
+  codeClient: { type: String },
+  refClient: { type: String },
+  nombreProfil: { type: Number },
+  nombreKitPose: { type: Number },
+  formatPlaqueGamesys: { type: String },
+  // true = document créé proactivement depuis Gamesys (voir decoGamesysStubSyncService),
+  // avant tout traitement utilisateur ; repasse à false quand un job le réclame (claimStubOrCreate).
+  gamesysStub: { type: Boolean, default: false },
 }, { timestamps: true });
 
 decoSchema.index({ numCmd: 1, client: 1 });

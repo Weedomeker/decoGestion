@@ -898,6 +898,25 @@ function groupCandidatesFromRows(rows) {
   return [...candidates.values()];
 }
 
+// Même regroupement que groupCandidatesFromRows, mais sans le filtre profil/kit — utilisé pour
+// syncDecoStubsDepuisGamesys, qui doit créer un stub pour TOUT dossier récent (pas seulement ceux
+// contenant un profil ou un kit de pose).
+function groupAllCandidatesFromRows(rows) {
+  const candidates = new Map();
+  for (const row of rows || []) {
+    if (!row.dos_no_cmde) continue;
+
+    const cmd = String(row.dos_no_cmde).split("/")[0];
+    const appClient = mapDosClientToAppClient(row.dos_client);
+    if (!appClient) continue;
+
+    const key = `${cmd}|${appClient}`;
+    if (!candidates.has(key)) candidates.set(key, { cmd, client: appClient });
+  }
+
+  return [...candidates.values()];
+}
+
 async function listCommandesAvecProfilsKits({ sinceDate, client } = {}) {
   if (!sinceDate) {
     const error = new Error("sinceDate est requis.");
@@ -944,6 +963,44 @@ async function listCommandesAvecProfilsKits({ sinceDate, client } = {}) {
   const candidates = groupCandidatesFromRows(rows);
   // Filtrage sur l'enum applicatif (LM/CASTO/BRICO/ECOM) — dos_client contient des codes bruts
   // Gamesys (ex: "LM01", "CAS02", "BM01") non comparables directement en SQL à cet enum.
+  return client ? candidates.filter((c) => c.client === client) : candidates;
+}
+
+// Même requête que listCommandesAvecProfilsKits, mais renvoie TOUS les dossiers récents (pas
+// seulement ceux avec profil/kit) — utilisé par syncDecoStubsDepuisGamesys pour créer un stub Deco
+// dès qu'un nouveau dossier apparaît dans Gamesys.
+async function listCommandesRecentes({ sinceDate, client } = {}) {
+  if (!sinceDate) {
+    const error = new Error("sinceDate est requis.");
+    error.code = "SINCE_DATE_REQUIRED";
+    error.status = 400;
+    throw error;
+  }
+
+  const sinceDateText = sinceDate instanceof Date ? sinceDate.toISOString().slice(0, 10) : String(sinceDate);
+
+  const connection = await getDbConnection();
+  let rawRows;
+  try {
+    rawRows = await query(
+      connection,
+      `
+      select endv_no_dossier, endv_no_commande, endv_cclient
+      from public.fd_entete_devi
+      where endv_date_cmde >= ?
+    `,
+      [sinceDateText]
+    );
+  } finally {
+    await closeConnection(connection);
+  }
+
+  const rows = rawRows.map((row) => ({
+    dos_no_cmde: row.endv_no_commande || row.endv_no_dossier,
+    dos_client: row.endv_cclient,
+  }));
+
+  const candidates = groupAllCandidatesFromRows(rows);
   return client ? candidates.filter((c) => c.client === client) : candidates;
 }
 
@@ -1151,10 +1208,92 @@ async function getDossierPrixTotal(commande) {
   }
 }
 
+// Récupère en un aller-retour Gamesys date de commande / code client / référence client / cumul
+// profils / cumul kits de pose d'un dossier racine — mêmes lignes fd_entete_devi que
+// fetchDossierPrixTotal (donc même clause WHERE), catégorisées en JS via isProfileLabel/
+// isKitPoseLabel plutôt qu'en SQL (endv_identif est un libellé libre, pas une colonne de type).
+// dateCommande/codeClient/refClient sont identiques sur toutes les lignes d'un même dossier
+// (vérifié empiriquement) — on prend donc la 1ère ligne, comme fetchDossierDate.
+async function fetchDossierCommandeInfo(connection, commande) {
+  const search = String(commande || "");
+  if (!search) return null;
+
+  const searchLike = `${escapeSqlLike(search)}/%`;
+  const rows = await query(
+    connection,
+    `select endv_date_cmde, endv_cclient, endv_no_commande_client, endv_quant, endv_identif
+     from public.fd_entete_devi
+     where endv_no_dossier = ? or endv_no_cmde_globale = ?
+        or endv_no_commande = ? or endv_no_commande LIKE ? ESCAPE '\\'`,
+    [search, search, search, searchLike]
+  );
+  if (!rows.length) return null;
+
+  let nombreProfil = 0;
+  let nombreKitPose = 0;
+  for (const row of rows) {
+    const quant = Number(row.endv_quant) || 0;
+    if (isProfileLabel(row.endv_identif)) nombreProfil += quant;
+    else if (isKitPoseLabel(row.endv_identif)) nombreKitPose += quant;
+  }
+
+  return {
+    dateCommande: rows[0].endv_date_cmde ? new Date(rows[0].endv_date_cmde) : null,
+    codeClient: rows[0].endv_cclient || null,
+    refClient: rows[0].endv_no_commande_client || null,
+    nombreProfil,
+    nombreKitPose,
+  };
+}
+
+// Wrapper avec connexion dédiée pour fetchDossierCommandeInfo, sur le modèle de getDossierPrixTotal
+// — utilisé pour peupler Deco.dateCommande/codeClient/refClient/nombreProfil/nombreKitPose à la
+// volée (une commande à la fois).
+async function getDossierCommandeInfo(commande) {
+  const connection = await getDbConnection();
+  try {
+    return await fetchDossierCommandeInfo(connection, commande);
+  } finally {
+    await closeConnection(connection);
+  }
+}
+
+// Format de plaque support Gamesys (dos_supp_1_ft, ex: "1510 x 2600") — vide sur les lignes
+// profil/kit de pose, identique sur toutes les lignes visuel d'un même dossier (vérifié
+// empiriquement) : on prend donc la 1ère ligne non vide. Champ de vérification pour Deco.dibond
+// (saisi manuellement par l'utilisateur), sans le remplacer.
+async function fetchDossierFormatPlaque(connection, commande) {
+  const search = String(commande || "");
+  if (!search) return null;
+
+  const searchLike = `${escapeSqlLike(search)}/%`;
+  const rows = await query(
+    connection,
+    `select dos_supp_1_ft
+     from public.fd_dossier
+     where dos_no_cmde = ? or dos_no_cmde LIKE ? ESCAPE '\\'`,
+    [search, searchLike]
+  );
+  const row = rows.find((r) => String(r.dos_supp_1_ft || "").trim());
+  return row ? row.dos_supp_1_ft.trim() : null;
+}
+
+// Wrapper avec connexion dédiée pour fetchDossierFormatPlaque, sur le modèle de getDossierDate.
+async function getDossierFormatPlaque(commande) {
+  const connection = await getDbConnection();
+  try {
+    return await fetchDossierFormatPlaque(connection, commande);
+  } finally {
+    await closeConnection(connection);
+  }
+}
+
 module.exports = {
   listDossiers,
   listCommandesAvecProfilsKits,
+  listCommandesRecentes,
   groupCandidatesFromRows,
+  groupAllCandidatesFromRows,
   searchDossiers,
   getDossierDetail,
   getDossierDate,
@@ -1163,6 +1302,10 @@ module.exports = {
   getDossierLivraisonDates,
   fetchDossierPrixTotal,
   getDossierPrixTotal,
+  fetchDossierCommandeInfo,
+  getDossierCommandeInfo,
+  fetchDossierFormatPlaque,
+  getDossierFormatPlaque,
   mapDosClientToAppClient,
   fetchEnteteDevis,
   buildVisualReferences,
