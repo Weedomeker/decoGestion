@@ -571,6 +571,8 @@ function App() {
             visuel2: job.credence2?.selectedFileObject?.name || "",
             numCmd: job.numCmd || "",
             numCmd2: job.credence2?.numCmd || "",
+            sousDossier: job.sousNumero || "",
+            sousDossier2: job.credence2?.sousNumero || "",
             prix: job.prix,
             prix2: job.credence2?.prix,
             ville: job.ville || "",

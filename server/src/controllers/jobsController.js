@@ -167,6 +167,8 @@ async function addJob(req, res) {
     visuel2: req.body.visuel2,
     numCmd: req.body.numCmd ? req.body.numCmd : 0,
     numCmd2: req.body.numCmd2 ? req.body.numCmd2 : 0,
+    sousDossier: req.body.sousDossier || "",
+    sousDossier2: req.body.sousDossier2 || "",
     prix: req.body.prix,
     prix2: req.body.prix2,
     ville: typeof req.body.ville === "string" ? req.body.ville.toUpperCase() : "",
@@ -453,6 +455,8 @@ async function addJob(req, res) {
     refValidated2 || null,
     data.prix,
     data.prix2,
+    data.sousDossier,
+    data.sousDossier2,
   );
 
   const jobExist = state.jobs.jobs.find(
@@ -706,7 +710,7 @@ async function processJob(job, req) {
         : job.visuel2.split(matchName2[0])[0].trim()
       : job.visuel2;
 
-  const saveDeco = async ({ cmd, visuel, formatVisu, ref, temps, explicitPrix, expectSiblingSameCmd = false }) => {
+  const saveDeco = async ({ cmd, visuel, formatVisu, ref, temps, explicitPrix, expectSiblingSameCmd = false, sousDossier }) => {
     const safeRef = ref && String(ref) !== "0" ? ref : null;
     const resolvedFormat = formatVisu?.split("_").pop().replace("/", "");
     let dateLivraisonSouhaitee;
@@ -770,6 +774,7 @@ async function processJob(job, req) {
       prix: prix != null ? prix : undefined,
       client: job.client,
       numCmd: cmd || 0,
+      sousDossier: sousDossier || undefined,
       mag: job.ville,
       dibond: job.format_Plaque,
       deco: visuel,
@@ -810,6 +815,7 @@ async function processJob(job, req) {
       temps: totalTime,
       explicitPrix: job.prix,
       expectSiblingSameCmd: secondPanelSharesCmd,
+      sousDossier: job.sousDossier,
     });
 
     if (isCredences && job.cmd2 && job.visuel2 && !isDuplicated) {
@@ -819,6 +825,7 @@ async function processJob(job, req) {
         formatVisu: job.format2_visu || job.format_visu,
         ref: job.ref2,
         explicitPrix: job.prix2,
+        sousDossier: job.sousDossier2,
         temps: totalTime,
       });
     }

@@ -18,4 +18,21 @@ async function claimStubOrCreate(Model, numCmd, data) {
   return created;
 }
 
-module.exports = { claimStubOrCreate };
+// Sous-dossiers d'origine des profils/kits d'un dossier (Deco.sousDossiers, stub pkOnly) — à partir
+// du tableau sousDossiers[] déjà renvoyé par dossierService.getDossierDetail (chaque élément porte
+// sousNumero + ses propres profileReferences/kitPosesReferences/visualReferences, cf.
+// dossierService.js:buildGroupedResponse). Un sous-dossier purement visuel est exclu. Dédupliqué
+// (un sous-dossier peut rarement porter à la fois un profil et un kit).
+function computeSousDossiersPkOnly(sousDossiers) {
+  const suffixes = [
+    ...new Set(
+      (sousDossiers || [])
+        .filter((sd) => (sd.profileReferences?.length || 0) + (sd.kitPosesReferences?.length || 0) > 0)
+        .map((sd) => sd.sousNumero)
+        .filter(Boolean),
+    ),
+  ];
+  return suffixes.length ? suffixes : undefined;
+}
+
+module.exports = { claimStubOrCreate, computeSousDossiersPkOnly };

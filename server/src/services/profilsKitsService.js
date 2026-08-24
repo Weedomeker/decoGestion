@@ -11,7 +11,7 @@ const {
 const StockProfile = require("../models/StockProfile");
 const ConsommationCommande = require("../models/ConsommationCommande");
 const Deco = require("../models/Deco");
-const { claimStubOrCreate } = require("./decoStubService");
+const { claimStubOrCreate, computeSousDossiersPkOnly } = require("./decoStubService");
 
 function getQtyForArticle(sousDossiers, predicate, refLibelle) {
   const allEntetes = (sousDossiers || []).flatMap((s) => s.enteteDevis || []);
@@ -266,6 +266,11 @@ async function saveProfilsKits(job) {
         logger.warn(`saveProfilsKits: formatPlaqueGamesys non récupéré pour cmd=${job.cmd} : ${err.message}`);
       }
 
+      // Sous-dossiers d'origine des profils/kits agrégés dans ce stub — déjà disponibles dans
+      // grouped.sousDossiers (issu de getDossierDetail plus haut), pas de requête Gamesys
+      // supplémentaire nécessaire.
+      const sousDossiers = computeSousDossiersPkOnly(grouped.sousDossiers);
+
       await claimStubOrCreate(Deco, numCmd, {
         client: job.client,
         numCmd,
@@ -281,6 +286,7 @@ async function saveProfilsKits(job) {
         nombreProfil: commandeInfo?.nombreProfil ?? undefined,
         nombreKitPose: commandeInfo?.nombreKitPose ?? undefined,
         formatPlaqueGamesys: formatPlaqueGamesys ?? undefined,
+        sousDossiers,
       });
       logger.info(`saveProfilsKits: entrée lm_commandes pkOnly créée pour cmd=${job.cmd}`);
     }

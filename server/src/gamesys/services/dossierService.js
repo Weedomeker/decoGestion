@@ -1308,5 +1308,7 @@ module.exports = {
   getDossierFormatPlaque,
   mapDosClientToAppClient,
   fetchEnteteDevis,
+  extractDimensionFormat,
+  extractModelFromIdentif,
   buildVisualReferences,
 };

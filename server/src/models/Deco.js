@@ -13,6 +13,15 @@ const decoSchema = new mongoose.Schema({
   prix: { type: Number },
   client: { type: String, enum: ["LM", "CASTO", "BRICO", "ECOM", ""] },
   numCmd: { type: Number, min: 1 },
+  // Suffixe du sous-dossier Gamesys (ex: "07" pour "167648/07") du visuel précis de ce document —
+  // à combiner avec numCmd pour reconstituer le numéro complet. Vide pour les stubs pkOnly/gamesysStub
+  // (pas rattachés à un seul visuel) et pour le flux de saisie manuelle.
+  sousDossier: { type: String },
+  // Suffixes des sous-dossiers Gamesys d'origine des profils/kits agrégés dans ce stub pkOnly (ex:
+  // ["01","04"]) — un stub pkOnly peut regrouper des lignes venant de plusieurs sous-dossiers,
+  // contrairement à un document visuel classique (sousDossier, singulier). Vide pour les documents
+  // non-pkOnly.
+  sousDossiers: { type: [String], default: undefined },
   mag: { type: String },
   dibond: { type: String },
   deco: { type: String },

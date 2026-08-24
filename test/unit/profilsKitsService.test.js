@@ -51,6 +51,41 @@ const GROUPED_EMPTY = {
   sousDossiers: [],
 };
 
+// Reproduit la structure réelle du dossier 166239 (profil en /00, kit en /01, visuel en /02) —
+// utilisé pour vérifier le calcul de Deco.sousDossiers (stub pkOnly).
+const GROUPED_MULTI_SOUS_DOSSIERS = {
+  profileReferences: [
+    { reference: "94964465", articleReference: "94964465", modele: "PROFIL", libelle: "PROFIL BLANC 255" },
+  ],
+  kitPosesReferences: [
+    { reference: "94953593", articleReference: "94953593", modele: "KIT POSE", libelle: "KIT DE POSE" },
+  ],
+  sousDossiers: [
+    {
+      sousNumero: "00",
+      dossier: { dos_date: "2025-02-19" },
+      enteteDevis: [{ endv_identif: "PROFIL BLANC 255", endv_quant: 3, endv_px_total: 34.39 }],
+      profileReferences: [{ reference: "94964465", libelle: "PROFIL BLANC 255" }],
+      kitPosesReferences: [],
+      visualReferences: [],
+    },
+    {
+      sousNumero: "01",
+      enteteDevis: [{ endv_identif: "KIT DE POSE", endv_quant: 2, endv_px_total: 19.9 }],
+      profileReferences: [],
+      kitPosesReferences: [{ reference: "94953593", libelle: "KIT DE POSE" }],
+      visualReferences: [],
+    },
+    {
+      sousNumero: "02",
+      enteteDevis: [{ endv_identif: "VISUEL MOSAIQUE", endv_quant: 1, endv_px_total: 243.69 }],
+      profileReferences: [],
+      kitPosesReferences: [],
+      visualReferences: [{ reference: "94953000", libelle: "VISUEL MOSAIQUE" }],
+    },
+  ],
+};
+
 describe("profilsKitsService.saveProfilsKits()", () => {
   let getDossierDetailStub;
   let stockArticleStub;
@@ -202,6 +237,25 @@ describe("profilsKitsService.saveProfilsKits()", () => {
     expect(opts).to.deep.equal({ new: true });
     expect(update.$set.pkOnly).to.be.true;
     expect(update.$set.prixTotal).to.equal(34.39);
+  });
+
+  it("peuple sousDossiers du stub pkOnly avec les sous-dossiers des profils/kits uniquement (pas des visuels)", async () => {
+    getDossierDetailStub.resolves(GROUPED_MULTI_SOUS_DOSSIERS);
+
+    await saveProfilsKits({ ...fakeJob(166239, "LM"), isPkOnly: true, ville: "Lille" });
+
+    const [, update] = decoUpsertStub.firstCall.args;
+    expect(update.$set.sousDossiers).to.have.members(["00", "01"]);
+    expect(update.$set.sousDossiers).to.not.include("02");
+  });
+
+  it("laisse sousDossiers indéfini quand aucun sous-dossier n'a de sousNumero exploitable", async () => {
+    getDossierDetailStub.resolves(GROUPED_WITH_PROFIL); // sousDossiers sans sousNumero
+
+    await saveProfilsKits({ ...fakeJob(164629, "LM"), isPkOnly: true, ville: "Lille" });
+
+    const [, update] = decoUpsertStub.firstCall.args;
+    expect(update.$set.sousDossiers).to.be.undefined;
   });
 
   it("ne recrée pas la consommation si elle existe déjà (upsert idempotent)", async () => {

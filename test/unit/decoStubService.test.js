@@ -1,6 +1,6 @@
 const { expect } = require("chai");
 const sinon = require("sinon");
-const { claimStubOrCreate } = require("../../server/src/services/decoStubService");
+const { claimStubOrCreate, computeSousDossiersPkOnly } = require("../../server/src/services/decoStubService");
 
 describe("decoStubService.claimStubOrCreate()", () => {
   it("réclame le stub existant (gamesysStub:true) et repasse gamesysStub à false", async () => {
@@ -57,5 +57,36 @@ describe("decoStubService.claimStubOrCreate()", () => {
 
     expect(findOneAndUpdateStub.called).to.be.false;
     expect(saveStub.calledOnce).to.be.true;
+  });
+});
+
+describe("decoStubService.computeSousDossiersPkOnly()", () => {
+  it("retient les sous-dossiers portant un profil ou un kit, exclut les sous-dossiers purement visuel (cas réel 166239)", () => {
+    const sousDossiers = [
+      { sousNumero: "00", profileReferences: [{ reference: "94964465" }], kitPosesReferences: [], visualReferences: [] },
+      { sousNumero: "01", profileReferences: [], kitPosesReferences: [{ reference: "94953593" }], visualReferences: [] },
+      { sousNumero: "02", profileReferences: [], kitPosesReferences: [], visualReferences: [{ reference: "94953000" }] },
+    ];
+
+    expect(computeSousDossiersPkOnly(sousDossiers)).to.have.members(["00", "01"]);
+  });
+
+  it("déduplique un sous-dossier portant à la fois un profil et un kit", () => {
+    const sousDossiers = [
+      { sousNumero: "00", profileReferences: [{ reference: "A" }], kitPosesReferences: [{ reference: "B" }] },
+    ];
+
+    expect(computeSousDossiersPkOnly(sousDossiers)).to.deep.equal(["00"]);
+  });
+
+  it("retourne undefined si aucun sous-dossier n'a de profil ni de kit", () => {
+    const sousDossiers = [{ sousNumero: "00", profileReferences: [], kitPosesReferences: [], visualReferences: [{}] }];
+
+    expect(computeSousDossiersPkOnly(sousDossiers)).to.be.undefined;
+  });
+
+  it("gère un tableau vide ou undefined", () => {
+    expect(computeSousDossiersPkOnly([])).to.be.undefined;
+    expect(computeSousDossiersPkOnly(undefined)).to.be.undefined;
   });
 });

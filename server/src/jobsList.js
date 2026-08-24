@@ -27,6 +27,8 @@ function createJob(
   refDbData2,
   prix,
   prix2,
+  sousDossier,
+  sousDossier2,
 ) {
   const date = new Date();
 
@@ -64,6 +66,8 @@ function createJob(
     // saisie manuelle, où saveDeco retombe sur le matching approximatif getPrixVisuel.
     prix: prix != null && prix !== "" ? Number(prix) : undefined,
     prix2: prix2 != null && prix2 !== "" ? Number(prix2) : undefined,
+    sousDossier: sousDossier || undefined,
+    sousDossier2: sousDossier2 || undefined,
   };
 
   return newJob;
