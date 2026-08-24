@@ -59,8 +59,11 @@ async function syncDecoStubsDepuisGamesys({ sinceDate, concurrency = 3, dryRun =
               gamesysStub: true,
               ...commandeInfo,
               formatPlaqueGamesys,
-              // dibond = format plaque, même donnée Gamesys que formatPlaqueGamesys (dos_supp_1_ft).
-              dibond: formatPlaqueGamesys || undefined,
+              // dibond = format plaque, même donnée Gamesys que formatPlaqueGamesys (dos_supp_1_ft,
+              // ex: "1260 x 2600" en mm brut) — converti en cm sans espace ("126x260") via
+              // extractDimensionFormat pour matcher la convention des dibond saisis manuellement
+              // (vérifié en base : "126x260", "101x215", ...), pas le format Gamesys brut.
+              dibond: dossierService.extractDimensionFormat(formatPlaqueGamesys) || undefined,
               mag: mag || undefined,
               prixTotal: prixTotal ?? undefined,
               dateLivraisonSouhaitee: dateLivraisonSouhaitee ?? undefined,
