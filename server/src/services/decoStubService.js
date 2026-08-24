@@ -1,15 +1,18 @@
 // Réclame le stub Deco créé proactivement depuis Gamesys (gamesysStub:true, voir
 // decoGamesysStubSyncService.js) pour ce numCmd, s'il existe, plutôt que de créer un nouveau
 // document. Rafraîchit au passage les champs Gamesys avec les valeurs tout juste récupérées.
-// Si aucun stub n'existe (dossier pas encore synchronisé, ou stub déjà réclamé par un visuel
-// précédent du même dossier), retombe sur une création classique.
+// Depuis que la sync proactive crée un stub par sous-dossier visuel (et non plus un seul par
+// numCmd), on filtre aussi sur sousDossier quand le job le connaît (job.sousDossier, transmis par
+// le frontend) — sans ce filtre, une commande à plusieurs visuels risquerait de réclamer le stub
+// d'un AUTRE panneau que celui réellement traité. Absent (flux de saisie manuelle, stub pkOnly),
+// on retombe sur le comportement historique (numCmd seul).
+// Si aucun stub ne correspond (dossier pas encore synchronisé, ou stub déjà réclamé), retombe sur
+// une création classique.
 async function claimStubOrCreate(Model, numCmd, data) {
   if (numCmd) {
-    const claimed = await Model.findOneAndUpdate(
-      { numCmd, gamesysStub: true },
-      { $set: { ...data, gamesysStub: false } },
-      { new: true }
-    );
+    const filter = { numCmd, gamesysStub: true };
+    if (data.sousDossier) filter.sousDossier = data.sousDossier;
+    const claimed = await Model.findOneAndUpdate(filter, { $set: { ...data, gamesysStub: false } }, { new: true });
     if (claimed) return claimed;
   }
 

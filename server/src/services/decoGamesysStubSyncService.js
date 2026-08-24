@@ -5,11 +5,14 @@ const dbConfig = require("../gamesys/config/db");
 const { closeConnection } = require("../gamesys/lib/db");
 const Deco = require("../models/Deco");
 
-// Crée proactivement un document Deco (gamesysStub:true) pour chaque dossier Gamesys récent qui
+// Crée proactivement des documents Deco (gamesysStub:true) pour chaque dossier Gamesys récent qui
 // n'a pas encore de document Deco, avant toute action utilisateur — sur le modèle de
-// syncConsommationsHistorique (gamesysConsommationSyncService.js), mais un seul stub par dossier
-// racine (numCmd), pas par article. L'utilisateur réclame ensuite ce stub via claimStubOrCreate
-// (decoStubService.js) quand il traite un job pour ce numCmd.
+// syncConsommationsHistorique (gamesysConsommationSyncService.js). Un stub par sous-dossier visuel
+// résolu (ref/format/finition/prix propres, cf. dossierService.fetchSousDossiersVisuels), pour
+// qu'une commande à plusieurs panneaux différents obtienne un stub précis par panneau ; à défaut
+// (aucun visuel résolu — profils/kits seuls, ou dossier trop ancien pour Gamesys, cf. limite de
+// récence documentée), un seul stub "métadonnées commande" comme avant. L'utilisateur réclame
+// ensuite le stub correspondant via claimStubOrCreate (decoStubService.js) quand il traite un job.
 async function syncDecoStubsDepuisGamesys({ sinceDate, concurrency = 3, dryRun = false } = {}) {
   const candidats = await dossierService.listCommandesRecentes({ sinceDate });
 
@@ -40,29 +43,88 @@ async function syncDecoStubsDepuisGamesys({ sinceDate, concurrency = 3, dryRun =
             const commandeInfo = await dossierService.fetchDossierCommandeInfo(connection, candidat.cmd);
             const formatPlaqueGamesys = await dossierService.fetchDossierFormatPlaque(connection, candidat.cmd);
             const prixTotal = await dossierService.fetchDossierPrixTotal(connection, candidat.cmd);
-            const { dateLivraisonSouhaitee } = await dossierService.fetchDossierLivraisonDates(connection, candidat.cmd);
-
-            // Un autre chemin (saveDeco/saveProfilsKits) a pu créer le document entre le scan
-            // ci-dessus et cet appel (course possible sur des dossiers traités quasi immédiatement) —
-            // upsert idempotent plutôt que create() pour éviter un doublon/E11000 dans ce cas.
-            await Deco.findOneAndUpdate(
-              { numCmd: candidat.numCmd },
-              {
-                $setOnInsert: {
-                  numCmd: candidat.numCmd,
-                  client: candidat.client,
-                  date: new Date(),
-                  status: "",
-                  gamesysStub: true,
-                  ...commandeInfo,
-                  formatPlaqueGamesys,
-                  prixTotal: prixTotal ?? undefined,
-                  dateLivraisonSouhaitee: dateLivraisonSouhaitee ?? undefined,
-                },
-              },
-              { upsert: true }
+            const { dateLivraisonSouhaitee, magasin, ville } = await dossierService.fetchDossierLivraisonDates(
+              connection,
+              candidat.cmd
             );
-            resume.crees += 1;
+            // mag = ville de livraison (repère magasin pour LM/CASTO/BRICO), ou nom du destinataire
+            // pour ECOM (livraison directe au client final, pas de notion de magasin) — repli sur
+            // l'autre valeur si celle attendue en priorité est absente.
+            const mag = candidat.client === "ECOM" ? magasin || ville : ville || magasin;
+
+            const commandeCommune = {
+              client: candidat.client,
+              date: new Date(),
+              status: "",
+              gamesysStub: true,
+              ...commandeInfo,
+              formatPlaqueGamesys,
+              // dibond = format plaque, même donnée Gamesys que formatPlaqueGamesys (dos_supp_1_ft).
+              dibond: formatPlaqueGamesys || undefined,
+              mag: mag || undefined,
+              prixTotal: prixTotal ?? undefined,
+              dateLivraisonSouhaitee: dateLivraisonSouhaitee ?? undefined,
+            };
+
+            let sousDossiersVisuels = [];
+            try {
+              sousDossiersVisuels = await dossierService.fetchSousDossiersVisuels(connection, candidat.cmd);
+            } catch (err) {
+              logger.warn(
+                `syncDecoStubsDepuisGamesys: sous-dossiers visuels non résolus pour numCmd=${candidat.numCmd} : ${err.message}`
+              );
+            }
+
+            if (sousDossiersVisuels.length === 0) {
+              // Un autre chemin (saveDeco/saveProfilsKits) a pu créer le document entre le scan
+              // ci-dessus et cet appel (course possible sur des dossiers traités quasi immédiatement) —
+              // upsert idempotent plutôt que create() pour éviter un doublon/E11000 dans ce cas.
+              await Deco.findOneAndUpdate(
+                { numCmd: candidat.numCmd },
+                { $setOnInsert: { numCmd: candidat.numCmd, ...commandeCommune } },
+                { upsert: true }
+              );
+              resume.crees += 1;
+              return;
+            }
+
+            let crees = 0;
+            for (const sousDossier of sousDossiersVisuels) {
+              try {
+                const visuel = sousDossier.visualReferences[0];
+                const refFields = (await Deco.resolveRefFields(candidat.client, visuel.reference)) || {
+                  matched: false,
+                };
+                // La référence Gamesys brute (texte libellé fs_stock, ex: "Jaspe Gauche 100 x 210 cm
+                // (M)") n'est pas toujours un code SKU exploitable — ne poser ref/format/finition/deco
+                // que si elle a été validée contre notre catalogue interne (RefDeco/RefCasto/RefBrico/
+                // RefEcom), sinon on ne garde que les données fiables (prix, sousDossier, commande).
+                const champsVisuel = refFields.matched
+                  ? { ref: visuel.reference, finition: refFields.finition, format: refFields.format, deco: refFields.deco }
+                  : {};
+                await Deco.findOneAndUpdate(
+                  { numCmd: candidat.numCmd, sousDossier: sousDossier.sousNumero },
+                  {
+                    $setOnInsert: {
+                      numCmd: candidat.numCmd,
+                      sousDossier: sousDossier.sousNumero,
+                      prix: visuel.endv_px_total ?? undefined,
+                      ex: visuel.endv_quant != null ? Number(visuel.endv_quant) : undefined,
+                      ...champsVisuel,
+                      ...commandeCommune,
+                    },
+                  },
+                  { upsert: true }
+                );
+                crees += 1;
+              } catch (err) {
+                resume.erreurs += 1;
+                logger.warn(
+                  `syncDecoStubsDepuisGamesys: échec numCmd=${candidat.numCmd} sousDossier=${sousDossier.sousNumero} : ${err.message}`
+                );
+              }
+            }
+            resume.crees += crees;
           } catch (err) {
             resume.erreurs += 1;
             logger.warn(`syncDecoStubsDepuisGamesys: échec numCmd=${candidat.numCmd} : ${err.message}`);

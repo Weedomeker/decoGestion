@@ -58,25 +58,32 @@ const clientRefOrder = {
   ECOM: [RefEcom, RefDeco, RefCasto, RefBrico],
 };
 
+// Résout finition/format/deco à partir d'un ref (recherché dans RefDeco/RefCasto/RefBrico/RefEcom,
+// dans l'ordre de préférence du client) — logique partagée par les hooks pre-save/pre-findOneAndUpdate
+// ci-dessous et par la création proactive de stubs par visuel (decoGamesysStubSyncService), qui a besoin
+// de cette résolution en dehors d'un $set (les hooks ne s'exécutent pas sur un $setOnInsert).
+async function resolveRefFields(client, ref) {
+  if (!ref) return null;
+  const refs = clientRefOrder[client?.toUpperCase()] || [RefDeco, RefCasto, RefBrico, RefEcom];
+  let refData = null;
+  for (const refModel of refs) {
+    refData = await refModel.findOne({ ref });
+    if (refData) break;
+  }
+  if (refData) {
+    return { matched: true, finition: refData.finition ?? "", format: refData.format, deco: refData.model };
+  }
+  return { matched: false, finition: "" };
+}
+
 // Hook avant save
 decoSchema.pre("save", async function (next) {
   try {
     if (this.isModified("ref") && this.ref) {
-      const refs = clientRefOrder[this.client?.toUpperCase()] || [RefDeco, RefCasto, RefBrico, RefEcom];
-      let refData = null;
-      for (const refModel of refs) {
-        refData = await refModel.findOne({ ref: this.ref });
-
-        if (refData) break;
-      }
-
-      if (refData) {
-        this.finition = refData.finition ?? "";
-        this.format = refData.format ?? this.format;
-        this.deco = refData.model ?? this.deco;
-      } else {
-        this.finition = "";
-      }
+      const refFields = await resolveRefFields(this.client, this.ref);
+      this.finition = refFields.finition;
+      this.format = refFields.format ?? this.format;
+      this.deco = refFields.deco ?? this.deco;
     }
     next();
   } catch (err) {
@@ -94,20 +101,11 @@ decoSchema.pre("findOneAndUpdate", async function (next) {
     const data = update.$set || update;
 
     if (data.ref) {
-      const clientKey = data.client?.toUpperCase() || this.getFilter()?.client?.toUpperCase();
-      const refs = clientRefOrder[clientKey] || [RefDeco, RefCasto, RefBrico, RefEcom];
-
-      const results = await Promise.all(refs.map((refModel) => refModel.findOne({ ref: data.ref })));
-
-      const refData = results.find((r) => r);
-
-      if (refData) {
-        data.finition = refData.finition ?? "";
-        data.format = refData.format ?? data.format;
-        data.deco = refData.model ?? data.deco;
-      } else {
-        data.finition = "";
-      }
+      const clientKey = data.client || this.getFilter()?.client;
+      const refFields = await resolveRefFields(clientKey, data.ref);
+      data.finition = refFields.finition;
+      data.format = refFields.format ?? data.format;
+      data.deco = refFields.deco ?? data.deco;
 
       // remettre dans le bon format
       if (update.$set) {
@@ -127,5 +125,6 @@ decoSchema.pre("findOneAndUpdate", async function (next) {
 });
 
 const Deco = mongoose.model("Deco", decoSchema, "lm_commandes");
+Deco.resolveRefFields = resolveRefFields;
 
 module.exports = Deco;

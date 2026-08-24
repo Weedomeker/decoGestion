@@ -406,6 +406,7 @@ function buildVisualReferences(enteteDevis, stockVisualReferences, printFinish) 
           reference,
           libelle: entete.endv_identif || stockReference?.libelle || reference,
           endv_px_total: entete.endv_px_total,
+          endv_quant: entete.endv_quant,
           articleReference: stockReference?.reference,
           modele: stockReference?.modele,
           gencod: stockReference?.gencod,
@@ -697,6 +698,58 @@ async function fetchEnteteDevis(connection, commande, code, seq) {
     logger.warn(`Erreur entête devis: ${error.message}`);
     return [];
   }
+}
+
+// Résout, pour une commande racine, les sous-dossiers qui portent un visuel (panneau déco) précis
+// et leur ref Gamesys — version allégée de getDossierDetail/buildDetail : une seule connexion
+// injectée réutilisée pour toute la commande (pas de connexion neuve par sous-dossier), et aucune
+// des requêtes production/livraison/suivi non nécessaires ici. Destinée à un run en boucle
+// (syncDecoStubsDepuisGamesys), pas à un affichage ponctuel — cf. feedback_odbc_backfill_resource_limits.
+async function fetchSousDossiersVisuels(connection, numero) {
+  const search = String(numero);
+  const searchLike = `${escapeSqlLike(search)}/%`;
+  const codeUniqLike = `${escapeSqlLike(search)}v%`;
+  const formattedSeq = search.replace(/\/00$/, "v0").replace(/\//g, "v");
+
+  const dossiers = await query(
+    connection,
+    `select d.* from public.fd_dossier d where (d.dos_seq = ? or d.dos_no_cmde = ? or d.dos_no_cmde LIKE ? ESCAPE '\\' or d.dos_codeuniq = ? or d.dos_codeuniq LIKE ? ESCAPE '\\') order by d.dos_seq desc`,
+    [Number(search) || 0, search, searchLike, formattedSeq, codeUniqLike]
+  );
+
+  const resultats = [];
+  for (const dossier of dossiers) {
+    const commande = dossier.dos_no_cmde || "";
+    const enteteDevis = await fetchEnteteDevis(connection, commande, dossier.dos_codeuniq, dossier.dos_seq);
+    if (enteteDevis.length === 0) continue;
+
+    const preferredRefModel = getPreferredRefModel(dossier.dos_client);
+    const printFinish = detectPrintFinish(dossier);
+
+    let visualReferences = [];
+    try {
+      const stockRefSets = await Promise.all(
+        enteteDevis.map((entete) =>
+          findStockReferences(connection, [entete], preferredRefModel, printFinish).catch(() => [])
+        )
+      );
+      const stockReferences = uniqueBy(stockRefSets.flat(), (r) => r.reference || r.modele);
+      const { visuals } = splitVisualAndProfileReferences(stockReferences);
+      visualReferences = buildVisualReferences(enteteDevis, visuals, printFinish);
+    } catch (error) {
+      logger.warn(`fetchSousDossiersVisuels: résolution stock échouée pour ${commande}: ${error.message}`);
+    }
+
+    if (visualReferences.length === 0) continue;
+
+    resultats.push({
+      sousNumero: getSubDossierNumber({ dossier, enteteDevis }),
+      commande,
+      visualReferences,
+    });
+  }
+
+  return resultats;
 }
 
 async function fetchOptionalRows(connection, sql, params = []) {
@@ -1139,12 +1192,13 @@ async function getDossierDate(commande) {
 // ou bo_devis = dos_codeuniq).
 async function fetchDossierLivraisonDates(connection, commande) {
   const search = String(commande || "");
-  if (!search) return { dateDepartUsine: null, dateLivraisonSouhaitee: null };
+  if (!search) return { dateDepartUsine: null, dateLivraisonSouhaitee: null, magasin: null, ville: null };
 
   const searchLike = `${escapeSqlLike(search)}/%`;
   const rows = await query(
     connection,
-    `select min(l.bo_date_depart_usine) as bo_date_depart_usine, min(l.bo_date_souhaitee) as bo_date_souhaitee
+    `select min(l.bo_date_depart_usine) as bo_date_depart_usine, min(l.bo_date_souhaitee) as bo_date_souhaitee,
+            max(l.bo_adlivr_nom_1) as bo_adlivr_nom_1, max(l.bo_ville) as bo_ville
      from public.fd_dossier d
      join public.ff_livraison l on (l.bo_no_dossier = d.dos_no_cmde or l.bo_devis = d.dos_codeuniq)
      where d.dos_no_cmde = ? or d.dos_no_cmde LIKE ? ESCAPE '\\'`,
@@ -1154,6 +1208,11 @@ async function fetchDossierLivraisonDates(connection, commande) {
   return {
     dateDepartUsine: row.bo_date_depart_usine ? new Date(row.bo_date_depart_usine) : null,
     dateLivraisonSouhaitee: row.bo_date_souhaitee ? new Date(row.bo_date_souhaitee) : null,
+    // magasin (bo_adlivr_nom_1) = nom du destinataire livraison — le nom du client final pour ECOM
+    // (livraison directe), une enseigne/ville de magasin pour LM/CASTO/BRICO. ville (bo_ville) =
+    // ville de livraison, utilisée comme repère "magasin" pour les enseignes physiques.
+    magasin: row.bo_adlivr_nom_1 || null,
+    ville: row.bo_ville || null,
   };
 }
 
@@ -1311,4 +1370,5 @@ module.exports = {
   extractDimensionFormat,
   extractModelFromIdentif,
   buildVisualReferences,
+  fetchSousDossiersVisuels,
 };
