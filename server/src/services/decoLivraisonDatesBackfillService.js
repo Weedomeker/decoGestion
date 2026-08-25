@@ -6,37 +6,58 @@ const { closeConnection } = require("../gamesys/lib/db");
 const Deco = require("../models/Deco");
 
 async function backfillDecoLivraisonDates({ concurrency = 5, dryRun = false, sinceDate = null } = {}) {
-  const filter = { numCmd: { $gt: 0 }, dateLivraisonSouhaitee: { $exists: false } };
+  const filter = {
+    numCmd: { $gt: 0 },
+    $or: [{ dateLivraisonSouhaitee: { $exists: false } }, { mag: { $exists: false } }],
+  };
   if (sinceDate) filter.createdAt = { $gte: sinceDate };
-  const aTraiter = await Deco.find(filter, { numCmd: 1 }).lean();
+  const aTraiter = await Deco.find(filter, { numCmd: 1, client: 1 }).lean();
 
   const resume = { candidats: aTraiter.length, misAJour: 0, introuvables: 0, erreurs: 0 };
 
   if (dryRun || aTraiter.length === 0) return resume;
 
-  // Un même numCmd peut apparaître sur plusieurs documents Deco (crédences amalgamées avec
-  // cmd/cmd2 identiques, plusieurs jobs sur la même commande) — contrairement à
-  // ConsommationCommande qui a un index unique sur numCmd. On déduplique pour ne faire qu'un
-  // seul aller-retour Gamesys par numCmd, puis on applique le résultat à tous les documents.
-  const numCmds = [...new Set(aTraiter.map((doc) => doc.numCmd))];
+  // Un même numCmd peut apparaître sur plusieurs documents Deco (crédences amalgamées, plusieurs
+  // jobs sur la même commande) — tous partagent le même `client`. On déduplique pour ne faire
+  // qu'un seul aller-retour Gamesys par numCmd, puis on applique le résultat à tous les documents.
+  const numCmdClientMap = new Map();
+  for (const doc of aTraiter) {
+    if (!numCmdClientMap.has(doc.numCmd)) numCmdClientMap.set(doc.numCmd, doc.client);
+  }
 
   // Une seule connexion ODBC réutilisée pour toute la boucle.
   const connection = await dbConfig.getDbConnection();
   try {
     const limit = pLimit(concurrency);
     await Promise.all(
-      numCmds.map((numCmd) =>
+      [...numCmdClientMap.entries()].map(([numCmd, client]) =>
         limit(async () => {
           try {
-            const { dateLivraisonSouhaitee } = await dossierService.fetchDossierLivraisonDates(connection, numCmd);
-            if (!dateLivraisonSouhaitee) {
+            const { dateLivraisonSouhaitee, magasin, ville } = await dossierService.fetchDossierLivraisonDates(
+              connection,
+              numCmd,
+            );
+            // mag = ville de livraison pour LM/CASTO/BRICO (repère magasin), nom du destinataire
+            // pour ECOM (livraison directe au client final) — même règle que decoGamesysStubSyncService.
+            const mag = client === "ECOM" ? magasin || ville : ville || magasin;
+
+            if (!dateLivraisonSouhaitee && !mag) {
               resume.introuvables += 1;
               return;
             }
-            const { modifiedCount } = await Deco.updateMany(
-              { numCmd, dateLivraisonSouhaitee: { $exists: false } },
-              { $set: { dateLivraisonSouhaitee } },
-            );
+
+            const $set = {};
+            const updateConditions = [];
+            if (dateLivraisonSouhaitee) {
+              $set.dateLivraisonSouhaitee = dateLivraisonSouhaitee;
+              updateConditions.push({ dateLivraisonSouhaitee: { $exists: false } });
+            }
+            if (mag) {
+              $set.mag = mag;
+              updateConditions.push({ mag: { $exists: false } });
+            }
+
+            const { modifiedCount } = await Deco.updateMany({ numCmd, $or: updateConditions }, { $set });
             resume.misAJour += modifiedCount;
           } catch (err) {
             resume.erreurs += 1;

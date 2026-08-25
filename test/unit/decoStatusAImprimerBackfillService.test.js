@@ -17,12 +17,12 @@ describe("decoStatusAImprimerBackfillService.backfillDecoStatusAImprimer()", () 
     sinon.restore();
   });
 
-  it("filtre sur gamesysStub != true et status:\"\" (exclut les stubs en attente)", async () => {
+  it("filtre sur gamesysStub != true, pkOnly != true et status:\"\" (exclut stubs en attente et pkOnly)", async () => {
     countStub.resolves(0);
 
     await backfillDecoStatusAImprimer({ dryRun: false });
 
-    expect(countStub.calledOnceWith({ gamesysStub: { $ne: true }, status: "" })).to.be.true;
+    expect(countStub.calledOnceWith({ gamesysStub: { $ne: true }, pkOnly: { $ne: true }, status: "" })).to.be.true;
   });
 
   it("ne modifie rien en dry-run même s'il y a des candidats", async () => {
@@ -51,7 +51,7 @@ describe("decoStatusAImprimerBackfillService.backfillDecoStatusAImprimer()", () 
 
     expect(resume).to.deep.equal({ candidats: 8, misAJour: 8 });
     expect(
-      updateManyStub.calledOnceWith({ gamesysStub: { $ne: true }, status: "" }, { $set: { status: "A imprimer" } }),
+      updateManyStub.calledOnceWith({ gamesysStub: { $ne: true }, pkOnly: { $ne: true }, status: "" }, { $set: { status: "A imprimer" } }),
     ).to.be.true;
   });
 });

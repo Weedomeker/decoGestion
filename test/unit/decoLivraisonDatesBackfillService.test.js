@@ -29,7 +29,7 @@ describe("decoLivraisonDatesBackfillService.backfillDecoLivraisonDates()", () =>
     findStub.returns({ lean: sinon.stub().resolves(docs) });
   }
 
-  it("interroge Deco sur les documents avec numCmd>0 sans dateLivraisonSouhaitee", async () => {
+  it("interroge Deco sur les documents avec numCmd>0 sans dateLivraisonSouhaitee ou sans mag", async () => {
     mockPendingDocs([]);
 
     await backfillDecoLivraisonDates({ dryRun: false });
@@ -37,7 +37,7 @@ describe("decoLivraisonDatesBackfillService.backfillDecoLivraisonDates()", () =>
     expect(findStub.calledOnce).to.be.true;
     expect(findStub.firstCall.args[0]).to.deep.equal({
       numCmd: { $gt: 0 },
-      dateLivraisonSouhaitee: { $exists: false },
+      $or: [{ dateLivraisonSouhaitee: { $exists: false } }, { mag: { $exists: false } }],
     });
   });
 
@@ -49,13 +49,13 @@ describe("decoLivraisonDatesBackfillService.backfillDecoLivraisonDates()", () =>
 
     expect(findStub.firstCall.args[0]).to.deep.equal({
       numCmd: { $gt: 0 },
-      dateLivraisonSouhaitee: { $exists: false },
+      $or: [{ dateLivraisonSouhaitee: { $exists: false } }, { mag: { $exists: false } }],
       createdAt: { $gte: sinceDate },
     });
   });
 
   it("ne modifie rien en dry-run", async () => {
-    mockPendingDocs([{ _id: "a", numCmd: 100473 }]);
+    mockPendingDocs([{ _id: "a", numCmd: 100473, client: "LM" }]);
 
     const resume = await backfillDecoLivraisonDates({ dryRun: true });
 
@@ -66,12 +66,17 @@ describe("decoLivraisonDatesBackfillService.backfillDecoLivraisonDates()", () =>
 
   it("déduplique par numCmd : un seul appel Gamesys pour plusieurs documents partageant le même numCmd", async () => {
     mockPendingDocs([
-      { _id: "a", numCmd: 165675 },
-      { _id: "b", numCmd: 165675 },
+      { _id: "a", numCmd: 165675, client: "LM" },
+      { _id: "b", numCmd: 165675, client: "LM" },
     ]);
     fetchDossierLivraisonDatesStub
       .withArgs(fakeConnection, 165675)
-      .resolves({ dateDepartUsine: new Date("2025-02-20"), dateLivraisonSouhaitee: new Date("2025-03-01") });
+      .resolves({
+        dateDepartUsine: new Date("2025-02-20"),
+        dateLivraisonSouhaitee: new Date("2025-03-01"),
+        magasin: "NOM DESTINATAIRE",
+        ville: "PARIS",
+      });
     updateManyStub.resolves({ modifiedCount: 2 });
 
     const resume = await backfillDecoLivraisonDates({ dryRun: false });
@@ -79,17 +84,77 @@ describe("decoLivraisonDatesBackfillService.backfillDecoLivraisonDates()", () =>
     expect(fetchDossierLivraisonDatesStub.callCount).to.equal(1);
     expect(
       updateManyStub.calledWith(
-        { numCmd: 165675, dateLivraisonSouhaitee: { $exists: false } },
-        { $set: { dateLivraisonSouhaitee: new Date("2025-03-01") } },
+        {
+          numCmd: 165675,
+          $or: [{ dateLivraisonSouhaitee: { $exists: false } }, { mag: { $exists: false } }],
+        },
+        { $set: { dateLivraisonSouhaitee: new Date("2025-03-01"), mag: "PARIS" } },
       ),
     ).to.be.true;
     expect(resume.misAJour).to.equal(2);
     expect(fakeConnection.close.calledOnce).to.be.true;
   });
 
-  it("compte introuvable quand Gamesys ne renvoie aucune date, sans écrire", async () => {
-    mockPendingDocs([{ _id: "a", numCmd: 999999 }]);
-    fetchDossierLivraisonDatesStub.resolves({ dateDepartUsine: null, dateLivraisonSouhaitee: null });
+  it("pose mag = ville pour les clients non-ECOM quand Gamesys renvoie les deux", async () => {
+    mockPendingDocs([{ _id: "a", numCmd: 165675, client: "LM" }]);
+    fetchDossierLivraisonDatesStub.resolves({
+      dateLivraisonSouhaitee: new Date("2025-03-01"),
+      dateDepartUsine: null,
+      magasin: "NOM DESTINATAIRE",
+      ville: "MONTPELLIER",
+    });
+    updateManyStub.resolves({ modifiedCount: 1 });
+
+    await backfillDecoLivraisonDates({ dryRun: false });
+
+    const setArg = updateManyStub.firstCall.args[1];
+    expect(setArg.$set.mag).to.equal("MONTPELLIER");
+  });
+
+  it("pose mag = magasin pour les clients ECOM quand Gamesys renvoie les deux", async () => {
+    mockPendingDocs([{ _id: "a", numCmd: 165675, client: "ECOM" }]);
+    fetchDossierLivraisonDatesStub.resolves({
+      dateLivraisonSouhaitee: new Date("2025-03-01"),
+      dateDepartUsine: null,
+      magasin: "JEAN DUPONT",
+      ville: "BORDEAUX",
+    });
+    updateManyStub.resolves({ modifiedCount: 1 });
+
+    await backfillDecoLivraisonDates({ dryRun: false });
+
+    const setArg = updateManyStub.firstCall.args[1];
+    expect(setArg.$set.mag).to.equal("JEAN DUPONT");
+  });
+
+  it("ne compte pas introuvable si Gamesys renvoie mag sans date, et met à jour", async () => {
+    mockPendingDocs([{ _id: "a", numCmd: 111111, client: "LM" }]);
+    fetchDossierLivraisonDatesStub.resolves({
+      dateLivraisonSouhaitee: null,
+      dateDepartUsine: null,
+      magasin: null,
+      ville: "LYON",
+    });
+    updateManyStub.resolves({ modifiedCount: 1 });
+
+    const resume = await backfillDecoLivraisonDates({ dryRun: false });
+
+    expect(resume.introuvables).to.equal(0);
+    expect(resume.misAJour).to.equal(1);
+    expect(updateManyStub.called).to.be.true;
+    const setArg = updateManyStub.firstCall.args[1];
+    expect(setArg.$set.mag).to.equal("LYON");
+    expect(setArg.$set.dateLivraisonSouhaitee).to.be.undefined;
+  });
+
+  it("compte introuvable quand Gamesys ne renvoie ni date ni ville/magasin, sans écrire", async () => {
+    mockPendingDocs([{ _id: "a", numCmd: 999999, client: "LM" }]);
+    fetchDossierLivraisonDatesStub.resolves({
+      dateDepartUsine: null,
+      dateLivraisonSouhaitee: null,
+      magasin: null,
+      ville: null,
+    });
 
     const resume = await backfillDecoLivraisonDates({ dryRun: false });
 
@@ -100,13 +165,16 @@ describe("decoLivraisonDatesBackfillService.backfillDecoLivraisonDates()", () =>
 
   it("compte erreur et continue si un numCmd échoue", async () => {
     mockPendingDocs([
-      { _id: "a", numCmd: 1 },
-      { _id: "b", numCmd: 2 },
+      { _id: "a", numCmd: 1, client: "LM" },
+      { _id: "b", numCmd: 2, client: "LM" },
     ]);
     fetchDossierLivraisonDatesStub.withArgs(fakeConnection, 1).rejects(new Error("ODBC timeout"));
-    fetchDossierLivraisonDatesStub
-      .withArgs(fakeConnection, 2)
-      .resolves({ dateDepartUsine: new Date("2025-01-01"), dateLivraisonSouhaitee: new Date("2025-01-15") });
+    fetchDossierLivraisonDatesStub.withArgs(fakeConnection, 2).resolves({
+      dateDepartUsine: new Date("2025-01-01"),
+      dateLivraisonSouhaitee: new Date("2025-01-15"),
+      magasin: null,
+      ville: "TOULOUSE",
+    });
     updateManyStub.resolves({ modifiedCount: 1 });
 
     const resume = await backfillDecoLivraisonDates({ dryRun: false });
@@ -116,7 +184,7 @@ describe("decoLivraisonDatesBackfillService.backfillDecoLivraisonDates()", () =>
   });
 
   it("ferme la connexion même si un numCmd échoue", async () => {
-    mockPendingDocs([{ _id: "a", numCmd: 1 }]);
+    mockPendingDocs([{ _id: "a", numCmd: 1, client: "LM" }]);
     fetchDossierLivraisonDatesStub.rejects(new Error("boom"));
 
     await backfillDecoLivraisonDates({ dryRun: false });

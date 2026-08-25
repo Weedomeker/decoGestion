@@ -17,7 +17,7 @@ Chaque commande traitée par decoGestion crée une entrée dans cette collection
 | `client`      | String    | Enseigne : `LM`, `CASTO`, `BRICO`, `ECOM` |
 | `numCmd`      | Number    | Numéro de commande (5–6 chiffres) |
 | `mag`         | String    | Ville / magasin |
-| `status`      | String    | `""` en cours · `"expe"` expédié · `"ref_invalide"` |
+| `status`      | String    | `"A lancer"` stub en attente · `"A imprimer"` visuel traité · `"PK à coliser"` pkOnly traité · `"expe"` expédié · `"ref_invalide"` |
 | `pkOnly`      | Boolean   | `true` = dossier PK uniquement (pas de visuel) · `false` = commande visuel |
 | `deco`        | String    | Nom du visuel *(absent si pkOnly)* |
 | `ref`         | String    | Référence produit *(absent si pkOnly)* |
@@ -87,7 +87,7 @@ Catalogue des articles disponibles. Le champ `stockDisponible` est à décrémen
 decoGestion (soumission dossier PK uniquement)
   │
   ├─► consommations_commandes  { numCmd, client, articles: [{ ref, type, libelle, quantite }] }
-  └─► lm_commandes             { numCmd, client, mag, pkOnly: true, status: "" }
+  └─► lm_commandes             { numCmd, client, mag, pkOnly: true, status: "PK à coliser" }
 
 Autre app (scan code-barre → expédition)
   │
