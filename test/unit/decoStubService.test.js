@@ -19,12 +19,36 @@ describe("decoStubService.claimStubOrCreate()", () => {
     expect(result).to.equal(claimed);
     expect(
       findOneAndUpdateStub.calledOnceWith(
-        { numCmd: 167648, gamesysStub: true },
+        // data.sousDossier absent (saisie manuelle) : ne réclame qu'un stub générique sans
+        // sousDossier (jamais un stub d'un autre visuel de la même commande, cf. decoStubService.js).
+        { numCmd: 167648, gamesysStub: true, sousDossier: { $in: [null, ""] } },
         { $set: { ...data, gamesysStub: false } },
         { new: true },
       ),
     ).to.be.true;
     expect(saveStub.called).to.be.false;
+  });
+
+  it("réclame précisément le stub du bon sousDossier quand le job le connaît (recherche dossier)", async () => {
+    const claimed = { _id: "stub2", numCmd: 167648, sousDossier: "01", gamesysStub: false };
+    const findOneAndUpdateStub = sinon.stub().resolves(claimed);
+    function FakeDeco(data) {
+      Object.assign(this, data);
+      this.save = sinon.stub();
+    }
+    FakeDeco.findOneAndUpdate = findOneAndUpdateStub;
+
+    const data = { deco: "MOSAIQUE", ref: "ABC123", sousDossier: "01" };
+    const result = await claimStubOrCreate(FakeDeco, 167648, data);
+
+    expect(result).to.equal(claimed);
+    expect(
+      findOneAndUpdateStub.calledOnceWith(
+        { numCmd: 167648, gamesysStub: true, sousDossier: "01" },
+        { $set: { ...data, gamesysStub: false } },
+        { new: true },
+      ),
+    ).to.be.true;
   });
 
   it("crée un nouveau document quand aucun stub n'existe pour ce numCmd", async () => {

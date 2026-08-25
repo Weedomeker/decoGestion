@@ -233,7 +233,9 @@ describe("profilsKitsService.saveProfilsKits()", () => {
     // filtre différent de l'ancien upsert direct {numCmd, pkOnly:true}.
     expect(decoUpsertStub.calledOnce).to.be.true;
     const [filter, update, opts] = decoUpsertStub.firstCall.args;
-    expect(filter).to.deep.equal({ numCmd: 164629, gamesysStub: true });
+    // sousDossier absent du job pkOnly (voir decoStubService.js) : ne réclame qu'un stub
+    // générique sans sousDossier, jamais un stub par visuel d'un autre panneau du même numCmd.
+    expect(filter).to.deep.equal({ numCmd: 164629, gamesysStub: true, sousDossier: { $in: [null, ""] } });
     expect(opts).to.deep.equal({ new: true });
     expect(update.$set.pkOnly).to.be.true;
     expect(update.$set.prixTotal).to.equal(34.39);

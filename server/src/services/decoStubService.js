@@ -3,15 +3,20 @@
 // document. Rafraîchit au passage les champs Gamesys avec les valeurs tout juste récupérées.
 // Depuis que la sync proactive crée un stub par sous-dossier visuel (et non plus un seul par
 // numCmd), on filtre aussi sur sousDossier quand le job le connaît (job.sousDossier, transmis par
-// le frontend) — sans ce filtre, une commande à plusieurs visuels risquerait de réclamer le stub
-// d'un AUTRE panneau que celui réellement traité. Absent (flux de saisie manuelle, stub pkOnly),
-// on retombe sur le comportement historique (numCmd seul).
+// le frontend via la recherche de dossier) — sans ce filtre, une commande à plusieurs visuels
+// risquerait de réclamer le stub d'un AUTRE panneau que celui réellement traité.
+// Quand le job ne connaît PAS son sousDossier (saisie manuelle, ou stub pkOnly qui n'en a jamais),
+// on ne réclame QUE les stubs génériques sans sousDossier (le stub racine "métadonnées commande"
+// créé quand aucun visuel n'a pu être résolu) — jamais un stub par sous-dossier appartenant à un
+// AUTRE visuel de la même commande. Vérifié empiriquement : sans cette restriction, un job sans
+// sousDossier connu réclamait (et écrasait) le stub du 1er visuel trouvé au lieu d'en créer un
+// nouveau, faisant perdre les données Gamesys de ce visuel non concerné.
 // Si aucun stub ne correspond (dossier pas encore synchronisé, ou stub déjà réclamé), retombe sur
 // une création classique.
 async function claimStubOrCreate(Model, numCmd, data) {
   if (numCmd) {
     const filter = { numCmd, gamesysStub: true };
-    if (data.sousDossier) filter.sousDossier = data.sousDossier;
+    filter.sousDossier = data.sousDossier ? data.sousDossier : { $in: [null, ""] };
     const claimed = await Model.findOneAndUpdate(filter, { $set: { ...data, gamesysStub: false } }, { new: true });
     if (claimed) return claimed;
   }
