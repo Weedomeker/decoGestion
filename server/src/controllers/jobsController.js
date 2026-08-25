@@ -783,7 +783,7 @@ async function processJob(job, req) {
       ex: parseInt(job.ex),
       temps,
       perte: job.perte ? parseFloat(job.perte) : 0,
-      status: safeRef ? "" : "ref_invalide",
+      status: safeRef ? "A imprimer" : "ref_invalide",
       app_version: `v${state.appVersion}`,
       ip: req.ip.split(":").pop() === "1" || req.hostname === "localhost" ? os.hostname() : req.ip.split(":").pop(),
       comment: isStock ? `Pris en stock le ${new Date().toLocaleString()}` : "",

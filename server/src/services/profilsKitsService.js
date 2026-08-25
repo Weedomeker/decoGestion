@@ -294,7 +294,7 @@ async function saveProfilsKits(job) {
         numCmd,
         mag: job.ville || mag || "",
         date: new Date(),
-        status: "",
+        status: "A imprimer",
         pkOnly: true,
         dateLivraisonSouhaitee,
         prixTotal: sumArticlesPrix(articles),
