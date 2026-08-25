@@ -51,6 +51,48 @@ describe("decoStubService.claimStubOrCreate()", () => {
     ).to.be.true;
   });
 
+  it("réclame par ref le stub d'un sous-dossier quand le job ne connaît pas son sousDossier (repli)", async () => {
+    const claimed = { _id: "stub3", numCmd: 167731, sousDossier: "07", ref: "94953664", gamesysStub: false };
+    const findOneAndUpdateStub = sinon.stub();
+    findOneAndUpdateStub
+      .withArgs({ numCmd: 167731, gamesysStub: true, sousDossier: { $in: [null, ""] } })
+      .resolves(null);
+    findOneAndUpdateStub.withArgs({ numCmd: 167731, gamesysStub: true, ref: "94953664" }).resolves(claimed);
+    function FakeDeco(data) {
+      Object.assign(this, data);
+      this.save = sinon.stub();
+    }
+    FakeDeco.findOneAndUpdate = findOneAndUpdateStub;
+
+    const data = { deco: "MARBRE NERF", ref: "94953664" };
+    const result = await claimStubOrCreate(FakeDeco, 167731, data);
+
+    expect(result).to.equal(claimed);
+    expect(findOneAndUpdateStub.calledTwice).to.be.true;
+    expect(
+      findOneAndUpdateStub.calledWith(
+        { numCmd: 167731, gamesysStub: true, ref: "94953664" },
+        { $set: { ...data, gamesysStub: false } },
+        { new: true },
+      ),
+    ).to.be.true;
+  });
+
+  it("ne tente pas le repli par ref quand sousDossier est déjà connu (le 1er filtre fait foi)", async () => {
+    const findOneAndUpdateStub = sinon.stub().resolves(null);
+    const saveStub = sinon.stub().resolves();
+    function FakeDeco(data) {
+      Object.assign(this, data);
+      this.save = saveStub;
+    }
+    FakeDeco.findOneAndUpdate = findOneAndUpdateStub;
+
+    await claimStubOrCreate(FakeDeco, 167731, { deco: "MARBRE NERF", ref: "94953664", sousDossier: "07" });
+
+    expect(findOneAndUpdateStub.calledOnce).to.be.true;
+    expect(saveStub.calledOnce).to.be.true;
+  });
+
   it("crée un nouveau document quand aucun stub n'existe pour ce numCmd", async () => {
     const findOneAndUpdateStub = sinon.stub().resolves(null);
     const saveStub = sinon.stub().resolves();
@@ -87,9 +129,24 @@ describe("decoStubService.claimStubOrCreate()", () => {
 describe("decoStubService.computeSousDossiersPkOnly()", () => {
   it("retient les sous-dossiers portant un profil ou un kit, exclut les sous-dossiers purement visuel (cas réel 166239)", () => {
     const sousDossiers = [
-      { sousNumero: "00", profileReferences: [{ reference: "94964465" }], kitPosesReferences: [], visualReferences: [] },
-      { sousNumero: "01", profileReferences: [], kitPosesReferences: [{ reference: "94953593" }], visualReferences: [] },
-      { sousNumero: "02", profileReferences: [], kitPosesReferences: [], visualReferences: [{ reference: "94953000" }] },
+      {
+        sousNumero: "00",
+        profileReferences: [{ reference: "94964465" }],
+        kitPosesReferences: [],
+        visualReferences: [],
+      },
+      {
+        sousNumero: "01",
+        profileReferences: [],
+        kitPosesReferences: [{ reference: "94953593" }],
+        visualReferences: [],
+      },
+      {
+        sousNumero: "02",
+        profileReferences: [],
+        kitPosesReferences: [],
+        visualReferences: [{ reference: "94953000" }],
+      },
     ];
 
     expect(computeSousDossiersPkOnly(sousDossiers)).to.have.members(["00", "01"]);

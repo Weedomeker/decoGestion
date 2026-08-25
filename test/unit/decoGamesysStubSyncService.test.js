@@ -86,7 +86,7 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
     expect(update.$setOnInsert).to.include({
       numCmd: 167648,
       client: "LM",
-      status: "",
+      status: "A lancer",
       gamesysStub: true,
       codeClient: "LM019",
       refClient: "82329874 - FASSOT",
@@ -94,8 +94,106 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
       nombreKitPose: 5,
       formatPlaqueGamesys: "1510 x 2600",
       prixTotal: 1250.5,
+      pkOnly: true,
     });
     expect(fakeConnection.close.calledOnce).to.be.true;
+  });
+
+  it("laisse pkOnly:false sur le stub générique quand la commande n'a ni visuel ni profil ni kit", async () => {
+    listCandidatsStub.resolves([{ cmd: "167648", client: "LM" }]);
+    existsStub.resolves(false);
+    fetchCommandeInfoStub.resolves({
+      dateCommande: new Date("2026-08-20"),
+      codeClient: "LM019",
+      refClient: "REF",
+      nombreProfil: 0,
+      nombreKitPose: 0,
+    });
+
+    await syncDecoStubsDepuisGamesys({ sinceDate });
+
+    const [, update] = findOneAndUpdateStub.firstCall.args;
+    expect(update.$setOnInsert.pkOnly).to.equal(false);
+  });
+
+  it("ouvre une connexion ODBC dédiée par candidat plutôt qu'une seule connexion partagée", async () => {
+    listCandidatsStub.resolves([
+      { cmd: "167648", client: "LM" },
+      { cmd: "167649", client: "LM" },
+    ]);
+    existsStub.resolves(false);
+
+    const resume = await syncDecoStubsDepuisGamesys({ sinceDate });
+
+    expect(resume).to.include({ candidats: 2, dejaExistants: 0, crees: 2, erreurs: 0 });
+    expect(getDbConnectionStub.callCount).to.equal(2);
+    expect(fakeConnection.close.callCount).to.equal(2);
+  });
+
+  it("crée un stub par sous-dossier visuel avec ref/deco du catalogue quand la référence matche", async () => {
+    listCandidatsStub.resolves([{ cmd: "167648", client: "LM" }]);
+    existsStub.resolves(false);
+    sinon.stub(dossierService, "fetchSousDossiersVisuels").resolves([
+      {
+        sousNumero: "07",
+        printFinish: "MAT",
+        formatFini: "126x260",
+        visualReferences: [
+          { reference: "REF123", libelle: "Jaspe Gauche 100 x 210 cm (M)", endv_px_total: 199.9, endv_quant: 2 },
+        ],
+      },
+    ]);
+    sinon.stub(Deco, "resolveRefFields").resolves({ matched: true, finition: "Mat", format: "100x210", deco: "JASPE" });
+
+    const resume = await syncDecoStubsDepuisGamesys({ sinceDate });
+
+    expect(resume.crees).to.equal(1);
+    const call = findOneAndUpdateStub.getCalls().find((c) => c.args[0].sousDossier === "07");
+    expect(call).to.exist;
+    expect(call.args[1].$setOnInsert).to.include({
+      numCmd: 167648,
+      sousDossier: "07",
+      ref: "REF123",
+      finition: "Mat",
+      format: "100x210",
+      deco: "JASPE",
+      ex: 2,
+      prix: 199.9,
+      status: "A lancer",
+      gamesysStub: true,
+    });
+  });
+
+  it("se rabat sur format/finition/deco Gamesys bruts quand la référence ne matche aucun catalogue", async () => {
+    listCandidatsStub.resolves([{ cmd: "167648", client: "LM" }]);
+    existsStub.resolves(false);
+    sinon.stub(dossierService, "fetchSousDossiersVisuels").resolves([
+      {
+        sousNumero: "07",
+        printFinish: "BRILLANT",
+        formatFini: "126x260",
+        visualReferences: [
+          { reference: "TEXTE-LIBRE", libelle: "Jaspe Gauche 100 x 210 cm (M)", endv_px_total: 199.9, endv_quant: 2 },
+        ],
+      },
+    ]);
+    sinon.stub(Deco, "resolveRefFields").resolves({ matched: false, finition: "" });
+
+    const resume = await syncDecoStubsDepuisGamesys({ sinceDate });
+
+    expect(resume.crees).to.equal(1);
+    const call = findOneAndUpdateStub.getCalls().find((c) => c.args[0].sousDossier === "07");
+    expect(call).to.exist;
+    const inserted = call.args[1].$setOnInsert;
+    expect(inserted.ref).to.be.undefined;
+    expect(inserted).to.include({
+      numCmd: 167648,
+      sousDossier: "07",
+      format: "126x260",
+      finition: "Brillant",
+      deco: "Jaspe Gauche 100 x 210 cm (M)",
+      status: "A lancer",
+    });
   });
 
   it("comptabilise les erreurs sans interrompre le traitement des autres candidats", async () => {

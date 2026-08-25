@@ -11,14 +11,32 @@
 // AUTRE visuel de la même commande. Vérifié empiriquement : sans cette restriction, un job sans
 // sousDossier connu réclamait (et écrasait) le stub du 1er visuel trouvé au lieu d'en créer un
 // nouveau, faisant perdre les données Gamesys de ce visuel non concerné.
-// Si aucun stub ne correspond (dossier pas encore synchronisé, ou stub déjà réclamé), retombe sur
-// une création classique.
+// Si aucun stub ne correspond par sousDossier, mais que le job connaît sa ref catalogue (flux de
+// saisie manuelle, qui n'a jamais de sousDossier Gamesys — cf. plus haut — ou tout autre appelant
+// qui ne l'aurait pas transmis), on retente en réclamant le stub qui porte cette MÊME ref pour ce
+// numCmd : contrairement à sousDossier, ref identifie le panneau sans ambiguïté (SKU/référence
+// catalogue précis), donc pas de risque de réclamer le stub d'un autre visuel même sans connaître
+// le sous-dossier Gamesys. Vérifié en prod (commandes 167731/167733/167735/167741) : sans ce repli,
+// un job soumis sans sousDossier connu mais avec la bonne ref créait un doublon à côté du stub par
+// sous-dossier existant au lieu de le réclamer, laissant ce dernier bloqué à "A lancer" pour
+// toujours.
+// Si rien ne correspond (dossier pas encore synchronisé, ou stub déjà réclamé), retombe sur une
+// création classique.
 async function claimStubOrCreate(Model, numCmd, data) {
   if (numCmd) {
     const filter = { numCmd, gamesysStub: true };
     filter.sousDossier = data.sousDossier ? data.sousDossier : { $in: [null, ""] };
     const claimed = await Model.findOneAndUpdate(filter, { $set: { ...data, gamesysStub: false } }, { new: true });
     if (claimed) return claimed;
+
+    if (!data.sousDossier && data.ref) {
+      const claimedByRef = await Model.findOneAndUpdate(
+        { numCmd, gamesysStub: true, ref: data.ref },
+        { $set: { ...data, gamesysStub: false } },
+        { new: true },
+      );
+      if (claimedByRef) return claimedByRef;
+    }
   }
 
   const created = new Model(data);
