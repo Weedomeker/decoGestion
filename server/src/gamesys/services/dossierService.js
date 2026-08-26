@@ -32,16 +32,10 @@ const CLIENT_APP_NAME = { LM: "LM", CAS: "CASTO", BM: "BRICO", ECOM: "ECOM" };
 
 function mapDosClientToAppClient(dosClient) {
   const key = String(dosClient || "").toUpperCase();
-  if (!key) return null;
   for (const prefix of Object.keys(CLIENT_APP_NAME)) {
     if (key.startsWith(prefix)) return CLIENT_APP_NAME[prefix];
   }
-  // Comptes clients directs/pro (ex: I96, L558, CCYRILL...) : pas de préfixe enseigne régulier
-  // comme LM0xx/CASxxxx/BMxxxxx, mais existent bien dans Gamesys (livraison directe au client final,
-  // cf. ff_livraison). Rattachés en "PRO" plutôt qu'ignorés (return null) pour qu'ils obtiennent un
-  // stub Deco et soient couverts par les backfills — sans pipeline job actif dédié (pas de partage
-  // réseau/UI pour ce type, cf. CLAUDE.md).
-  return "PRO";
+  return null;
 }
 
 function mapStockRow(row) {

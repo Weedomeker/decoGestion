@@ -74,8 +74,6 @@ Application React monopage (pas de router — tout réside dans `App.jsx`) :
 
 L'app gère les visuels de quatre enseignes : **LM** (Leroy Merlin), **CASTO** (Castorama), **BRICO** (Bricomarché), **ECOM** (e-commerce). Chacune est mappée à un partage réseau dans `config.json`.
 
-Un 5e type, **PRO** (comptes clients directs/professionnels, ex : `I96`, `L558`, `CCYRILL` — pas de préfixe enseigne régulier dans `dos_client`, cf. `mapDosClientToAppClient` dans `server/src/gamesys/services/dossierService.js`), existe en base a minima : les commandes Pro obtiennent un stub `Deco`/`ConsommationCommande` (via les syncs Gamesys automatiques) et sont couvertes par les backfills, mais n'ont **pas** de pipeline job actif (pas de partage réseau/symlink, pas d'option dans le sélecteur client du frontend, pas de règles métier type crédences).
-
 ### Fichiers d'environnement
 
 - `.env` (racine) — `PORT`, `MONGO_URL`, chemins réseau (`LINK_DECO*`, `LINK_TAURO`)

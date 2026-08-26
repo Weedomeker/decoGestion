@@ -11,7 +11,7 @@ const decoSchema = new mongoose.Schema({
   dateLivraisonSouhaitee: { type: Date },
   prixTotal: { type: Number },
   prix: { type: Number },
-  client: { type: String, enum: ["LM", "CASTO", "BRICO", "ECOM", "PRO", ""] },
+  client: { type: String, enum: ["LM", "CASTO", "BRICO", "ECOM", ""] },
   numCmd: { type: Number, min: 1 },
   // Suffixe du sous-dossier Gamesys (ex: "07" pour "167648/07") du visuel précis de ce document —
   // à combiner avec numCmd pour reconstituer le numéro complet. Vide pour les stubs pkOnly/gamesysStub

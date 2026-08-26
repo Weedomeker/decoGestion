@@ -57,9 +57,9 @@ async function syncDecoStubsDepuisGamesys({ sinceDate, concurrency = 3, dryRun =
             candidat.cmd,
           );
           // mag = ville de livraison (repère magasin pour LM/CASTO/BRICO), ou nom du destinataire
-          // pour ECOM/PRO (livraison directe au client final, pas de notion de magasin) — repli sur
+          // pour ECOM (livraison directe au client final, pas de notion de magasin) — repli sur
           // l'autre valeur si celle attendue en priorité est absente.
-          const mag = candidat.client === "ECOM" || candidat.client === "PRO" ? magasin || ville : ville || magasin;
+          const mag = candidat.client === "ECOM" ? magasin || ville : ville || magasin;
 
           const commandeCommune = {
             client: candidat.client,

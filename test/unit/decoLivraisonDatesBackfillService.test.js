@@ -127,22 +127,6 @@ describe("decoLivraisonDatesBackfillService.backfillDecoLivraisonDates()", () =>
     expect(setArg.$set.mag).to.equal("JEAN DUPONT");
   });
 
-  it("pose mag = magasin pour les clients PRO quand Gamesys renvoie les deux", async () => {
-    mockPendingDocs([{ _id: "a", numCmd: 165675, client: "PRO" }]);
-    fetchDossierLivraisonDatesStub.resolves({
-      dateLivraisonSouhaitee: new Date("2025-03-01"),
-      dateDepartUsine: null,
-      magasin: "BRUNO IZEL",
-      ville: "ST PIAT",
-    });
-    updateManyStub.resolves({ modifiedCount: 1 });
-
-    await backfillDecoLivraisonDates({ dryRun: false });
-
-    const setArg = updateManyStub.firstCall.args[1];
-    expect(setArg.$set.mag).to.equal("BRUNO IZEL");
-  });
-
   it("ne compte pas introuvable si Gamesys renvoie mag sans date, et met à jour", async () => {
     mockPendingDocs([{ _id: "a", numCmd: 111111, client: "LM" }]);
     fetchDossierLivraisonDatesStub.resolves({

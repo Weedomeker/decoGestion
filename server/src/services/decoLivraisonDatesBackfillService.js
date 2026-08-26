@@ -38,8 +38,8 @@ async function backfillDecoLivraisonDates({ concurrency = 5, dryRun = false, sin
               numCmd,
             );
             // mag = ville de livraison pour LM/CASTO/BRICO (repère magasin), nom du destinataire
-            // pour ECOM/PRO (livraison directe au client final) — même règle que decoGamesysStubSyncService.
-            const mag = client === "ECOM" || client === "PRO" ? magasin || ville : ville || magasin;
+            // pour ECOM (livraison directe au client final) — même règle que decoGamesysStubSyncService.
+            const mag = client === "ECOM" ? magasin || ville : ville || magasin;
 
             if (!dateLivraisonSouhaitee && !mag) {
               resume.introuvables += 1;

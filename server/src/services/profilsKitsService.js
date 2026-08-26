@@ -250,9 +250,9 @@ async function saveProfilsKits(job) {
   const dateLivraisonSouhaitee = livraisonSouhaiteeRaw ? new Date(livraisonSouhaiteeRaw) : undefined;
   const magasinRaw = livraisonRows.map((l) => l.bo_adlivr_nom_1).find(Boolean);
   const villeRaw = livraisonRows.map((l) => l.bo_ville).find(Boolean);
-  // mag = ville de livraison (repère magasin pour LM/CASTO/BRICO), ou nom du destinataire pour
-  // ECOM/PRO (livraison directe, pas de notion de magasin) — même règle que decoGamesysStubSyncService.js.
-  const mag = job.client === "ECOM" || job.client === "PRO" ? magasinRaw || villeRaw : villeRaw || magasinRaw;
+  // mag = ville de livraison (repère magasin pour LM/CASTO/BRICO), ou nom du destinataire pour ECOM
+  // (livraison directe, pas de notion de magasin) — même règle que decoGamesysStubSyncService.js.
+  const mag = job.client === "ECOM" ? magasinRaw || villeRaw : villeRaw || magasinRaw;
 
   // codeClient/refClient/nombreProfil/nombreKitPose/formatPlaqueGamesys dérivés localement des
   // sous-dossiers déjà récupérés (view:"full" ci-dessus) plutôt que via 2 connexions ODBC dédiées
