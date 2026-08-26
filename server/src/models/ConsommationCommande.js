@@ -14,7 +14,7 @@ const articleSchema = new mongoose.Schema(
 const consommationCommandeSchema = new mongoose.Schema(
   {
     numCmd: { type: Number, required: true },
-    client: { type: String, enum: ["LM", "CASTO", "BRICO", "ECOM"] },
+    client: { type: String, enum: ["LM", "CASTO", "BRICO", "ECOM", "PRO"] },
     // Date réelle de la commande Gamesys (dos_date) — à ne pas confondre avec createdAt
     // (timestamps: true) qui reflète le moment du traitement/import. Nécessaire pour les
     // prévisions de stock par période réelle d'achat.

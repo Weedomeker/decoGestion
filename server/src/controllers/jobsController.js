@@ -732,14 +732,13 @@ async function processJob(job, req) {
         logger.warn(`saveDeco: dateLivraisonSouhaitee non récupérée pour cmd=${cmd} : ${err.message}`);
       }
       try {
-        prixTotal = await dossierService.getDossierPrixTotal(cmd);
-      } catch (err) {
-        logger.warn(`saveDeco: prixTotal non récupéré pour cmd=${cmd} : ${err.message}`);
-      }
-      try {
+        // prixTotal vient de commandeInfo (fetchDossierCommandeInfo interroge aussi endv_px_total
+        // désormais — fusionné avec l'ancien fetchDossierPrixTotal, même table/WHERE) plutôt que
+        // d'un aller-retour ODBC + connexion dédiée séparés.
         commandeInfo = await dossierService.getDossierCommandeInfo(cmd);
+        prixTotal = commandeInfo?.prixTotal ?? null;
       } catch (err) {
-        logger.warn(`saveDeco: commandeInfo non récupérée pour cmd=${cmd} : ${err.message}`);
+        logger.warn(`saveDeco: commandeInfo/prixTotal non récupérés pour cmd=${cmd} : ${err.message}`);
       }
       try {
         formatPlaqueGamesys = await dossierService.getDossierFormatPlaque(cmd);

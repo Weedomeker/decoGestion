@@ -30,13 +30,22 @@ async function syncConsommationsHistorique({ sinceDate, client, concurrency = 5,
       aTraiter.map((candidate) =>
         limit(async () => {
           try {
-            await profilsKitsService.saveProfilsKits({
+            // saveProfilsKits ne lève jamais d'exception sur un échec Gamesys (best-effort ailleurs,
+            // cf. jobsController.js) — elle renvoie `false` dans ce cas précis pour qu'on le compte en
+            // erreur plutôt qu'en traité (sinon la commande reste indéfiniment "traitée avec succès"
+            // dans les logs sans jamais avoir de ConsommationCommande créée).
+            const result = await profilsKitsService.saveProfilsKits({
               cmd: candidate.cmd,
               client: candidate.client,
               isPkOnly: false,
               ville: "",
             });
-            resume.traites += 1;
+            if (result === false) {
+              resume.erreurs += 1;
+              logger.warn(`syncConsommationsHistorique: échec cmd=${candidate.cmd} client=${candidate.client} (getDossierDetail)`);
+            } else {
+              resume.traites += 1;
+            }
           } catch (err) {
             resume.erreurs += 1;
             logger.warn(

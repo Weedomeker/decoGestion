@@ -32,10 +32,16 @@ const CLIENT_APP_NAME = { LM: "LM", CAS: "CASTO", BM: "BRICO", ECOM: "ECOM" };
 
 function mapDosClientToAppClient(dosClient) {
   const key = String(dosClient || "").toUpperCase();
+  if (!key) return null;
   for (const prefix of Object.keys(CLIENT_APP_NAME)) {
     if (key.startsWith(prefix)) return CLIENT_APP_NAME[prefix];
   }
-  return null;
+  // Comptes clients directs/pro (ex: I96, L558, CCYRILL...) : pas de préfixe enseigne régulier
+  // comme LM0xx/CASxxxx/BMxxxxx, mais existent bien dans Gamesys (livraison directe au client final,
+  // cf. ff_livraison). Rattachés en "PRO" plutôt qu'ignorés (return null) pour qu'ils obtiennent un
+  // stub Deco et soient couverts par les backfills — sans pipeline job actif dédié (pas de partage
+  // réseau/UI pour ce type, cf. CLAUDE.md).
+  return "PRO";
 }
 
 function mapStockRow(row) {
@@ -1304,9 +1310,13 @@ async function getDossierPrixTotal(commande) {
 }
 
 // Récupère en un aller-retour Gamesys date de commande / code client / référence client / cumul
-// profils / cumul kits de pose d'un dossier racine — mêmes lignes fd_entete_devi que
-// fetchDossierPrixTotal (donc même clause WHERE), catégorisées en JS via isProfileLabel/
-// isKitPoseLabel plutôt qu'en SQL (endv_identif est un libellé libre, pas une colonne de type).
+// profils / cumul kits de pose / prix total d'un dossier racine — mêmes lignes et même clause WHERE
+// que l'ancien fetchDossierPrixTotal (fusionné ici : les deux étaient systématiquement appelés côte
+// à côte sur fd_entete_devi pour la même commande — decoGamesysStubSyncService.js, jobsController.js
+// — un aller-retour ODBC économisé à chaque appel). nombreProfil/nombreKitPose catégorisés en JS via
+// isProfileLabel/isKitPoseLabel plutôt qu'en SQL (endv_identif est un libellé libre, pas une colonne
+// de type) ; prixTotal sommé en JS (au lieu d'un SUM SQL) pour rester sur les mêmes lignes brutes,
+// en préservant la sémantique SQL SUM (null si aucune ligne n'a de prix, jamais confondu avec 0).
 // dateCommande/codeClient/refClient sont identiques sur toutes les lignes d'un même dossier
 // (vérifié empiriquement) — on prend donc la 1ère ligne, comme fetchDossierDate.
 async function fetchDossierCommandeInfo(connection, commande) {
@@ -1316,7 +1326,7 @@ async function fetchDossierCommandeInfo(connection, commande) {
   const searchLike = `${escapeSqlLike(search)}/%`;
   const rows = await query(
     connection,
-    `select endv_date_cmde, endv_cclient, endv_no_commande_client, endv_quant, endv_identif
+    `select endv_date_cmde, endv_cclient, endv_no_commande_client, endv_quant, endv_identif, endv_px_total
      from public.fd_entete_devi
      where endv_no_dossier = ? or endv_no_cmde_globale = ?
         or endv_no_commande = ? or endv_no_commande LIKE ? ESCAPE '\\'`,
@@ -1326,10 +1336,14 @@ async function fetchDossierCommandeInfo(connection, commande) {
 
   let nombreProfil = 0;
   let nombreKitPose = 0;
+  let prixTotal = null;
   for (const row of rows) {
     const quant = Number(row.endv_quant) || 0;
     if (isProfileLabel(row.endv_identif)) nombreProfil += quant;
     else if (isKitPoseLabel(row.endv_identif)) nombreKitPose += quant;
+    if (row.endv_px_total !== null && row.endv_px_total !== undefined) {
+      prixTotal = (prixTotal ?? 0) + Number(row.endv_px_total);
+    }
   }
 
   return {
@@ -1338,6 +1352,7 @@ async function fetchDossierCommandeInfo(connection, commande) {
     refClient: rows[0].endv_no_commande_client || null,
     nombreProfil,
     nombreKitPose,
+    prixTotal,
   };
 }
 

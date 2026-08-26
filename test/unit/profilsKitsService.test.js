@@ -21,12 +21,21 @@ const GROUPED_WITH_PROFIL = {
   kitPosesReferences: [],
   sousDossiers: [
     {
-      dossier: { dos_date: "2025-02-19" },
+      dossier: { dos_date: "2025-02-19", dos_supp_1_ft: "1510 x 2600" },
       enteteDevis: [
-        { endv_identif: "PROFIL BLANC 255", endv_quant: 3, endv_px_total: 34.39 },
-        { endv_identif: "VISUEL MOSAIQUE", endv_quant: 1, endv_px_total: 243.69 },
+        {
+          endv_identif: "PROFIL BLANC 255",
+          endv_quant: 3,
+          endv_px_total: 34.39,
+          endv_cclient: "LM019",
+          endv_no_commande_client: "82329874 - FASSOT",
+          endv_date_cmde: "2025-02-19",
+        },
+        { endv_identif: "VISUEL MOSAIQUE", endv_quant: 1, endv_px_total: 243.69, endv_cclient: "LM019" },
       ],
-      livraison: [{ bo_date_depart_usine: "2025-02-20", bo_date_souhaitee: "2025-03-01" }],
+      // clé "livraisons" (pluriel) : forme brute renvoyée par getDossierDetail(view:"full"), pas
+      // "livraison" (singulier, spécifique à l'ancienne vue "summary" désormais abandonnée ici).
+      livraisons: [{ bo_date_depart_usine: "2025-02-20", bo_date_souhaitee: "2025-03-01" }],
     },
   ],
 };
@@ -92,8 +101,6 @@ describe("profilsKitsService.saveProfilsKits()", () => {
   let consommationUpsertStub;
   let consommationCreateStub;
   let decoUpsertStub;
-  let getDossierCommandeInfoStub;
-  let getDossierFormatPlaqueStub;
 
   beforeEach(() => {
     getDossierDetailStub = sinon.stub(dossierService, "getDossierDetail");
@@ -106,8 +113,6 @@ describe("profilsKitsService.saveProfilsKits()", () => {
       .stub(ConsommationCommande, "create")
       .rejects(new Error("create() ne doit plus être appelé — utiliser findOneAndUpdate"));
     decoUpsertStub = sinon.stub(Deco, "findOneAndUpdate").resolves({});
-    getDossierCommandeInfoStub = sinon.stub(dossierService, "getDossierCommandeInfo").resolves(null);
-    getDossierFormatPlaqueStub = sinon.stub(dossierService, "getDossierFormatPlaque").resolves(null);
   });
 
   afterEach(() => {
@@ -116,7 +121,7 @@ describe("profilsKitsService.saveProfilsKits()", () => {
 
   const fakeJob = (cmd = 164629, client = "LM") => ({ cmd, client });
 
-  it("appelle getDossierDetail avec commande=cmd et view=summary", async () => {
+  it("appelle getDossierDetail avec commande=cmd et view=full (pour dériver codeClient/formatPlaqueGamesys sans 2e/3e connexion ODBC)", async () => {
     getDossierDetailStub.resolves(GROUPED_EMPTY);
 
     await saveProfilsKits(fakeJob(164629));
@@ -124,8 +129,32 @@ describe("profilsKitsService.saveProfilsKits()", () => {
     expect(getDossierDetailStub.calledOnce).to.be.true;
     expect(getDossierDetailStub.firstCall.args[0]).to.deep.equal({
       commande: "164629",
-      view: "summary",
+      view: "full",
     });
+  });
+
+  it("dérive codeClient/refClient depuis les sous-dossiers déjà récupérés, sans appel Gamesys dédié", async () => {
+    getDossierDetailStub.resolves(GROUPED_WITH_PROFIL);
+
+    await saveProfilsKits(fakeJob(164629, "LM"));
+
+    const [, update] = consommationUpsertStub.firstCall.args;
+    const created = update.$setOnInsert;
+    expect(created.codeClient).to.equal("LM019");
+    expect(created.refClient).to.equal("82329874 - FASSOT");
+  });
+
+  it("dérive codeClient/refClient/nombreProfil/nombreKitPose/formatPlaqueGamesys pour le stub pkOnly, sans appel Gamesys dédié", async () => {
+    getDossierDetailStub.resolves(GROUPED_WITH_PROFIL);
+
+    await saveProfilsKits({ ...fakeJob(164629, "LM"), isPkOnly: true, ville: "Lille" });
+
+    const [, update] = decoUpsertStub.firstCall.args;
+    expect(update.$set.codeClient).to.equal("LM019");
+    expect(update.$set.refClient).to.equal("82329874 - FASSOT");
+    expect(update.$set.nombreProfil).to.equal(3);
+    expect(update.$set.nombreKitPose).to.equal(0);
+    expect(update.$set.formatPlaqueGamesys).to.equal("1510 x 2600");
   });
 
   it("ne crée pas de ConsommationCommande si aucun profil ni kit", async () => {
@@ -278,6 +307,15 @@ describe("profilsKitsService.saveProfilsKits()", () => {
     try { await saveProfilsKits(fakeJob()); }
     catch { threw = true; }
     expect(threw).to.be.false;
+  });
+
+  it("retourne false (pas undefined) si getDossierDetail échoue, pour que l'appelant distingue un vrai échec d'un \"rien à faire\"", async () => {
+    getDossierDetailStub.rejects(new Error("ODBC timeout"));
+
+    const result = await saveProfilsKits(fakeJob());
+
+    expect(result).to.equal(false);
+    expect(consommationUpsertStub.called).to.be.false;
   });
 
   it("attribue la quantité correcte par libelle quand plusieurs profils distincts existent", async () => {

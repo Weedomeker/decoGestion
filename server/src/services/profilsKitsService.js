@@ -166,10 +166,22 @@ async function upsertArticle(ref, fields) {
 async function saveProfilsKits(job) {
   let grouped;
   try {
-    grouped = await dossierService.getDossierDetail({ commande: String(job.cmd), view: "summary" });
+    // view:"full" (pas "summary") : buildDetail() exécute le même travail Gamesys quel que soit le
+    // view demandé (le paramètre ne fait que filtrer les champs en JS après coup, cf.
+    // selectDetailView) — "full" expose donc à coût nul les colonnes brutes (endv_cclient sur
+    // enteteDevis, dos_supp_1_ft sur dossier) qu'omettait "summary", évitant plus bas 2 connexions
+    // ODBC dédiées supplémentaires (ex-fetchDossierCommandeInfo/fetchDossierFormatPlaque) par
+    // commande — la clé "livraison" (singulier, sous-ensemble de champs) de la vue "summary" devient
+    // "livraisons" (pluriel, lignes brutes complètes) en vue "full".
+    grouped = await dossierService.getDossierDetail({ commande: String(job.cmd), view: "full" });
   } catch (err) {
     logger.warn(`saveProfilsKits: getDossierDetail échoué pour cmd=${job.cmd} : ${err.message}`);
-    return;
+    // false (pas undefined) : signale un vrai échec à l'appelant sans lever d'exception (jobsController
+    // appelle cette fonction en best-effort dans le flux de sauvegarde de job — ne doit jamais le
+    // faire échouer). syncConsommationsHistorique s'en sert pour compter ça en erreur plutôt qu'en
+    // traité — avant ce correctif, un échec ODBC ici était silencieusement compté comme un succès, et
+    // la commande jamais recréée en candidate n'était donc jamais retentée avec visibilité sur l'échec.
+    return false;
   }
 
   const profileReferences = grouped.profileReferences || [];
@@ -229,35 +241,47 @@ async function saveProfilsKits(job) {
   const dateCommande = dossierDate ? new Date(dossierDate) : undefined;
 
   // bo_date_depart_usine / bo_date_souhaitee / bo_adlivr_nom_1 / bo_ville sont déjà présents dans
-  // grouped.sousDossiers[].livraison (view=summary inclut ces champs via ff_livraison) — pas besoin
-  // d'une requête Gamesys supplémentaire.
-  const livraisonRows = (grouped.sousDossiers || []).flatMap((s) => s.livraison || []);
+  // grouped.sousDossiers[].livraisons (clé pluriel en vue "full", cf. commentaire plus haut) — pas
+  // besoin d'une requête Gamesys supplémentaire.
+  const livraisonRows = (grouped.sousDossiers || []).flatMap((s) => s.livraisons || []);
   const departUsineRaw = livraisonRows.map((l) => l.bo_date_depart_usine).find(Boolean);
   const livraisonSouhaiteeRaw = livraisonRows.map((l) => l.bo_date_souhaitee).find(Boolean);
   const dateDepartUsine = departUsineRaw ? new Date(departUsineRaw) : undefined;
   const dateLivraisonSouhaitee = livraisonSouhaiteeRaw ? new Date(livraisonSouhaiteeRaw) : undefined;
   const magasinRaw = livraisonRows.map((l) => l.bo_adlivr_nom_1).find(Boolean);
   const villeRaw = livraisonRows.map((l) => l.bo_ville).find(Boolean);
-  // mag = ville de livraison (repère magasin pour LM/CASTO/BRICO), ou nom du destinataire pour ECOM
-  // (livraison directe, pas de notion de magasin) — même règle que decoGamesysStubSyncService.js.
-  const mag = job.client === "ECOM" ? magasinRaw || villeRaw : villeRaw || magasinRaw;
+  // mag = ville de livraison (repère magasin pour LM/CASTO/BRICO), ou nom du destinataire pour
+  // ECOM/PRO (livraison directe, pas de notion de magasin) — même règle que decoGamesysStubSyncService.js.
+  const mag = job.client === "ECOM" || job.client === "PRO" ? magasinRaw || villeRaw : villeRaw || magasinRaw;
 
-  // endv_cclient (codeClient) n'est pas exposé par la vue "summary" de getDossierDetail déjà
-  // appelée plus haut (selectDetailView omet ce champ) — un aller-retour Gamesys dédié est donc
-  // nécessaire ici pour codeClient/refClient/nombreProfil/nombreKitPose/formatPlaqueGamesys,
-  // contrairement à dateCommande/dateDepartUsine/dateLivraisonSouhaitee/mag ci-dessus.
-  let commandeInfo;
-  let formatPlaqueGamesys;
-  try {
-    commandeInfo = await dossierService.getDossierCommandeInfo(job.cmd);
-  } catch (err) {
-    logger.warn(`saveProfilsKits: commandeInfo non récupérée pour cmd=${job.cmd} : ${err.message}`);
+  // codeClient/refClient/nombreProfil/nombreKitPose/formatPlaqueGamesys dérivés localement des
+  // sous-dossiers déjà récupérés (view:"full" ci-dessus) plutôt que via 2 connexions ODBC dédiées
+  // supplémentaires — même clause WHERE/mêmes lignes fd_entete_devi que l'ex-fetchDossierCommandeInfo,
+  // déjà en mémoire. nombreProfil/nombreKitPose catégorisés comme dans dossierService.js
+  // (isProfileLabel/isKitPoseLabel sur endv_identif).
+  const allEnteteRows = (grouped.sousDossiers || []).flatMap((s) => s.enteteDevis || []);
+  let nombreProfil = 0;
+  let nombreKitPose = 0;
+  for (const row of allEnteteRows) {
+    const quant = Number(row.endv_quant) || 0;
+    if (isProfileLabel(row.endv_identif)) nombreProfil += quant;
+    else if (isKitPoseLabel(row.endv_identif)) nombreKitPose += quant;
   }
-  try {
-    formatPlaqueGamesys = await dossierService.getDossierFormatPlaque(job.cmd);
-  } catch (err) {
-    logger.warn(`saveProfilsKits: formatPlaqueGamesys non récupéré pour cmd=${job.cmd} : ${err.message}`);
-  }
+  const firstEntete = allEnteteRows[0];
+  const commandeInfo = firstEntete
+    ? {
+        dateCommande: firstEntete.endv_date_cmde ? new Date(firstEntete.endv_date_cmde) : null,
+        codeClient: firstEntete.endv_cclient || null,
+        refClient: firstEntete.endv_no_commande_client || null,
+        nombreProfil,
+        nombreKitPose,
+      }
+    : null;
+
+  const formatPlaqueRaw = (grouped.sousDossiers || [])
+    .map((s) => s.dossier?.dos_supp_1_ft)
+    .find((v) => String(v || "").trim());
+  const formatPlaqueGamesys = formatPlaqueRaw ? String(formatPlaqueRaw).trim() : null;
 
   try {
     const upsertResult = await ConsommationCommande.findOneAndUpdate(

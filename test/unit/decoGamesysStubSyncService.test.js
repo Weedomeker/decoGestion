@@ -13,7 +13,6 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
   let getDbConnectionStub;
   let fetchCommandeInfoStub;
   let fetchFormatPlaqueStub;
-  let fetchPrixTotalStub;
   let fetchLivraisonDatesStub;
   let fakeConnection;
 
@@ -31,9 +30,9 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
       refClient: "82329874 - FASSOT",
       nombreProfil: 6,
       nombreKitPose: 5,
+      prixTotal: 1250.5,
     });
     fetchFormatPlaqueStub = sinon.stub(dossierService, "fetchDossierFormatPlaque").resolves("1510 x 2600");
-    fetchPrixTotalStub = sinon.stub(dossierService, "fetchDossierPrixTotal").resolves(1250.5);
     fetchLivraisonDatesStub = sinon
       .stub(dossierService, "fetchDossierLivraisonDates")
       .resolves({ dateLivraisonSouhaitee: new Date("2026-09-23") });

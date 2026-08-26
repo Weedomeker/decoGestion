@@ -46,17 +46,20 @@ async function syncDecoStubsDepuisGamesys({ sinceDate, concurrency = 3, dryRun =
         // Gamesys (vérifié en rejouant la résolution en séquentiel après coup).
         const connection = await dbConfig.getDbConnection();
         try {
+          // prixTotal vient de commandeInfo (fetchDossierCommandeInfo interroge aussi endv_px_total
+          // désormais — fusionné avec l'ancien fetchDossierPrixTotal, même table/WHERE) plutôt que
+          // d'un aller-retour ODBC séparé.
           const commandeInfo = await dossierService.fetchDossierCommandeInfo(connection, candidat.cmd);
           const formatPlaqueGamesys = await dossierService.fetchDossierFormatPlaque(connection, candidat.cmd);
-          const prixTotal = await dossierService.fetchDossierPrixTotal(connection, candidat.cmd);
+          const prixTotal = commandeInfo?.prixTotal ?? null;
           const { dateLivraisonSouhaitee, magasin, ville } = await dossierService.fetchDossierLivraisonDates(
             connection,
             candidat.cmd,
           );
           // mag = ville de livraison (repère magasin pour LM/CASTO/BRICO), ou nom du destinataire
-          // pour ECOM (livraison directe au client final, pas de notion de magasin) — repli sur
+          // pour ECOM/PRO (livraison directe au client final, pas de notion de magasin) — repli sur
           // l'autre valeur si celle attendue en priorité est absente.
-          const mag = candidat.client === "ECOM" ? magasin || ville : ville || magasin;
+          const mag = candidat.client === "ECOM" || candidat.client === "PRO" ? magasin || ville : ville || magasin;
 
           const commandeCommune = {
             client: candidat.client,

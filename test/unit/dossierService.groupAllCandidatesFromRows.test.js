@@ -25,13 +25,16 @@ describe("dossierService.groupAllCandidatesFromRows()", () => {
     expect(groupAllCandidatesFromRows(rows)).to.deep.equal([{ cmd: "164629", client: "BRICO" }]);
   });
 
-  it("ignore les lignes sans dos_no_cmde ou avec un dos_client non reconnu", () => {
-    const rows = [
-      { dos_no_cmde: null, dos_client: "LM01" },
-      { dos_no_cmde: "164631/00", dos_client: "XYZ" },
-    ];
+  it("ignore les lignes sans dos_no_cmde", () => {
+    const rows = [{ dos_no_cmde: null, dos_client: "LM01" }];
 
     expect(groupAllCandidatesFromRows(rows)).to.deep.equal([]);
+  });
+
+  it("classe en PRO les codes client qui ne matchent aucun préfixe enseigne connu", () => {
+    const rows = [{ dos_no_cmde: "164631/00", dos_client: "I96" }];
+
+    expect(groupAllCandidatesFromRows(rows)).to.deep.equal([{ cmd: "164631", client: "PRO" }]);
   });
 
   it("gère un tableau vide ou undefined", () => {

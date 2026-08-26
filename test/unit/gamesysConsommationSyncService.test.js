@@ -87,6 +87,20 @@ describe("gamesysConsommationSyncService.syncConsommationsHistorique()", () => {
     });
   });
 
+  it("comptabilise en erreur (pas en traité) quand saveProfilsKits retourne false (getDossierDetail a échoué en interne sans lever d'exception)", async () => {
+    listCandidatesStub.resolves([
+      { cmd: "164629", client: "LM" },
+      { cmd: "164630", client: "CASTO" },
+    ]);
+    existsStub.resolves(false);
+    saveProfilsKitsStub.onFirstCall().resolves(false);
+    saveProfilsKitsStub.onSecondCall().resolves([]);
+
+    const resume = await syncConsommationsHistorique({ sinceDate });
+
+    expect(resume).to.include({ candidats: 2, dejaExistants: 0, traites: 1, erreurs: 1 });
+  });
+
   it("comptabilise les erreurs sans interrompre le traitement des autres candidats", async () => {
     listCandidatesStub.resolves([
       { cmd: "164629", client: "LM" },
