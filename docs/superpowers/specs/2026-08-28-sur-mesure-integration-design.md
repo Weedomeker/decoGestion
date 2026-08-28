@@ -135,8 +135,9 @@ decoPrixVisuelBackfillService.js / profilsKitsService.js
 
 ### 1. `server/src/gamesys/utils/surMesure.js` (nouveau)
 
-Fonctions pures, aucune I/O. Importe `TEINTE_MASSE_MODELS` / `isTeinteMasseModel`
-et `normalizeSearchText` depuis `reference.js`.
+Fonctions pures, aucune I/O. Importe `normalizeSearchText`,
+`isTeinteMasseModel`, `extractOrientationHint` depuis `reference.js` (tous
+déjà exportés — aucune modif de `reference.js`).
 
 | Fonction | Entrée | Sortie |
 | --- | --- | --- |
@@ -144,7 +145,6 @@ et `normalizeSearchText` depuis `reference.js`.
 | `parseSurMesureGabarit(endvIdentif)` | idem | `{ format: "125x210", finition: "LISSE" }` |
 | `parseSurMesureRefClient(endvRefClient)` | `"ARCHE BEIGE CENTRE 86.9 X 201.5 MAT"` | `{ name: "ARCHE BEIGE", orientation: "CENTRE", printFormat: "86.9x201.5", finishHint: "MAT" }` |
 | `classifySurMesure({ name })` | `"BLANC ZERO"` / `"ARCHE BEIGE"` | `"teinte_masse"` / `"visuel"` |
-| `canonicalTeinteMasse(name)` | `"BLANC ZERO"` | `"BLANC ZERO MAT"` — l'entrée exacte de `TEINTE_MASSE_OPTIONS` (front) / valeur attendue par `TeinteMasseDropdown` et la recherche `$text` de `jobsController`. `null` si `name` n'est pas une teinte connue |
 
 Détails :
 
@@ -247,12 +247,13 @@ Le contrat de `/dossier-api/:numero` reste rétrocompatible.
 payload :
 
 - `job.surMesure && job.surMesureKind === "teinte_masse"` → branche
-  « detectedTeinte » actuelle (aucun fichier, `teinteMasse: true`), en
-  ajoutant `surMesure: true`. La valeur teinte alimentée dans la row et le
-  `TeinteMasseDropdown` reste la forme canonique `"… MAT"`
-  (`canonicalTeinteMasse(job.deco)`), pour ne rien changer au
-  `TeinteMasseDropdown` ni à la recherche `$text` de `jobsController`. On ne
-  dépend plus de `detectTeinteMasse` local sur ce cas.
+  « detectedTeinte » actuelle (aucun fichier, `teinteMasse: true`). Le champ
+  `surMesure` (+ `orientation`, `printFormat`) est déjà porté par le spread
+  `...job` de la payload. La valeur teinte reste produite par
+  `detectTeinteMasse` local — avec un filet : si `detectTeinteMasse(job)`
+  échoue mais `job.surMesureKind === "teinte_masse"`, on rappelle
+  `detectTeinteMasse({ libelle: job.deco, reference: "" })` (le nom nettoyé
+  serveur), qui renvoie la forme canonique `"… MAT"` de `TEINTE_MASSE_OPTIONS`.
 - `job.surMesure && job.surMesureKind === "visuel"` → row visuel normale
   (fichier attendu, sélection manuelle), plus `surMesure: true`, avec
   `formatPath` pré-rempli depuis `job.format`. Scoring de fichier inchangé.
@@ -363,7 +364,7 @@ sur `parseSurMesureRefClient` régresserait le cas catalogue (cmd 167637
     `comment = "Cote client : 90 × 210 cm"`, doc `Deco` `{ surMesure: true,
     surMesureKind: "teinte_masse", format: "100x210", orientation: "",
     comment: "Cote client : 90 × 210 cm" }` — `ref` = résultat de la
-    recherche `$text` teinte-masse (`canonicalTeinteMasse` → `"BLANC ZERO MAT"`).
+    recherche `$text` teinte-masse (la row porte `"BLANC ZERO MAT"`).
 11. Hook pre-save : `surMesureKind === "teinte_masse"` (≠ `"visuel"`) → la
     résolution Ref\* s'applique normalement, `deco`/`finition` viennent de
     `RefDeco` comme pour toute teinte-masse.
@@ -391,7 +392,7 @@ finition Texturée) : étape 11 → `surMesureKind === "visuel"` → Ref\* saut�
 
 | Fichier | Contenu |
 | --- | --- |
-| `test/unit/surMesure.test.js` *(neuf)* | `isSurMesureLabel` (les 2 formes + négatifs) ; `parseSurMesureGabarit` (4 finitions, formes `100x210` et `100 x 210`, `Format fini : 100.0 x 255.0 cm`) ; `parseSurMesureRefClient` (`ARCHE BEIGE CENTRE 86.9 X 201.5 MAT` ; `BLANC ZERO 90 x 210 MAT` ; `BAMBUSA DROITE 80 X 230 MAT` ; sans orientation ; décimale `,` ; chaîne vide) ; `classifySurMesure` ; `canonicalTeinteMasse` |
+| `test/unit/surMesure.test.js` *(neuf)* | `isSurMesureLabel` (les 2 formes + négatifs) ; `parseSurMesureGabarit` (4 finitions, formes `100x210` et `100 x 210`, `Format fini : 100.0 x 255.0 cm`) ; `parseSurMesureRefClient` (`ARCHE BEIGE CENTRE 86.9 X 201.5 MAT` ; `BLANC ZERO 90 x 210 MAT` ; `BAMBUSA DROITE 80 X 230 MAT` ; sans orientation ; décimale `,` ; chaîne vide) ; `classifySurMesure` (teinte connue vs visuel) |
 | `test/unit/dossierService.buildVisualReferences.test.js` *(étendu)* | nouveaux cas : ligne SMES (signal A) → `surMesure`, `surMesureKind`, `deco`, `finition`, `format`, `orientation`, `printFormat` ; ligne `"Panneau déco sur-mesure …"` sans stock (signal B) ; `reference` **inchangé** (raw) ; les 2 cas BAMBUSA existants restent verts |
 | `test/unit/dossierApiController.normalizeDossierApiPayload.test.js` *(étendu)* | un `visualRef` `surMesure` → `visualJob` porte `surMesure/surMesureKind/deco/finition/orientation/printFormat` ; `extractVisualFormat` renvoie `visualRef.format` quand `surMesure` |
 | `test/unit/decoSurMesureHook.test.js` *(neuf)* | doc `Deco` `surMesure:true` + `surMesureKind:"visuel"` + `deco/finition/format` posés : après `save`, **non écrasés** ; `surMesureKind:"teinte_masse"` : hook résout via Ref\* ; sans `surMesure` : résolution normale (non-régression) |
@@ -408,8 +409,7 @@ finition Texturée) : étape 11 → `surMesureKind === "visuel"` → Ref\* saut�
 - `test/unit/decoSurMesureHook.test.js`
 
 **Modifiés :**
-- `server/src/gamesys/utils/reference.js` — exporte `TEINTE_MASSE_MODELS` (aujourd'hui non exporté), `normalizeSearchText`, `isTeinteMasseModel`, `extractOrientationHint` (déjà exportés)
-- `server/src/gamesys/services/dossierService.js` — `buildVisualReferences`, `fetchSousDossiersVisuels`
+- `server/src/gamesys/services/dossierService.js` — `buildVisualReferences` (`fetchSousDossiersVisuels` en profite sans modif : il réutilise `buildVisualReferences`)
 - `server/src/controllers/dossierApiController.js` — `extractVisualFormat`, `normalizeDossierApiPayload`
 - `server/src/jobsList.js` — `createJob` : nouvel argument `surMesureData`
 - `server/src/controllers/jobsController.js` — `addJob` (lecture body, appel `createJob`), `runJobs`/`saveDeco` (`comment`, persistance `surMesure`/`surMesureKind`/`orientation`, `orientation` passé à `getPrixVisuel`), export CSV
@@ -422,10 +422,9 @@ finition Texturée) : étape 11 → `surMesureKind === "visuel"` → Ref\* saut�
 
 ## Ordre d'implémentation suggéré
 
-1. `reference.js` (export `TEINTE_MASSE_MODELS`) + `surMesure.js` +
-   `test/unit/surMesure.test.js` (isolé, TDD).
-2. `dossierService.buildVisualReferences` (+ `fetchSousDossiersVisuels`) +
-   tests étendus `dossierService.buildVisualReferences.test.js`.
+1. `surMesure.js` + `test/unit/surMesure.test.js` (isolé, TDD).
+2. `dossierService.buildVisualReferences` + tests étendus
+   `dossierService.buildVisualReferences.test.js`.
 3. `dossierApiController` (`extractVisualFormat`, `normalizeDossierApiPayload`)
    + tests étendus `dossierApiController.normalizeDossierApiPayload.test.js`.
 4. `Deco.js` schéma + hook + `test/unit/decoSurMesureHook.test.js`.
