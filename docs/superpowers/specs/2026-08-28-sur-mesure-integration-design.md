@@ -140,7 +140,7 @@ et `normalizeSearchText` depuis `reference.js`.
 
 | Fonction | Entrée | Sortie |
 | --- | --- | --- |
-| `isSurMesureLabel(endvIdentif)` | `"Panneau déco sur-mesure 125x210 Finition Lisse"` | `boolean` — regex `/^panneau\s+d[eé]co\s+sur[-\s]?mesure\b/i` sur le libellé normalisé |
+| `isSurMesureLabel(endvIdentif)` | `"Panneau déco sur-mesure 125x210 Finition Lisse"` **ou** `"Format fini : 100.0 x 255.0 cm"` | `boolean` — `true` si `/^\s*panneau\s+d[eé]co\s+sur[-\s]?mesure\b/i` **ou** `/^\s*format\s+fini\s*:/i` (libellé dé-accentué) |
 | `parseSurMesureGabarit(endvIdentif)` | idem | `{ format: "125x210", finition: "LISSE" }` |
 | `parseSurMesureRefClient(endvRefClient)` | `"ARCHE BEIGE CENTRE 86.9 X 201.5 MAT"` | `{ name: "ARCHE BEIGE", orientation: "CENTRE", printFormat: "86.9x201.5", finishHint: "MAT" }` |
 | `classifySurMesure({ name })` | `"BLANC ZERO"` / `"ARCHE BEIGE"` | `"teinte_masse"` / `"visuel"` |
@@ -175,17 +175,21 @@ pour chaque entête, détecter le sur-mesure :
 - signal B : `isSurMesureLabel(entete.endv_identif)` (couvre le repli
   `fd_entete_devi` sans ligne stock, cas cmd 167302).
 
-Si sur-mesure, la référence construite reçoit (en plus des champs actuels) :
+Si sur-mesure, la référence construite reçoit **de nouveaux champs**, sans
+toucher aux champs existants :
 
 ```js
 {
+  // ...champs actuels INCHANGÉS — dont `reference` = endv_ref_client brut
+  //    (via getVisualReferenceFromEntete), pour que le uniqueBy de
+  //    buildVisualReferences continue de distinguer deux orientations d'un
+  //    même visuel (ex: "BAMBUSA DROITE 80 X 230" ≠ "BAMBUSA GAUCHE 100 X 230").
   surMesure: true,
   surMesureKind: "visuel" | "teinte_masse",   // classifySurMesure(rc)
-  deco:        rc.name,          // "ARCHE BEIGE" — remplace le endv_ref_client brut
-  reference:   rc.name,          // idem (cohérent avec le fallback actuel ; uniqueBy inchangé)
+  deco:        rc.name,          // "ARCHE BEIGE" — nom nettoyé (nouveau champ)
+  finition:    gab.finition,     // "LISSE" | "TEXTUREE" | "COULEUR" | "BROSSE" | ""
   format:      gab.format,       // "125x210" — format fini du gabarit
-  finition:    gab.finition,     // "LISSE" | "TEXTUREE" | "COULEUR" | "BROSSE"
-  orientation: rc.orientation,   // ou null
+  orientation: rc.orientation,   // "CENTRE" ou null
   printFormat: rc.printFormat,   // "86.9x201.5" ou null
 }
 ```
@@ -193,7 +197,25 @@ Si sur-mesure, la référence construite reçoit (en plus des champs actuels) :
 où `gab = parseSurMesureGabarit(entete.endv_identif)` et
 `rc = parseSurMesureRefClient(entete.endv_ref_client)`.
 
+**`reference` n'est PAS réassigné** (le nettoyer collapserait deux
+orientations sous la même clé `uniqueBy` et perdrait un prix). Le nom
+nettoyé vit dans le nouveau champ `deco`, consommé par l'API, le front et
+`jobsController` (qui alimente `Deco.deco`).
+
+**`format`** : sur une ligne sur-mesure, `gab.format` prime sur le
+`format` éventuellement déjà posé par le matching stock — sauf s'il est
+vide (`parseSurMesureGabarit` n'a rien extrait), auquel cas on garde
+l'existant.
+
 Lignes non sur-mesure : **strictement inchangées**.
+
+**Détection du libellé gabarit** — `isSurMesureLabel` couvre **deux**
+formes génériques observées :
+- `"Panneau déco sur-mesure 100x210 Finition Lisse"` (gabarit SMES, cmd 167302) ;
+- `"Format fini : 100.0 x 255.0 cm"` (cmd 167500 BAMBUSA, cmd 167431 ARCHE BEIGE).
+
+Le signal A (`st_art_sfamille === 'SMES'`) reste prioritaire quand une ligne
+stock est disponible.
 
 **`fetchSousDossiersVisuels(connection, numero)`** (boucle allégée pour la
 sync des stubs) : même enrichissement via le même util — aucune requête
@@ -248,6 +270,10 @@ payload :
   quand `job.surMesure` ; si `printFormat`, sous-label `86,9 × 201,5`.
 - En-tête de liste : toggle **« sur-mesure uniquement »** (filtre client sur
   la liste existante).
+- `mergeIdenticalVisuals` : la clé de fusion inclut `orientation` et
+  `printFormat` pour les lignes `surMesure` (deux orientations d'un même
+  visuel — `reference` déjà distinct, mais `deco` nettoyé identique — ne
+  doivent pas fusionner ; deux teintes masse identiques, si).
 - Aucun nouveau dropdown / workflow.
 
 ### 6. `server/src/controllers/jobsController.js`
@@ -291,15 +317,28 @@ il a `teinteMasse: true` et une `matchRef` issue de la recherche `$text` sur
 Ref\* (machinerie teinte-masse existante), et on veut que son `deco` reste
 cohérent avec les docs teinte-masse hors-SMES (résolu depuis `RefDeco.model`).
 
-### 8. Services aval — dédoublonnage
+### 8. Services aval — `orientation` explicite
 
-`server/src/services/decoPrixVisuelBackfillService.js` et
-`server/src/services/profilsKitsService.js` : l'heuristique inline
-« chercher le nom du visuel dans `endv_identif` ET `endv_ref_client`,
-désambiguïser par orientation » est remplacée par des appels à
-`parseSurMesureRefClient().name` / `.orientation` de l'util partagé.
-Comportement fonctionnellement équivalent ; les tests unitaires existants
-(cmd 167431 ARCHE BEIGE) servent de garde anti-régression.
+`server/src/services/decoPrixVisuelBackfillService.js` (`matchPrixVisuel`) et
+`server/src/services/profilsKitsService.js` (`getPrixVisuel`) désambiguïsent
+aujourd'hui les panneaux miroir par `extractOrientationHint(ref, deco)`. Pour
+un **nouveau** doc `Deco` sur-mesure, `deco` = nom nettoyé (« ARCHE BEIGE »,
+sans orientation) et `ref` = `deco` → `extractOrientationHint` renvoie `null`
+et la désambiguïsation par prix est perdue.
+
+Correctif minimal : les deux fonctions acceptent un paramètre optionnel
+`orientation`. Quand il est fourni (nouveau doc : `doc.orientation`), il est
+utilisé tel quel ; sinon repli sur `extractOrientationHint(ref, deco)`
+(comportement actuel, docs anciens inchangés). `saveDeco` /
+`backfillDecoPrixVisuel` / `repairDecoPrixVisuel` passent `doc.orientation`.
+
+**Pas de remplacement** de la recherche double-champ
+(`endv_identif` + `endv_ref_client`) de ces fonctions : elle est volontairement
+générique (un doc `Deco` peut être catalogue *ou* sur-mesure) et la replier
+sur `parseSurMesureRefClient` régresserait le cas catalogue (cmd 167637
+« terrazzo gris » matché via `endv_identif`). Les heuristiques d'orientation
+(`extractOrientationHint` / `labelMatchesOrientation`) sont **déjà** dans
+`reference.js` et partagées — aucune duplication à retirer.
 
 ## Flux de données — exemple cmd 167302 / sous-dossier 05
 
@@ -312,9 +351,9 @@ Comportement fonctionnellement équivalent ; les tests unitaires existants
    printFormat: "90x210", finishHint: "MAT" }`.
 5. `classifySurMesure({ name: "BLANC ZERO" })` → `"teinte_masse"`.
 6. `buildVisualReferences` pose : `surMesure: true`,
-   `surMesureKind: "teinte_masse"`, `deco: "BLANC ZERO"`,
-   `reference: "BLANC ZERO"`, `format: "100x210"`, `finition: "LISSE"`,
-   `orientation: null`, `printFormat: "90x210"`.
+   `surMesureKind: "teinte_masse"`, `deco: "BLANC ZERO"` (nouveau champ ;
+   `reference` reste `"BLANC ZERO 90 x 210 MAT"`), `format: "100x210"`,
+   `finition: "LISSE"`, `orientation: null`, `printFormat: "90x210"`.
 7. `normalizeDossierApiPayload` → `visualJob` avec ces champs.
 8. Front `buildRows` : `surMesureKind === "teinte_masse"` → branche teinte
    (aucun fichier), `teinteMasse: true`, `surMesure: true`, teinte affichée
@@ -352,10 +391,12 @@ finition Texturée) : étape 11 → `surMesureKind === "visuel"` → Ref\* saut�
 
 | Fichier | Contenu |
 | --- | --- |
-| `test/unit/surMesure.test.js` *(neuf)* | `isSurMesureLabel` (positifs / négatifs) ; `parseSurMesureGabarit` (4 finitions, formes `100x210` et `100 x 210`, mm > 500) ; `parseSurMesureRefClient` (`ARCHE BEIGE CENTRE 86.9 X 201.5 MAT` ; `BLANC ZERO 90 x 210 MAT` ; sans orientation ; décimale `,` ; `endv_ref_client` vide) ; `classifySurMesure` (teinte connue vs visuel) |
-| `test/integration/dossierApi.surMesure.test.js` *(neuf)* | fixtures : cmd 167302 → `visualJobs[].surMesure === true`, `surMesureKind === "teinte_masse"`, `format === "100x210"`, `finition === "LISSE"`, `printFormat === "90x210"` ; une fixture 167431-like → `surMesureKind === "visuel"`, `orientation === "CENTRE"` |
-| `test/unit/decoSurMesureHook.test.js` *(neuf)* | doc `Deco` `surMesure: true` + `surMesureKind: "visuel"` avec `deco`/`finition`/`format` posés : après `save`, ces valeurs **ne sont pas** écrasées ; doc `surMesureKind: "teinte_masse"` : le hook résout via Ref\* (comme une teinte-masse) ; doc sans `surMesure` : résolution Ref\* normale (non-régression) |
-| `test/unit/decoPrixVisuelBackfillService.test.js` *(existant)* | reste vert après bascule sur l'util partagé (cmd 167431 ARCHE BEIGE GAUCHE/CENTRE/DROIT) |
+| `test/unit/surMesure.test.js` *(neuf)* | `isSurMesureLabel` (les 2 formes + négatifs) ; `parseSurMesureGabarit` (4 finitions, formes `100x210` et `100 x 210`, `Format fini : 100.0 x 255.0 cm`) ; `parseSurMesureRefClient` (`ARCHE BEIGE CENTRE 86.9 X 201.5 MAT` ; `BLANC ZERO 90 x 210 MAT` ; `BAMBUSA DROITE 80 X 230 MAT` ; sans orientation ; décimale `,` ; chaîne vide) ; `classifySurMesure` ; `canonicalTeinteMasse` |
+| `test/unit/dossierService.buildVisualReferences.test.js` *(étendu)* | nouveaux cas : ligne SMES (signal A) → `surMesure`, `surMesureKind`, `deco`, `finition`, `format`, `orientation`, `printFormat` ; ligne `"Panneau déco sur-mesure …"` sans stock (signal B) ; `reference` **inchangé** (raw) ; les 2 cas BAMBUSA existants restent verts |
+| `test/unit/dossierApiController.normalizeDossierApiPayload.test.js` *(étendu)* | un `visualRef` `surMesure` → `visualJob` porte `surMesure/surMesureKind/deco/finition/orientation/printFormat` ; `extractVisualFormat` renvoie `visualRef.format` quand `surMesure` |
+| `test/unit/decoSurMesureHook.test.js` *(neuf)* | doc `Deco` `surMesure:true` + `surMesureKind:"visuel"` + `deco/finition/format` posés : après `save`, **non écrasés** ; `surMesureKind:"teinte_masse"` : hook résout via Ref\* ; sans `surMesure` : résolution normale (non-régression) |
+| `test/unit/decoPrixVisuelBackfillService.test.js` *(étendu)* | cas neuf : `matchPrixVisuel({ …, orientation: "CENTRE" })` désambiguïse quand `deco` est nettoyé (pas d'orientation dans `deco`/`ref`) ; les cas 167431 existants restent verts |
+| `test/unit/jobsList.createJob.test.js` *(étendu)* | `createJob` propage `surMesureData` sur le job |
 | `test/unit/detectTeinteMasse.test.js` *(existant)* | reste vert (fallback client non modifié) |
 | `test/integration/dossierApi.teinteMasse.test.js` *(existant)* | reste vert (lignes teinte-masse **non-SMES** inchangées) |
 
@@ -364,27 +405,34 @@ finition Texturée) : étape 11 → `surMesureKind === "visuel"` → Ref\* saut�
 **Nouveaux :**
 - `server/src/gamesys/utils/surMesure.js`
 - `test/unit/surMesure.test.js`
-- `test/integration/dossierApi.surMesure.test.js`
 - `test/unit/decoSurMesureHook.test.js`
 
 **Modifiés :**
-- `server/src/gamesys/utils/reference.js` — exporte ce qu'il faut à `surMesure.js` (probablement déjà le cas)
+- `server/src/gamesys/utils/reference.js` — exporte `TEINTE_MASSE_MODELS` (aujourd'hui non exporté), `normalizeSearchText`, `isTeinteMasseModel`, `extractOrientationHint` (déjà exportés)
 - `server/src/gamesys/services/dossierService.js` — `buildVisualReferences`, `fetchSousDossiersVisuels`
 - `server/src/controllers/dossierApiController.js` — `extractVisualFormat`, `normalizeDossierApiPayload`
-- `server/src/controllers/jobsController.js` — `addJob` (lecture body, `comment`, persistance), export CSV
-- `server/src/models/Deco.js` — schéma + hooks
-- `server/src/services/decoPrixVisuelBackfillService.js` — bascule sur `surMesure.js`
-- `server/src/services/profilsKitsService.js` — bascule sur `surMesure.js`
+- `server/src/jobsList.js` — `createJob` : nouvel argument `surMesureData`
+- `server/src/controllers/jobsController.js` — `addJob` (lecture body, appel `createJob`), `runJobs`/`saveDeco` (`comment`, persistance `surMesure`/`surMesureKind`/`orientation`, `orientation` passé à `getPrixVisuel`), export CSV
+- `server/src/models/Deco.js` — schéma (3 champs) + hooks (skip Ref\* si `surMesureKind === "visuel"`)
+- `server/src/services/decoPrixVisuelBackfillService.js` — `matchPrixVisuel` accepte `orientation`
+- `server/src/services/profilsKitsService.js` — `getPrixVisuel` accepte `orientation`
 - `client/src/components/DossierAutocomplete.jsx` — `buildRows`
-- `client/src/App.jsx` — état job, badge, filtre
+- `client/src/App.jsx` — `mergeIdenticalVisuals`, 2 payloads `/add_job`, badge + filtre liste
+- Tests étendus : `test/unit/dossierService.buildVisualReferences.test.js`, `test/unit/dossierApiController.normalizeDossierApiPayload.test.js`, `test/unit/decoPrixVisuelBackfillService.test.js`, `test/unit/jobsList.createJob.test.js`
 
 ## Ordre d'implémentation suggéré
 
-1. `surMesure.js` + `test/unit/surMesure.test.js` (isolé, TDD).
-2. `dossierService.buildVisualReferences` + `dossierApiController` +
-   `test/integration/dossierApi.surMesure.test.js`.
-3. `Deco.js` schéma + hook + `test/unit/decoSurMesureHook.test.js`.
-4. `jobsController` (body, `comment`, persistance, CSV).
-5. Front : `buildRows` puis `App.jsx` (badge, filtre).
-6. Bascule `decoPrixVisuelBackfillService` / `profilsKitsService` sur l'util
-   partagé, vérifier les tests existants.
+1. `reference.js` (export `TEINTE_MASSE_MODELS`) + `surMesure.js` +
+   `test/unit/surMesure.test.js` (isolé, TDD).
+2. `dossierService.buildVisualReferences` (+ `fetchSousDossiersVisuels`) +
+   tests étendus `dossierService.buildVisualReferences.test.js`.
+3. `dossierApiController` (`extractVisualFormat`, `normalizeDossierApiPayload`)
+   + tests étendus `dossierApiController.normalizeDossierApiPayload.test.js`.
+4. `Deco.js` schéma + hook + `test/unit/decoSurMesureHook.test.js`.
+5. `jobsList.createJob` + `test/unit/jobsList.createJob.test.js` étendu.
+6. `jobsController` (`addJob` body + appel `createJob` ; `saveDeco` `comment`
+   + persistance + `orientation` vers `getPrixVisuel` ; export CSV).
+7. `decoPrixVisuelBackfillService` / `profilsKitsService` : param
+   `orientation` + test étendu.
+8. Front : `DossierAutocomplete.buildRows`, puis `App.jsx`
+   (`mergeIdenticalVisuals`, payloads, badge, filtre).
