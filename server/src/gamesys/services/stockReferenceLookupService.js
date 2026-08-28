@@ -54,4 +54,46 @@ async function findStockByRefs(refs) {
   return matches;
 }
 
-module.exports = { findStockByRefs };
+/**
+ * Charge en une passe l'index libellé fs_stock -> { famille, tarif }, utilisé par
+ * server/src/gamesys/utils/clientCatalogue.js pour rattacher à ECOM les commandes des comptes
+ * sans préfixe enseigne. fs_stock ≈ 2 600 libellés distincts -> une seule requête, en mémoire
+ * (idiome "une passe, pas N" — cf. feedback_odbc_backfill_resource_limits).
+ *
+ * Premier gagnant en cas de libellé dupliqué : st_lib_1_conso n'est pas 1:1 avec la famille,
+ * mais le départage est sans incidence sur le verdict (DECO LM et DECO ECO sont tous deux dans
+ * FAM_DECO côté clientCatalogue, qui force ECOM de toute façon).
+ *
+ * @param {object} [connection] connexion ODBC à réutiliser ; si absente, une connexion dédiée
+ *   est ouverte puis fermée.
+ * @returns {Promise<Map<string, { famille: string, tarif: string }>>} clé = UPPER(st_lib_1_conso)
+ */
+async function loadFamilleByLabel(connection) {
+  const own = !connection;
+  const conn = connection || (await getDbConnection());
+  try {
+    const rows = await query(
+      conn,
+      `
+        select st_lib_1_conso, st_art_famille, st_code_tarif
+        from public.fs_stock
+        where st_lib_1_conso is not null and st_lib_1_conso <> ''
+      `
+    );
+
+    const map = new Map();
+    for (const row of rows) {
+      const key = String(row.st_lib_1_conso).toUpperCase();
+      if (map.has(key)) continue;
+      map.set(key, {
+        famille: String(row.st_art_famille || "").trim(),
+        tarif: String(row.st_code_tarif || "").trim(),
+      });
+    }
+    return map;
+  } finally {
+    if (own) await closeConnection(conn);
+  }
+}
+
+module.exports = { findStockByRefs, loadFamilleByLabel };

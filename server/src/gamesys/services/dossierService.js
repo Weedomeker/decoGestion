@@ -11,10 +11,21 @@ const {
   getVisualReferenceFromEntete,
 } = require("../utils/reference");
 const { cleanDbValue, pickFields, uniqueBy, countRows } = require("../utils/data");
+const {
+  deduceAppClientFromCatalogue,
+  recoverCandidatesFromCatalogue,
+  mergeCandidates,
+} = require("../utils/clientCatalogue");
+const { loadFamilleByLabel } = require("./stockReferenceLookupService");
 const RefDeco  = require("../../models/RefDeco");
 const RefEcom  = require("../../models/RefEcom");
 const RefBrico = require("../../models/RefBrico");
 const RefCasto = require("../../models/RefCasto");
+
+// Récupération des commandes des comptes sans préfixe enseigne (PRO###, EPROCB, I96, ...) par
+// la famille catalogue de leurs articles — cf. server/src/gamesys/utils/clientCatalogue.js.
+// Activée par défaut ; GAMESYS_CATALOGUE_RECOVERY=false pour couper.
+const CATALOGUE_RECOVERY = process.env.GAMESYS_CATALOGUE_RECOVERY !== "false";
 
 // Mapping dos_client (Gamesys) → collection MongoDB préférée pour la résolution des références
 const CLIENT_REF_MODEL = { LM: RefDeco, CAS: RefCasto, BM: RefBrico, ECOM: RefEcom };
@@ -639,6 +650,19 @@ function buildGroupedResponse(details, view) {
         break;
       }
     }
+    // Compte sans préfixe enseigne (PRO###, EPROCB, I96, ...) : déduire ECOM depuis la famille
+    // catalogue des références déjà résolues (aucune requête supplémentaire — stock déjà résolu).
+    if (!clientName && CATALOGUE_RECOVERY) {
+      clientName =
+        deduceAppClientFromCatalogue(
+          client,
+          [...visualReferences, ...profileReferences, ...kitPosesReferences].map((r) => ({
+            label: r.libelle,
+            famille: r.famille,
+            tarif: r.codeTarif,
+          }))
+        ) || undefined;
+    }
   }
 
   const grouped = {
@@ -1029,6 +1053,7 @@ async function listCommandesAvecProfilsKits({ sinceDate, client } = {}) {
   // memory when fetching data").
   const connection = await getDbConnection();
   let rawRows;
+  let famMap = null;
   try {
     rawRows = await query(
       connection,
@@ -1039,6 +1064,9 @@ async function listCommandesAvecProfilsKits({ sinceDate, client } = {}) {
     `,
       [sinceDateText]
     );
+    // Index libellé -> famille chargé sur la même connexion (une passe) pour la récupération
+    // des comptes sans préfixe enseigne.
+    if (CATALOGUE_RECOVERY) famMap = await loadFamilleByLabel(connection);
   } finally {
     await closeConnection(connection);
   }
@@ -1050,9 +1078,18 @@ async function listCommandesAvecProfilsKits({ sinceDate, client } = {}) {
   }));
 
   const candidates = groupCandidatesFromRows(rows);
+  // 2ᵉ passe additive : rattache à ECOM les commandes des comptes sans préfixe connu (PRO###,
+  // EPROCB, I96, ...) dont le contenu est du catalogue déco avec au moins un profilé/kit.
+  const recovered = recoverCandidatesFromCatalogue(rows, famMap, { requireProfilKit: true });
+  if (recovered.length) {
+    logger.info(
+      `listCommandesAvecProfilsKits: +${recovered.length} commande(s) récupérée(s) par catalogue`
+    );
+  }
+  const all = mergeCandidates(candidates, recovered);
   // Filtrage sur l'enum applicatif (LM/CASTO/BRICO/ECOM) — dos_client contient des codes bruts
   // Gamesys (ex: "LM01", "CAS02", "BM01") non comparables directement en SQL à cet enum.
-  return client ? candidates.filter((c) => c.client === client) : candidates;
+  return client ? all.filter((c) => c.client === client) : all;
 }
 
 // Même requête que listCommandesAvecProfilsKits, mais renvoie TOUS les dossiers récents (pas
@@ -1070,16 +1107,18 @@ async function listCommandesRecentes({ sinceDate, client } = {}) {
 
   const connection = await getDbConnection();
   let rawRows;
+  let famMap = null;
   try {
     rawRows = await query(
       connection,
       `
-      select endv_no_dossier, endv_no_commande, endv_cclient
+      select endv_no_dossier, endv_no_commande, endv_cclient, endv_identif
       from public.fd_entete_devi
       where endv_date_cmde >= ?
     `,
       [sinceDateText]
     );
+    if (CATALOGUE_RECOVERY) famMap = await loadFamilleByLabel(connection);
   } finally {
     await closeConnection(connection);
   }
@@ -1087,10 +1126,20 @@ async function listCommandesRecentes({ sinceDate, client } = {}) {
   const rows = rawRows.map((row) => ({
     dos_no_cmde: row.endv_no_commande || row.endv_no_dossier,
     dos_client: row.endv_cclient,
+    endv_identif: row.endv_identif,
   }));
 
   const candidates = groupAllCandidatesFromRows(rows);
-  return client ? candidates.filter((c) => c.client === client) : candidates;
+  // Récupération catalogue sans filtre profil/kit : un stub est créé pour tout dossier récent
+  // (y compris visuels seuls).
+  const recovered = recoverCandidatesFromCatalogue(rows, famMap, { requireProfilKit: false });
+  if (recovered.length) {
+    logger.info(
+      `listCommandesRecentes: +${recovered.length} commande(s) récupérée(s) par catalogue`
+    );
+  }
+  const all = mergeCandidates(candidates, recovered);
+  return client ? all.filter((c) => c.client === client) : all;
 }
 
 async function searchDossiers({ q = "", limit = 10 } = {}) {
