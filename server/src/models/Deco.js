@@ -35,6 +35,9 @@ const decoSchema = new mongoose.Schema({
   app_version: { type: String },
   ip: { type: String },
   comment: { type: String, default: "" },
+  surMesure: { type: Boolean, default: false },
+  surMesureKind: { type: String }, // "visuel" | "teinte_masse" | (vide)
+  orientation: { type: String },   // GAUCHE | CENTRE | DROIT | (vide)
   prodBlanc: { type: Boolean, default: false },
   pkOnly: { type: Boolean, default: false },
   dateCommande: { type: Date },
@@ -79,7 +82,7 @@ async function resolveRefFields(client, ref) {
 // Hook avant save
 decoSchema.pre("save", async function (next) {
   try {
-    if (this.isModified("ref") && this.ref) {
+    if (this.isModified("ref") && this.ref && this.surMesureKind !== "visuel") {
       const refFields = await resolveRefFields(this.client, this.ref);
       this.finition = refFields.finition;
       this.format = refFields.format ?? this.format;
@@ -100,7 +103,8 @@ decoSchema.pre("findOneAndUpdate", async function (next) {
     // gérer les deux formats : direct ou $set
     const data = update.$set || update;
 
-    if (data.ref) {
+    const kind = update.$set ? update.$set.surMesureKind : update.surMesureKind;
+    if (data.ref && kind !== "visuel") {
       const clientKey = data.client || this.getFilter()?.client;
       const refFields = await resolveRefFields(clientKey, data.ref);
       data.finition = refFields.finition;
