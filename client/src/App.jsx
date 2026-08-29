@@ -126,6 +126,7 @@ function App() {
   const [credence2Client, setCredence2Client] = useState("");
   const [credence2Format, setCredence2Format] = useState("");
   const [healthData, setHealthData] = useState(null);
+  const [surMesureOnly, setSurMesureOnly] = useState(false);
 
   async function checkStockForVisuel(filename, client) {
     const base = filename.split(/[\\/]/).pop();
@@ -162,7 +163,13 @@ function App() {
       if (j.type === "profils_kits" || j._absorbedBy) return;
       const visuelName = j.selectedFileObject?.name;
       if (!visuelName) return; // pas encore de visuel résolu, rien à fusionner
-      const key = [j.numCmd, j.reference || j.ref, visuelName].join("|");
+      const key = [
+        j.numCmd,
+        j.reference || j.ref,
+        visuelName,
+        j.surMesure ? (j.orientation || "") : "",
+        j.surMesure ? (j.printFormat || "") : "",
+      ].join("|");
       if (seen.has(key)) {
         const primaryIdx = seen.get(key);
         const addedEx = Number(j.ex) || 0;
@@ -581,6 +588,10 @@ function App() {
             regmarks: checkGenerate.reg,
             cut: checkGenerate.cut,
             teinteMasse: job.teinteMasse ?? false,
+            surMesure: job.surMesure ?? false,
+            surMesureKind: job.surMesureKind ?? null,
+            orientation: job.orientation ?? "",
+            printFormat: job.printFormat ?? "",
             stock: false,
           };
           const response = await fetch(`${API_BASE}/add_job`, {
@@ -703,6 +714,10 @@ function App() {
       regmarks: checkGenerate.reg,
       cut: checkGenerate.cut,
       teinteMasse: checkGenerate.teinteMasse,
+      surMesure: false,
+      surMesureKind: null,
+      orientation: "",
+      printFormat: "",
       stock: modalInfoStock.use,
     };
 
@@ -918,10 +933,12 @@ function App() {
                   const dossierNumerosWithVisuals = new Set(
                     dossierJobs.filter(j => j.type !== "profils_kits" && !j._absorbedBy).map(j => j.dossierNumero)
                   );
-                  const visibleJobs = dossierJobs.filter((j) =>
-                    !j._absorbedBy &&
-                    (j.type !== "profils_kits" || !dossierNumerosWithVisuals.has(j.dossierNumero))
-                  );
+                  const visibleJobs = dossierJobs
+                    .filter((j) =>
+                      !j._absorbedBy &&
+                      (j.type !== "profils_kits" || !dossierNumerosWithVisuals.has(j.dossierNumero))
+                    )
+                    .filter((j) => !surMesureOnly || j.surMesure);
                   const visibleSelectedCount = visibleJobs.filter((j) => selectedJobIds.has(j.id)).length;
                   const allSelected = visibleJobs.length > 0 && visibleSelectedCount === visibleJobs.length;
                   const someSelected = visibleSelectedCount > 0 && !allSelected;
@@ -934,6 +951,14 @@ function App() {
                   });
                   return (
                     <div className="dossier-table-wrapper">
+                      <label className="filter-toggle">
+                        <input
+                          type="checkbox"
+                          checked={surMesureOnly}
+                          onChange={(e) => setSurMesureOnly(e.target.checked)}
+                        />
+                        Sur-mesure uniquement
+                      </label>
                       {unpairedManualCredences.length > 0 && (
                         <div className="credence-unpaired-warning">
                           <Icon name="warning sign" color="orange" />
@@ -989,7 +1014,8 @@ function App() {
                         </Table.Header>
                         <Table.Body>
                           {Object.entries(groups).map(([dossierNumero, group]) => {
-                            const groupJobs = group.jobs;
+                            const groupJobs = group.jobs.filter((j) => !surMesureOnly || j.surMesure);
+                            if (surMesureOnly && groupJobs.length === 0) return null;
                             const isMixedGroup = dossierNumerosWithVisuals.has(dossierNumero);
                             const selectableGroupJobs = isMixedGroup
                               ? groupJobs.filter(j => j.type !== "profils_kits")
@@ -1194,6 +1220,11 @@ function App() {
                                         >
                                           TM
                                         </button>
+                                        {job.surMesure && (
+                                          <span className="badge badge--surmesure" title="Panneau sur-mesure">
+                                            SUR-MESURE{job.printFormat ? ` · ${job.printFormat.replace("x", " × ").replace(".", ",")}` : ""}
+                                          </span>
+                                        )}
                                       </Table.Cell>
                                       {hasCredences && (
                                         <Table.Cell>
