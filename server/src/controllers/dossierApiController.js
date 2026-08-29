@@ -21,6 +21,7 @@ function parseFormat(value) {
 }
 
 function extractVisualFormat(visualRef, sousDossier) {
+  if (visualRef?.surMesure && visualRef?.format) return visualRef.format;
   return (
     parseFormat(visualRef?.libelle) ||
     parseFormat(visualRef?.codeTarif) ||
@@ -102,6 +103,10 @@ function normalizeDossierApiPayload(payload) {
         warnings.push(`Référence fallback sur libellé brut pour ${commande} : "${libelle}"`);
       }
 
+      if (visualRef?.surMesure && !visualRef?.deco) {
+        warnings.push(`Sur-mesure sans nom exploitable (endv_ref_client vide) pour ${commande}`);
+      }
+
       return {
         id: `${commande}-${visualIndex}-${reference || ""}`,
         commande,
@@ -121,6 +126,12 @@ function normalizeDossierApiPayload(payload) {
         codeTarif: visualRef?.codeTarif || "",
         clientVisu: clientVisu !== defaultClient ? clientVisu : undefined,
         prix: prixSousDossier,
+        surMesure: visualRef?.surMesure || false,
+        surMesureKind: visualRef?.surMesureKind || null,
+        deco: visualRef?.deco || null,
+        finition: visualRef?.finition || null,
+        orientation: visualRef?.orientation || null,
+        printFormat: visualRef?.printFormat || null,
       };
     });
   });
