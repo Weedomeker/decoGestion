@@ -10,6 +10,12 @@ const {
   isNumericReference,
   getVisualReferenceFromEntete,
 } = require("../utils/reference");
+const {
+  isSurMesureLabel,
+  parseSurMesureGabarit,
+  parseSurMesureRefClient,
+  classifySurMesure,
+} = require("../utils/surMesure");
 const { cleanDbValue, pickFields, uniqueBy, countRows } = require("../utils/data");
 const {
   deduceAppClientFromCatalogue,
@@ -442,6 +448,23 @@ function buildVisualReferences(enteteDevis, stockVisualReferences, printFinish) 
         const reference = (refIsGencod ? null : stockRef) || stockReference?.modele || explicitReference || entete.endv_identif;
         if (!reference) return null;
 
+        const smSfamille = String(stockReference?.sousFamille || "").toUpperCase() === "SMES";
+        const isSM = smSfamille || isSurMesureLabel(entete.endv_identif);
+        let surMesureFields = {};
+        if (isSM) {
+          const gab = parseSurMesureGabarit(entete.endv_identif, stockReference?.codeTarif);
+          const rc = parseSurMesureRefClient(explicitReference);
+          surMesureFields = {
+            surMesure: true,
+            surMesureKind: classifySurMesure(rc),
+            deco: rc.name || undefined,
+            finition: gab.finition || undefined,
+            format: gab.format || undefined,
+            orientation: rc.orientation || undefined,
+            printFormat: rc.printFormat || undefined,
+          };
+        }
+
         return {
           reference,
           libelle: entete.endv_identif || stockReference?.libelle || reference,
@@ -456,6 +479,7 @@ function buildVisualReferences(enteteDevis, stockVisualReferences, printFinish) 
           type: stockReference?.type,
           source: stockReference ? "fs_stock" : "fd_entete_devi",
           category: "visuel",
+          ...surMesureFields,
         };
       })
       .filter(Boolean),
