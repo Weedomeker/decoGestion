@@ -29,6 +29,7 @@ function createJob(
   prix2,
   sousDossier,
   sousDossier2,
+  surMesureData,
 ) {
   const date = new Date();
 
@@ -68,6 +69,10 @@ function createJob(
     prix2: prix2 != null && prix2 !== "" ? Number(prix2) : undefined,
     sousDossier: sousDossier || undefined,
     sousDossier2: sousDossier2 || undefined,
+    surMesure: !!(surMesureData && surMesureData.surMesure),
+    surMesureKind: surMesureData?.surMesureKind || undefined,
+    orientation: surMesureData?.orientation || undefined,
+    printFormat: surMesureData?.printFormat || undefined,
   };
 
   return newJob;

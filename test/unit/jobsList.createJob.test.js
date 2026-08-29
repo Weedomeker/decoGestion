@@ -64,3 +64,27 @@ describe("jobsList.createJob() — prix précalculé du sous-dossier", () => {
     expect(job.prix).to.equal(199.39);
   });
 });
+
+describe("jobsList.createJob() — sur-mesure", () => {
+  it("porte surMesureData sur le job", () => {
+    const job = createJob(
+      "LM", "167302", 0, "COLOMIERS", "100x210", "", "Deco_Std_101x215",
+      "BLANC ZERO MAT", "", "94953671", 0, "1",
+      "", "", "server/public/write", "server/public/PRINTSA1/x", "server/public/PRINTSA1/x2",
+      0, false, false, true /*teinteMasse*/, false, false, "LM", null, null,
+      185.08, undefined, "05", undefined,
+      { surMesure: true, surMesureKind: "teinte_masse", orientation: "", printFormat: "90x210" },
+    );
+    expect(job.surMesure).to.equal(true);
+    expect(job.surMesureKind).to.equal("teinte_masse");
+    expect(job.printFormat).to.equal("90x210");
+  });
+
+  it("défaut sans surMesureData : surMesure=false", () => {
+    const job = createJob(
+      "LM", "1", 0, "P", "100x255", "", "Deco_Std_101x215", "v.pdf", "", "94953707", 0, "1",
+      "p", "", "w", "j", "j2", 0, false, false, false, false, false, "LM", null, null, undefined, undefined, undefined, undefined,
+    );
+    expect(job.surMesure).to.equal(false);
+  });
+});
