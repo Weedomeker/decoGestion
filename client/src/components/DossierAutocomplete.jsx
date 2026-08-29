@@ -143,7 +143,11 @@ function buildRows(payload, pathData, formatTauro) {
     const baseId = job.id || `${job.numCmd || job.libelle || "row"}-${index}`;
     const formatTauroValue = findFormatTauro(formatTauro, job.formatTauro);
 
-    const detectedTeinte = detectTeinteMasse(job);
+    const detectedTeinte =
+      detectTeinteMasse(job) ||
+      (job.surMesureKind === "teinte_masse" && job.deco
+        ? detectTeinteMasse({ libelle: job.deco, reference: "" })
+        : null);
     if (detectedTeinte) {
       const teinteFormatFolder = findFormatFolder(folders, job.formatVisu);
       return {
