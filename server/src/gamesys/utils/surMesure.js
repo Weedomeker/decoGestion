@@ -60,6 +60,8 @@ function parseSurMesureRefClient(endvRefClient) {
 
   let printFormat = null;
   const pf = upper.match(/(\d+(?:[.,]\d+)?)\s*X\s*(\d+(?:[.,]\d+)?)/);
+  // printFormat: cote client brute (souvent décimale, ex 86.9x201.5) — volontairement NON normalisée
+  // mm→cm contrairement à format ; sert uniquement au commentaire "Cote client" et à la clé de dédup front.
   if (pf) printFormat = `${pf[1].replace(",", ".")}x${pf[2].replace(",", ".")}`;
 
   let finishHint = null;
@@ -76,7 +78,8 @@ function parseSurMesureRefClient(endvRefClient) {
   return { name, orientation, printFormat, finishHint };
 }
 
-function classifySurMesure({ name } = {}) {
+function classifySurMesure(arg) {
+  const { name } = arg || {};
   return isTeinteMasseModel(name) ? "teinte_masse" : "visuel";
 }
 

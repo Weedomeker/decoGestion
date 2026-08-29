@@ -449,11 +449,11 @@ function buildVisualReferences(enteteDevis, stockVisualReferences, printFinish) 
         if (!reference) return null;
 
         const smSfamille = String(stockReference?.sousFamille || "").toUpperCase() === "SMES";
-        const isSM = smSfamille || isSurMesureLabel(entete.endv_identif);
+        const isSM = smSfamille || (!stockReference && isSurMesureLabel(entete.endv_identif));
         let surMesureFields = {};
         if (isSM) {
           const gab = parseSurMesureGabarit(entete.endv_identif, stockReference?.codeTarif);
-          const rc = parseSurMesureRefClient(explicitReference);
+          const rc = parseSurMesureRefClient(entete.endv_ref_client);
           surMesureFields = {
             surMesure: true,
             surMesureKind: classifySurMesure(rc),

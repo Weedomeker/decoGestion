@@ -1,48 +1,75 @@
 const { expect } = require("chai");
 const { connect, disconnect } = require("../helpers/mongoTestHelper");
 
-// mongoTestHelper.connect() démarre un MongoMemoryServer vide : aucune collection Ref*,
-// donc resolveRefFields renvoie toujours { matched:false, finition:"" } — ce qui est
-// exactement le comportement attendu par les assertions ci-dessous.
-describe("Deco — hook sur-mesure (skip Ref* si surMesureKind === 'visuel')", function () {
+// Après le revert du "skip Ref* si surMesureKind === 'visuel'" (revue finale), le hook pre-save
+// résout TOUJOURS finition/format/deco depuis Ref* dès qu'un ref est présent, sur-mesure ou non.
+// Ce test tourne contre un Mongo mémoire AVEC une collection RefDeco seedée pour distinguer
+// "résolution sautée" de "résolution exécutée mais sans correspondance".
+describe("Deco — hook sur-mesure (résolution Ref* non sautée pour 'visuel')", function () {
   this.timeout(30000);
   let Deco;
+  let RefDeco;
 
   before(async () => {
     await connect();
     Deco = require("../../server/src/models/Deco");
+    RefDeco = require("../../server/src/models/RefDeco");
+    await RefDeco.create({
+      ref: "ARCHE-SM-TEST",
+      model: "ARCHE BEIGE CAT",
+      finition: "SATIN",
+      format: "125x210",
+    });
   });
+
   after(async () => {
     await disconnect();
   });
 
-  it("un doc surMesureKind='visuel' conserve deco/finition/format venus de Gamesys", async () => {
+  it("A — un doc surMesureKind='visuel' résout finition/format/deco depuis RefDeco (non sauté) et round-trip les champs sur-mesure", async () => {
     const doc = await Deco.create({
-      numCmd: 999001, client: "LM",
-      ref: "ARCHE BEIGE", surMesure: true, surMesureKind: "visuel",
-      deco: "ARCHE BEIGE", finition: "TEXTUREE", format: "125x210", orientation: "CENTRE",
+      numCmd: 999101,
+      client: "LM",
+      ref: "ARCHE-SM-TEST",
+      surMesure: true,
+      surMesureKind: "visuel",
+      orientation: "GAUCHE",
+      deco: "PLACEHOLDER",
+      finition: "PLACEHOLDER",
+      format: "999x999",
     });
-    expect(doc.deco).to.equal("ARCHE BEIGE");
-    expect(doc.finition).to.equal("TEXTUREE");
+    expect(doc.deco).to.equal("ARCHE BEIGE CAT");
+    expect(doc.finition).to.equal("SATIN");
     expect(doc.format).to.equal("125x210");
+    expect(doc.surMesure).to.equal(true);
+    expect(doc.surMesureKind).to.equal("visuel");
+    expect(doc.orientation).to.equal("GAUCHE");
   });
 
-  it("un doc surMesureKind='teinte_masse' passe par la résolution Ref* normale", async () => {
-    // ref bidon absente de Ref* → resolveRefFields renvoie {matched:false, finition:""}
+  it("B — un doc surMesureKind='teinte_masse' avec un ref absent de RefDeco : résolution exécutée, aucune correspondance → finition ''", async () => {
     const doc = await Deco.create({
-      numCmd: 999002, client: "LM",
-      ref: "ZZZ-INEXISTANT", surMesure: true, surMesureKind: "teinte_masse",
-      deco: "PLACEHOLDER", finition: "PLACEHOLDER", format: "100x210",
+      numCmd: 999102,
+      client: "LM",
+      ref: "TEINTE-MASSE-ABSENTE",
+      surMesure: true,
+      surMesureKind: "teinte_masse",
+      deco: "PLACEHOLDER",
+      finition: "PLACEHOLDER",
+      format: "100x210",
     });
-    // le hook a tourné : finition remise à "" (comportement teinte-masse existant)
     expect(doc.finition).to.equal("");
   });
 
-  it("un doc non sur-mesure garde la résolution Ref* (non-régression)", async () => {
+  it("C — un doc non sur-mesure avec ref='ARCHE-SM-TEST' résout depuis RefDeco (non-régression)", async () => {
     const doc = await Deco.create({
-      numCmd: 999003, client: "LM", ref: "ZZZ-INEXISTANT2",
-      deco: "PLACEHOLDER", finition: "PLACEHOLDER",
+      numCmd: 999103,
+      client: "LM",
+      ref: "ARCHE-SM-TEST",
+      deco: "PLACEHOLDER",
+      finition: "PLACEHOLDER",
     });
-    expect(doc.finition).to.equal("");
+    expect(doc.finition).to.equal("SATIN");
+    expect(doc.deco).to.equal("ARCHE BEIGE CAT");
+    expect(doc.format).to.equal("125x210");
   });
 });

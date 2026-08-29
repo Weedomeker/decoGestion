@@ -955,7 +955,10 @@ function App() {
                         <input
                           type="checkbox"
                           checked={surMesureOnly}
-                          onChange={(e) => setSurMesureOnly(e.target.checked)}
+                          onChange={(e) => {
+                            setSurMesureOnly(e.target.checked);
+                            setSelectedJobIds(new Set());
+                          }}
                         />
                         Sur-mesure uniquement
                       </label>
@@ -1222,7 +1225,7 @@ function App() {
                                         </button>
                                         {job.surMesure && (
                                           <span className="badge badge--surmesure" title="Panneau sur-mesure">
-                                            SUR-MESURE{job.printFormat ? ` · ${job.printFormat.replace("x", " × ").replace(".", ",")}` : ""}
+                                            SUR-MESURE{job.printFormat ? ` · ${job.printFormat.replace("x", " × ").replace(/\./g, ",")}` : ""}
                                           </span>
                                         )}
                                       </Table.Cell>

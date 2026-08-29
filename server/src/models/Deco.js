@@ -82,7 +82,7 @@ async function resolveRefFields(client, ref) {
 // Hook avant save
 decoSchema.pre("save", async function (next) {
   try {
-    if (this.isModified("ref") && this.ref && this.surMesureKind !== "visuel") {
+    if (this.isModified("ref") && this.ref) {
       const refFields = await resolveRefFields(this.client, this.ref);
       this.finition = refFields.finition;
       this.format = refFields.format ?? this.format;
@@ -103,8 +103,7 @@ decoSchema.pre("findOneAndUpdate", async function (next) {
     // gérer les deux formats : direct ou $set
     const data = update.$set || update;
 
-    const kind = update.$set ? update.$set.surMesureKind : update.surMesureKind;
-    if (data.ref && kind !== "visuel") {
+    if (data.ref) {
       const clientKey = data.client || this.getFilter()?.client;
       const refFields = await resolveRefFields(clientKey, data.ref);
       data.finition = refFields.finition;
