@@ -61,7 +61,7 @@ function sumArticlesPrix(articles) {
 // grouped.visualReferences (déjà résolu par buildVisualReferences en amont) plutôt que via un
 // libellé passé directement, car un visuel n'a pas d'équivalent à profileReferences/kitPosesReferences
 // côté appelant (saveDeco ne dispose que de cmd/ref/deco, pas des sousDossiers).
-async function getPrixVisuel({ cmd, ref, deco, format, soleDoc = false }) {
+async function getPrixVisuel({ cmd, ref, deco, format, soleDoc = false, orientation = null }) {
   if (!cmd) return undefined;
   let grouped;
   try {
@@ -112,10 +112,10 @@ async function getPrixVisuel({ cmd, ref, deco, format, soleDoc = false }) {
     // différent — l'orientation n'apparaît pas toujours dans deco, mais est parfois encodée en
     // suffixe dans ref (ex: "HOKUSAID-150210"/"HOKUSAIG-150210"). Voir decoPrixVisuelBackfillService.js.
     if (candidates.length > 1) {
-      const orientation = extractOrientationHint(ref, deco);
-      if (orientation) {
+      const orient = orientation || extractOrientationHint(ref, deco);
+      if (orient) {
         const narrowed = candidates.filter(
-          (v) => labelMatchesOrientation(v.libelle || "", orientation) || labelMatchesOrientation(v.reference || "", orientation),
+          (v) => labelMatchesOrientation(v.libelle || "", orient) || labelMatchesOrientation(v.reference || "", orient),
         );
         if (narrowed.length > 0) candidates = narrowed;
       }

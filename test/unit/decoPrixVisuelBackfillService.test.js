@@ -329,6 +329,16 @@ describe("decoPrixVisuelBackfillService.matchPrixVisuel()", () => {
     expect(matchPrixVisuel(rows, { ref: "", deco: "ARCHE BEIGE", format: "117,8x201,5" })).to.equal(199.0);
   });
 
+  it("désambiguïse par le paramètre orientation quand deco est nettoyé (pas d'orientation dans deco/ref)", () => {
+    // DROIT en 1er : sans le param, matchPrixVisuel renvoie candidates[0] = 199.0 → le test échoue.
+    const rows = [
+      { endv_identif: "Panneau déco sur-mesure 125x210 Finition Texturée", endv_px_total: 199.0,  endv_ref_client: "ARCHE BEIGE DROIT 117.8 X 201.5 MAT" },
+      { endv_identif: "Panneau déco sur-mesure 125x210 Finition Texturée", endv_px_total: 230.46, endv_ref_client: "ARCHE BEIGE GAUCHE 119.6 X 201.5 MAT" },
+    ];
+    const prix = matchPrixVisuel(rows, { ref: "ARCHE BEIGE", deco: "ARCHE BEIGE", format: "125x210", orientation: "GAUCHE" });
+    expect(prix).to.equal(230.46);
+  });
+
   it("n'additionne pas les prix de lignes partageant le même endv_identif (non-régression getPrixForArticle)", () => {
     const rows = [
       { endv_identif: "MEME LIBELLE", endv_px_total: 100, endv_ref_client: "PRODUIT A" },

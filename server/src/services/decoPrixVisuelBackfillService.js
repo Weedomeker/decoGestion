@@ -17,7 +17,7 @@ const {
 // par le matching stock (fs_stock) utilisé par getDossierDetail/buildVisualReferences — inutile ici
 // puisqu'on dispose déjà de la référence résolue du document Deco (doc.ref), pas besoin de la
 // redériver depuis le catalogue.
-function matchPrixVisuel(enteteRows, { ref, deco, format, soleDoc = false }) {
+function matchPrixVisuel(enteteRows, { ref, deco, format, soleDoc = false, orientation = null }) {
   const visualRows = enteteRows.filter((row) => isVisualLabel(row.endv_identif || ""));
   const safeRef = ref ? String(ref).toUpperCase() : null;
   let matchedRow = null;
@@ -63,12 +63,12 @@ function matchPrixVisuel(enteteRows, { ref, deco, format, soleDoc = false }) {
     // n'apparaît pas toujours dans deco, mais est parfois encodée en suffixe dans ref (ex:
     // "HOKUSAID-150210"/"HOKUSAIG-150210").
     if (candidates.length > 1) {
-      const orientation = extractOrientationHint(ref, deco);
-      if (orientation) {
+      const orient = orientation || extractOrientationHint(ref, deco);
+      if (orient) {
         const narrowed = candidates.filter(
           (row) =>
-            labelMatchesOrientation(row.endv_identif || "", orientation) ||
-            labelMatchesOrientation(getVisualReferenceFromEntete(row), orientation),
+            labelMatchesOrientation(row.endv_identif || "", orient) ||
+            labelMatchesOrientation(getVisualReferenceFromEntete(row), orient),
         );
         if (narrowed.length > 0) candidates = narrowed;
       }
@@ -101,7 +101,7 @@ async function backfillDecoPrixVisuel({ dryRun = false, numCmds = null, sinceDat
   const filter = { prix: { $exists: false } };
   filter.numCmd = numCmds ? { $in: numCmds } : { $gt: 0 };
   if (sinceDate) filter.createdAt = { $gte: sinceDate };
-  const aTraiter = await Deco.find(filter, { numCmd: 1, ref: 1, deco: 1, format: 1 }).lean();
+  const aTraiter = await Deco.find(filter, { numCmd: 1, ref: 1, deco: 1, format: 1, orientation: 1 }).lean();
 
   const resume = { candidats: aTraiter.length, misAJour: 0, introuvables: 0, erreurs: 0 };
 
@@ -137,6 +137,7 @@ async function backfillDecoPrixVisuel({ dryRun = false, numCmds = null, sinceDat
             deco: doc.deco,
             format: doc.format,
             soleDoc: docs.length === 1,
+            orientation: doc.orientation,
           });
           if (prix == null) {
             resume.introuvables += 1;
@@ -168,7 +169,7 @@ async function backfillDecoPrixVisuel({ dryRun = false, numCmds = null, sinceDat
 async function repairDecoPrixVisuel({ dryRun = false, numCmds = null } = {}) {
   const filter = {};
   filter.numCmd = numCmds ? { $in: numCmds } : { $gt: 0 };
-  const aTraiter = await Deco.find(filter, { numCmd: 1, ref: 1, deco: 1, format: 1, prix: 1 }).lean();
+  const aTraiter = await Deco.find(filter, { numCmd: 1, ref: 1, deco: 1, format: 1, prix: 1, orientation: 1 }).lean();
 
   const resume = { candidats: aTraiter.length, corriges: 0, misAJour: 0, inchanges: 0, introuvables: 0, erreurs: 0 };
 
@@ -199,6 +200,7 @@ async function repairDecoPrixVisuel({ dryRun = false, numCmds = null } = {}) {
             deco: doc.deco,
             format: doc.format,
             soleDoc: docs.length === 1,
+            orientation: doc.orientation,
           });
           if (prix == null) {
             resume.introuvables += 1;
