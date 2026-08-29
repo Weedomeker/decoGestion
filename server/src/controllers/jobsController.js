@@ -25,6 +25,7 @@ const { saveFormatsTauroIfNeeded } = require("../services/formatsService");
 const { broadcastWS, broadcastCompletedJob } = require("../services/websocketService");
 const usePdfWorker = require("../utils/pdfWorker");
 const { castoName } = require("../utils/jobNames");
+const { buildCoteClientComment } = require("../utils/coteClient");
 const { extractRefFromFilename, validateRefFormat, REF_FORMAT_HINT } = require("../services/referencesCheckService");
 const { decoQueue, queueEvents } = require("../services/queueService");
 
@@ -178,6 +179,10 @@ async function addJob(req, res) {
     cut: req.body.cut,
     teinteMasse: req.body.teinteMasse,
     stock: req.body.stock,
+    surMesure: req.body.surMesure,
+    surMesureKind: req.body.surMesureKind,
+    orientation: req.body.orientation,
+    printFormat: req.body.printFormat,
   };
   if (!data.client || !data.visuel || !data.formatTauro || !data.format) {
     return res.status(400).json({ error: "Champs obligatoires manquants : client, visuel, format, formatTauro." });
@@ -457,6 +462,12 @@ async function addJob(req, res) {
     data.prix2,
     data.sousDossier,
     data.sousDossier2,
+    {
+      surMesure: !!data.surMesure,
+      surMesureKind: data.surMesureKind || undefined,
+      orientation: data.orientation || undefined,
+      printFormat: data.printFormat || undefined,
+    },
   );
 
   const jobExist = state.jobs.jobs.find(
@@ -760,7 +771,14 @@ async function processJob(job, req) {
             const existingSiblings = await modelDeco.countDocuments({ numCmd: cmd, gamesysStub: { $ne: true } });
             soleDoc = existingSiblings === 0;
           }
-          prix = await getPrixVisuel({ cmd, ref: safeRef, deco: visuel, format: resolvedFormat, soleDoc });
+          prix = await getPrixVisuel({
+            cmd,
+            ref: safeRef,
+            deco: visuel,
+            format: resolvedFormat,
+            soleDoc,
+            orientation: job.orientation || undefined,
+          });
         } catch (err) {
           logger.warn(`saveDeco: prix visuel non récupéré pour cmd=${cmd} : ${err.message}`);
         }
@@ -785,8 +803,14 @@ async function processJob(job, req) {
       status: safeRef ? "A imprimer" : "ref_invalide",
       app_version: `v${state.appVersion}`,
       ip: req.ip.split(":").pop() === "1" || req.hostname === "localhost" ? os.hostname() : req.ip.split(":").pop(),
-      comment: isStock ? `Pris en stock le ${new Date().toLocaleString()}` : "",
+      comment: buildCoteClientComment(
+        job.printFormat,
+        isStock ? `Pris en stock le ${new Date().toLocaleString()}` : "",
+      ),
       prodBlanc: !!job.prodBlanc,
+      surMesure: !!job.surMesure,
+      surMesureKind: job.surMesureKind || undefined,
+      orientation: job.orientation || undefined,
       dateCommande: commandeInfo?.dateCommande ?? undefined,
       codeClient: commandeInfo?.codeClient ?? undefined,
       refClient: commandeInfo?.refClient ?? undefined,
@@ -1284,7 +1308,7 @@ async function exportHistory(req, res) {
     res.setHeader("Content-Disposition", `attachment; filename="historique-${dateStr}.csv"`);
 
     // En-tête CSV
-    res.write("date,client,numCmd,mag,deco,ref,format,finition,ex,temps,perte,prodBlanc\n");
+    res.write("date,client,numCmd,mag,deco,ref,format,finition,ex,temps,perte,prodBlanc,surMesure\n");
 
     for (const entry of entries) {
       const line = [
@@ -1300,6 +1324,7 @@ async function exportHistory(req, res) {
         entry.temps !== undefined && entry.temps !== null ? entry.temps : 0,
         entry.perte !== undefined && entry.perte !== null ? entry.perte : 0,
         entry.prodBlanc ? 1 : 0,
+        entry.surMesure ? 1 : 0,
       ].join(",");
       res.write(`${line  }\n`);
     }
