@@ -9,6 +9,7 @@
  * Usage :
  *   node server/scripts/backfillDecoSurMesureStubs.js [Test|DecoKin]           # dry-run (défaut Test)
  *   node server/scripts/backfillDecoSurMesureStubs.js DecoKin --apply          # applique
+ *   node server/scripts/backfillDecoSurMesureStubs.js DecoKin --apply --a-lancer  # limite aux stubs status="A lancer"
  *
  * Idempotent : après application, `surMesure: true` exclut les docs déjà traités.
  * Une seule connexion ODBC réutilisée (cf. feedback_odbc_backfill_resource_limits).
@@ -24,6 +25,7 @@ const { buildCoteClientComment } = require("../src/utils/coteClient");
 
 const DB_NAME = process.argv[2] && !process.argv[2].startsWith("--") ? process.argv[2] : "Test";
 const APPLY = process.argv.includes("--apply");
+const A_LANCER_ONLY = process.argv.includes("--a-lancer");
 const GENERIC_DECO_RE = /^\s*(panneau\s+d[eé]co\s+sur[-\s]?mesure|format\s+fini\s*:)/i;
 
 function j(v) {
@@ -36,7 +38,9 @@ async function main() {
   await client.connect();
   const col = client.db(DB_NAME).collection("lm_commandes");
 
-  console.log(`\n=== backfillDecoSurMesureStubs — base ${DB_NAME} — ${APPLY ? "APPLY" : "DRY-RUN"} ===\n`);
+  console.log(
+    `\n=== backfillDecoSurMesureStubs — base ${DB_NAME} — ${APPLY ? "APPLY" : "DRY-RUN"}${A_LANCER_ONLY ? ' — status="A lancer" uniquement' : ""} ===\n`,
+  );
 
   const odbcOk = await dbConfig.checkOdbcConnection();
   if (!odbcOk) {
@@ -45,10 +49,9 @@ async function main() {
     process.exit(1);
   }
 
-  const docs = await col
-    .find({ deco: { $regex: GENERIC_DECO_RE }, surMesure: { $ne: true } })
-    .sort({ numCmd: -1 })
-    .toArray();
+  const filter = { deco: { $regex: GENERIC_DECO_RE }, surMesure: { $ne: true } };
+  if (A_LANCER_ONLY) filter.status = "A lancer";
+  const docs = await col.find(filter).sort({ numCmd: -1 }).toArray();
 
   console.log(`${docs.length} document(s) candidat(s) (deco générique, surMesure non posé).\n`);
 
