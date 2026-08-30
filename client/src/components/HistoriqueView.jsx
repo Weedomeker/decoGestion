@@ -206,7 +206,19 @@ function HistoriqueView() {
                     </td>
                     <td className="historique-mono">{row.numCmd ?? "—"}</td>
                     <td>{row.mag ?? "—"}</td>
-                    <td>{row.deco ?? "—"}</td>
+                    <td>
+                      {row.deco ?? "—"}
+                      {row.surMesure && (
+                        <span
+                          className="badge badge--surmesure"
+                          title={`Sur-mesure${row.orientation ? ` — ${row.orientation}` : ""}${
+                            row.comment ? ` — ${row.comment}` : ""
+                          }`}
+                        >
+                          SM
+                        </span>
+                      )}
+                    </td>
                     <td className="historique-mono">{row.format ?? row.format_visu ?? "—"}</td>
                     <td>{row.finition ?? "—"}</td>
                     <td>{row.ex ?? "—"}</td>

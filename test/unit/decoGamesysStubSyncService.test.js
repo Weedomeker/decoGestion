@@ -195,6 +195,54 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
     });
   });
 
+  it("pose les champs sur-mesure (deco nettoyé, finition gabarit, orientation, cote client) sur le stub À lancer", async () => {
+    listCandidatsStub.resolves([{ cmd: "167302", client: "LM" }]);
+    existsStub.resolves(false);
+    sinon.stub(dossierService, "fetchSousDossiersVisuels").resolves([
+      {
+        sousNumero: "05",
+        printFinish: "MAT",
+        formatFini: "125x210",
+        visualReferences: [
+          {
+            reference: "ARCHE BEIGE CENTRE 86.9 X 201.5 MAT",
+            libelle: "Panneau déco sur-mesure 125x210 Finition Texturée",
+            endv_px_total: 199,
+            endv_quant: 1,
+            surMesure: true,
+            surMesureKind: "visuel",
+            deco: "ARCHE BEIGE",
+            finition: "TEXTUREE",
+            format: "125x210",
+            orientation: "CENTRE",
+            printFormat: "86.9x201.5",
+          },
+        ],
+      },
+    ]);
+    sinon.stub(Deco, "resolveRefFields").resolves({ matched: false, finition: "" });
+
+    const resume = await syncDecoStubsDepuisGamesys({ sinceDate });
+
+    expect(resume.crees).to.equal(1);
+    const call = findOneAndUpdateStub.getCalls().find((c) => c.args[0].sousDossier === "05");
+    expect(call).to.exist;
+    const inserted = call.args[1].$setOnInsert;
+    expect(inserted.ref).to.be.undefined;
+    expect(inserted).to.include({
+      numCmd: 167302,
+      sousDossier: "05",
+      deco: "ARCHE BEIGE",
+      finition: "TEXTUREE",
+      format: "125x210",
+      surMesure: true,
+      surMesureKind: "visuel",
+      orientation: "CENTRE",
+      comment: "Cote client : 86,9 × 201,5 cm",
+      status: "A lancer",
+    });
+  });
+
   it("comptabilise les erreurs sans interrompre le traitement des autres candidats", async () => {
     listCandidatsStub.resolves([
       { cmd: "167648", client: "LM" },

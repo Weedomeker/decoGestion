@@ -4,6 +4,7 @@ const dossierService = require("../gamesys/services/dossierService");
 const dbConfig = require("../gamesys/config/db");
 const { closeConnection } = require("../gamesys/lib/db");
 const Deco = require("../models/Deco");
+const { buildCoteClientComment } = require("../utils/coteClient");
 
 // Crée proactivement des documents Deco (gamesysStub:true) pour chaque dossier Gamesys récent qui
 // n'a pas encore de document Deco, avant toute action utilisateur — sur le modèle de
@@ -128,6 +129,13 @@ async function syncDecoStubsDepuisGamesys({ sinceDate, concurrency = 3, dryRun =
                   : sousDossier.printFinish === "BRILLANT"
                     ? "Brillant"
                     : undefined;
+              // Panneau sur-mesure (sfamille SMES) : la référence Gamesys est du texte libre jamais
+              // présent au catalogue interne, donc refFields ne matche jamais. Mais fetchSousDossiersVisuels
+              // a déjà résolu le nom propre ("ARCHE BEIGE"), la finition du gabarit ("LISSE"/"TEXTUREE"),
+              // le format fini et l'orientation — on les pose tels quels plutôt que de retomber sur le
+              // libellé gabarit générique et un simple Mat/Brillant. La cote client exacte (souvent
+              // décimale) va en commentaire.
+              const isSurMesure = !!visuel.surMesure;
               const champsVisuel = refFields.matched
                 ? {
                     ref: visuel.reference,
@@ -135,11 +143,25 @@ async function syncDecoStubsDepuisGamesys({ sinceDate, concurrency = 3, dryRun =
                     format: refFields.format,
                     deco: refFields.deco,
                   }
-                : {
-                    format: sousDossier.formatFini || undefined,
-                    finition: finitionRepli,
-                    deco: visuel.libelle || undefined,
-                  };
+                : isSurMesure
+                  ? {
+                      format: visuel.format || sousDossier.formatFini || undefined,
+                      finition: visuel.finition || finitionRepli,
+                      deco: visuel.deco || visuel.libelle || undefined,
+                    }
+                  : {
+                      format: sousDossier.formatFini || undefined,
+                      finition: finitionRepli,
+                      deco: visuel.libelle || undefined,
+                    };
+              const champsSurMesure = isSurMesure
+                ? {
+                    surMesure: true,
+                    surMesureKind: visuel.surMesureKind || undefined,
+                    orientation: visuel.orientation || undefined,
+                    comment: buildCoteClientComment(visuel.printFormat, ""),
+                  }
+                : {};
               await Deco.findOneAndUpdate(
                 { numCmd: candidat.numCmd, sousDossier: sousDossier.sousNumero },
                 {
@@ -149,6 +171,7 @@ async function syncDecoStubsDepuisGamesys({ sinceDate, concurrency = 3, dryRun =
                     prix: visuel.endv_px_total ?? undefined,
                     ex: visuel.endv_quant != null ? Number(visuel.endv_quant) : undefined,
                     ...champsVisuel,
+                    ...champsSurMesure,
                     ...commandeCommune,
                   },
                 },
