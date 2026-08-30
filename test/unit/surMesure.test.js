@@ -77,6 +77,38 @@ describe("surMesure util", () => {
         name: "", orientation: null, printFormat: null, finishHint: null,
       });
     });
+
+    // Patterns réels Gamesys (endv_ref_client texte libre inconstant)
+    it("orientation après la cote : BRUME D'ASIE 100X210 GAUCHE", () => {
+      const r = parseSurMesureRefClient("BRUME D'ASIE 100X210 GAUCHE");
+      expect(r.name).to.equal("BRUME D'ASIE");
+      expect(r.orientation).to.equal("GAUCHE");
+      expect(r.printFormat).to.equal("100x210");
+    });
+    it("orientation collée aux chiffres : BRUME D'ASIE 100X210DROITE", () => {
+      const r = parseSurMesureRefClient("BRUME D'ASIE 100X210DROITE");
+      expect(r.name).to.equal("BRUME D'ASIE");
+      expect(r.orientation).to.equal("DROIT");
+      expect(r.printFormat).to.equal("100x210");
+    });
+    it("orientation doublée + espace irrégulier : MASSA 150 X255 DROITE DROITE MAT", () => {
+      const r = parseSurMesureRefClient("MASSA 150 X255 DROITE DROITE MAT");
+      expect(r.name).to.equal("MASSA");
+      expect(r.orientation).to.equal("DROIT");
+      expect(r.printFormat).to.equal("150x255");
+    });
+    it("préfixe SKU conservé dans le nom : ULM821 PIERRE D'ABBAYE 90X255 MAT", () => {
+      const r = parseSurMesureRefClient("ULM821 PIERRE D'ABBAYE 90X255 MAT");
+      expect(r.name).to.equal("ULM821 PIERRE D'ABBAYE");
+      expect(r.orientation).to.equal(null);
+      expect(r.printFormat).to.equal("90x255");
+    });
+    it("amalgame '+' : MASSA GAUCHE 80 X 255 + MASSA DROITE 45 X 255 MAT", () => {
+      const r = parseSurMesureRefClient("MASSA GAUCHE 80 X 255 + MASSA DROITE 45 X 255 MAT");
+      expect(r.name).to.equal("MASSA");
+      expect(r.orientation).to.equal("GAUCHE"); // première occurrence
+      expect(r.printFormat).to.equal("80x255"); // premier panneau
+    });
   });
 
   describe("classifySurMesure()", () => {

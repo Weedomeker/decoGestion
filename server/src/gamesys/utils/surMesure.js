@@ -1,4 +1,4 @@
-const { isTeinteMasseModel, extractOrientationHint } = require("./reference");
+const { isTeinteMasseModel } = require("./reference");
 
 // dé-accente + majuscules, sans toucher aux espaces/x
 function deaccentUpper(value) {
@@ -50,13 +50,25 @@ function parseSurMesureGabarit(endvIdentif, stockCodeTarif) {
   return { format, finition };
 }
 
+// Orientation dans endv_ref_client : texte libre Gamesys très inconstant — le mot peut être collé aux
+// dimensions ("100X210DROITE"), doublé ("DROITE DROITE"), ou placé avant/après la cote. Les frontières
+// ne portent donc que sur des lettres (les chiffres et espaces sont des séparateurs valides), pas sur
+// le `\b` standard qui échoue sur "210DROITE". DROITE/DROT → DROIT (forme canonique).
+const ORIENTATION_RE = /(?<![A-Z])(GAUCHE|DROITE|DROIT|DROT|CENTRE)(?![A-Z])/g;
+
+function canonOrientation(word) {
+  if (word === "DROITE" || word === "DROT") return "DROIT";
+  return word;
+}
+
 function parseSurMesureRefClient(endvRefClient) {
   const raw = String(endvRefClient || "").trim();
   if (!raw) return { name: "", orientation: null, printFormat: null, finishHint: null };
 
   const upper = deaccentUpper(raw);
 
-  const orientation = extractOrientationHint(null, upper);
+  const orientMatch = upper.match(ORIENTATION_RE);
+  const orientation = orientMatch ? canonOrientation(orientMatch[0]) : null;
 
   let printFormat = null;
   const pf = upper.match(/(\d+(?:[.,]\d+)?)\s*X\s*(\d+(?:[.,]\d+)?)/);
@@ -69,9 +81,11 @@ function parseSurMesureRefClient(endvRefClient) {
   else if (/\bMAT\b/.test(upper)) finishHint = "MAT";
 
   const name = upper
-    .replace(/\b(?:GAUCHE|DROITE|DROIT|DROT|CENTRE)\b/g, " ")
+    .replace(ORIENTATION_RE, " ")
     .replace(/\d+(?:[.,]\d+)?\s*X\s*\d+(?:[.,]\d+)?/g, " ")
     .replace(/\b(?:MAT|BRILLANT|CM)\b/g, " ")
+    .replace(/\s*\+\s*/g, " ") // amalgame "MASSA ... + MASSA ..." → un seul segment
+    .replace(/\b([A-Z][A-Z']*)(?:\s+\1\b)+/g, "$1") // dédoublonne un mot répété ("MASSA MASSA" → "MASSA")
     .replace(/\s+/g, " ")
     .trim();
 
