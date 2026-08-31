@@ -53,14 +53,15 @@ async function syncDecoStubsDepuisGamesys({ sinceDate, concurrency = 3, dryRun =
           const commandeInfo = await dossierService.fetchDossierCommandeInfo(connection, candidat.cmd);
           const formatPlaqueGamesys = await dossierService.fetchDossierFormatPlaque(connection, candidat.cmd);
           const prixTotal = commandeInfo?.prixTotal ?? null;
-          const { dateLivraisonSouhaitee, magasin, ville } = await dossierService.fetchDossierLivraisonDates(
-            connection,
-            candidat.cmd,
-          );
+          const { dateLivraisonSouhaitee, magasin, ville, magasinRef, villeRef } =
+            await dossierService.fetchDossierLivraisonDates(connection, candidat.cmd);
           // mag = ville de livraison (repère magasin pour LM/CASTO/BRICO), ou nom du destinataire
           // pour ECOM (livraison directe au client final, pas de notion de magasin) — repli sur
-          // l'autre valeur si celle attendue en priorité est absente.
-          const mag = candidat.client === "ECOM" ? magasin || ville : ville || magasin;
+          // l'autre valeur si celle attendue en priorité est absente. Pour les enseignes physiques,
+          // repli supplémentaire sur fc_references (villeRef/magasinRef) : un stub est souvent créé
+          // avant que la ligne ff_livraison n'existe, fc_references résout le magasin dès maintenant.
+          const mag =
+            candidat.client === "ECOM" ? magasin || ville : ville || magasin || villeRef || magasinRef;
 
           const commandeCommune = {
             client: candidat.client,

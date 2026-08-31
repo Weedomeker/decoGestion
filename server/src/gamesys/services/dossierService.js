@@ -1317,18 +1317,28 @@ async function getDossierDate(commande) {
 // (ff_livraison.bo_date_depart_usine / bo_date_souhaitee) — utilisé pour le backfill de
 // ConsommationCommande.dateDepartUsine / dateLivraisonSouhaitee. Jointure identique à celle
 // utilisée dans buildDetail pour retrouver les livraisons d'un dossier (bo_no_dossier = dos_no_cmde
-// ou bo_devis = dos_codeuniq).
+// ou bo_devis = dos_codeuniq), mais en LEFT JOIN : un dossier fraîchement créé n'a pas encore de
+// ligne ff_livraison, on veut quand même pouvoir résoudre son magasin.
+// LEFT JOIN fc_references sur d.dos_client (= fo_reference, correspondance 1:1 vérifiée) : donne le
+// nom d'enseigne canonique (fo_nom_1, ex. "SA LEROY MERLIN FRANCE (LM CHOLET)", constant vs
+// bo_adlivr_nom_1 qui varie) et la ville, disponibles même sans ligne de livraison. Repli
+// uniquement (les consommateurs gardent bo_ville/bo_adlivr_nom_1 en priorité), et inutile pour ECOM
+// (fc_references y vaut "Commande E-commerce CB", sans ville).
 async function fetchDossierLivraisonDates(connection, commande) {
   const search = String(commande || "");
-  if (!search) return { dateDepartUsine: null, dateLivraisonSouhaitee: null, magasin: null, ville: null };
+  if (!search) {
+    return { dateDepartUsine: null, dateLivraisonSouhaitee: null, magasin: null, ville: null, magasinRef: null, villeRef: null };
+  }
 
   const searchLike = `${escapeSqlLike(search)}/%`;
   const rows = await query(
     connection,
     `select min(l.bo_date_depart_usine) as bo_date_depart_usine, min(l.bo_date_souhaitee) as bo_date_souhaitee,
-            max(l.bo_adlivr_nom_1) as bo_adlivr_nom_1, max(l.bo_ville) as bo_ville
+            max(l.bo_adlivr_nom_1) as bo_adlivr_nom_1, max(l.bo_ville) as bo_ville,
+            max(cr.fo_nom_1) as fo_nom_1, max(cr.fo_ville) as fo_ville
      from public.fd_dossier d
-     join public.ff_livraison l on (l.bo_no_dossier = d.dos_no_cmde or l.bo_devis = d.dos_codeuniq)
+     left join public.ff_livraison l on (l.bo_no_dossier = d.dos_no_cmde or l.bo_devis = d.dos_codeuniq)
+     left join public.fc_references cr on cr.fo_reference = d.dos_client
      where d.dos_no_cmde = ? or d.dos_no_cmde LIKE ? ESCAPE '\\'`,
     [search, searchLike]
   );
@@ -1341,6 +1351,9 @@ async function fetchDossierLivraisonDates(connection, commande) {
     // ville de livraison, utilisée comme repère "magasin" pour les enseignes physiques.
     magasin: row.bo_adlivr_nom_1 || null,
     ville: row.bo_ville || null,
+    // Repli fc_references (enseignes physiques uniquement), utilisé quand ff_livraison est vide.
+    magasinRef: row.fo_nom_1 || null,
+    villeRef: row.fo_ville || null,
   };
 }
 

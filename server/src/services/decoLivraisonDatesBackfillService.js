@@ -33,13 +33,14 @@ async function backfillDecoLivraisonDates({ concurrency = 5, dryRun = false, sin
       [...numCmdClientMap.entries()].map(([numCmd, client]) =>
         limit(async () => {
           try {
-            const { dateLivraisonSouhaitee, magasin, ville } = await dossierService.fetchDossierLivraisonDates(
-              connection,
-              numCmd,
-            );
+            const { dateLivraisonSouhaitee, magasin, ville, magasinRef, villeRef } =
+              await dossierService.fetchDossierLivraisonDates(connection, numCmd);
             // mag = ville de livraison pour LM/CASTO/BRICO (repère magasin), nom du destinataire
             // pour ECOM (livraison directe au client final) — même règle que decoGamesysStubSyncService.
-            const mag = client === "ECOM" ? magasin || ville : ville || magasin;
+            // Repli fc_references (villeRef/magasinRef) pour les enseignes physiques quand ff_livraison
+            // est vide (dossier trop récent pour avoir une ligne de livraison).
+            const mag =
+              client === "ECOM" ? magasin || ville : ville || magasin || villeRef || magasinRef;
 
             if (!dateLivraisonSouhaitee && !mag) {
               resume.introuvables += 1;
