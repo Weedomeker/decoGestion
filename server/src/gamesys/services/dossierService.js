@@ -72,6 +72,7 @@ function mapStockRow(row) {
 const STOCK_SELECT = `
   select
     st_seq,
+    st_seq_compt,
     st_modele,
     st_art_ref_client,
     st_lib_1_conso,
@@ -166,6 +167,24 @@ async function enrichRowsWithMongoRef(rows, identif, preferredRefModel, printFin
 
 async function findStockReferences(connection, enteteDevis, preferredRefModel, printFinish) {
   const identif = enteteDevis[0]?.endv_identif || "";
+
+  // Priorité 0 : lien structurel direct ligne de devis -> article stock. FK déterministe
+  // (fd_entete_devi.endv_orderline_seq_article = fs_stock.st_seq_compt), vérifié 99,96 % de
+  // résolution sur 12 mois, st_seq_compt unique côté stock, indexé (fs_stock_st_seq_compt_idx).
+  // Court-circuite toute la cascade floue ci-dessous (priorités 1 à 4 : ref explicite validée,
+  // EAN, LIKE mots-clés, libellé exact, model+format) dès que l'identifiant est présent (>0) et
+  // résout une ligne — y compris pour les crédences CASTO/BRICO, les visuels ECOM et le
+  // sur-mesure (st_art_sfamille='SMES'). Repli sur la cascade pour les ~7 % de lignes sans
+  // identifiant (promos, lots, transport) ou non résolues.
+  const orderlineId = Number(enteteDevis[0]?.endv_orderline_seq_article) || 0;
+  if (orderlineId > 0) {
+    const rows = await query(connection, `${STOCK_SELECT} where st_seq_compt = ?`, [orderlineId]);
+    if (rows.length > 0) {
+      const enriched = await enrichRowsWithMongoRef(rows, identif, preferredRefModel, printFinish);
+      return enriched.map((row) => ({ ...mapStockRow(row), source: "fs_stock_orderline" }));
+    }
+  }
+
   if (isKitPoseLabel(identif)) {
     const rows = await query(
       connection,
@@ -1489,4 +1508,5 @@ module.exports = {
   extractModelFromIdentif,
   buildVisualReferences,
   fetchSousDossiersVisuels,
+  findStockReferences,
 };
