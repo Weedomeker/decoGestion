@@ -10,6 +10,7 @@
  *   node server/scripts/backfillDecoSurMesureStubs.js [Test|DecoKin]           # dry-run (défaut Test)
  *   node server/scripts/backfillDecoSurMesureStubs.js DecoKin --apply          # applique
  *   node server/scripts/backfillDecoSurMesureStubs.js DecoKin --apply --a-lancer  # limite aux stubs status="A lancer"
+ *   node server/scripts/backfillDecoSurMesureStubs.js DecoKin --apply --skip-format # n'écrit pas `format` (docs déjà produits)
  *
  * Idempotent : après application, `surMesure: true` exclut les docs déjà traités.
  * Une seule connexion ODBC réutilisée (cf. feedback_odbc_backfill_resource_limits).
@@ -26,6 +27,7 @@ const { buildCoteClientComment } = require("../src/utils/coteClient");
 const DB_NAME = process.argv[2] && !process.argv[2].startsWith("--") ? process.argv[2] : "Test";
 const APPLY = process.argv.includes("--apply");
 const A_LANCER_ONLY = process.argv.includes("--a-lancer");
+const SKIP_FORMAT = process.argv.includes("--skip-format");
 const GENERIC_DECO_RE = /^\s*(panneau\s+d[eé]co\s+sur[-\s]?mesure|format\s+fini\s*:)/i;
 
 function j(v) {
@@ -39,7 +41,7 @@ async function main() {
   const col = client.db(DB_NAME).collection("lm_commandes");
 
   console.log(
-    `\n=== backfillDecoSurMesureStubs — base ${DB_NAME} — ${APPLY ? "APPLY" : "DRY-RUN"}${A_LANCER_ONLY ? ' — status="A lancer" uniquement' : ""} ===\n`,
+    `\n=== backfillDecoSurMesureStubs — base ${DB_NAME} — ${APPLY ? "APPLY" : "DRY-RUN"}${A_LANCER_ONLY ? ' — status="A lancer" uniquement' : ""}${SKIP_FORMAT ? " — sans écriture de `format`" : ""} ===\n`,
   );
 
   const odbcOk = await dbConfig.checkOdbcConnection();
@@ -96,7 +98,7 @@ async function main() {
         };
         if (visuel.surMesureKind) set.surMesureKind = visuel.surMesureKind;
         if (visuel.finition) set.finition = visuel.finition;
-        if (visuel.format) set.format = visuel.format;
+        if (!SKIP_FORMAT && visuel.format) set.format = visuel.format;
         if (visuel.orientation) set.orientation = visuel.orientation;
         // n'ajoute la cote que si absente (ré-exécution sûre)
         if (visuel.printFormat && !/cote client/i.test(doc.comment || "")) {
