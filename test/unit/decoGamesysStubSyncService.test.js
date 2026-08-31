@@ -195,7 +195,7 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
     });
   });
 
-  it("pose les champs sur-mesure (deco nettoyé, finition gabarit, orientation, cote client) sur le stub À lancer", async () => {
+  it("pose les champs sur-mesure (deco nettoyé, finition = vernis Mat/Brillant, orientation, cote client) sur le stub À lancer", async () => {
     listCandidatsStub.resolves([{ cmd: "167302", client: "LM" }]);
     existsStub.resolves(false);
     sinon.stub(dossierService, "fetchSousDossiersVisuels").resolves([
@@ -233,7 +233,7 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
       numCmd: 167302,
       sousDossier: "05",
       deco: "ARCHE BEIGE",
-      finition: "TEXTUREE",
+      finition: "Mat",
       format: "125x210",
       surMesure: true,
       surMesureKind: "visuel",

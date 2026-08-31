@@ -132,10 +132,13 @@ async function syncDecoStubsDepuisGamesys({ sinceDate, concurrency = 3, dryRun =
                     : undefined;
               // Panneau sur-mesure (sfamille SMES) : la référence Gamesys est du texte libre jamais
               // présent au catalogue interne, donc refFields ne matche jamais. Mais fetchSousDossiersVisuels
-              // a déjà résolu le nom propre ("ARCHE BEIGE"), la finition du gabarit ("LISSE"/"TEXTUREE"),
-              // le format fini et l'orientation — on les pose tels quels plutôt que de retomber sur le
-              // libellé gabarit générique et un simple Mat/Brillant. La cote client exacte (souvent
-              // décimale) va en commentaire.
+              // a déjà résolu le nom propre ("ARCHE BEIGE"), le format fini et l'orientation — on les pose
+              // tels quels. Pour la finition en revanche on prend le VERNIS Mat/Brillant (finitionRepli,
+              // issu de dos_imp_1_fac_p_1) et non la texture du gabarit ("LISSE"/"TEXTUREE" via
+              // visuel.finition) : le vernis est la finition métier pertinente, la texture n'est qu'une
+              // option de support (voir aussi smesFinitionBackfillService). Repli sur le gabarit
+              // seulement si aucun vernis n'est renseigné. La cote client exacte (souvent décimale) va
+              // en commentaire.
               const isSurMesure = !!visuel.surMesure;
               const champsVisuel = refFields.matched
                 ? {
@@ -147,7 +150,7 @@ async function syncDecoStubsDepuisGamesys({ sinceDate, concurrency = 3, dryRun =
                 : isSurMesure
                   ? {
                       format: visuel.format || sousDossier.formatFini || undefined,
-                      finition: visuel.finition || finitionRepli,
+                      finition: finitionRepli || visuel.finition,
                       deco: visuel.deco || visuel.libelle || undefined,
                     }
                   : {

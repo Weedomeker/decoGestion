@@ -1497,6 +1497,49 @@ async function getDossierFormatPlaque(commande) {
   }
 }
 
+// Vernis d'impression Mat / Brillant d'un panneau, lu dans dos_imp_1_fac_p_1
+// ("pelli. Ro (Vernis Mat) sur VERNI/") via detectPrintFinish — la MÊME source que pour les
+// visuels catalogue. Utilisé pour renseigner Deco.finition des panneaux SUR-MESURE : leur
+// "finition" pertinente est le vernis, pas la texture du gabarit (Lisse/Texturée/Brossé/Couleur),
+// qui n'est qu'une option de support. On cible d'abord le sous-dossier précis (numCmd/sousDossier)
+// puis, à défaut, n'importe quel sous-dossier de la commande racine portant un vernis. Retourne
+// "Mat" | "Brillant" | null (respecte la casse de Deco.finition côté catalogue).
+async function fetchDossierVernis(connection, commande, sousDossier) {
+  const search = String(commande || "");
+  if (!search) return null;
+
+  const map = (v) => (v === "BRILLANT" ? "Brillant" : v === "MAT" ? "Mat" : null);
+
+  if (sousDossier) {
+    const exact = await query(
+      connection,
+      `select dos_imp_1_fac_p_1 from public.fd_dossier where dos_no_cmde = ?`,
+      [`${search}/${sousDossier}`]
+    );
+    const hit = exact.map((r) => detectPrintFinish(r)).find(Boolean);
+    if (hit) return map(hit);
+  }
+
+  const searchLike = `${escapeSqlLike(search)}/%`;
+  const rows = await query(
+    connection,
+    `select dos_imp_1_fac_p_1 from public.fd_dossier
+     where dos_no_cmde = ? or dos_no_cmde LIKE ? ESCAPE '\\'`,
+    [search, searchLike]
+  );
+  return map(rows.map((r) => detectPrintFinish(r)).find(Boolean) || null);
+}
+
+// Wrapper avec connexion dédiée pour fetchDossierVernis, sur le modèle de getDossierFormatPlaque.
+async function getDossierVernis(commande, sousDossier) {
+  const connection = await getDbConnection();
+  try {
+    return await fetchDossierVernis(connection, commande, sousDossier);
+  } finally {
+    await closeConnection(connection);
+  }
+}
+
 module.exports = {
   listDossiers,
   listCommandesAvecProfilsKits,
@@ -1515,6 +1558,8 @@ module.exports = {
   getDossierCommandeInfo,
   fetchDossierFormatPlaque,
   getDossierFormatPlaque,
+  fetchDossierVernis,
+  getDossierVernis,
   mapDosClientToAppClient,
   fetchEnteteDevis,
   extractDimensionFormat,
