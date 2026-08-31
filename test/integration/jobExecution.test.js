@@ -1,6 +1,6 @@
 /**
  * Tests d'intégration — Exécution complète des jobs (add_job → run_jobs → fichiers disque)
- * Prérequis : serveur lancé sur localhost:8000 (npm run server)
+ * Prérequis : serveur lancé sur localhost:9000 (npm run server)
  */
 const { expect } = require("chai");
 const http = require("http");
@@ -9,7 +9,7 @@ const path = require("path");
 const Deco = require("../../server/src/models/Deco");
 
 const HOST = "127.0.0.1";
-const PORT = 8000;
+const PORT = process.env.PORT || 9000;
 const PROJECT_ROOT = path.resolve(__dirname, "../..");
 
 const TAURO_FORMATS = [

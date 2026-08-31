@@ -1,6 +1,6 @@
 /**
  * Tests d'intégration — Détection des teintes masse via dossier API
- * Prérequis : serveur lancé sur localhost:8000 (npm run server)
+ * Prérequis : serveur lancé sur localhost:9000 (npm run server)
  */
 
 const { expect } = require("chai");
@@ -8,7 +8,7 @@ const http = require("http");
 const { detectTeinteMasse } = require("../helpers/teinteMasse.cjs");
 
 const HOST = "127.0.0.1";
-const PORT = 8000;
+const PORT = process.env.PORT || 9000;
 
 // ─── Cas de test réels ────────────────────────────────────────────────────────
 // Chaque entrée décrit les jobs teinte masse attendus dans le dossier.

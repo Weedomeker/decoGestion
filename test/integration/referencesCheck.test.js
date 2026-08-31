@@ -1,7 +1,7 @@
 /**
  * Tests d'intégration — Vérification de cohérence Références / Visuels disque
  *
- * Prérequis : serveur lancé sur localhost:8000 (npm run server)
+ * Prérequis : serveur lancé sur localhost:9000 (npm run server)
  *
  * Le scan filesystem dépend des partages réseau montés (state.networkStatus) ;
  * si un client n'a pas son réseau monté dans l'environnement de test, le
@@ -12,7 +12,7 @@ const { expect } = require("chai");
 const http = require("http");
 
 const HOST = "127.0.0.1";
-const PORT = 8000;
+const PORT = process.env.PORT || 9000;
 const RUN_ID = Date.now();
 const refFor = (suffix) => `TEST-REF-${RUN_ID}-${suffix}`;
 

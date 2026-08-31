@@ -7,7 +7,7 @@
  *   3. CASTO 300x60 — amalgame 2 visuels (PDF " + ", JPG " + ")
  *   4. BRICO 255x60 — amalgame 2 visuels (PDF " + ", JPG " + ")
  *
- * Prérequis pour les sections 2–4 : serveur lancé sur localhost:8000 (npm run server)
+ * Prérequis pour les sections 2–4 : serveur lancé sur localhost:9000 (npm run server)
  */
 const { expect } = require("chai");
 const http = require("http");
@@ -24,7 +24,7 @@ try {
 }
 
 const HOST = "127.0.0.1";
-const PORT = 8000;
+const PORT = process.env.PORT || 9000;
 const PROJECT_ROOT = path.resolve(__dirname, "../..");
 
 const TAURO_FORMATS = [

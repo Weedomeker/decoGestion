@@ -1,13 +1,13 @@
 /**
  * Tests d'intégration — Vérification que Gamesys associe les bonnes références aux bons visuels
- * Prérequis : serveur lancé sur localhost:8000 (npm run server)
+ * Prérequis : serveur lancé sur localhost:9000 (npm run server)
  */
 
 const { expect } = require("chai");
 const http = require("http");
 
 const HOST = "127.0.0.1";
-const PORT = 8000;
+const PORT = process.env.PORT || 9000;
 
 function fetchDossierApi(numero) {
   return new Promise((resolve, reject) => {

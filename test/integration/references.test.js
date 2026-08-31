@@ -1,7 +1,7 @@
 /**
  * Tests d'intégration — CRUD des références (RefDeco / RefCasto / RefBrico / RefEcom)
  *
- * Prérequis : serveur lancé sur localhost:8000 (npm run server)
+ * Prérequis : serveur lancé sur localhost:9000 (npm run server)
  *
  * Toutes les références créées par ces tests utilisent un préfixe unique
  * ("TEST-REF-<timestamp>") et sont supprimées en fin de test pour ne pas
@@ -11,7 +11,7 @@ const { expect } = require("chai");
 const http = require("http");
 
 const HOST = "127.0.0.1";
-const PORT = 8000;
+const PORT = process.env.PORT || 9000;
 const RUN_ID = Date.now();
 const refFor = (suffix) => `TEST-REF-${RUN_ID}-${suffix}`;
 

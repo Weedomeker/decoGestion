@@ -2,7 +2,7 @@ const { expect } = require("chai");
 const http = require("http");
 
 const HOST = "127.0.0.1";
-const PORT = 8000;
+const PORT = process.env.PORT || 9000;
 
 function httpGet(endpoint) {
   return new Promise((resolve, reject) => {
