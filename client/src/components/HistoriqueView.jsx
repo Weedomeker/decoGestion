@@ -13,6 +13,15 @@ const CLIENT_OPTIONS = [
 
 const EMPTY_FILTERS = { client: "", from: "", to: "", q: "" };
 
+// Code compte revendeur "pro" (sans préfixe enseigne : PRO###, EPROCB, I96, S332, L558…).
+// Renvoie le code en majuscules, ou null si c'est un compte enseigne classique (LM/CAS/BM/ECOM).
+const ENSEIGNE_PREFIXES = ["LM", "CAS", "BM", "ECOM"];
+function proAccountCode(codeClient) {
+  const c = String(codeClient || "").trim().toUpperCase();
+  if (!c) return null;
+  return ENSEIGNE_PREFIXES.some((p) => c.startsWith(p)) ? null : c;
+}
+
 function formatDate(iso) {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -199,10 +208,15 @@ function HistoriqueView() {
                 {data.map((row, i) => (
                   <tr key={row._id ?? i}>
                     <td>{formatDate(row.createdAt ?? row.date)}</td>
-                    <td>
+                    <td className="historique-client-cell">
                       <span className={`client-badge client-badge--${(row.client ?? "").toLowerCase()}`}>
                         {row.client ?? "—"}
                       </span>
+                      {row.surMesure && proAccountCode(row.codeClient) && (
+                        <span className="badge badge--pro" title="Compte revendeur pro (sur-mesure)">
+                          {proAccountCode(row.codeClient)}
+                        </span>
+                      )}
                     </td>
                     <td className="historique-mono">{row.numCmd ?? "—"}</td>
                     <td>{row.mag ?? "—"}</td>

@@ -1646,6 +1646,20 @@ img.ui.image:not(.header-logo) {
   color: var(--accent);
 }
 
+.badge--pro {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+  margin-left: 0;
+}
+
+.historique-client-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-start;
+}
+
 .filter-toggle {
   display: flex;
   align-items: center;
