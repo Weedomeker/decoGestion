@@ -194,8 +194,9 @@ describe("decoLivraisonDatesBackfillService.backfillDecoLivraisonDates()", () =>
 
   it("applique dateLivraisonSouhaitee/mag depuis la synthèse sans appeler fetchDossierLivraisonDates", async () => {
     mockPendingDocs([{ numCmd: 10, client: "LM" }]);
+    // Le client qui décide `mag` vient de doc.client, pas de l'entrée Map.
     const synthese = new Map([
-      [10, { dateLivraisonSouhaitee: new Date("2026-09-23"), magasin: "M", ville: "V", client: "LM" }],
+      [10, { dateLivraisonSouhaitee: new Date("2026-09-23"), magasin: "M", ville: "V" }],
     ]);
     updateManyStub.resolves({ modifiedCount: 1 });
 
@@ -205,6 +206,28 @@ describe("decoLivraisonDatesBackfillService.backfillDecoLivraisonDates()", () =>
     expect(resume.misAJour).to.equal(1);
     // mag = ville pour LM
     expect(updateManyStub.firstCall.args[1].$set).to.include({ mag: "V" });
+  });
+
+  it("synthèse ECOM : mag = magasin (destinataire) en priorité, jamais le repli fc_references", async () => {
+    mockPendingDocs([{ numCmd: 11, client: "ECOM" }]);
+    const synthese = new Map([
+      [
+        11,
+        {
+          dateLivraisonSouhaitee: new Date("2026-09-23"),
+          magasin: "END CUSTOMER",
+          ville: "CITY",
+          villeRef: "REFCITY",
+          magasinRef: "Commande E-commerce CB",
+        },
+      ],
+    ]);
+    updateManyStub.resolves({ modifiedCount: 1 });
+
+    await backfillDecoLivraisonDates({ sinceDate: new Date(), synthese });
+
+    expect(fetchDossierLivraisonDatesStub.called).to.be.false;
+    expect(updateManyStub.firstCall.args[1].$set.mag).to.equal("END CUSTOMER");
   });
 
   it("retombe sur fetchDossierLivraisonDates quand le numCmd est absent de la synthèse", async () => {

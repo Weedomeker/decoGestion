@@ -20,14 +20,16 @@ async function syncConsommationsHistorique({ sinceDate, client, concurrency = 5,
     .filter((x) => x.numCmd && !Number.isNaN(x.numCmd));
 
   const numCmds = [...new Set(avecNumCmd.map((x) => x.numCmd))];
-  const dejaEnBase = new Set(
-    (await ConsommationCommande.find({ numCmd: { $in: numCmds } }, { numCmd: 1 }).lean()).map(
-      (d) => d.numCmd,
-    ),
-  );
+  const dejaEnBase = numCmds.length
+    ? new Set(
+        (await ConsommationCommande.find({ numCmd: { $in: numCmds } }, { numCmd: 1 }).lean()).map(
+          (d) => d.numCmd,
+        ),
+      )
+    : new Set();
 
-  for (const { candidate } of avecNumCmd) {
-    if (dejaEnBase.has(parseInt(candidate.cmd, 10))) {
+  for (const { candidate, numCmd } of avecNumCmd) {
+    if (dejaEnBase.has(numCmd)) {
       resume.dejaExistants += 1;
       continue;
     }
