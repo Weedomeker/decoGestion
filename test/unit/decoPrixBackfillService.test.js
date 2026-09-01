@@ -132,4 +132,37 @@ describe("decoPrixBackfillService.backfillDecoPrix()", () => {
 
     expect(fakeConnection.close.calledOnce).to.be.true;
   });
+
+  it("applique prixTotal depuis la synthèse sans appeler fetchDossierPrixTotal", async () => {
+    mockPendingDocs([{ numCmd: 10 }]);
+    const synthese = new Map([[10, { prixTotal: 488.73 }]]);
+    updateManyStub.resolves({ modifiedCount: 2 });
+
+    const resume = await backfillDecoPrix({ sinceDate: new Date(), synthese });
+
+    expect(fetchDossierPrixTotalStub.called).to.be.false;
+    expect(resume.misAJour).to.equal(2);
+  });
+
+  it("retombe sur fetchDossierPrixTotal si numCmd absent de la synthèse", async () => {
+    mockPendingDocs([{ numCmd: 99 }]);
+    fetchDossierPrixTotalStub.resolves(12.5);
+    updateManyStub.resolves({ modifiedCount: 1 });
+
+    await backfillDecoPrix({ sinceDate: new Date(), synthese: new Map() });
+
+    expect(fetchDossierPrixTotalStub.calledOnce).to.be.true;
+  });
+
+  it("compte introuvable quand la synthèse a le numCmd mais prixTotal null", async () => {
+    mockPendingDocs([{ numCmd: 10 }]);
+
+    const resume = await backfillDecoPrix({
+      sinceDate: new Date(),
+      synthese: new Map([[10, { prixTotal: null }]]),
+    });
+
+    expect(resume.introuvables).to.equal(1);
+    expect(fetchDossierPrixTotalStub.called).to.be.false;
+  });
 });
