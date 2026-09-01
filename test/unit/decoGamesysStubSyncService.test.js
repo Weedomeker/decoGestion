@@ -257,6 +257,44 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
     expect(resume.crees).to.equal(1);
   });
 
+  it("utilise la synthèse pour commandeInfo/formatPlaque/livraison sans les fetchDossier* correspondants", async () => {
+    listCandidatsStub.resolves([{ cmd: "167648", client: "LM" }]);
+    findStub.returns({ lean: sinon.stub().resolves([]) }); // rien en base (Task 2)
+    sinon.stub(dossierService, "fetchSousDossiersVisuels").resolves([]);
+    const synthese = new Map([
+      [
+        167648,
+        {
+          dateCommande: new Date("2026-08-20"),
+          codeClientGamesys: "LM019",
+          refClient: "R",
+          nombreProfil: 6,
+          nombreKitPose: 5,
+          prixTotal: 1250.5,
+          dateLivraisonSouhaitee: new Date("2026-09-23"),
+          magasin: "M",
+          ville: "V",
+          formatPlaqueGamesys: "1510 x 2600",
+        },
+      ],
+    ]);
+    const resume = await syncDecoStubsDepuisGamesys({ sinceDate, synthese });
+    expect(fetchCommandeInfoStub.called).to.be.false;
+    expect(fetchFormatPlaqueStub.called).to.be.false;
+    expect(fetchLivraisonDatesStub.called).to.be.false;
+    expect(resume.crees).to.equal(1);
+    const [, update] = findOneAndUpdateStub.firstCall.args;
+    expect(update.$setOnInsert).to.include({ refClient: "R", nombreProfil: 6, prixTotal: 1250.5 });
+  });
+
+  it("retombe sur les fetchDossier* si le numCmd est absent de la synthèse", async () => {
+    listCandidatsStub.resolves([{ cmd: "167648", client: "LM" }]);
+    findStub.returns({ lean: sinon.stub().resolves([]) });
+    sinon.stub(dossierService, "fetchSousDossiersVisuels").resolves([]);
+    await syncDecoStubsDepuisGamesys({ sinceDate, synthese: new Map() });
+    expect(fetchCommandeInfoStub.calledOnce).to.be.true;
+  });
+
   it("ignore les candidats avec un cmd non numérique", async () => {
     listCandidatsStub.resolves([{ cmd: "abc", client: "LM" }]);
 
