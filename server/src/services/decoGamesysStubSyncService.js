@@ -14,7 +14,7 @@ const { buildCoteClientComment } = require("../utils/coteClient");
 // (aucun visuel résolu — profils/kits seuls, ou dossier trop ancien pour Gamesys, cf. limite de
 // récence documentée), un seul stub "métadonnées commande" comme avant. L'utilisateur réclame
 // ensuite le stub correspondant via claimStubOrCreate (decoStubService.js) quand il traite un job.
-async function syncDecoStubsDepuisGamesys({ sinceDate, concurrency = 3, dryRun = false } = {}) {
+async function syncDecoStubsDepuisGamesys({ sinceDate, concurrency = 3, dryRun = false, synthese = null } = {}) {
   const candidats = await dossierService.listCommandesRecentes({ sinceDate });
 
   const resume = { candidats: candidats.length, dejaExistants: 0, crees: 0, erreurs: 0 };
@@ -55,14 +55,41 @@ async function syncDecoStubsDepuisGamesys({ sinceDate, concurrency = 3, dryRun =
         // Gamesys (vérifié en rejouant la résolution en séquentiel après coup).
         const connection = await dbConfig.getDbConnection();
         try {
-          // prixTotal vient de commandeInfo (fetchDossierCommandeInfo interroge aussi endv_px_total
-          // désormais — fusionné avec l'ancien fetchDossierPrixTotal, même table/WHERE) plutôt que
-          // d'un aller-retour ODBC séparé.
-          const commandeInfo = await dossierService.fetchDossierCommandeInfo(connection, candidat.cmd);
-          const formatPlaqueGamesys = await dossierService.fetchDossierFormatPlaque(connection, candidat.cmd);
+          // Synthèse commandes préchargée (Map numCmd -> agrégat ensembliste, cf.
+          // syntheseCommandesService.chargerSyntheseCommandes) : quand la commande y figure, on évite
+          // les 3 allers-retours ODBC fetchDossierCommandeInfo / fetchDossierFormatPlaque /
+          // fetchDossierLivraisonDates. Repli à l'identique de l'ancien chemin quand `synthese` est
+          // null ou ne porte pas ce numCmd. fetchSousDossiersVisuels reste toujours un appel réel
+          // (grain ligne, absent de la synthèse).
+          const s = synthese && synthese.get(candidat.numCmd);
+          let commandeInfo, formatPlaqueGamesys, dateLivraisonSouhaitee, magasin, ville, magasinRef, villeRef;
+          if (s) {
+            // codeClientGamesys (synthèse) -> codeClient (forme fetchDossierCommandeInfo / $set Deco).
+            commandeInfo = {
+              dateCommande: s.dateCommande ?? undefined,
+              codeClient: s.codeClientGamesys ?? undefined,
+              refClient: s.refClient ?? undefined,
+              nombreProfil: s.nombreProfil ?? 0,
+              nombreKitPose: s.nombreKitPose ?? 0,
+              prixTotal: s.prixTotal ?? null,
+            };
+            formatPlaqueGamesys = s.formatPlaqueGamesys ?? null;
+            dateLivraisonSouhaitee = s.dateLivraisonSouhaitee ?? null;
+            magasin = s.magasin ?? null;
+            ville = s.ville ?? null;
+            // La synthèse ne porte pas le repli fc_references — déclarés null pour l'expression `mag`.
+            magasinRef = null;
+            villeRef = null;
+          } else {
+            // prixTotal vient de commandeInfo (fetchDossierCommandeInfo interroge aussi endv_px_total
+            // désormais — fusionné avec l'ancien fetchDossierPrixTotal, même table/WHERE) plutôt que
+            // d'un aller-retour ODBC séparé.
+            commandeInfo = await dossierService.fetchDossierCommandeInfo(connection, candidat.cmd);
+            formatPlaqueGamesys = await dossierService.fetchDossierFormatPlaque(connection, candidat.cmd);
+            ({ dateLivraisonSouhaitee, magasin, ville, magasinRef, villeRef } =
+              await dossierService.fetchDossierLivraisonDates(connection, candidat.cmd));
+          }
           const prixTotal = commandeInfo?.prixTotal ?? null;
-          const { dateLivraisonSouhaitee, magasin, ville, magasinRef, villeRef } =
-            await dossierService.fetchDossierLivraisonDates(connection, candidat.cmd);
           // mag = ville de livraison (repère magasin pour LM/CASTO/BRICO), ou nom du destinataire
           // pour ECOM (livraison directe au client final, pas de notion de magasin) — repli sur
           // l'autre valeur si celle attendue en priorité est absente. Pour les enseignes physiques,
