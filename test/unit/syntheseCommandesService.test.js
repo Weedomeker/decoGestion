@@ -109,4 +109,27 @@ describe("syntheseCommandesService.chargerSyntheseCommandes()", () => {
     expect(leve.message).to.equal("ODBC indisponible");
     expect(fakeConnection.close.calledOnce).to.be.true;
   });
+
+  it("résout le client des comptes non préfixés via listCommandesRecentes quand demandé", async () => {
+    fetchStub.resolves([{ numCmd: 5, client: null, magasin: "X" }]);
+    const listStub = sinon.stub(dossierService, "listCommandesRecentes").resolves([{ cmd: "5", client: "ECOM" }]);
+    const map = await chargerSyntheseCommandes({ sinceDate: new Date(), resoudreClientsViaCatalogue: true });
+    expect(map.get(5).client).to.equal("ECOM");
+    expect(listStub.calledOnce).to.be.true;
+  });
+
+  it("n'appelle pas listCommandesRecentes quand resoudreClientsViaCatalogue est absent/false", async () => {
+    fetchStub.resolves([{ numCmd: 5, client: null }]);
+    const listStub = sinon.stub(dossierService, "listCommandesRecentes").resolves([]);
+    const map = await chargerSyntheseCommandes({ sinceDate: new Date() });
+    expect(listStub.called).to.be.false;
+    expect(map.size).to.equal(0); // client null => ligne ignorée
+  });
+
+  it("continue si listCommandesRecentes échoue (client reste null, ligne ignorée)", async () => {
+    fetchStub.resolves([{ numCmd: 5, client: null }]);
+    sinon.stub(dossierService, "listCommandesRecentes").rejects(new Error("ODBC"));
+    const map = await chargerSyntheseCommandes({ sinceDate: new Date(), resoudreClientsViaCatalogue: true });
+    expect(map.size).to.equal(0);
+  });
 });
