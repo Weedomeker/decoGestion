@@ -28,6 +28,7 @@ const { syncConsommationsHistorique } = require("./src/services/gamesysConsommat
 const { backfillRecentDecoData } = require("./src/services/startupPrixBackfillService");
 const { syncDecoStubsDepuisGamesys } = require("./src/services/decoGamesysStubSyncService");
 const { resolveSinceDate, marquerRun } = require("./src/services/backfillWatermarkService");
+const syntheseCommandesService = require("./src/services/syntheseCommandesService");
 
 const PORT = process.env.PORT || 8000;
 
@@ -267,7 +268,16 @@ server.listen(PORT, async () => {
         cle: "startupStubSync",
         fenetreDefautJours: DECO_STUB_SYNC_LOOKBACK_DAYS,
       });
-      const resume = await syncDecoStubsDepuisGamesys({ sinceDate });
+      // Synthèse commandes chargée une fois (une requête ensembliste) et passée au sync : chaque
+      // candidat y lit commandeInfo / formatPlaque / livraison au lieu de 3 allers-retours ODBC.
+      // Indisponible (ODBC KO) => warn + null, le sync retombe sur les fetchDossier* par candidat.
+      const synthese = await syntheseCommandesService
+        .chargerSyntheseCommandes({ sinceDate, resoudreClientsViaCatalogue: true })
+        .catch((e) => {
+          logger.warn(`Sync stubs: synthèse indisponible : ${e.message}`);
+          return null;
+        });
+      const resume = await syncDecoStubsDepuisGamesys({ sinceDate, synthese });
       await marquerRun("startupStubSync");
       logger.info(
         `Sync stubs Deco depuis Gamesys (depuis ${sinceDate.toISOString().slice(0, 10)}) : ${JSON.stringify(resume)}`,
