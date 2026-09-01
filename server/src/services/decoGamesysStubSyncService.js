@@ -28,9 +28,11 @@ async function syncDecoStubsDepuisGamesys({ sinceDate, concurrency = 3, dryRun =
     .filter((x) => x.numCmd && !Number.isNaN(x.numCmd));
 
   const numCmds = [...new Set(numCmdParCandidat.map((x) => x.numCmd))];
-  const dejaEnBase = new Set(
-    (await Deco.find({ numCmd: { $in: numCmds } }, { numCmd: 1 }).lean()).map((d) => d.numCmd),
-  );
+  const dejaEnBase = numCmds.length
+    ? new Set(
+        (await Deco.find({ numCmd: { $in: numCmds } }, { numCmd: 1 }).lean()).map((d) => d.numCmd),
+      )
+    : new Set();
 
   for (const { candidat, numCmd } of numCmdParCandidat) {
     if (dejaEnBase.has(numCmd)) {
@@ -77,9 +79,9 @@ async function syncDecoStubsDepuisGamesys({ sinceDate, concurrency = 3, dryRun =
             dateLivraisonSouhaitee = s.dateLivraisonSouhaitee ?? null;
             magasin = s.magasin ?? null;
             ville = s.ville ?? null;
-            // La synthèse ne porte pas le repli fc_references — déclarés null pour l'expression `mag`.
-            magasinRef = null;
-            villeRef = null;
+            // La synthèse porte aussi le repli fc_references (fo_nom_1/fo_ville).
+            magasinRef = s.magasinRef ?? null;
+            villeRef = s.villeRef ?? null;
           } else {
             // prixTotal vient de commandeInfo (fetchDossierCommandeInfo interroge aussi endv_px_total
             // désormais — fusionné avec l'ancien fetchDossierPrixTotal, même table/WHERE) plutôt que

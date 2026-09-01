@@ -274,6 +274,8 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
           dateLivraisonSouhaitee: new Date("2026-09-23"),
           magasin: "M",
           ville: "V",
+          magasinRef: "REF MAG",
+          villeRef: "REF VILLE",
           formatPlaqueGamesys: "1510 x 2600",
         },
       ],
@@ -285,6 +287,8 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
     expect(resume.crees).to.equal(1);
     const [, update] = findOneAndUpdateStub.firstCall.args;
     expect(update.$setOnInsert).to.include({ refClient: "R", nombreProfil: 6, prixTotal: 1250.5 });
+    // LM : mag = ville || magasin || villeRef || magasinRef => "V"
+    expect(update.$setOnInsert.mag).to.equal("V");
   });
 
   it("retombe sur les fetchDossier* si le numCmd est absent de la synthèse", async () => {
@@ -300,9 +304,10 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
 
     const resume = await syncDecoStubsDepuisGamesys({ sinceDate });
 
-    expect(resume.candidats).to.equal(1);
-    // le candidat non numérique est exclu du pré-filtre : $in vide, aucune connexion ODBC
-    expect(findStub.firstCall.args[0]).to.deep.equal({ numCmd: { $in: [] } });
+    // le candidat non numérique est exclu du pré-filtre : numCmds vide => aucun aller-retour
+    // Mongo ($in:[] court-circuité) ni connexion ODBC.
+    expect(resume).to.deep.equal({ candidats: 1, dejaExistants: 0, crees: 0, erreurs: 0 });
+    expect(findStub.called).to.be.false;
     expect(getDbConnectionStub.called).to.be.false;
   });
 });

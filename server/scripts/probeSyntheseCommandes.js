@@ -8,7 +8,8 @@
  *  2. couverture : combien de numCmd de listCommandesRecentes (même fenêtre) sont présents dans
  *     la synthèse — et inversement ;
  *  3. cohérence : sur un échantillon, compare prixTotal / dateCommande de la synthèse à
- *     getDossierCommandeInfo (chemin unitaire actuel).
+ *     getDossierCommandeInfo (chemin unitaire actuel), ainsi que nombreProfil / nombreKitPose
+ *     (vs fetchDossierCommandeInfo) et mag (expression livraison, vs getDossierLivraisonDates).
  *
  * Une seule connexion ODBC réutilisée (cf. feedback_odbc_backfill_resource_limits).
  * Respecte NODE_ENV : development -> Mongo "Test", sinon "DecoKin" (prod). La sonde ne fait que
@@ -106,8 +107,21 @@ async function main() {
     // 3. Cohérence prixTotal / dateCommande sur un échantillon -----------------
     console.log(`\n=== 3. COHÉRENCE vs getDossierCommandeInfo (échantillon ${sample}) ===`);
     const echantillon = [...synthese.values()].slice(0, sample);
+    // Expression `mag` = destinataire livraison, identique aux backfills (decoGamesysStubSyncService
+    // / decoLivraisonDatesBackfillService) : ECOM prend le nom en premier, les enseignes physiques
+    // la ville puis le repli fc_references.
+    const calcMag = (o) =>
+      o.client === "ECOM"
+        ? o.magasin || o.ville
+        : o.ville || o.magasin || o.villeRef || o.magasinRef;
     let okPrix = 0;
     let diffPrix = 0;
+    let okProfil = 0;
+    let diffProfil = 0;
+    let okKitPose = 0;
+    let diffKitPose = 0;
+    let okMag = 0;
+    let diffMag = 0;
     for (const s of echantillon) {
       let info = null;
       try {
@@ -129,8 +143,46 @@ async function main() {
             `commandeInfo prix=${pb} date=${db}`,
         );
       }
+
+      // nombreProfil / nombreKitPose vs fetchDossierCommandeInfo (chemin unitaire).
+      const npa = Number(s.nombreProfil) || 0;
+      const npb = Number(info?.nombreProfil) || 0;
+      if (npa === npb) okProfil += 1;
+      else {
+        diffProfil += 1;
+        console.log(`  numCmd=${s.numCmd} : nombreProfil synthèse=${npa} | commandeInfo=${npb}`);
+      }
+      const nka = Number(s.nombreKitPose) || 0;
+      const nkb = Number(info?.nombreKitPose) || 0;
+      if (nka === nkb) okKitPose += 1;
+      else {
+        diffKitPose += 1;
+        console.log(`  numCmd=${s.numCmd} : nombreKitPose synthèse=${nka} | commandeInfo=${nkb}`);
+      }
+
+      // mag : expression livraison synthèse vs getDossierLivraisonDates (helper à-la-volée).
+      let liv = null;
+      try {
+        liv = await dossierService.getDossierLivraisonDates(String(s.numCmd));
+      } catch (err) {
+        console.log(`  numCmd=${s.numCmd} : getDossierLivraisonDates a échoué (${err.message})`);
+        continue;
+      }
+      const magSynth = calcMag(s) || null;
+      const magFallback = calcMag({ client: s.client, ...liv }) || null;
+      if (magSynth === magFallback) okMag += 1;
+      else {
+        diffMag += 1;
+        console.log(
+          `  numCmd=${s.numCmd} client=${s.client} : mag synthèse=${JSON.stringify(magSynth)} | ` +
+            `fallback=${JSON.stringify(magFallback)}`,
+        );
+      }
     }
-    console.log(`  Prix cohérent : ${okPrix}/${echantillon.length} — divergences : ${diffPrix}`);
+    console.log(`  Prix cohérent    : ${okPrix}/${echantillon.length} — divergences : ${diffPrix}`);
+    console.log(`  nombreProfil     : ${okProfil}/${echantillon.length} — divergences : ${diffProfil}`);
+    console.log(`  nombreKitPose    : ${okKitPose}/${echantillon.length} — divergences : ${diffKitPose}`);
+    console.log(`  mag (livraison)  : ${okMag}/${echantillon.length} — divergences : ${diffMag}`);
 
     // Aperçu brut de 3 lignes -------------------------------------------------
     console.log("\n=== APERÇU (3 premières entrées de la Map) ===");

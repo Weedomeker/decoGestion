@@ -245,9 +245,26 @@ server.listen(PORT, async () => {
         cle: "startupDecoData",
         fenetreDefautJours: PRIX_BACKFILL_LOOKBACK_DAYS,
       });
-      await backfillRecentDecoData({ sinceDate });
-      await marquerRun("startupDecoData");
-      logger.info(`Backfill prix/livraison récents (depuis ${sinceDate.toISOString().slice(0, 10)}) terminé.`);
+      const resultats = await backfillRecentDecoData({ sinceDate });
+      // marquerRun seulement si AUCUNE phase de backfill n'a échoué en bloc (runStep renvoie null
+      // sur exception). La synthèse (resultats.synthese) est exclue : son échec est rattrapé par le
+      // repli fetchDossier* de chaque phase, le run reste valide.
+      const phases = [
+        resultats.consommationPrix,
+        resultats.pkOnlyPrixTotal,
+        resultats.decoLivraisonDates,
+        resultats.decoPrix,
+        resultats.decoPrixVisuel,
+        resultats.decoCommandeInfo,
+      ];
+      if (phases.every((p) => p != null)) {
+        await marquerRun("startupDecoData");
+        logger.info(`Backfill prix/livraison récents (depuis ${sinceDate.toISOString().slice(0, 10)}) terminé.`);
+      } else {
+        logger.warn(
+          `Backfill prix/livraison récents : au moins une phase a échoué en bloc — watermark non avancé.`,
+        );
+      }
     } catch (error) {
       logger.warn(`Backfill prix/livraison récents échoué : ${error.message}`);
     }
@@ -278,7 +295,15 @@ server.listen(PORT, async () => {
           return null;
         });
       const resume = await syncDecoStubsDepuisGamesys({ sinceDate, synthese });
-      await marquerRun("startupStubSync");
+      // Ne pas avancer le watermark si TOUT a échoué (ODBC coupé pendant le run) : erreurs sur
+      // tous les candidats. Des échecs partiels sont tolérés (upserts idempotents au prochain run).
+      if (!resume || resume.candidats === 0 || resume.erreurs < resume.candidats) {
+        await marquerRun("startupStubSync");
+      } else {
+        logger.warn(
+          `Sync stubs Deco : ${resume.erreurs}/${resume.candidats} candidats en échec — watermark non avancé.`,
+        );
+      }
       logger.info(
         `Sync stubs Deco depuis Gamesys (depuis ${sinceDate.toISOString().slice(0, 10)}) : ${JSON.stringify(resume)}`,
       );

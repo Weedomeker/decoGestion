@@ -1508,7 +1508,8 @@ async function getDossierFormatPlaque(commande) {
 //    (validée 1:1 / 99,8 % — cf. mémoire orderline), fiable contrairement à dos_seq = endv_seq ;
 //  - classification profil/kit/sur-mesure en SQL via endv_orderline_seq_article = fs_stock.st_seq_compt
 //    (résolution « priorité 0 » déterministe), sans matching de libellé JS ni passe CATALOGUE_RECOVERY ;
-//  - fc_references (ent_code_client = fo_reference) pour magasin/ville sans dépendre de ff_livraison.
+//  - magasin/ville = destinataire livraison (ff_livraison bo_adlivr_nom_1/bo_ville) comme
+//    fetchDossierLivraisonDates ; magasinRef/villeRef = repli fc_references (fo_nom_1/fo_ville).
 //
 // Grain de sortie = 1 ligne par commande racine (GROUP BY). Le prix PAR sous-dossier/visuel et la
 // ref/format/finition par panneau restent l'affaire de fetchSousDossiersVisuels (bien moins de
@@ -1540,8 +1541,10 @@ function buildSyntheseCommandesSql({ seulementLivrables }) {
     )
     SELECT
       ent_code_client AS code_client,
-      fo_nom_1        AS magasin,
-      fo_ville        AS ville,
+      MAX(NULLIF(TRIM(bo_adlivr_nom_1), '')) AS magasin_livraison,
+      MAX(NULLIF(TRIM(bo_ville), ''))        AS ville_livraison,
+      MAX(NULLIF(TRIM(fo_nom_1), ''))        AS magasin_ref,
+      MAX(NULLIF(TRIM(fo_ville), ''))        AS ville_ref,
       ent_ref_client  AS ref_client,
       ent_no_offre    AS offre_gamesys,
       STRING_AGG(DISTINCT regexp_replace(endv_no_commande, '/\\d+$', ''), ', ') AS dossiers_gamesys,
@@ -1550,10 +1553,8 @@ function buildSyntheseCommandesSql({ seulementLivrables }) {
         ent_date_crea_cmd::date
       ) AS date_commande,
       MIN(NULLIF(bo_date_depart_usine, DATE '1900-01-01')) AS date_depart_usine_prev,
-      LEAST(
-        COALESCE(MIN(NULLIF(bo_date_souhaitee, DATE '1900-01-01')), MIN(NULLIF(bo_date_imperative, DATE '1900-01-01'))),
-        COALESCE(MIN(NULLIF(bo_date_imperative, DATE '1900-01-01')), MIN(NULLIF(bo_date_souhaitee, DATE '1900-01-01')))
-      ) AS date_livraison_souhaitee,
+      -- = fetchDossierLivraisonDates (min bo_date_souhaitee), + garde sentinelle 1900-01-01.
+      MIN(NULLIF(bo_date_souhaitee, DATE '1900-01-01')) AS date_livraison_souhaitee,
       MAX(NULLIF(TRIM(dos_supp_1_ft), '')) AS format_plaque_gamesys,
       ROUND((ent_total_lignes_ht + ent_total_livraisons_ht)::numeric, 2) AS montant_commande,
       bool_or(mapping_article.sfamille = 'SMES') AS sur_mesure,
@@ -1577,8 +1578,10 @@ function buildSyntheseCommandesSql({ seulementLivrables }) {
     WHERE ent_date_crea_cmd >= ?
       AND ent_statut_commande < 900
       ${clauseLivraison}
+    -- fo_nom_1/fo_ville retirés du GROUP BY (désormais sous MAX) : dérivés de fc_references, 1:1
+    -- avec ent_code_client déjà groupé — aucune fusion de lignes nouvelle.
     GROUP BY
-      ent_code_client, fo_nom_1, fo_ville, ent_rmq_int, ent_ref_client, ent_no_offre,
+      ent_code_client, ent_rmq_int, ent_ref_client, ent_no_offre,
       ent_date_crea_cmd, ent_total_lignes_ht, ent_total_livraisons_ht
     ORDER BY date_commande DESC
   `;
@@ -1598,15 +1601,22 @@ function mapSyntheseRow(row) {
     codeClientGamesys: row.code_client || null,
     refClient: row.ref_client || null,
     offreGamesys: row.offre_gamesys != null ? String(row.offre_gamesys) : null,
-    magasin: row.magasin || null,
-    ville: row.ville || null,
+    magasin: row.magasin_livraison || null,
+    ville: row.ville_livraison || null,
+    magasinRef: row.magasin_ref || null,
+    villeRef: row.ville_ref || null,
+    multiRoot: String(row.dossiers_gamesys || "").includes(","),
     dateCommande: toDate(row.date_commande),
     dateDepartUsinePrev: toDate(row.date_depart_usine_prev),
     dateLivraisonSouhaitee: toDate(row.date_livraison_souhaitee),
     formatPlaqueGamesys: row.format_plaque_gamesys || null,
     prixTotal: row.montant_commande != null ? Number(row.montant_commande) : null,
     // node-odbc peut rendre un booléen PG en true/false, "t"/"f" ou 1/0 selon le driver.
-    surMesure: row.sur_mesure === true || row.sur_mesure === "t" || row.sur_mesure === 1,
+    surMesure:
+      row.sur_mesure === true ||
+      row.sur_mesure === "t" ||
+      row.sur_mesure === "true" ||
+      row.sur_mesure === 1,
     nombreProfil: Number(row.nb_profile) || 0,
     nombreKitPose: Number(row.nb_kit_pose) || 0,
     formatsPlaque: [
