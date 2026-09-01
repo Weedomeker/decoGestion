@@ -7,6 +7,7 @@ const decoLivraisonDatesBackfillService = require("./decoLivraisonDatesBackfillS
 const decoPrixBackfillService = require("./decoPrixBackfillService");
 const decoPrixVisuelBackfillService = require("./decoPrixVisuelBackfillService");
 const decoCommandeInfoBackfillService = require("./decoCommandeInfoBackfillService");
+const syntheseCommandesService = require("./syntheseCommandesService");
 
 async function runStep(name, fn) {
   try {
@@ -26,6 +27,13 @@ async function runStep(name, fn) {
 // backfillConsommationPrix doit passer avant backfillPkOnlyPrixTotal : ce dernier somme les prix
 // d'articles de ConsommationCommande, qui doivent donc déjà être à jour.
 async function backfillRecentDecoData({ sinceDate, concurrency = 3, dryRun = false } = {}) {
+  // Charge la synthèse par commande en UNE requête ensembliste, puis la propage aux étapes qui
+  // savent la consommer (decoLivraisonDates/decoPrix/decoCommandeInfo). En cas d'échec, runStep
+  // renvoie null → ces étapes retombent sur leur chemin Gamesys commande par commande.
+  const synthese = await runStep("chargerSyntheseCommandes", () =>
+    syntheseCommandesService.chargerSyntheseCommandes({ sinceDate, resoudreClientsViaCatalogue: true }),
+  );
+
   const consommationPrix = await runStep("backfillConsommationPrix", () =>
     consommationPrixBackfillService.backfillConsommationPrix({ sinceDate, concurrency, dryRun }),
   );
@@ -33,19 +41,27 @@ async function backfillRecentDecoData({ sinceDate, concurrency = 3, dryRun = fal
     pkOnlyPrixBackfillService.backfillPkOnlyPrixTotal({ sinceDate, dryRun }),
   );
   const decoLivraisonDates = await runStep("backfillDecoLivraisonDates", () =>
-    decoLivraisonDatesBackfillService.backfillDecoLivraisonDates({ sinceDate, concurrency, dryRun }),
+    decoLivraisonDatesBackfillService.backfillDecoLivraisonDates({ sinceDate, concurrency, dryRun, synthese }),
   );
   const decoPrix = await runStep("backfillDecoPrix", () =>
-    decoPrixBackfillService.backfillDecoPrix({ sinceDate, concurrency, dryRun }),
+    decoPrixBackfillService.backfillDecoPrix({ sinceDate, concurrency, dryRun, synthese }),
   );
   const decoPrixVisuel = await runStep("backfillDecoPrixVisuel", () =>
     decoPrixVisuelBackfillService.backfillDecoPrixVisuel({ sinceDate, dryRun }),
   );
   const decoCommandeInfo = await runStep("backfillDecoCommandeInfo", () =>
-    decoCommandeInfoBackfillService.backfillDecoCommandeInfo({ sinceDate, concurrency, dryRun }),
+    decoCommandeInfoBackfillService.backfillDecoCommandeInfo({ sinceDate, concurrency, dryRun, synthese }),
   );
 
-  return { consommationPrix, pkOnlyPrixTotal, decoLivraisonDates, decoPrix, decoPrixVisuel, decoCommandeInfo };
+  return {
+    synthese: synthese ? { commandes: synthese.size } : null,
+    consommationPrix,
+    pkOnlyPrixTotal,
+    decoLivraisonDates,
+    decoPrix,
+    decoPrixVisuel,
+    decoCommandeInfo,
+  };
 }
 
 module.exports = { backfillRecentDecoData };
