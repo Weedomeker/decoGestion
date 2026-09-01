@@ -12,7 +12,10 @@ const decoSchema = new mongoose.Schema({
   prixTotal: { type: Number },
   prix: { type: Number },
   client: { type: String, enum: ["LM", "CASTO", "BRICO", "ECOM", ""] },
-  numCmd: { type: Number, min: 1 },
+  // min: 0 — saveDeco enregistre numCmd: cmd || 0 pour le flux de saisie manuelle (aucune commande
+  // Gamesys). Avec min: 1, ces documents levaient une ValidationError avalée -> aucune entrée
+  // d'historique alors que le job était affiché "terminé" (cf. S7).
+  numCmd: { type: Number, min: 0 },
   // Suffixe du sous-dossier Gamesys (ex: "07" pour "167648/07") du visuel précis de ce document —
   // à combiner avec numCmd pour reconstituer le numéro complet. Vide pour les stubs pkOnly/gamesysStub
   // (pas rattachés à un seul visuel) et pour le flux de saisie manuelle.
@@ -53,6 +56,12 @@ const decoSchema = new mongoose.Schema({
 
 decoSchema.index({ numCmd: 1, client: 1 });
 decoSchema.index({ date: -1 });
+// createdAt : filtré/trié par les backfills (createdAt >= sinceDate) qui tournent à chaque
+// démarrage, et par le tri sort({ createdAt: -1 }) des lookups. Sans index -> COLLSCAN.
+decoSchema.index({ createdAt: -1 });
+// numCmd + sousDossier : lookups répétés (claimStubOrCreate, decoGamesysStubSyncService,
+// decoStubService, backfillDecoSousDossier). L'index { numCmd, client } n'aide que sur le préfixe.
+decoSchema.index({ numCmd: 1, sousDossier: 1 });
 
 const clientRefOrder = {
   LM: [RefDeco, RefCasto, RefBrico, RefEcom],

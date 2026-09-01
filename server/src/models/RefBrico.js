@@ -11,6 +11,7 @@ const refBricoSchema = new mongoose.Schema(
 ); // préciser le nom exact de la collection Mongo
 
 refBricoSchema.index({ model: "text", finition: "text" });
+refBricoSchema.index({ model: 1 }); // tri listReferences .sort({ model: 1 })
 
 const RefBrico = mongoose.model("RefBrico", refBricoSchema);
 

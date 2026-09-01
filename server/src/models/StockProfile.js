@@ -14,7 +14,9 @@ const stockProfileSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-stockProfileSchema.index({ type: 1 });
+// La requête réelle (stockController) trie sur { type, libelle } — l'index composé sert le tri,
+// contrairement à { type: 1 } seul (cardinalité 2, inexploitable).
+stockProfileSchema.index({ type: 1, libelle: 1 });
 
 const StockProfile = mongoose.model("StockProfile", stockProfileSchema, "stock_profiles");
 
