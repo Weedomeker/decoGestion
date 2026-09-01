@@ -27,6 +27,7 @@ const { processJob } = require("./src/controllers/jobsController");
 const { syncConsommationsHistorique } = require("./src/services/gamesysConsommationSyncService");
 const { backfillRecentDecoData } = require("./src/services/startupPrixBackfillService");
 const { syncDecoStubsDepuisGamesys } = require("./src/services/decoGamesysStubSyncService");
+const { resolveSinceDate, marquerRun } = require("./src/services/backfillWatermarkService");
 
 const PORT = process.env.PORT || 8000;
 
@@ -239,9 +240,13 @@ server.listen(PORT, async () => {
 
   setTimeout(async () => {
     try {
-      const sinceDate = new Date(Date.now() - PRIX_BACKFILL_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+      const sinceDate = await resolveSinceDate({
+        cle: "startupDecoData",
+        fenetreDefautJours: PRIX_BACKFILL_LOOKBACK_DAYS,
+      });
       await backfillRecentDecoData({ sinceDate });
-      logger.info(`Backfill prix/livraison récents (${PRIX_BACKFILL_LOOKBACK_DAYS}j) terminé.`);
+      await marquerRun("startupDecoData");
+      logger.info(`Backfill prix/livraison récents (depuis ${sinceDate.toISOString().slice(0, 10)}) terminé.`);
     } catch (error) {
       logger.warn(`Backfill prix/livraison récents échoué : ${error.message}`);
     }
@@ -258,9 +263,15 @@ server.listen(PORT, async () => {
 
   setTimeout(async () => {
     try {
-      const sinceDate = new Date(Date.now() - DECO_STUB_SYNC_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+      const sinceDate = await resolveSinceDate({
+        cle: "startupStubSync",
+        fenetreDefautJours: DECO_STUB_SYNC_LOOKBACK_DAYS,
+      });
       const resume = await syncDecoStubsDepuisGamesys({ sinceDate });
-      logger.info(`Sync stubs Deco depuis Gamesys (${DECO_STUB_SYNC_LOOKBACK_DAYS}j) : ${JSON.stringify(resume)}`);
+      await marquerRun("startupStubSync");
+      logger.info(
+        `Sync stubs Deco depuis Gamesys (depuis ${sinceDate.toISOString().slice(0, 10)}) : ${JSON.stringify(resume)}`,
+      );
     } catch (error) {
       logger.warn(`Sync stubs Deco échouée : ${error.message}`);
     }
