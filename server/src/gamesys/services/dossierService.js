@@ -1497,6 +1497,140 @@ async function getDossierFormatPlaque(commande) {
   }
 }
 
+// ── POC synthèse commandes ─────────────────────────────────────────────────────
+// Une SEULE requête ensembliste, sur une fenêtre temporelle, qui ramène par commande tout ce que
+// les backfills de démarrage vont chercher aujourd'hui en 4-6 allers-retours ODBC PAR commande
+// (fetchDossierCommandeInfo + fetchDossierFormatPlaque + fetchDossierLivraisonDates +
+// fetchSousDossiersVisuels + getDossierDetail). Adaptée de `docs/gamesys suivis commandes.sql` :
+//  - table pilote fd_ent_cmde (niveau commande, peu de lignes) filtrée sur ent_date_crea_cmd,
+//    au lieu de scanner fd_entete_devi ligne par ligne ;
+//  - chaîne d'offre fd_ent_cmde → f_link_offre_devis → f_link_offre_lignepf → fd_entete_devi
+//    (validée 1:1 / 99,8 % — cf. mémoire orderline), fiable contrairement à dos_seq = endv_seq ;
+//  - classification profil/kit/sur-mesure en SQL via endv_orderline_seq_article = fs_stock.st_seq_compt
+//    (résolution « priorité 0 » déterministe), sans matching de libellé JS ni passe CATALOGUE_RECOVERY ;
+//  - fc_references (ent_code_client = fo_reference) pour magasin/ville sans dépendre de ff_livraison.
+//
+// Grain de sortie = 1 ligne par commande racine (GROUP BY). Le prix PAR sous-dossier/visuel et la
+// ref/format/finition par panneau restent l'affaire de fetchSousDossiersVisuels (bien moins de
+// commandes à traiter une fois cette synthèse en cache).
+//
+// À VALIDER contre la vraie base via `node server/scripts/probeSyntheseCommandes.js` :
+//  - couverture (numCmd présents ici vs listCommandesRecentes), index sur ent_date_crea_cmd,
+//    coût de la requête, cohérence prixTotal / dates avec les fetch* unitaires.
+//
+// `seulementLivrables` : ajoute `ent_statut_livraison >= 2` (comme le SQL de référence). À laisser
+// à false pour alimenter syncDecoStubsDepuisGamesys, qui cible justement les commandes trop
+// fraîches pour avoir une ligne ff_livraison.
+function buildSyntheseCommandesSql({ seulementLivrables }) {
+  const clauseLivraison = seulementLivrables ? "AND ent_statut_livraison >= 2" : "";
+  return `
+    WITH mapping_profile AS (
+      SELECT st_seq_compt AS sequentiel, REPLACE(st_lib_1_conso, 'PROFILE ', '') AS libelle
+      FROM public.fs_stock
+      WHERE st_lib_1_conso ilike '%PROFILE%'
+    ),
+    mapping_kit AS (
+      SELECT st_seq_compt AS sequentiel, st_lib_1_conso AS libelle
+      FROM public.fs_stock
+      WHERE st_lib_1_conso ilike '%kit de pose%'
+    ),
+    mapping_article AS (
+      SELECT st_seq_compt AS sequentiel, st_art_sfamille AS sfamille
+      FROM public.fs_stock
+    )
+    SELECT
+      ent_code_client AS code_client,
+      fo_nom_1        AS magasin,
+      fo_ville        AS ville,
+      ent_ref_client  AS ref_client,
+      ent_no_offre    AS offre_gamesys,
+      STRING_AGG(DISTINCT regexp_replace(endv_no_commande, '/\\d+$', ''), ', ') AS dossiers_gamesys,
+      COALESCE(
+        to_date(substring(ent_rmq_int FROM 'du\\s+(\\d{2}/\\d{2}/\\d{4})'), 'DD/MM/YYYY'),
+        ent_date_crea_cmd::date
+      ) AS date_commande,
+      MIN(NULLIF(bo_date_depart_usine, DATE '1900-01-01')) AS date_depart_usine_prev,
+      LEAST(
+        COALESCE(MIN(NULLIF(bo_date_souhaitee, DATE '1900-01-01')), MIN(NULLIF(bo_date_imperative, DATE '1900-01-01'))),
+        COALESCE(MIN(NULLIF(bo_date_imperative, DATE '1900-01-01')), MIN(NULLIF(bo_date_souhaitee, DATE '1900-01-01')))
+      ) AS date_livraison_souhaitee,
+      ROUND((ent_total_lignes_ht + ent_total_livraisons_ht)::numeric, 2) AS montant_commande,
+      bool_or(mapping_article.sfamille = 'SMES') AS sur_mesure,
+      SUM(CASE WHEN mapping_profile.libelle IS NOT NULL THEN endv_quant ELSE 0 END) AS nb_profile,
+      SUM(CASE WHEN mapping_kit.libelle IS NOT NULL THEN endv_quant ELSE 0 END)     AS nb_kit_pose,
+      SUM(CASE WHEN cat_famille='DIB1' AND cat_type='DECO' AND cat_coulstd='BLANC' AND cat_format_x=101 AND cat_format_y=215 THEN soximp_nbre_feuil_pap ELSE 0 END) AS dib_101x215,
+      SUM(CASE WHEN cat_famille='DIB1' AND cat_type='DECO' AND cat_coulstd='BLANC' AND cat_format_x=126 AND cat_format_y=260 THEN soximp_nbre_feuil_pap ELSE 0 END) AS dib_126x260,
+      SUM(CASE WHEN cat_famille='DIB1' AND cat_type='DECO' AND cat_coulstd='BLANC' AND cat_format_x=151 AND cat_format_y=260 THEN soximp_nbre_feuil_pap ELSE 0 END) AS dib_151x260
+    FROM public.fd_ent_cmde
+    LEFT JOIN public.fc_references         ON ent_code_client = fo_reference
+    LEFT JOIN public.f_link_offre_devis   ON linkodcodeoffre = ent_no_offre
+    LEFT JOIN public.f_link_offre_lignepf ON linkolcodeligne = linkodpkid
+    LEFT JOIN public.fd_entete_devi       ON linkodcodedevis = endv_coduniq
+    LEFT JOIN public.fi_sol_imp           ON soximp_code_devis = endv_coduniq
+    LEFT JOIN public.fs_catalogue         ON cat_compt = soximp1_seq_papier
+    LEFT JOIN public.ff_livraison         ON bo_no_dossier = endv_no_commande
+    LEFT JOIN mapping_profile             ON mapping_profile.sequentiel = endv_orderline_seq_article
+    LEFT JOIN mapping_kit                 ON mapping_kit.sequentiel = endv_orderline_seq_article
+    LEFT JOIN mapping_article             ON mapping_article.sequentiel = endv_orderline_seq_article
+    WHERE ent_date_crea_cmd >= ?
+      AND ent_statut_commande < 900
+      ${clauseLivraison}
+    GROUP BY
+      ent_code_client, fo_nom_1, fo_ville, ent_rmq_int, ent_ref_client, ent_no_offre,
+      ent_date_crea_cmd, ent_total_lignes_ht, ent_total_livraisons_ht
+    ORDER BY date_commande DESC
+  `;
+}
+
+// "167435, 167440" → 167435 (numéro de dossier racine, = numCmd applicatif). Renvoie NaN si vide.
+function extractRootNumCmd(dossiersGamesys) {
+  const premier = String(dossiersGamesys || "").split(",")[0].trim();
+  return parseInt(premier, 10);
+}
+
+function mapSyntheseRow(row) {
+  const toDate = (v) => (v ? new Date(v) : null);
+  return {
+    numCmd: extractRootNumCmd(row.dossiers_gamesys),
+    client: mapDosClientToAppClient(row.code_client),
+    codeClientGamesys: row.code_client || null,
+    refClient: row.ref_client || null,
+    offreGamesys: row.offre_gamesys != null ? String(row.offre_gamesys) : null,
+    magasin: row.magasin || null,
+    ville: row.ville || null,
+    dateCommande: toDate(row.date_commande),
+    dateDepartUsinePrev: toDate(row.date_depart_usine_prev),
+    dateLivraisonSouhaitee: toDate(row.date_livraison_souhaitee),
+    prixTotal: row.montant_commande != null ? Number(row.montant_commande) : null,
+    // node-odbc peut rendre un booléen PG en true/false, "t"/"f" ou 1/0 selon le driver.
+    surMesure: row.sur_mesure === true || row.sur_mesure === "t" || row.sur_mesure === 1,
+    nombreProfil: Number(row.nb_profile) || 0,
+    nombreKitPose: Number(row.nb_kit_pose) || 0,
+    formatsPlaque: [
+      { format: "101x215", nb: Number(row.dib_101x215) || 0 },
+      { format: "126x260", nb: Number(row.dib_126x260) || 0 },
+      { format: "151x260", nb: Number(row.dib_151x260) || 0 },
+    ].filter((f) => f.nb > 0),
+  };
+}
+
+// Connexion INJECTÉE (comme fetchDossierCommandeInfo / fetchDossierLivraisonDates) : le service
+// appelant réutilise une seule connexion ODBC pour toute la synthèse. `sinceDate` obligatoire,
+// passé en texte YYYY-MM-DD (node-odbc ne binde pas un objet Date — cf. listCommandesAvecProfilsKits).
+async function fetchSyntheseCommandes(connection, { sinceDate, seulementLivrables = false } = {}) {
+  if (!sinceDate) {
+    const error = new Error("sinceDate est requis.");
+    error.code = "SINCE_DATE_REQUIRED";
+    error.status = 400;
+    throw error;
+  }
+  const sinceDateText =
+    sinceDate instanceof Date ? sinceDate.toISOString().slice(0, 10) : String(sinceDate);
+
+  const rows = await query(connection, buildSyntheseCommandesSql({ seulementLivrables }), [sinceDateText]);
+  return rows.map(mapSyntheseRow);
+}
+
 // Vernis d'impression Mat / Brillant d'un panneau, lu dans dos_imp_1_fac_p_1
 // ("pelli. Ro (Vernis Mat) sur VERNI/") via detectPrintFinish — la MÊME source que pour les
 // visuels catalogue. Utilisé pour renseigner Deco.finition des panneaux SUR-MESURE : leur
@@ -1558,6 +1692,7 @@ module.exports = {
   getDossierCommandeInfo,
   fetchDossierFormatPlaque,
   getDossierFormatPlaque,
+  fetchSyntheseCommandes,
   fetchDossierVernis,
   getDossierVernis,
   mapDosClientToAppClient,
