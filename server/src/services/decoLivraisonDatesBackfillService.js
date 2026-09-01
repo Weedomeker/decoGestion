@@ -39,14 +39,17 @@ async function backfillDecoLivraisonDates({
         limit(async () => {
           try {
             // Synthèse commandes prioritaire : si le numCmd y figure, aucun aller-retour Gamesys.
-            // La synthèse ne porte pas les repères fc_references (villeRef/magasinRef) — seul le
-            // repli Gamesys conserve la chaîne complète.
+            // La synthèse porte magasin/ville (ff_livraison) + magasinRef/villeRef (repli
+            // fc_references) — même chaîne complète que le repli Gamesys.
             let dateLivraisonSouhaitee = null;
             let mag = null;
             const s = synthese && synthese.get(numCmd);
             if (s) {
               dateLivraisonSouhaitee = s.dateLivraisonSouhaitee || null;
-              mag = client === "ECOM" ? s.magasin || s.ville : s.ville || s.magasin;
+              mag =
+                client === "ECOM"
+                  ? s.magasin || s.ville
+                  : s.ville || s.magasin || s.villeRef || s.magasinRef;
             } else {
               const r = await dossierService.fetchDossierLivraisonDates(connection, numCmd);
               dateLivraisonSouhaitee = r.dateLivraisonSouhaitee || null;

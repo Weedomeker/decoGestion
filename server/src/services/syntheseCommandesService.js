@@ -80,9 +80,11 @@ async function chargerSyntheseCommandes({
     if (!parNumCmd.has(ligne.numCmd)) parNumCmd.set(ligne.numCmd, ligne);
   }
 
+  const multiRoot = [...parNumCmd.values()].filter((s) => s.multiRoot).length;
   logger.info(
     `chargerSyntheseCommandes: ${parNumCmd.size} commandes retenues ` +
-      `(${lignes.length} lignes SQL, ${ignorees} ignorées, ${horsFiltre} hors filtre clients).`,
+      `(${lignes.length} lignes SQL, ${ignorees} ignorées, ${horsFiltre} hors filtre clients, ` +
+      `${multiRoot} multi-dossiers).`,
   );
   return parNumCmd;
 }
