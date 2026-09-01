@@ -7,6 +7,7 @@ const decoLivraisonDatesBackfillService = require("../../server/src/services/dec
 const decoPrixBackfillService = require("../../server/src/services/decoPrixBackfillService");
 const decoPrixVisuelBackfillService = require("../../server/src/services/decoPrixVisuelBackfillService");
 const decoCommandeInfoBackfillService = require("../../server/src/services/decoCommandeInfoBackfillService");
+const syntheseCommandesService = require("../../server/src/services/syntheseCommandesService");
 const { backfillRecentDecoData } = require("../../server/src/services/startupPrixBackfillService");
 
 describe("startupPrixBackfillService.backfillRecentDecoData()", () => {
@@ -16,10 +17,14 @@ describe("startupPrixBackfillService.backfillRecentDecoData()", () => {
   let backfillDecoPrixStub;
   let backfillDecoPrixVisuelStub;
   let backfillDecoCommandeInfoStub;
+  let chargerSyntheseCommandesStub;
 
   const resumeVide = { candidats: 0, misAJour: 0, introuvables: 0, erreurs: 0 };
 
   beforeEach(() => {
+    chargerSyntheseCommandesStub = sinon
+      .stub(syntheseCommandesService, "chargerSyntheseCommandes")
+      .resolves(new Map());
     backfillConsommationPrixStub = sinon
       .stub(consommationPrixBackfillService, "backfillConsommationPrix")
       .resolves({ ...resumeVide });
@@ -65,10 +70,12 @@ describe("startupPrixBackfillService.backfillRecentDecoData()", () => {
 
     expect(backfillConsommationPrixStub.calledWith({ sinceDate, concurrency: 7, dryRun: true })).to.be.true;
     expect(backfillPkOnlyPrixTotalStub.calledWith({ sinceDate, dryRun: true })).to.be.true;
-    expect(backfillDecoLivraisonDatesStub.calledWith({ sinceDate, concurrency: 7, dryRun: true })).to.be.true;
-    expect(backfillDecoPrixStub.calledWith({ sinceDate, concurrency: 7, dryRun: true })).to.be.true;
+    // decoLivraisonDates/decoPrix/decoCommandeInfo reçoivent en plus `synthese` → match partiel
+    // qui épingle toujours sinceDate/concurrency/dryRun.
+    expect(backfillDecoLivraisonDatesStub.calledWithMatch({ sinceDate, concurrency: 7, dryRun: true })).to.be.true;
+    expect(backfillDecoPrixStub.calledWithMatch({ sinceDate, concurrency: 7, dryRun: true })).to.be.true;
     expect(backfillDecoPrixVisuelStub.calledWith({ sinceDate, dryRun: true })).to.be.true;
-    expect(backfillDecoCommandeInfoStub.calledWith({ sinceDate, concurrency: 7, dryRun: true })).to.be.true;
+    expect(backfillDecoCommandeInfoStub.calledWithMatch({ sinceDate, concurrency: 7, dryRun: true })).to.be.true;
   });
 
   it("utilise concurrency=3 par défaut", async () => {
@@ -99,6 +106,7 @@ describe("startupPrixBackfillService.backfillRecentDecoData()", () => {
     const resultats = await backfillRecentDecoData({ sinceDate: new Date() });
 
     expect(resultats).to.have.all.keys([
+      "synthese",
       "consommationPrix",
       "pkOnlyPrixTotal",
       "decoLivraisonDates",
@@ -107,5 +115,29 @@ describe("startupPrixBackfillService.backfillRecentDecoData()", () => {
       "decoCommandeInfo",
     ]);
     expect(resultats.decoPrix).to.deep.equal(resumePrix);
+  });
+
+  it("charge la synthèse une fois et la passe aux étapes decoLivraisonDates/decoPrix/decoCommandeInfo", async () => {
+    const fakeMap = new Map([[1, { prixTotal: 10 }]]);
+    chargerSyntheseCommandesStub.resolves(fakeMap);
+
+    const resultats = await backfillRecentDecoData({ sinceDate: new Date() });
+
+    expect(chargerSyntheseCommandesStub.calledOnce).to.be.true;
+    expect(backfillDecoLivraisonDatesStub.firstCall.args[0].synthese).to.equal(fakeMap);
+    expect(backfillDecoPrixStub.firstCall.args[0].synthese).to.equal(fakeMap);
+    expect(backfillDecoCommandeInfoStub.firstCall.args[0].synthese).to.equal(fakeMap);
+    expect(resultats.synthese).to.deep.equal({ commandes: 1 });
+  });
+
+  it("continue sans synthèse (synthese: null passé) si chargerSyntheseCommandes échoue", async () => {
+    chargerSyntheseCommandesStub.rejects(new Error("ODBC"));
+
+    const resultats = await backfillRecentDecoData({ sinceDate: new Date() });
+
+    expect(backfillDecoLivraisonDatesStub.firstCall.args[0].synthese).to.equal(null);
+    expect(backfillDecoPrixStub.firstCall.args[0].synthese).to.equal(null);
+    expect(backfillDecoCommandeInfoStub.firstCall.args[0].synthese).to.equal(null);
+    expect(resultats.synthese).to.equal(null);
   });
 });
