@@ -8,7 +8,7 @@ const { syncDecoStubsDepuisGamesys } = require("../../server/src/services/decoGa
 
 describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
   let listCandidatsStub;
-  let existsStub;
+  let findStub;
   let findOneAndUpdateStub;
   let getDbConnectionStub;
   let fetchCommandeInfoStub;
@@ -21,7 +21,8 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
   beforeEach(() => {
     fakeConnection = { close: sinon.stub().resolves() };
     listCandidatsStub = sinon.stub(dossierService, "listCommandesRecentes");
-    existsStub = sinon.stub(Deco, "exists");
+    // Pré-filtre batché : Deco.find({ numCmd: { $in } }).lean() renvoie les numCmd déjà en base
+    findStub = sinon.stub(Deco, "find").returns({ lean: sinon.stub().resolves([]) });
     findOneAndUpdateStub = sinon.stub(Deco, "findOneAndUpdate").resolves();
     getDbConnectionStub = sinon.stub(dbConfig, "getDbConnection").resolves(fakeConnection);
     fetchCommandeInfoStub = sinon.stub(dossierService, "fetchDossierCommandeInfo").resolves({
@@ -53,7 +54,7 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
 
   it("ignore les dossiers déjà présents dans Deco sans requêter Gamesys pour eux", async () => {
     listCandidatsStub.resolves([{ cmd: "167648", client: "LM" }]);
-    existsStub.resolves(true);
+    findStub.returns({ lean: sinon.stub().resolves([{ numCmd: 167648 }]) });
 
     const resume = await syncDecoStubsDepuisGamesys({ sinceDate });
 
@@ -63,7 +64,6 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
 
   it("en dry-run, compte les candidats sans écrire", async () => {
     listCandidatsStub.resolves([{ cmd: "167648", client: "LM" }]);
-    existsStub.resolves(false);
 
     const resume = await syncDecoStubsDepuisGamesys({ sinceDate, dryRun: true });
 
@@ -73,7 +73,6 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
 
   it("crée un stub gamesysStub:true avec les champs Gamesys peuplés pour un dossier nouveau", async () => {
     listCandidatsStub.resolves([{ cmd: "167648", client: "LM" }]);
-    existsStub.resolves(false);
 
     const resume = await syncDecoStubsDepuisGamesys({ sinceDate });
 
@@ -100,7 +99,6 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
 
   it("laisse pkOnly:false sur le stub générique quand la commande n'a ni visuel ni profil ni kit", async () => {
     listCandidatsStub.resolves([{ cmd: "167648", client: "LM" }]);
-    existsStub.resolves(false);
     fetchCommandeInfoStub.resolves({
       dateCommande: new Date("2026-08-20"),
       codeClient: "LM019",
@@ -120,7 +118,6 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
       { cmd: "167648", client: "LM" },
       { cmd: "167649", client: "LM" },
     ]);
-    existsStub.resolves(false);
 
     const resume = await syncDecoStubsDepuisGamesys({ sinceDate });
 
@@ -131,7 +128,6 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
 
   it("crée un stub par sous-dossier visuel avec ref/deco du catalogue quand la référence matche", async () => {
     listCandidatsStub.resolves([{ cmd: "167648", client: "LM" }]);
-    existsStub.resolves(false);
     sinon.stub(dossierService, "fetchSousDossiersVisuels").resolves([
       {
         sousNumero: "07",
@@ -165,7 +161,6 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
 
   it("se rabat sur format/finition/deco Gamesys bruts quand la référence ne matche aucun catalogue", async () => {
     listCandidatsStub.resolves([{ cmd: "167648", client: "LM" }]);
-    existsStub.resolves(false);
     sinon.stub(dossierService, "fetchSousDossiersVisuels").resolves([
       {
         sousNumero: "07",
@@ -197,7 +192,6 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
 
   it("pose les champs sur-mesure (deco nettoyé, finition = vernis Mat/Brillant, orientation, cote client) sur le stub À lancer", async () => {
     listCandidatsStub.resolves([{ cmd: "167302", client: "LM" }]);
-    existsStub.resolves(false);
     sinon.stub(dossierService, "fetchSousDossiersVisuels").resolves([
       {
         sousNumero: "05",
@@ -248,7 +242,6 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
       { cmd: "167648", client: "LM" },
       { cmd: "167649", client: "LM" },
     ]);
-    existsStub.resolves(false);
     fetchCommandeInfoStub.withArgs(fakeConnection, "167648").rejects(new Error("ODBC timeout"));
     fetchCommandeInfoStub.withArgs(fakeConnection, "167649").resolves({
       dateCommande: new Date("2026-08-20"),
@@ -270,7 +263,8 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
     const resume = await syncDecoStubsDepuisGamesys({ sinceDate });
 
     expect(resume.candidats).to.equal(1);
-    expect(existsStub.called).to.be.false;
+    // le candidat non numérique est exclu du pré-filtre : $in vide, aucune connexion ODBC
+    expect(findStub.firstCall.args[0]).to.deep.equal({ numCmd: { $in: [] } });
     expect(getDbConnectionStub.called).to.be.false;
   });
 });
