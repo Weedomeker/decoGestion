@@ -45,11 +45,11 @@ PORT=8000
 
 # PostgreSQL ODBC
 ODBC_DSN=PostgreSQL35W
-DB_USER=u_odbc
-DB_PASSWORD=efi
+DB_USER=<utilisateur_odbc>
+DB_PASSWORD=<voir gestionnaire de secrets>
 
-# MongoDB Atlas
-MONGO_URL=mongodb+srv://<user>:<password>@orphea.fhezp.mongodb.net/
+# MongoDB Atlas — inclure le nom de base dans l'URI, un compte distinct par environnement
+MONGO_URL=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/
 
 # Partages réseau (mis à jour via l'interface Config de l'app)
 LINK_DECO=\\NASSYNORS1221\agence\1-décokin\ DECO-K-IN\...
