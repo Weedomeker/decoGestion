@@ -26,6 +26,7 @@ async function chargerSyntheseCommandes({
   sinceDate,
   clients,
   seulementLivrables = false,
+  resoudreClientsViaCatalogue = false,
   connection,
 } = {}) {
   const conn = connection || (await dbConfig.getDbConnection());
@@ -36,12 +37,35 @@ async function chargerSyntheseCommandes({
     if (!connection) await closeConnection(conn);
   }
 
+  // La requête ensembliste résout le client via le préfixe du code compte (mapDosClientToAppClient).
+  // Les comptes e-commerce non préfixés y ressortent avec client=null : on récupère alors leur
+  // enseigne via listCommandesRecentes (qui gère sa propre connexion + la passe catalogue).
+  let clientParNumCmd = null;
+  if (resoudreClientsViaCatalogue) {
+    try {
+      const recentes = await dossierService.listCommandesRecentes({ sinceDate });
+      clientParNumCmd = new Map();
+      for (const c of recentes) {
+        const n = parseInt(c.cmd, 10);
+        if (n && !Number.isNaN(n) && c.client) clientParNumCmd.set(n, c.client);
+      }
+    } catch (err) {
+      logger.warn(
+        `chargerSyntheseCommandes: résolution client via catalogue échouée : ${err.message}`,
+      );
+    }
+  }
+
   const filtreClients = Array.isArray(clients) && clients.length ? new Set(clients) : null;
   const parNumCmd = new Map();
   let ignorees = 0;
   let horsFiltre = 0;
 
   for (const ligne of lignes) {
+    if (!ligne.client && clientParNumCmd) {
+      const recupere = clientParNumCmd.get(ligne.numCmd);
+      if (recupere) ligne.client = recupere;
+    }
     if (!ligne.numCmd || Number.isNaN(ligne.numCmd) || !ligne.client) {
       ignorees += 1;
       continue;

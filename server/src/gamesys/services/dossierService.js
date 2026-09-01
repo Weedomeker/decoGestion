@@ -1554,6 +1554,7 @@ function buildSyntheseCommandesSql({ seulementLivrables }) {
         COALESCE(MIN(NULLIF(bo_date_souhaitee, DATE '1900-01-01')), MIN(NULLIF(bo_date_imperative, DATE '1900-01-01'))),
         COALESCE(MIN(NULLIF(bo_date_imperative, DATE '1900-01-01')), MIN(NULLIF(bo_date_souhaitee, DATE '1900-01-01')))
       ) AS date_livraison_souhaitee,
+      MAX(NULLIF(TRIM(dos_supp_1_ft), '')) AS format_plaque_gamesys,
       ROUND((ent_total_lignes_ht + ent_total_livraisons_ht)::numeric, 2) AS montant_commande,
       bool_or(mapping_article.sfamille = 'SMES') AS sur_mesure,
       SUM(CASE WHEN mapping_profile.libelle IS NOT NULL THEN endv_quant ELSE 0 END) AS nb_profile,
@@ -1569,6 +1570,7 @@ function buildSyntheseCommandesSql({ seulementLivrables }) {
     LEFT JOIN public.fi_sol_imp           ON soximp_code_devis = endv_coduniq
     LEFT JOIN public.fs_catalogue         ON cat_compt = soximp1_seq_papier
     LEFT JOIN public.ff_livraison         ON bo_no_dossier = endv_no_commande
+    LEFT JOIN public.fd_dossier           ON dos_no_cmde = endv_no_commande
     LEFT JOIN mapping_profile             ON mapping_profile.sequentiel = endv_orderline_seq_article
     LEFT JOIN mapping_kit                 ON mapping_kit.sequentiel = endv_orderline_seq_article
     LEFT JOIN mapping_article             ON mapping_article.sequentiel = endv_orderline_seq_article
@@ -1601,6 +1603,7 @@ function mapSyntheseRow(row) {
     dateCommande: toDate(row.date_commande),
     dateDepartUsinePrev: toDate(row.date_depart_usine_prev),
     dateLivraisonSouhaitee: toDate(row.date_livraison_souhaitee),
+    formatPlaqueGamesys: row.format_plaque_gamesys || null,
     prixTotal: row.montant_commande != null ? Number(row.montant_commande) : null,
     // node-odbc peut rendre un booléen PG en true/false, "t"/"f" ou 1/0 selon le driver.
     surMesure: row.sur_mesure === true || row.sur_mesure === "t" || row.sur_mesure === 1,
