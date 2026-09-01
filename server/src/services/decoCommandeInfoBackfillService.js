@@ -5,7 +5,12 @@ const dbConfig = require("../gamesys/config/db");
 const { closeConnection } = require("../gamesys/lib/db");
 const Deco = require("../models/Deco");
 
-async function backfillDecoCommandeInfo({ concurrency = 5, dryRun = false, sinceDate = null } = {}) {
+async function backfillDecoCommandeInfo({
+  concurrency = 5,
+  dryRun = false,
+  sinceDate = null,
+  synthese = null,
+} = {}) {
   const filter = { numCmd: { $gt: 0 }, dateCommande: { $exists: false } };
   if (sinceDate) filter.createdAt = { $gte: sinceDate };
   const aTraiter = await Deco.find(filter, { numCmd: 1 }).lean();
@@ -25,12 +30,34 @@ async function backfillDecoCommandeInfo({ concurrency = 5, dryRun = false, since
       numCmds.map((numCmd) =>
         limit(async () => {
           try {
-            const commandeInfo = await dossierService.fetchDossierCommandeInfo(connection, numCmd);
-            if (commandeInfo == null) {
-              resume.introuvables += 1;
-              return;
+            // Synthèse commandes prioritaire : si le numCmd y figure, aucun aller-retour Gamesys.
+            // Quand la synthèse porte la ligne mais dateCommande null, elle fait autorité → introuvable.
+            // La synthèse expose `codeClientGamesys` ; le $set écrit historiquement `codeClient`.
+            let commandeInfo;
+            let formatPlaqueGamesys;
+            const s = synthese && synthese.get(numCmd);
+            if (s) {
+              if (s.dateCommande == null) {
+                resume.introuvables += 1;
+                return;
+              }
+              commandeInfo = {
+                dateCommande: s.dateCommande,
+                codeClient: s.codeClientGamesys ?? null,
+                refClient: s.refClient ?? null,
+                nombreProfil: s.nombreProfil ?? 0,
+                nombreKitPose: s.nombreKitPose ?? 0,
+                prixTotal: s.prixTotal ?? null,
+              };
+              formatPlaqueGamesys = s.formatPlaqueGamesys ?? null;
+            } else {
+              commandeInfo = await dossierService.fetchDossierCommandeInfo(connection, numCmd);
+              if (commandeInfo == null) {
+                resume.introuvables += 1;
+                return;
+              }
+              formatPlaqueGamesys = await dossierService.fetchDossierFormatPlaque(connection, numCmd);
             }
-            const formatPlaqueGamesys = await dossierService.fetchDossierFormatPlaque(connection, numCmd);
             const { modifiedCount } = await Deco.updateMany(
               { numCmd, dateCommande: { $exists: false } },
               { $set: { ...commandeInfo, formatPlaqueGamesys } },

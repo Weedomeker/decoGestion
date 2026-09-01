@@ -191,4 +191,33 @@ describe("decoLivraisonDatesBackfillService.backfillDecoLivraisonDates()", () =>
 
     expect(fakeConnection.close.calledOnce).to.be.true;
   });
+
+  it("applique dateLivraisonSouhaitee/mag depuis la synthèse sans appeler fetchDossierLivraisonDates", async () => {
+    mockPendingDocs([{ numCmd: 10, client: "LM" }]);
+    const synthese = new Map([
+      [10, { dateLivraisonSouhaitee: new Date("2026-09-23"), magasin: "M", ville: "V", client: "LM" }],
+    ]);
+    updateManyStub.resolves({ modifiedCount: 1 });
+
+    const resume = await backfillDecoLivraisonDates({ sinceDate: new Date(), synthese });
+
+    expect(fetchDossierLivraisonDatesStub.called).to.be.false;
+    expect(resume.misAJour).to.equal(1);
+    // mag = ville pour LM
+    expect(updateManyStub.firstCall.args[1].$set).to.include({ mag: "V" });
+  });
+
+  it("retombe sur fetchDossierLivraisonDates quand le numCmd est absent de la synthèse", async () => {
+    mockPendingDocs([{ numCmd: 99, client: "LM" }]);
+    const synthese = new Map();
+    fetchDossierLivraisonDatesStub.resolves({
+      dateLivraisonSouhaitee: new Date("2026-09-01"),
+      ville: "W",
+    });
+    updateManyStub.resolves({ modifiedCount: 1 });
+
+    await backfillDecoLivraisonDates({ sinceDate: new Date(), synthese });
+
+    expect(fetchDossierLivraisonDatesStub.calledOnce).to.be.true;
+  });
 });

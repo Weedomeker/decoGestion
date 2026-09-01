@@ -5,7 +5,12 @@ const dbConfig = require("../gamesys/config/db");
 const { closeConnection } = require("../gamesys/lib/db");
 const Deco = require("../models/Deco");
 
-async function backfillDecoLivraisonDates({ concurrency = 5, dryRun = false, sinceDate = null } = {}) {
+async function backfillDecoLivraisonDates({
+  concurrency = 5,
+  dryRun = false,
+  sinceDate = null,
+  synthese = null,
+} = {}) {
   const filter = {
     numCmd: { $gt: 0 },
     $or: [{ dateLivraisonSouhaitee: { $exists: false } }, { mag: { $exists: false } }],
@@ -33,14 +38,27 @@ async function backfillDecoLivraisonDates({ concurrency = 5, dryRun = false, sin
       [...numCmdClientMap.entries()].map(([numCmd, client]) =>
         limit(async () => {
           try {
-            const { dateLivraisonSouhaitee, magasin, ville, magasinRef, villeRef } =
-              await dossierService.fetchDossierLivraisonDates(connection, numCmd);
-            // mag = ville de livraison pour LM/CASTO/BRICO (repère magasin), nom du destinataire
-            // pour ECOM (livraison directe au client final) — même règle que decoGamesysStubSyncService.
-            // Repli fc_references (villeRef/magasinRef) pour les enseignes physiques quand ff_livraison
-            // est vide (dossier trop récent pour avoir une ligne de livraison).
-            const mag =
-              client === "ECOM" ? magasin || ville : ville || magasin || villeRef || magasinRef;
+            // Synthèse commandes prioritaire : si le numCmd y figure, aucun aller-retour Gamesys.
+            // La synthèse ne porte pas les repères fc_references (villeRef/magasinRef) — seul le
+            // repli Gamesys conserve la chaîne complète.
+            let dateLivraisonSouhaitee = null;
+            let mag = null;
+            const s = synthese && synthese.get(numCmd);
+            if (s) {
+              dateLivraisonSouhaitee = s.dateLivraisonSouhaitee || null;
+              mag = client === "ECOM" ? s.magasin || s.ville : s.ville || s.magasin;
+            } else {
+              const r = await dossierService.fetchDossierLivraisonDates(connection, numCmd);
+              dateLivraisonSouhaitee = r.dateLivraisonSouhaitee || null;
+              // mag = ville de livraison pour LM/CASTO/BRICO (repère magasin), nom du destinataire
+              // pour ECOM (livraison directe au client final) — même règle que decoGamesysStubSyncService.
+              // Repli fc_references (villeRef/magasinRef) pour les enseignes physiques quand ff_livraison
+              // est vide (dossier trop récent pour avoir une ligne de livraison).
+              mag =
+                client === "ECOM"
+                  ? r.magasin || r.ville
+                  : r.ville || r.magasin || r.villeRef || r.magasinRef;
+            }
 
             if (!dateLivraisonSouhaitee && !mag) {
               resume.introuvables += 1;

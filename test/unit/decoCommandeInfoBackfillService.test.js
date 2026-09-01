@@ -136,4 +136,63 @@ describe("decoCommandeInfoBackfillService.backfillDecoCommandeInfo()", () => {
 
     expect(fakeConnection.close.calledOnce).to.be.true;
   });
+
+  it("applique dateCommande/refClient/profils/formatPlaque depuis la synthèse sans appel Gamesys", async () => {
+    mockPendingDocs([{ numCmd: 10 }]);
+    const synthese = new Map([
+      [
+        10,
+        {
+          dateCommande: new Date("2026-09-01"),
+          codeClientGamesys: "LM004",
+          refClient: "R",
+          nombreProfil: 1,
+          nombreKitPose: 2,
+          formatPlaqueGamesys: "1260 x 2600",
+        },
+      ],
+    ]);
+    updateManyStub.resolves({ modifiedCount: 1 });
+
+    const resume = await backfillDecoCommandeInfo({ sinceDate: new Date(), synthese });
+
+    expect(fetchCommandeInfoStub.called).to.be.false;
+    expect(fetchFormatPlaqueStub.called).to.be.false;
+    const $set = updateManyStub.firstCall.args[1].$set;
+    expect($set).to.include({ refClient: "R", nombreProfil: 1, formatPlaqueGamesys: "1260 x 2600" });
+    expect($set.dateCommande).to.be.instanceOf(Date);
+    // codeClientGamesys → codeClient dans le $set, jamais de fuite de la clé synthèse
+    expect($set.codeClient).to.equal("LM004");
+    expect($set).to.not.have.property("codeClientGamesys");
+    expect(resume.misAJour).to.equal(1);
+  });
+
+  it("retombe sur les fetchDossier* si numCmd absent de la synthèse", async () => {
+    mockPendingDocs([{ numCmd: 99 }]);
+    fetchCommandeInfoStub.resolves({
+      dateCommande: new Date(),
+      codeClient: "LM",
+      refClient: "R",
+      nombreProfil: 0,
+      nombreKitPose: 0,
+    });
+    fetchFormatPlaqueStub.resolves("1000 x 2000");
+    updateManyStub.resolves({ modifiedCount: 1 });
+
+    await backfillDecoCommandeInfo({ sinceDate: new Date(), synthese: new Map() });
+
+    expect(fetchCommandeInfoStub.calledOnce).to.be.true;
+  });
+
+  it("compte introuvable si la synthèse a le numCmd mais dateCommande null (donnée commande absente)", async () => {
+    mockPendingDocs([{ numCmd: 10 }]);
+
+    const resume = await backfillDecoCommandeInfo({
+      sinceDate: new Date(),
+      synthese: new Map([[10, { dateCommande: null }]]),
+    });
+
+    expect(resume.introuvables).to.equal(1);
+    expect(fetchCommandeInfoStub.called).to.be.false;
+  });
 });

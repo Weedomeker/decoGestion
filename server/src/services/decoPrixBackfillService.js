@@ -5,7 +5,12 @@ const dbConfig = require("../gamesys/config/db");
 const { closeConnection } = require("../gamesys/lib/db");
 const Deco = require("../models/Deco");
 
-async function backfillDecoPrix({ concurrency = 5, dryRun = false, sinceDate = null } = {}) {
+async function backfillDecoPrix({
+  concurrency = 5,
+  dryRun = false,
+  sinceDate = null,
+  synthese = null,
+} = {}) {
   const filter = { numCmd: { $gt: 0 }, prixTotal: { $exists: false } };
   if (sinceDate) filter.createdAt = { $gte: sinceDate };
   const aTraiter = await Deco.find(filter, { numCmd: 1 }).lean();
@@ -27,7 +32,14 @@ async function backfillDecoPrix({ concurrency = 5, dryRun = false, sinceDate = n
       numCmds.map((numCmd) =>
         limit(async () => {
           try {
-            const prixTotal = await dossierService.fetchDossierPrixTotal(connection, numCmd);
+            // Synthèse commandes prioritaire : si le numCmd y figure, aucun aller-retour Gamesys.
+            // Quand la synthèse porte la ligne mais prixTotal null, elle fait autorité → introuvable.
+            let prixTotal;
+            if (synthese && synthese.has(numCmd)) {
+              prixTotal = synthese.get(numCmd).prixTotal;
+            } else {
+              prixTotal = await dossierService.fetchDossierPrixTotal(connection, numCmd);
+            }
             if (prixTotal == null) {
               resume.introuvables += 1;
               return;
