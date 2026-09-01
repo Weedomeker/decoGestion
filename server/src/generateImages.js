@@ -4,14 +4,19 @@ const fs = require("fs");
 const logger = require("./logger/logger");
 
 async function generateImages(data, readFile, writeFile, isStock) {
-  let imagePath = path.join(readFile, data.visuel + ".jpg");
+  if (!data.ref) {
+    logger.warn(`generateImages: ref absente pour "${data.visuel}", image ignorée`);
+    return;
+  }
 
-  // Chercher fichier incluant la référence
-  fs.readdirSync(readFile).forEach((file) => {
-    if (file.includes(data.ref)) {
-      imagePath = path.join(readFile, file);
-    }
-  });
+  const refStr = String(data.ref);
+  const dirFiles = fs.readdirSync(readFile);
+  const matched = dirFiles.find((file) => file.includes(refStr));
+  if (!matched) {
+    logger.warn(`generateImages: aucun JPG trouvé pour la ref "${refStr}" dans ${readFile}`);
+    return;
+  }
+  const imagePath = path.join(readFile, matched);
 
   const fileName = path.basename(writeFile);
 

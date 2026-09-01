@@ -6,7 +6,6 @@
 const { degrees, PDFDocument, rgb, StandardFonts } = require("pdf-lib");
 const fs = require("fs");
 const path = require("path");
-const m = require("gm");
 const logger = require("./logger/logger");
 
 function getVisuelsForCmd(cmdInfo) {
@@ -62,7 +61,7 @@ async function generateStickers(commande, outPath, showDataCmd = false) {
   // Générer les stickers pour chaque commande
   const promises = [];
 
-  Object.values(groupedCommands).forEach(({ items, maxEx, cmd, cmd2 }) => {
+  Object.values(groupedCommands).forEach(({ items, maxEx }) => {
     let currentEx = 0;
 
     items.forEach((cmdInfo) => {
@@ -106,7 +105,6 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
 
   const ref = useSecond ? cmd.ref2 : cmd.ref;
   const visuel = useSecond ? cmd.visuel2 : cmd.visuel;
-  const format = useSecond ? cmd.format2_visu : cmd.format_visu;
 
   // if (!ref || !visuel) {
   //   logger.error("❌ Données manquantes sur la commande " + numCmd);
@@ -118,7 +116,8 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
 
   try {
     files = fs.readdirSync(pathPreview);
-  } catch (err) {
+  }
+ catch (err) {
     logger.error("Erreur dossier PREVIEW:", err);
     files = [];
   }
@@ -126,73 +125,28 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
   // Récupération de la référence ou nom
   //const teinteMasse = ['blanc zero', 'noir zero', 'alu brosse', 'granit 3'];
 
-  const ref2 = null;
-  const name2 = null;
+  const refStr = ref && ref !== 0 ? String(ref) : null;
 
-  // Filtrage des fichiers image qui contiennent la référence
-  const images = files.filter(
-    (file) =>
-      file.toLowerCase().endsWith(".jpg") && (file.includes(ref) || file.toLowerCase().includes(visuel.toLowerCase())),
-  );
-
-  const imagesTeinteMasse = files.filter(
-    (file) => file.toLowerCase().endsWith(".jpg") && file.toLowerCase().includes(visuel.toLowerCase()),
-  );
-
-  let infoCommande = [];
-  const match = (useSecond ? cmd.visuel2 : cmd.visuel)?.match(/(gauche|droit|centre)/i);
-
-  if (showDataCmd) {
-    if (cmd) {
-      const castoNameVisuel = [];
-      if (isCasto) {
-        //CRED 255x60cm BETON CLAIR 3664711962643 MAT.pdf
-
-        const origineCastoName = [cmd.visuel, cmd.visuel2];
-        //extraction nom visuel
-        const nameCasto = origineCastoName.map((name) =>
-          name
-            ?.replace(/\d{2,}x\d{2,}/i, "")
-            ?.replace("cm", "")
-            ?.replace("CRED", "")
-            ?.replace(/\d{13}/, "")
-            ?.replace("MAT.pdf", "")
-            ?.replace("BRILLANT.pdf", "")
-            .trim(),
-        );
-        castoNameVisuel.push(nameCasto[0], nameCasto[1]);
-      }
-      // Extraction des informations spécifiques pour chaque commande
-      infoCommande.push(
-        cmd.ville || "Ville inconnue",
-        isCasto || isBrico
-          ? castoNameVisuel[0]
-          : cmd.visuel
-              ?.split(/\d{2,}x\d{2,}/i)
-              .shift()
-              .trim() || "Visuel inconnu",
-        match ? match[0] : null,
-        cmd.ref?.toString() || "Réf inconnue",
-        cmd.format_visu?.split("_").pop().trim() || "Format inconnu",
-      );
-      isCasto || isBrico
-        ? infoCommande.push(
-            castoNameVisuel[1] || "Visuel inconnu",
-            cmd.ref2?.toString() || "Réf inconnue",
-            cmd.format2_visu?.split("_").pop().trim() || "Format inconnu",
-          )
-        : null;
-    }
+  // Priorité ref (case-insensitive) ; fallback nom visuel si aucun match
+  const images = refStr
+    ? files.filter((file) => file.toLowerCase().endsWith(".jpg") && file.toLowerCase().includes(refStr.toLowerCase()))
+    : [];
+  if (images.length === 0) {
+    logger.warn(`generateStickers: aucun JPG trouvé par référence "${refStr}" pour "${visuel}"`);
   }
+
+  const match = (useSecond ? cmd.visuel2 : cmd.visuel)?.match(/(gauche|droit|centre)/i);
 
   try {
     // Lire le modèle de PDF
     let readPdf;
     if (isCasto) {
       readPdf = await fs.promises.readFile(notice_casto);
-    } else if (isBrico) {
+    }
+ else if (isBrico) {
       readPdf = await fs.promises.readFile(notice_brico);
-    } else {
+    }
+ else {
       readPdf = await fs.promises.readFile(notice_deco);
     }
     const pdfDoc = await PDFDocument.load(readPdf);
@@ -202,9 +156,10 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
     const firstPage = pages[0];
     const { width, height } = firstPage.getSize();
 
+
     // Afficher la numérotation des exemplaires (par ex. : 01/03)
     let text = "";
-    if (cmd.visuelIndex === 2 && cmd.isStock) {
+    if (cmd.isStock || cmd.showStock) {
       text = "STOCK";
     } else {
       text = numCmd > 0 ? `${numCmd} ${ex}` : "";
@@ -257,9 +212,11 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
       let currentVisuelName;
       if (isCasto) {
         currentVisuelName = cleanCastoName(currentVisuelRAW);
-      } else if (isBrico) {
+      }
+ else if (isBrico) {
         currentVisuelName = currentVisuelRAW?.split(/\d{2,}x\d{2,}/i)[0]?.trim();
-      } else {
+      }
+ else {
         currentVisuelName = currentVisuelRAW?.split(/\d{2,}x\d{2,}/i)[0]?.trim();
       }
 
@@ -278,6 +235,7 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
 
       // Sélection correcte de l'image preview
       const miniaturePreview = images[0] || "";
+      logger.info(`[sticker] V${cmd.visuelIndex} ref=${ref} → preview: ${miniaturePreview || "(aucun)"}`);
 
       // Ajustement de la taille du texte
       let fontSize = 10;
@@ -302,7 +260,7 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
       // Preview image
       const jpgPath = path.join(pathPreview, miniaturePreview);
 
-      if (fs.existsSync(jpgPath)) {
+      if (miniaturePreview && fs.existsSync(jpgPath)) {
         const imageBuffer = fs.readFileSync(jpgPath);
         const img = await pdfDoc.embedJpg(imageBuffer);
 
@@ -337,12 +295,14 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
     let visuelTag;
     if (cmd.client === "CASTO" || cmd.client === "BRICO") {
       visuelTag = `_V${cmd.visuelIndex}`;
-    } else {
+    }
+ else {
       visuelTag = "";
     }
     const fileName = `${commandId}${visuelTag}${vernisTag}_${ex.split("/")[0]}.pdf`;
     await fs.promises.writeFile(`${outPath}/${fileName}`, pdfBytes);
-  } catch (error) {
+  }
+ catch (error) {
     logger.error("La génération des étiquettes a échoué : ", error);
   }
 }
@@ -353,7 +313,6 @@ async function createStickersPage(directory, outputPath, pageSize = "A4") {
       ? { width: 420, height: 595 } // Dimensions pour A5
       : { width: 595, height: 842 }; // Dimensions pour A4
 
-  const margin = 0; // Marge entre les pages
   const outputPdf = await PDFDocument.create();
   const files = fs.readdirSync(directory).filter((file) => file.endsWith(".pdf"));
   //.filter((file) => /^[\d]/.test(file));
@@ -377,7 +336,7 @@ async function createStickersPage(directory, outputPath, pageSize = "A4") {
 
       const inputPage = inputPdf.getPage(0); // Charger la première page
       const { width, height } = inputPage.getSize();
-      let rotation = pageSize === "A4" ? degrees(0) : degrees(90);
+      const rotation = pageSize === "A4" ? degrees(0) : degrees(90);
 
       // Extraire l'ID de la commande du nom du fichier (si nécessaire)
       const commandId = extractCommandId(file);
@@ -389,7 +348,7 @@ async function createStickersPage(directory, outputPath, pageSize = "A4") {
         itemCount = 0; // Réinitialiser le compteur d'éléments
       }
 
-      if ((pageSize === "A4" && itemCount >= 4) || (pageSize === "A5" && itemCount >= 2)) {
+      if (pageSize === "A4" && itemCount >= 4 || pageSize === "A5" && itemCount >= 2) {
         currentPage = outputPdf.addPage([format.width, format.height]);
         itemCount = 0;
       }
@@ -409,27 +368,32 @@ async function createStickersPage(directory, outputPath, pageSize = "A4") {
           y = format.height / 2;
 
           // Haut Droite
-        } else if (positionIndex === 2) {
+        }
+ else if (positionIndex === 2) {
           x = format.width / 2 - width;
           y = format.height / 2 - height;
           //rotation = degrees(180);
 
           // Bas Gauche
-        } else if (positionIndex === 1) {
+        }
+ else if (positionIndex === 1) {
           x = format.width / 2;
           y = format.height / 2;
 
           // Bas Droite
-        } else if (positionIndex === 3) {
+        }
+ else if (positionIndex === 3) {
           x = format.width / 2;
           y = format.height / 2 - height;
           // rotation = degrees(180);
         }
-      } else {
+      }
+ else {
         if (positionIndex === 0) {
           x = format.width;
           y = format.height / 2;
-        } else if (positionIndex === 1) {
+        }
+ else if (positionIndex === 1) {
           x = format.width;
           y = 0;
         }
@@ -445,7 +409,8 @@ async function createStickersPage(directory, outputPath, pageSize = "A4") {
       });
 
       itemCount++; // Incrémenter le compteur pour le placement suivant
-    } catch (error) {
+    }
+ catch (error) {
       logger.error(`Erreur lors du traitement du fichier ${file}:`, error.message);
     }
   }
@@ -466,7 +431,8 @@ async function createStickersPage(directory, outputPath, pageSize = "A4") {
     const pdfBytes = await outputPdf.save();
     await fs.promises.writeFile(finalPath, pdfBytes);
     logger.info(`Stickers enregistrés sous : ${finalPath}`);
-  } catch (error) {
+  }
+ catch (error) {
     logger.error("Erreur lors de la sauvegarde du fichier PDF :", error.message);
   }
 }
@@ -484,13 +450,9 @@ function extractCommandId(fileName) {
 }
 
 function extractVernis(cmd) {
-  //regex pour match Brillant ou Mat
-  const regexBrillant = /brillant/i;
-  const regexMat = /mat/i;
-  const matchBrillant = regexBrillant.test(cmd.visuel);
-  const matchMat = regexMat.test(cmd.visuel);
-  if (matchBrillant) return true;
-  if (matchMat) return false;
+  const visuelToCheck = cmd.visuelIndex === 2 ? cmd.visuel2 : cmd.visuel;
+  if (/brillant/i.test(visuelToCheck)) return true;
+  if (/mat/i.test(visuelToCheck)) return false;
 }
 
 module.exports = { generateStickers, createStickersPage };

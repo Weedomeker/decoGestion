@@ -1,16 +1,37 @@
 import PropTypes from "prop-types";
 import { useEffect, useState } from "react";
 import { Image } from "semantic-ui-react";
+import { API_BASE } from "../utils/api";
 
-const HOST = import.meta.env.VITE_HOST;
-const PORT = import.meta.env.VITE_PORT;
+function extractReference(filename) {
+  const match = filename.match(/\b\d{7,}\b/) || filename.match(/[A-Z]+-\d+/i);
+  if (match && match[0] !== "00000000") return match[0];
+}
 
-function PreviewDeco({ fileSelected, show }) {
+function extractFormat(filename) {
+  const isCredence = filename.match(/\b\d{3}x\d{2}\b/i);
+  const format = filename.match(/\b\d{3}x\d{3}\b/i);
+  return isCredence ? { isCredence: true, format: isCredence[0] } : { isCredence: false, format: format?.[0] };
+}
+
+function resolveImageUrl(fileSelected, previewList) {
+  if (!fileSelected || previewList.length === 0) return null;
+  const filename = fileSelected.split("/").pop();
+  const name = filename.replace(".pdf", "");
+  const reference = extractReference(filename);
+  const matched = reference
+    ? previewList.find((e) => e.name.includes(reference))
+    : previewList.find((e) => e.name.replace(".jpg", "") === name);
+  return matched ? `${API_BASE}/${matched.path.split("\\").slice(1).join("/")}` : null;
+}
+
+function PreviewDeco({ fileSelected, fileSelected2, show }) {
   const [previewList, setPreviewList] = useState([]);
   const [imageUrl, setImageUrl] = useState(null);
+  const [imageUrl2, setImageUrl2] = useState(null);
 
   useEffect(() => {
-    fetch(`http://${HOST}:${PORT}/path`)
+    fetch(`${API_BASE}/path`)
       .then((res) => res.json())
       .then((data) => {
         if (data[0].Preview) setPreviewList(data[0].Preview);
@@ -18,62 +39,68 @@ function PreviewDeco({ fileSelected, show }) {
       .catch((err) => console.error("Erreur preview:", err));
   }, []);
 
-  const extractReference = (filename) => {
-    const match = filename.match(/\b\d{7,}\b/ || /[A-Z]+-\d+/i);
-    return match ? match[0] : null;
-  };
-
-  // Extraire le format et differencier type de format 3 digits x 3 digits ou 3 digits x 2 digits
-  // Si 3 digits x 2 digits return isCredence true sinon false et return format
-  const extractFormat = (filename) => {
-    const isCredence = filename.match(/\b\d{3}x\d{2}\b/i);
-    const format = filename.match(/\b\d{3}x\d{3}\b/i);
-    return isCredence ? { isCredence: true, format: isCredence[0] } : { isCredence: false, format: format[0] };
-  };
-
-  // 🔹 4. Chercher le bon visuel
   useEffect(() => {
-    if (!fileSelected || previewList.length === 0) return;
-
-    const filename = fileSelected.split("/").pop();
-    const name = filename.replace(".pdf", "");
-    const reference = extractReference(filename);
-
-    let matched;
-
-    if (reference) {
-      matched = previewList.find((entry) => entry.name.includes(reference));
-    } else {
-      matched = previewList.find((entry) => entry.name.replace(".jpg", "") === name);
-    }
-
-    if (matched) {
-      setImageUrl(`http://${HOST}:${PORT}/${matched.path.split("\\").slice(1).join("/")}`);
-    } else {
-      setImageUrl(null);
-      console.warn("Aucune image trouvée pour :", filename);
-    }
+    setImageUrl(resolveImageUrl(fileSelected, previewList));
   }, [fileSelected, previewList]);
 
-  if (!fileSelected || !show || !imageUrl) return null;
+  useEffect(() => {
+    setImageUrl2(fileSelected2 ? resolveImageUrl(fileSelected2, previewList) : null);
+  }, [fileSelected2, previewList]);
+
+  if (!fileSelected || !show || !imageUrl) {
+    return (
+      <div className="preview-empty">
+        <p>Aucune image</p>
+      </div>
+    );
+  }
+
+  const { isCredence } = extractFormat(imageUrl);
+  const fname = fileSelected.split("/").pop() ?? "";
+  const fname2 = fileSelected2?.split("/").pop() ?? "";
+
+  if (imageUrl2) {
+    return (
+      <div className="preview-c preview-c--dual">
+        <div className="preview-c-top">
+          <span className="preview-c-label">Panneau 1</span>
+          <span className="preview-c-label">Panneau 2</span>
+        </div>
+        <div className="preview-c-dual-images">
+          <div className="preview-c-image">
+            <Image src={imageUrl} alt="Aperçu déco 1" style={{ transform: isCredence ? "rotate(90deg)" : undefined }} />
+          </div>
+          <div className="preview-c-image">
+            <Image src={imageUrl2} alt="Aperçu déco 2" style={{ transform: isCredence ? "rotate(90deg)" : undefined }} />
+          </div>
+        </div>
+        <div className="preview-c-bottom preview-c-bottom--dual">
+          <span className="preview-c-fname">{fname.replace(".pdf", ".jpg")}</span>
+          <span className="preview-c-fname">{fname2.replace(".pdf", ".jpg")}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="pdf-container">
-      {/* style rotation if reference is not null */}
-      <Image
-        src={imageUrl}
-        alt="Aperçu déco"
-        rounded
-        style={{ transform: extractFormat(imageUrl).isCredence ? "rotate(90deg)" : undefined }}
-      />
+    <div className="preview-c">
+      <div className="preview-c-top">
+        <span className="preview-c-label">Preview</span>
+      </div>
+      <div className="preview-c-image">
+        <Image src={imageUrl} alt="Aperçu déco" style={{ transform: isCredence ? "rotate(90deg)" : undefined }} />
+      </div>
+      <div className="preview-c-bottom">
+        <span className="preview-c-fname">{fname.replace(".pdf", ".jpg")}</span>
+      </div>
     </div>
   );
 }
 
 PreviewDeco.propTypes = {
   fileSelected: PropTypes.string,
+  fileSelected2: PropTypes.string,
   show: PropTypes.bool,
-  client: PropTypes.string,
 };
 
 export default PreviewDeco;

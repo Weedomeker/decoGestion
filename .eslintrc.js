@@ -1,0 +1,47 @@
+module.exports = {
+  root: true,
+  env: {
+    node: true,
+    es2020: true,
+  },
+  extends: ["eslint:recommended", "prettier"],
+  parserOptions: {
+    ecmaVersion: 2020,
+  },
+  rules: {
+    "no-console": "warn",
+    "no-unused-vars": "error",
+    "no-undef": "error",
+    "no-empty": ["error", { allowEmptyCatch: true }],
+    "no-new": "warn",
+    "no-var": "warn",
+    "prefer-const": "warn",
+    "prefer-template": "warn",
+    "prefer-arrow-callback": "warn",
+    "no-tabs": "warn",
+    "no-irregular-whitespace": "warn",
+    "no-unexpected-multiline": "warn",
+    "no-restricted-syntax": "warn",
+    "no-useless-concat": "warn",
+    "no-use-before-define": "warn",
+    "no-inner-declarations": "warn",
+    "no-sequences": "warn",
+    "no-unsafe-negation": "warn",
+    "no-unsafe-optional-chaining": "warn",
+    "no-with": "warn",
+    "no-void": "warn",
+    "no-unused-expressions": "warn",
+    "no-useless-return": "warn",
+    "require-await": "warn",
+    "require-yield": "warn",
+    "vars-on-top": "warn",
+  },
+  overrides: [
+    {
+      files: ["*.js"],
+      env: {
+        node: true,
+      },
+    },
+  ],
+};

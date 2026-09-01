@@ -1,0 +1,171 @@
+/* decoGestion — Bull Board theme override
+   Zinc (clair) · Figtree + Geist Mono */
+
+@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
+
+:root {
+  /* Layout */
+  --header-height: 56px;
+  --menu-width: 220px;
+  --body-padding: 1.5rem;
+  --card-padding: 1rem;
+
+  /* Backgrounds */
+  --body-bg: #f4f4f6;
+  --header-bg: #ffffff;
+  --card-bg: #ffffff;
+  --card-bg-hover: #eaeaed;
+  --sticky-header-bg: rgba(244, 244, 246, 0.95);
+  --modal-content-bg: #ffffff;
+  --modal-actions-bg: #f4f4f6;
+  --modal-overlay-bg: rgba(9, 9, 14, 0.45);
+  --dropdown-bg: #ffffff;
+  --input-bg: #fafafb;
+  --job-logs-bg: #f4f4f6;
+  --job-logs-toolbar-bg: rgba(244, 244, 246, 0.9);
+
+  /* Text */
+  --text-color: #09090e;
+  --text-secondary-color: #c4c4ce;
+  --card-text-color: #52525e;
+  --card-text-secondary-color: #9898a8;
+  --tooltip-text-color: #f4f4f6;
+
+  /* Borders & separators */
+  --separator-color: #e0e0e6;
+  --dropdown-border-color: #e0e0e6;
+  --dropdown-shadow: 0 4px 16px rgba(0, 0, 0, 0.10);
+  --input-border: #e0e0e6;
+  --input-focus-border: #09090e;
+  --input-focus-shadow: none;
+
+  /* Accent */
+  --accent-color: #9898a8;
+  --accent-color-d1: #52525e;
+
+  /* Buttons */
+  --button-primary-bg: #09090e;
+  --button-primary-color: #f4f4f6;
+  --button-primary-hover-bg: #2a2520;
+  --button-primary-active-bg: #09090e;
+  --button-basic-color: #52525e;
+  --button-basic-box-shadow: 0 0 0 1px #e0e0e6 inset;
+  --button-basic-active-bg: #eaeaed;
+  --button-basic-active-color: #09090e;
+  --button-basic-active-box-shadow: 0 0 0 1px #c4c4ce inset;
+  --button-basic-focus-bg: #f4f4f6;
+  --button-basic-focus-color: #09090e;
+  --button-basic-focus-box-shadow: 0 0 0 1px #c4c4ce inset;
+  --button-default-hover-bg: #eaeaed;
+  --button-default-active-bg: #e0e0e6;
+  --button-icon-fill: #52525e;
+
+  /* Status nav */
+  --status-menu-text: #9898a8;
+  --status-menu-hover-text: #52525e;
+  --status-menu-active-text: #09090e;
+  --status-menu-active-border: #09090e;
+  --status-menu-border-color: #e0e0e6;
+
+  /* Badges */
+  --badge-bg: #eaeaed;
+  --badge-text-color: #52525e;
+  --badge-font-size: 0.7rem;
+
+  /* Shadows */
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+
+  /* Tooltip */
+  --tooltip-bg: #09090e;
+
+  /* Job status colors */
+  --completed: #1e6640;
+  --failed: #b33030;
+  --active: #1c4a8a;
+  --waiting: #8a6018;
+  --waiting-children: #6b5800;
+  --prioritized: #6e3a8a;
+  --delayed: #0c6660;
+  --paused: #9898a8;
+
+  /* Logs */
+  --job-logs-marker-color: #c4c4ce;
+  --job-logs-scrollbar-thumb-bg: #c4c4ce;
+  --job-logs-scrollbar-track-bg: #f4f4f6;
+  --details-scrollbar-thumb-bg: #c4c4ce;
+  --details-scrollbar-track-bg: #f4f4f6;
+  --details-error-color: #b33030;
+  --details-warn-color: #8a6018;
+
+  /* JSON editor */
+  --json-edit-gutter-bg: #eaeaed;
+  --json-edit-gutter-border-color: #e0e0e6;
+  --json-edit-gutter-active-bg: #e0e0e6;
+  --json-edit-cursor-color: #09090e;
+  --json-edit-selection-bg: rgba(28, 74, 138, 0.15);
+  --json-edit-tooltip-bg: #ffffff;
+  --json-edit-tooltip-border-color: #e0e0e6;
+
+  /* Syntax highlight */
+  --hl-string: #1e6640;
+  --hl-number: #0c6660;
+  --hl-type: #1c4a8a;
+  --hl-keyword: #8a3f1c;
+  --hl-built_in: #0c6660;
+  --hl-attribute: #1c4a8a;
+  --hl-meta: #9898a8;
+}
+
+/* ── Font ── */
+body,
+button,
+input,
+select,
+textarea {
+  font-family: 'Figtree', -apple-system, sans-serif !important;
+}
+
+/* ── Données / mono ── */
+pre,
+code,
+[class*="jobId"],
+[class*="timestamp"],
+[class*="processedOn"],
+[class*="finishedOn"] {
+  font-family: 'Geist Mono', ui-monospace, monospace !important;
+  font-size: 0.8rem;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar        { width: 5px; height: 5px; }
+::-webkit-scrollbar-track  { background: #f4f4f6; }
+::-webkit-scrollbar-thumb  { background: #c4c4ce; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9898a8; }
+
+/* ── Header ── */
+header,
+[class*="header-"] {
+  border-bottom: 1px solid #e0e0e6 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* ── Cards / job rows ── */
+[class*="card-"],
+[class*="job-"] {
+  border-radius: 4px !important;
+}
+
+/* ── Inputs ── */
+input,
+select {
+  border-radius: 4px !important;
+  font-size: 0.875rem !important;
+}
+
+/* ── Status badges — renforcer la lisibilité ── */
+[class*="completed"] { color: #1e6640 !important; }
+[class*="failed"]    { color: #b33030 !important; }
+[class*="active"]    { color: #1c4a8a !important; }
+[class*="waiting"]   { color: #8a6018 !important; }
+[class*="delayed"]   { color: #0c6660 !important; }
+[class*="paused"]    { color: #9898a8 !important; }

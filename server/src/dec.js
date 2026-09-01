@@ -1,9 +1,8 @@
 const makerjs = require("makerjs");
 const fs = require("fs");
-const path = require("path");
 const Wastecut = require("./wastecut");
 const logger = require("../src/logger/logger");
-let exportPath = [];
+const exportPath = [];
 
 function convertParamsToNumbers(...params) {
   return params.map((param) => {
@@ -80,22 +79,22 @@ const createDec = (widthPlate, heightPlate, decWidth, decHeight, writePath) => {
   });
 
   try {
-    let pathFile = writePath;
-    let fileName = `${decWidth}x${decHeight}`;
+    const pathFile = writePath;
+    const fileName = `${decWidth}x${decHeight}`;
     const dxf = makerjs.exporter.toDXF(model, {
       units: "cm",
     });
     const svg = makerjs.exporter.toSVG(model, { units: "cm", strokeWidth: 1 / 28.3464567 });
     try {
       if (fs.existsSync(pathFile)) {
-        fs.writeFileSync(pathFile + "/" + fileName + ".dxf", dxf);
-        fs.writeFileSync(pathFile + "/" + fileName + ".svg", svg);
+        fs.writeFileSync(`${pathFile  }/${  fileName  }.dxf`, dxf);
+        fs.writeFileSync(`${pathFile  }/${  fileName  }.svg`, svg);
         logger.info("Fichier dxf ✅");
         logger.info("Fichier svg ✅");
       } else {
         fs.mkdirSync(pathFile, { recursive: true });
-        fs.writeFileSync(pathFile + "/" + fileName + ".dxf", dxf);
-        fs.writeFileSync(pathFile + "/" + fileName + ".svg", svg);
+        fs.writeFileSync(`${pathFile  }/${  fileName  }.dxf`, dxf);
+        fs.writeFileSync(`${pathFile  }/${  fileName  }.svg`, svg);
         logger.info("Fichier dxf ✅");
         logger.info("Fichier svg ✅");
       }

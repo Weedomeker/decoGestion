@@ -52,17 +52,13 @@ async function getGitHubPackageInfo(options) {
 
   options = { ...defaultOptions, ...options };
 
-  try {
-    const latestVersion = await getVersionFromGitHub(options);
-    options.latestVersion = latestVersion;
+  const latestVersion = await getVersionFromGitHub(options);
+  options.latestVersion = latestVersion;
 
-    if (options.currentVersion === undefined) {
-      return { latestVersion, message: null };
-    } else {
-      return { latestVersion, message: getDefaultMessage(options) };
-    }
-  } catch (error) {
-    throw error;
+  if (options.currentVersion === undefined) {
+    return { latestVersion, message: null };
+  } else {
+    return { latestVersion, message: getDefaultMessage(options) };
   }
 }
 

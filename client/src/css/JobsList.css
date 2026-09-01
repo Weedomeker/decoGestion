@@ -1,92 +1,161 @@
+/* ===================== JOBS TABLE ===================== */
+
+.jobs-table-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .jobs-table-container {
   overflow: auto;
   width: 100%;
-  height: 300px;
-}
-.jobs-table {
-  height: 300px;
-  width: 100%;
-  display: table;
-  table-layout: fixed; /* Pour garder une largeur uniforme des colonnes */
-  border-collapse: collapse; /* S'assure qu'il n'y a pas d'espace entre les bordures de cellules */
+  flex: 1;
+  min-height: 0;
 }
 
+.jobs-table {
+  width: 100%;
+  display: table;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+/* Sticky header & footer */
 .sticky-header,
 .sticky-footer {
   position: sticky;
-  z-index: 1;
+  z-index: 2;
   width: 100%;
 }
 
 .sticky-header {
-  background-color: #1c1c1c !important;
   top: 0;
-  display: table-header-group; /* Garder la structure de table pour le header */
+  display: table-header-group;
+  background: var(--table-header-bg) !important;
+}
+
+.sticky-header th {
+  background: var(--table-header-bg) !important;
+  color: var(--table-header-color) !important;
+  font-family: 'Figtree', -apple-system, sans-serif !important;
+  font-size: 9px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1.8px !important;
+  border-bottom: 1px solid var(--border-default) !important;
+  padding: 8px !important;
 }
 
 .sticky-footer {
-  background-color: #1c1c1cdf !important;
   bottom: 0;
-  display: table-footer-group; /* Garder la structure de table pour le footer */
+  display: table-footer-group;
+  background: var(--bg-elevated) !important;
+}
+
+.sticky-footer th {
+  background: var(--bg-elevated) !important;
+  border-top: 1px solid var(--border-default) !important;
+  padding: 6px 8px !important;
 }
 
 .sticky-footer-content {
   display: flex;
-  flex-direction: column;
-  align-items: space-between;
-  vertical-align: middle;
-  justify-content: center;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
   width: 100%;
+  gap: 8px;
+}
+
+.sticky-footer-content .ui.progress {
+  flex: 1;
+  min-width: 200px;
+  max-width: 400px;
+  margin: 0;
 }
 
 .sticky-footer-content .ui.button {
-  margin-right: 10px;
-}
-
-.sticky-header-content .checkbox-footer {
-  display: flex;
-  min-width: 350px;
-  vertical-align: middle;
+  margin-right: 0 !important;
 }
 
 .body-table-jobs {
-  display: table-row-group; /* Utiliser table-row-group pour garder la structure de la table */
+  display: table-row-group;
 }
 
+/* Table rows */
 .table-row {
   display: table-row;
-  height: 14px !important; /* Hauteur fixe pour les lignes */
-  max-height: 14px;
+  height: var(--table-row-height, 34px) !important;
+  max-height: var(--table-row-height, 34px);
+  transition: background 0.1s;
 }
 
+/* Client color accent — left border */
+.table-row[data-client="LM"]    > td:first-child { border-left: 2px solid var(--color-lm) !important; }
+.table-row[data-client="CASTO"] > td:first-child { border-left: 2px solid var(--color-casto) !important; }
+.table-row[data-client="ECOM"]  > td:first-child { border-left: 2px solid var(--color-ecom) !important; }
+.table-row[data-client="BRICO"] > td:first-child { border-left: 2px solid var(--color-brico) !important; }
+
+/* Table cells */
 .table-cell {
-  height: 14px !important; /* Hauteur fixe pour les cellules */
-  max-height: 14px;
-  font-size: 12px;
-  overflow: hidden; /* Assurez que le contenu ne déborde pas */
-  text-overflow: ellipsis; /* Ajoute des points de suspension pour le contenu débordant */
-  white-space: nowrap; /* Empêche le texte de s'étendre sur plusieurs lignes */
-  display: table-cell; /* Les cellules restent en table-cell */
-  vertical-align: top; /* Assure que le contenu est aligné en haut */
+  height: var(--table-row-height, 34px) !important;
+  font-family: 'Geist Mono', ui-monospace, monospace !important;
+  font-size: 12px !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: table-cell;
+  vertical-align: middle;
+  padding: 0 8px;
+  color: var(--text-secondary);
+}
+
+/* Links in completed rows */
+.table-row a {
+  color: var(--color-ecom) !important;
+  text-decoration: none !important;
+}
+.table-row a:hover {
+  color: var(--text-primary) !important;
+  text-decoration: underline !important;
+}
+
+/* ===================== ACTION BUTTONS ===================== */
+
+/* Supprimé : animations pulse-danger / pulse-success */
+.jobs-view .ui.red.button:not(:disabled)   { /* pas d'animation */ }
+.jobs-view .ui.green.button:not(:disabled) { /* pas d'animation */ }
+
+/* Bouton de suppression par ligne : marge de respiration avec le bord
+   droit du tableau (la colonne fait 60px, le bouton mini-compact ~28px) */
+.jobs-table td:last-child {
+  padding-right: 16px !important;
+  text-align: right;
+}
+
+.row-delete-btn.ui.button {
+  margin: 0 !important;
+}
+
+/* ===================== CHECKBOX FOOTER ===================== */
+
+.checkbox-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.checkbox-footer .ui.checkbox {
+  margin: 0;
+}
+
+.checkbox-footer .ui.dropdown {
+  z-index: 35;
 }
 
 .progress {
   overflow: hidden;
   width: 100%;
-}
-
-.checkbox-footer {
-  display: flex;
-  align-content: space-between;
-  align-items: center;
-
-  vertical-align: middle;
-}
-
-.checkbox-footer .ui.checkbox {
-  margin: 0 8px;
-}
-
-.checkbox-footer .ui.dropdown {
-  z-index: 35;
 }
