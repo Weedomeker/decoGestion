@@ -9,13 +9,14 @@ const { syncConsommationsHistorique } = require("../../server/src/services/games
 
 describe("gamesysConsommationSyncService.syncConsommationsHistorique()", () => {
   let listCandidatesStub;
-  let existsStub;
+  let findStub;
   let saveProfilsKitsStub;
   let reconcileStub;
 
   beforeEach(() => {
     listCandidatesStub = sinon.stub(dossierService, "listCommandesAvecProfilsKits");
-    existsStub = sinon.stub(ConsommationCommande, "exists");
+    // Pré-filtre batché : ConsommationCommande.find({ numCmd: { $in } }).lean() renvoie les numCmd déjà en base
+    findStub = sinon.stub(ConsommationCommande, "find").returns({ lean: sinon.stub().resolves([]) });
     saveProfilsKitsStub = sinon.stub(profilsKitsService, "saveProfilsKits").resolves([]);
     reconcileStub = sinon
       .stub(stockArticleReconciliationService, "reconcileStockArticlesFromConsommations")
@@ -46,7 +47,7 @@ describe("gamesysConsommationSyncService.syncConsommationsHistorique()", () => {
 
   it("ignore (skip) les commandes déjà présentes en base sans appeler saveProfilsKits", async () => {
     listCandidatesStub.resolves([{ cmd: "164629", client: "LM" }]);
-    existsStub.resolves(true);
+    findStub.returns({ lean: sinon.stub().resolves([{ numCmd: 164629 }]) });
 
     const resume = await syncConsommationsHistorique({ sinceDate });
 
@@ -59,7 +60,7 @@ describe("gamesysConsommationSyncService.syncConsommationsHistorique()", () => {
       { cmd: "164629", client: "LM" },
       { cmd: "164630", client: "CASTO" },
     ]);
-    existsStub.onFirstCall().resolves(true).onSecondCall().resolves(false);
+    findStub.returns({ lean: sinon.stub().resolves([{ numCmd: 164629 }]) });
 
     const resume = await syncConsommationsHistorique({ sinceDate, dryRun: true });
 
@@ -73,7 +74,6 @@ describe("gamesysConsommationSyncService.syncConsommationsHistorique()", () => {
       { cmd: "164629", client: "LM" },
       { cmd: "164630", client: "CASTO" },
     ]);
-    existsStub.resolves(false);
 
     const resume = await syncConsommationsHistorique({ sinceDate });
 
@@ -92,7 +92,6 @@ describe("gamesysConsommationSyncService.syncConsommationsHistorique()", () => {
       { cmd: "164629", client: "LM" },
       { cmd: "164630", client: "CASTO" },
     ]);
-    existsStub.resolves(false);
     saveProfilsKitsStub.onFirstCall().resolves(false);
     saveProfilsKitsStub.onSecondCall().resolves([]);
 
@@ -106,7 +105,6 @@ describe("gamesysConsommationSyncService.syncConsommationsHistorique()", () => {
       { cmd: "164629", client: "LM" },
       { cmd: "164630", client: "CASTO" },
     ]);
-    existsStub.resolves(false);
     saveProfilsKitsStub.onFirstCall().rejects(new Error("ODBC indisponible"));
     saveProfilsKitsStub.onSecondCall().resolves([]);
 
@@ -118,7 +116,6 @@ describe("gamesysConsommationSyncService.syncConsommationsHistorique()", () => {
   it("respecte la limite de concurrence fournie", async () => {
     const candidats = Array.from({ length: 8 }, (_, i) => ({ cmd: String(164629 + i), client: "LM" }));
     listCandidatesStub.resolves(candidats);
-    existsStub.resolves(false);
 
     let enCours = 0;
     let maxEnCours = 0;

@@ -12,12 +12,22 @@ async function syncConsommationsHistorique({ sinceDate, client, concurrency = 5,
   const resume = { candidats: candidats.length, dejaExistants: 0, traites: 0, erreurs: 0 };
   const aTraiter = [];
 
-  for (const candidate of candidats) {
-    const numCmd = parseInt(candidate.cmd, 10);
-    if (!numCmd || Number.isNaN(numCmd)) continue;
+  // Un seul aller-retour Mongo ($in) au lieu d'un ConsommationCommande.exists() par candidat :
+  // au démarrage la quasi-totalité des candidats est déjà en base, cette boucle N faisait
+  // N round-trips avant tout appel à saveProfilsKits.
+  const avecNumCmd = candidats
+    .map((c) => ({ candidate: c, numCmd: parseInt(c.cmd, 10) }))
+    .filter((x) => x.numCmd && !Number.isNaN(x.numCmd));
 
-    const dejaPresent = await ConsommationCommande.exists({ numCmd });
-    if (dejaPresent) {
+  const numCmds = [...new Set(avecNumCmd.map((x) => x.numCmd))];
+  const dejaEnBase = new Set(
+    (await ConsommationCommande.find({ numCmd: { $in: numCmds } }, { numCmd: 1 }).lean()).map(
+      (d) => d.numCmd,
+    ),
+  );
+
+  for (const { candidate } of avecNumCmd) {
+    if (dejaEnBase.has(parseInt(candidate.cmd, 10))) {
       resume.dejaExistants += 1;
       continue;
     }

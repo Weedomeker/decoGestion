@@ -20,12 +20,20 @@ async function syncDecoStubsDepuisGamesys({ sinceDate, concurrency = 3, dryRun =
   const resume = { candidats: candidats.length, dejaExistants: 0, crees: 0, erreurs: 0 };
   const aTraiter = [];
 
-  for (const candidat of candidats) {
-    const numCmd = parseInt(candidat.cmd, 10);
-    if (!numCmd || Number.isNaN(numCmd)) continue;
+  // Un seul aller-retour Mongo ($in) au lieu d'un Deco.exists() par candidat : au démarrage
+  // la quasi-totalité des candidats est déjà en base, cette boucle N faisait N round-trips
+  // avant toute connexion ODBC.
+  const numCmdParCandidat = candidats
+    .map((c) => ({ candidat: c, numCmd: parseInt(c.cmd, 10) }))
+    .filter((x) => x.numCmd && !Number.isNaN(x.numCmd));
 
-    const dejaPresent = await Deco.exists({ numCmd });
-    if (dejaPresent) {
+  const numCmds = [...new Set(numCmdParCandidat.map((x) => x.numCmd))];
+  const dejaEnBase = new Set(
+    (await Deco.find({ numCmd: { $in: numCmds } }, { numCmd: 1 }).lean()).map((d) => d.numCmd),
+  );
+
+  for (const { candidat, numCmd } of numCmdParCandidat) {
+    if (dejaEnBase.has(numCmd)) {
       resume.dejaExistants += 1;
       continue;
     }
