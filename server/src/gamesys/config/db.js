@@ -31,14 +31,23 @@ let poolPromise = null;
 
 function getPool() {
   if (!poolPromise) {
-    poolPromise = odbc.pool({
-      connectionString: buildConnectionString(),
-      connectionTimeout: CONNECTION_TIMEOUT,
-      loginTimeout: LOGIN_TIMEOUT,
-      initialSize: 2,
-      incrementSize: 2,
-      maxSize: POOL_SIZE,
-    });
+    poolPromise = odbc
+      .pool({
+        connectionString: buildConnectionString(),
+        connectionTimeout: CONNECTION_TIMEOUT,
+        loginTimeout: LOGIN_TIMEOUT,
+        initialSize: 2,
+        incrementSize: 2,
+        maxSize: POOL_SIZE,
+      })
+      .catch((err) => {
+        // Ne pas mémoriser une promesse rejetée : sinon tous les getDbConnection() ultérieurs
+        // échouent jusqu'au redémarrage du process, même après le retour de Gamesys. On repasse
+        // poolPromise à null pour qu'un prochain appel (checkOdbcConnection périodique, requête
+        // job) retente la création du pool.
+        poolPromise = null;
+        throw err;
+      });
   }
   return poolPromise;
 }
