@@ -519,6 +519,11 @@ async function processJob(job, req) {
   let pdfTime = 0;
   let jpgTime = 0;
 
+  // S7 — un job dont le livrable (PDF ou JPG) n'a pas pu être produit ne doit PAS finir dans
+  // state.jobs.completed ni être diffusé comme terminé. On accumule ici la première cause
+  // d'échec ; en fin de fonction on émet un jobError et on throw (BullMQ retente selon attempts).
+  let deliverableError = null;
+
   logger.info(
     `▶ Job ${job.cmd} | client=${job.client} | ref=${job.ref} | visuel=${job.visuel} | format=${job.format_visu} | ${job.ex}ex`,
   );
@@ -600,6 +605,7 @@ async function processJob(job, req) {
       }
     } catch (error) {
       logger.error(`Erreur de modification du PDF pour le job ${job.cmd}: ${error}`);
+      deliverableError = deliverableError || `Échec de génération du PDF : ${error.message || error}`;
     }
 
     if (!job.teinteMasse) {
@@ -609,11 +615,13 @@ async function processJob(job, req) {
       try {
         if (!fs.existsSync(outPdfPath) || fs.statSync(outPdfPath).size === 0) {
           logger.error(`❌ PDF de sortie manquant ou vide pour le job ${job.cmd} : ${outPdfPath}`);
+          deliverableError = deliverableError || "PDF de sortie manquant ou vide";
         } else {
           logger.info(`✅ PDF OK (${fs.statSync(outPdfPath).size} octets) : ${path.basename(outPdfPath)}`);
         }
       } catch (err) {
         logger.error(`❌ Impossible de vérifier le PDF pour le job ${job.cmd} : ${err.message}`);
+        deliverableError = deliverableError || `Vérification du PDF impossible : ${err.message}`;
       }
     }
 
@@ -660,17 +668,20 @@ async function processJob(job, req) {
     try {
       if (!fs.existsSync(outJpgPath) || fs.statSync(outJpgPath).size === 0) {
         logger.error(`❌ JPG de sortie manquant ou vide pour le job ${job.cmd} : ${outJpgPath}`);
+        deliverableError = deliverableError || "JPG de sortie manquant ou vide";
       } else {
         logger.info(`✅ JPG OK (${fs.statSync(outJpgPath).size} octets) : ${path.basename(outJpgPath)}`);
       }
     } catch (err) {
       logger.error(`❌ Impossible de vérifier le JPG pour le job ${job.cmd} : ${err.message}`);
+      deliverableError = deliverableError || `Vérification du JPG impossible : ${err.message}`;
     }
   } else {
     try {
       await generateImages(job, state.paths.previewDeco, `${jpgName}.jpg`, isStock);
     } catch (error) {
       logger.error(`Error generating JPG for job ${job.cmd}:`, error);
+      deliverableError = deliverableError || `Échec de génération de l'image : ${error.message || error}`;
     }
   }
 
@@ -854,6 +865,9 @@ async function processJob(job, req) {
     }
   } catch (error) {
     logger.error(`Erreur sauvegarde dossier pour le job ${job.cmd}: ${error.message}`);
+    // Le PDF/JPG peut être bon mais l'historique Mongo absent — on ne fait pas échouer le job
+    // (le livrable existe), mais on le signale explicitement au lieu d'un échec silencieux.
+    broadcastWS({ type: "jobWarning", job, reason: `Historique non enregistré : ${error.message}` });
   }
 
   try {
@@ -900,6 +914,15 @@ async function processJob(job, req) {
         logger.error(`Erreur génération fichier de coupe pour le job ${job.cmd}: ${error.message}`);
       }
     }
+  }
+
+  // S7 — si le livrable n'a pas pu être produit, on ne marque PAS le job terminé : on émet un
+  // jobError et on throw pour que BullMQ retente (attempts: 3) puis le laisse en échec définitif.
+  // Le job reste alors dans state.jobs.jobs (runJobs ne le filtre que s'il est dans completed).
+  if (deliverableError) {
+    logger.error(`❌ Job ${job.cmd} en échec : ${deliverableError}`);
+    broadcastWS({ type: "jobError", job, reason: deliverableError });
+    throw new Error(`Job ${job.cmd} : ${deliverableError}`);
   }
 
   state.jobs.completed.push(job);
