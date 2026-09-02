@@ -1,10 +1,11 @@
 const Deco = require("../models/Deco");
-// Module require (pas de destructuring) pour que syncDecoStubsDepuisGamesys reste stubbable en test.
-const decoGamesysStubSyncService = require("./decoGamesysStubSyncService");
+// Module require (pas de destructuring) pour que syncGamesysExtraction reste stubbable en test.
+const gamesysExtractionSyncService = require("./gamesysExtractionSyncService");
 
 // Supprime puis reconstruit les stubs Gamesys (gamesysStub:true) tombés dans le repli "métadonnées
 // commande" (pas de sousDossier, deco/format vides) à cause du bug de connexion ODBC partagée
-// désormais corrigé dans syncDecoStubsDepuisGamesys — ces stubs avaient échoué à résoudre leurs
+// désormais corrigé dans gamesysExtractionSyncService (ex-decoGamesysStubSyncService) — ces stubs
+// avaient échoué à résoudre leurs
 // sous-dossiers visuels alors que les données existaient bien côté Gamesys. Suppression sans risque :
 // ces stubs sont par définition non réclamés (gamesysStub:true) et claimStubOrCreate (decoStubService.js)
 // les réclame par numCmd/sousDossier, jamais par _id — les recréer avec un nouvel _id ne casse rien.
@@ -29,7 +30,7 @@ async function repairDecoGamesysStubs({ sinceDate, dryRun = true } = {}) {
 
   const { deletedCount } = await Deco.deleteMany({ _id: { $in: candidats.map((c) => c._id) } });
   resume.supprimes = deletedCount;
-  resume.resync = await decoGamesysStubSyncService.syncDecoStubsDepuisGamesys({ sinceDate });
+  resume.resync = await gamesysExtractionSyncService.syncGamesysExtraction({ sinceDate });
 
   return resume;
 }

@@ -24,11 +24,9 @@ const { BullMQAdapter } = require("@bull-board/api/bullMQAdapter");
 const { ExpressAdapter } = require("@bull-board/express");
 const { decoQueue, initWorker } = require("./src/services/queueService");
 const { processJob } = require("./src/controllers/jobsController");
-const { syncConsommationsHistorique } = require("./src/services/gamesysConsommationSyncService");
 const { backfillRecentDecoData } = require("./src/services/startupPrixBackfillService");
-const { syncDecoStubsDepuisGamesys } = require("./src/services/decoGamesysStubSyncService");
+const { syncGamesysExtraction } = require("./src/services/gamesysExtractionSyncService");
 const { resolveSinceDate, marquerRun } = require("./src/services/backfillWatermarkService");
-const syntheseCommandesService = require("./src/services/syntheseCommandesService");
 
 const PORT = process.env.PORT || 8000;
 
@@ -130,6 +128,33 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Exécute une tâche de rattrapage bornée par watermark (cf. backfillWatermarkService) : sinceDate
+// = depuis le dernier run réussi (- marge) ou fenêtre défaut au 1er run / après une longue coupure
+// serveur. Le watermark n'avance que si isSuccess(resume) est vrai, pour ne jamais perdre de
+// fenêtre sur un échec partiel ou total (ODBC coupé pendant le run, etc.).
+async function runWatermarkedCatchup({ cle, label, fenetreDefautJours, run, isSuccess }) {
+  try {
+    const sinceDate = await resolveSinceDate({ cle, fenetreDefautJours });
+    const resume = await run(sinceDate);
+    const depuis = sinceDate.toISOString().slice(0, 10);
+    if (isSuccess(resume)) {
+      await marquerRun(cle);
+      logger.info(`${label} (depuis ${depuis}) : ${JSON.stringify(resume)}`);
+    } else {
+      logger.warn(`${label} (depuis ${depuis}) : échec — watermark non avancé : ${JSON.stringify(resume)}`);
+    }
+  } catch (error) {
+    logger.warn(`${label} échoué : ${error.message}`);
+  }
+}
+
+// Unique au démarrage, après un délai initial (pas de répétition). Tous les jobs de rattrapage sont
+// actuellement one-shot (décision explicite pour un mécanisme unique et simple) — un job récurrent
+// se réduirait à `setTimeout(() => { runWatermarkedCatchup(opts); setInterval(...) }, ...)` si besoin.
+function scheduleWatermarkedStartupRun(opts) {
+  setTimeout(() => runWatermarkedCatchup(opts), opts.initialDelayMs);
+}
+
 server.listen(PORT, async () => {
   // checkVersion et linkFolders sont indépendants — on les lance en parallèle
   await Promise.all([
@@ -209,106 +234,61 @@ server.listen(PORT, async () => {
     });
   }, 30_000);
 
-  // Sync récurrente des consommations profils/kits (Gamesys → ConsommationCommande/StockArticle),
-  // pour couvrir les commandes qui ne passent jamais par le pipeline normal de jobs decoGestion.
-  // Fenêtre glissante (10j) plus large que l'intervalle : rattrape les retards Gamesys sans créer
-  // de doublons (syncConsommationsHistorique ignore les numCmd déjà connus).
-  const SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
-  const SYNC_LOOKBACK_DAYS = 10;
-  const SYNC_INITIAL_DELAY_MS = 5 * 60 * 1000;
+  // Extraction Gamesys unifiée des commandes récentes — fusionne ce que faisaient séparément la sync
+  // consommations (ConsommationCommande pour les profils/kits jamais recherchés manuellement dans
+  // l'UI, faute de visuel associé) et la création proactive de stubs Deco (gamesysStub:true,
+  // "A lancer", consommés par une appli externe AVANT tout traitement decoGestion) — cf.
+  // gamesysExtractionSyncService.js. Un seul scan Gamesys (listCommandesRecentes) et, par commande
+  // candidate, un seul aller-retour Gamesys (fetchDossierGroupedDetail, connexion réutilisée pour
+  // toute la commande) au lieu de deux à trois séparément. Unique au démarrage (pas de récurrence,
+  // décision explicite pour garder un mécanisme unique et simple) : une commande apparue après ce
+  // démarrage sera rattrapée au prochain redémarrage — repli sur les chemins normaux entre-temps
+  // (claimStubOrCreate pour les stubs, recherche manuelle du dossier pour les profils/kits).
+  // Délai court (30s, pas de justification technique forte) : laisse le temps au scan PDF/health
+  // check initial de se caler, sans faire attendre plusieurs minutes un travail qui, une fois lancé,
+  // ne prend que quelques secondes (mesuré en prod : ~7s pour 47 candidats). Décalé de 15s après le
+  // backfill prix/livraison ci-dessous pour ne pas cumuler leurs connexions ODBC en même temps.
+  const GAMESYS_EXTRACTION_LOOKBACK_DAYS = parseInt(process.env.GAMESYS_EXTRACTION_LOOKBACK_DAYS, 10) || 5;
+  const GAMESYS_EXTRACTION_INITIAL_DELAY_MS = 30 * 1000;
 
-  setTimeout(() => {
-    setInterval(async () => {
-      try {
-        const sinceDate = new Date(Date.now() - SYNC_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
-        const resume = await syncConsommationsHistorique({ sinceDate, concurrency: 3 });
-        logger.info(
-          `Sync Gamesys consommations : ${resume.traites} traitées, ${resume.dejaExistants} déjà connues, ${resume.erreurs} erreurs (sur ${resume.candidats} candidats). ` +
-            `Réconciliation stock_profiles : ${resume.orphelinsReconcilies}/${resume.orphelinsDetectes} orphelines corrigées.`,
-        );
-      } catch (error) {
-        logger.warn(`Sync Gamesys consommations échouée : ${error.message}`);
-      }
-    }, SYNC_INTERVAL_MS);
-  }, SYNC_INITIAL_DELAY_MS);
+  scheduleWatermarkedStartupRun({
+    cle: "startupGamesysExtraction",
+    label: "Extraction Gamesys unifiée (stubs Deco + consommations)",
+    fenetreDefautJours: GAMESYS_EXTRACTION_LOOKBACK_DAYS,
+    initialDelayMs: GAMESYS_EXTRACTION_INITIAL_DELAY_MS,
+    run: (sinceDate) => syncGamesysExtraction({ sinceDate, concurrency: 3 }),
+    // Échec total = coupure Gamesys pendant tout le run ; les échecs partiels restent tolérés
+    // (candidats idempotents, rattrapés au prochain démarrage).
+    isSuccess: (resume) => !resume || resume.candidats === 0 || resume.erreurs < resume.candidats,
+  });
 
   // Backfill unique au démarrage des prix/date de livraison des commandes récentes ajoutées
   // manuellement dans une autre appli (donc jamais passées par le pipeline Gamesys normal).
   // Fenêtre glissante configurable (défaut 2j) : reste volontairement court pour ne pas alourdir
   // chaque démarrage — les backlogs plus anciens se rattrapent via les scripts CLI manuels.
+  // Délai court (15s, même logique que GAMESYS_EXTRACTION_INITIAL_DELAY_MS ci-dessus) : le travail
+  // réel une fois lancé est rapide, pas besoin de plusieurs minutes d'attente.
   const PRIX_BACKFILL_LOOKBACK_DAYS = parseInt(process.env.PRIX_BACKFILL_LOOKBACK_DAYS, 10) || 2;
-  const PRIX_BACKFILL_INITIAL_DELAY_MS = 2 * 60 * 1000;
+  const PRIX_BACKFILL_INITIAL_DELAY_MS = 15 * 1000;
 
-  setTimeout(async () => {
-    try {
-      const sinceDate = await resolveSinceDate({
-        cle: "startupDecoData",
-        fenetreDefautJours: PRIX_BACKFILL_LOOKBACK_DAYS,
-      });
-      const resultats = await backfillRecentDecoData({ sinceDate });
-      // marquerRun seulement si AUCUNE phase de backfill n'a échoué en bloc (runStep renvoie null
-      // sur exception). La synthèse (resultats.synthese) est exclue : son échec est rattrapé par le
-      // repli fetchDossier* de chaque phase, le run reste valide.
-      const phases = [
+  scheduleWatermarkedStartupRun({
+    cle: "startupDecoData",
+    label: "Backfill prix/livraison récents",
+    fenetreDefautJours: PRIX_BACKFILL_LOOKBACK_DAYS,
+    initialDelayMs: PRIX_BACKFILL_INITIAL_DELAY_MS,
+    run: (sinceDate) => backfillRecentDecoData({ sinceDate }),
+    // Succès seulement si AUCUNE phase n'a échoué en bloc (runStep renvoie null sur exception dans
+    // startupPrixBackfillService). La synthèse (resultats.synthese) est exclue : son échec est
+    // rattrapé par le repli fetchDossier* de chaque phase, le run reste valide.
+    isSuccess: (resultats) =>
+      [
         resultats.consommationPrix,
         resultats.pkOnlyPrixTotal,
         resultats.decoLivraisonDates,
         resultats.decoPrix,
         resultats.decoPrixVisuel,
         resultats.decoCommandeInfo,
-      ];
-      if (phases.every((p) => p != null)) {
-        await marquerRun("startupDecoData");
-        logger.info(`Backfill prix/livraison récents (depuis ${sinceDate.toISOString().slice(0, 10)}) terminé.`);
-      } else {
-        logger.warn(
-          `Backfill prix/livraison récents : au moins une phase a échoué en bloc — watermark non avancé.`,
-        );
-      }
-    } catch (error) {
-      logger.warn(`Backfill prix/livraison récents échoué : ${error.message}`);
-    }
-  }, PRIX_BACKFILL_INITIAL_DELAY_MS);
+      ].every((p) => p != null),
+  });
 
-  // Création proactive au démarrage des stubs Deco (gamesysStub:true) pour les dossiers Gamesys
-  // récents qui n'ont pas encore de document Deco — l'utilisateur les réclame ensuite via
-  // claimStubOrCreate quand il traite le job normalement. Unique au démarrage (pas de setInterval
-  // récurrent comme la sync consommations ci-dessus) : un dossier apparu après ce démarrage n'aura
-  // pas de stub avant le prochain redémarrage, sans perte fonctionnelle (repli sur la création
-  // classique dans ce cas, cf. claimStubOrCreate).
-  const DECO_STUB_SYNC_LOOKBACK_DAYS = parseInt(process.env.DECO_STUB_SYNC_LOOKBACK_DAYS, 10) || 5;
-  const DECO_STUB_SYNC_INITIAL_DELAY_MS = 3 * 60 * 1000;
-
-  setTimeout(async () => {
-    try {
-      const sinceDate = await resolveSinceDate({
-        cle: "startupStubSync",
-        fenetreDefautJours: DECO_STUB_SYNC_LOOKBACK_DAYS,
-      });
-      // Synthèse commandes chargée une fois (une requête ensembliste) et passée au sync : chaque
-      // candidat y lit commandeInfo / formatPlaque / livraison au lieu de 3 allers-retours ODBC.
-      // Indisponible (ODBC KO) => warn + null, le sync retombe sur les fetchDossier* par candidat.
-      const synthese = await syntheseCommandesService
-        .chargerSyntheseCommandes({ sinceDate, resoudreClientsViaCatalogue: true })
-        .catch((e) => {
-          logger.warn(`Sync stubs: synthèse indisponible : ${e.message}`);
-          return null;
-        });
-      const resume = await syncDecoStubsDepuisGamesys({ sinceDate, synthese });
-      // Ne pas avancer le watermark si TOUT a échoué (ODBC coupé pendant le run) : erreurs sur
-      // tous les candidats. Des échecs partiels sont tolérés (upserts idempotents au prochain run).
-      if (!resume || resume.candidats === 0 || resume.erreurs < resume.candidats) {
-        await marquerRun("startupStubSync");
-      } else {
-        logger.warn(
-          `Sync stubs Deco : ${resume.erreurs}/${resume.candidats} candidats en échec — watermark non avancé.`,
-        );
-      }
-      logger.info(
-        `Sync stubs Deco depuis Gamesys (depuis ${sinceDate.toISOString().slice(0, 10)}) : ${JSON.stringify(resume)}`,
-      );
-    } catch (error) {
-      logger.warn(`Sync stubs Deco échouée : ${error.message}`);
-    }
-  }, DECO_STUB_SYNC_INITIAL_DELAY_MS);
 });

@@ -984,6 +984,105 @@ async function buildDetail(connection, dossier) {
   };
 }
 
+// Résout, pour une commande racine, LE DÉTAIL COMPLET par sous-dossier (visuels + profils/kits +
+// prix + livraison + dossier brut) — même orchestration que getDossierDetail(view:"full") mais avec
+// UNE SEULE connexion injectée réutilisée séquentiellement pour toute la commande (comme
+// fetchSousDossiersVisuels), au lieu d'une connexion getDbConnection() PAR SOUS-DOSSIER en parallèle
+// (Promise.all de getDossierDetail — a saturé le pool ODBC sur des runs de masse, cf.
+// feedback_odbc_backfill_resource_limits). Réutilise buildDetail/selectDetailView/buildGroupedResponse
+// sans dupliquer leur logique : seule l'orchestration change (séquentiel + connexion injectée).
+// Destinée à un run en boucle (gamesysExtractionSyncService), pas à un affichage ponctuel.
+async function fetchDossierGroupedDetail(connection, numero) {
+  const search = String(numero);
+  const searchLike = `${escapeSqlLike(search)}/%`;
+  const codeUniqLike = `${escapeSqlLike(search)}v%`;
+  const formattedSeq = search.replace(/\/00$/, "v0").replace(/\//g, "v");
+
+  const dossiers = await query(
+    connection,
+    `select d.* from public.fd_dossier d where (d.dos_seq = ? or d.dos_no_cmde = ? or d.dos_no_cmde LIKE ? ESCAPE '\\' or d.dos_codeuniq = ? or d.dos_codeuniq LIKE ? ESCAPE '\\') order by d.dos_seq desc`,
+    [Number(search) || 0, search, searchLike, formattedSeq, codeUniqLike],
+  );
+
+  const details = [];
+  for (const dossier of dossiers) {
+    const detail = await buildDetail(connection, dossier);
+    const selectedDetail = selectDetailView(detail, "full");
+    details.push({
+      ...cleanDbValue(selectedDetail),
+      // formatFini/printFinish : mêmes replis Gamesys que fetchSousDossiersVisuels (absents de
+      // buildDetail lui-même), nécessaires pour la résolution de stub visuel quand la ref ne matche
+      // pas le catalogue interne.
+      formatFini: extractDimensionFormat(dossier.dos_forme_et_format),
+      printFinish: detectPrintFinish(dossier),
+    });
+  }
+
+  return buildGroupedResponse(details, "full");
+}
+
+// Dérive dateCommande/codeClient/refClient/nombreProfil/nombreKitPose/prixTotal/formatPlaqueGamesys/
+// dateDepartUsine/dateLivraisonSouhaitee/mag à partir d'un grouped déjà résolu (fetchDossierGroupedDetail
+// ou getDossierDetail view:"full") — SANS repayer de requêtes ODBC (les lignes sont déjà en mémoire
+// dans grouped.sousDossiers[]). Même dérivation que profilsKitsService.saveProfilsKits (commandeInfo/
+// mag/dates) et que fetchDossierCommandeInfo/fetchDossierFormatPlaque/fetchDossierLivraisonDates
+// (grain commande racine, agrégée sur tous les sous-dossiers).
+function deriveCommandeInfoFromGrouped(grouped, client) {
+  // buildGroupedResponse trie grouped.sousDossiers par sousNumero DÉCROISSANT (le plus récent en
+  // premier, cf. buildGroupedResponse) — les anciens fetchDossierCommandeInfo/FormatPlaque/
+  // LivraisonDates lisaient eux une requête SQL à plat (sans ORDER BY), dont l'ordre naturel
+  // rapproche le plus souvent du sous-dossier le plus ANCIEN en premier. On re-trie donc ici en
+  // ordre CROISSANT avant les picks "1ère valeur non vide" ci-dessous, pour matcher au mieux le
+  // comportement observé de ces fonctions (vérifié empiriquement : formatPlaqueGamesys divergeait
+  // sur des commandes multi-sous-dossiers avant ce tri).
+  const sousDossiersAsc = [...(grouped.sousDossiers || [])].sort((a, b) =>
+    String(a.sousNumero || "").localeCompare(String(b.sousNumero || ""), "fr", { numeric: true }),
+  );
+
+  const allEnteteRows = sousDossiersAsc.flatMap((s) => s.enteteDevis || []);
+  let nombreProfil = 0;
+  let nombreKitPose = 0;
+  let prixTotal = null;
+  for (const row of allEnteteRows) {
+    const quant = Number(row.endv_quant) || 0;
+    if (isProfileLabel(row.endv_identif)) nombreProfil += quant;
+    else if (isKitPoseLabel(row.endv_identif)) nombreKitPose += quant;
+    if (row.endv_px_total !== null && row.endv_px_total !== undefined) {
+      prixTotal = (prixTotal ?? 0) + Number(row.endv_px_total);
+    }
+  }
+
+  const firstEntete = allEnteteRows[0];
+  const dossierDate = sousDossiersAsc.map((s) => s.dossier?.dos_date).find(Boolean);
+  const livraisonRows = sousDossiersAsc.flatMap((s) => s.livraisons || []);
+  const departUsineRaw = livraisonRows.map((l) => l.bo_date_depart_usine).find(Boolean);
+  const livraisonSouhaiteeRaw = livraisonRows.map((l) => l.bo_date_souhaitee).find(Boolean);
+  const magasinRaw = livraisonRows.map((l) => l.bo_adlivr_nom_1).find(Boolean);
+  const villeRaw = livraisonRows.map((l) => l.bo_ville).find(Boolean);
+  const formatPlaqueRaw = sousDossiersAsc
+    .map((s) => s.dossier?.dos_supp_1_ft)
+    .find((v) => String(v || "").trim());
+
+  return {
+    dateCommande: firstEntete?.endv_date_cmde
+      ? new Date(firstEntete.endv_date_cmde)
+      : dossierDate
+        ? new Date(dossierDate)
+        : null,
+    codeClient: firstEntete?.endv_cclient || null,
+    refClient: firstEntete?.endv_no_commande_client || null,
+    nombreProfil,
+    nombreKitPose,
+    prixTotal,
+    formatPlaqueGamesys: formatPlaqueRaw ? String(formatPlaqueRaw).trim() : null,
+    dateDepartUsine: departUsineRaw ? new Date(departUsineRaw) : null,
+    dateLivraisonSouhaitee: livraisonSouhaiteeRaw ? new Date(livraisonSouhaiteeRaw) : null,
+    // mag = ville de livraison (repère magasin pour LM/CASTO/BRICO), ou nom du destinataire pour
+    // ECOM (livraison directe, pas de notion de magasin) — même règle que profilsKitsService.js.
+    mag: client === "ECOM" ? magasinRaw || villeRaw : villeRaw || magasinRaw,
+  };
+}
+
 async function listDossiers({ limit = 20, client, commande } = {}) {
   const safeLimit = Math.min(Math.max(limit, 1), 200);
   const where = [];
@@ -1714,5 +1813,7 @@ module.exports = {
   extractModelFromIdentif,
   buildVisualReferences,
   fetchSousDossiersVisuels,
+  fetchDossierGroupedDetail,
+  deriveCommandeInfoFromGrouped,
   findStockReferences,
 };

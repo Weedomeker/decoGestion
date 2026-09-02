@@ -184,6 +184,14 @@ async function saveProfilsKits(job) {
     return false;
   }
 
+  return saveProfilsKitsFromGrouped(grouped, job);
+}
+
+// Suite de saveProfilsKits une fois `grouped` obtenu (par getDossierDetail ci-dessus, ou par
+// fetchDossierGroupedDetail dans gamesysExtractionSyncService.js — même forme de retour dans les
+// deux cas : profileReferences/kitPosesReferences/sousDossiers). Extrait pour être réutilisable sans
+// repayer un aller-retour Gamesys quand l'appelant a déjà son propre `grouped` sous la main.
+async function saveProfilsKitsFromGrouped(grouped, job) {
   const profileReferences = grouped.profileReferences || [];
   const kitPosesReferences = grouped.kitPosesReferences || [];
 
@@ -339,4 +347,11 @@ async function saveProfilsKits(job) {
   }
 }
 
-module.exports = { saveProfilsKits, getQtyForArticle, getPrixForArticle, getPrixVisuel, sumArticlesPrix };
+module.exports = {
+  saveProfilsKits,
+  saveProfilsKitsFromGrouped,
+  getQtyForArticle,
+  getPrixForArticle,
+  getPrixVisuel,
+  sumArticlesPrix,
+};
