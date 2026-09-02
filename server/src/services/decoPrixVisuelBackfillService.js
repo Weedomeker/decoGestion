@@ -3,6 +3,7 @@ const dossierService = require("../gamesys/services/dossierService");
 const dbConfig = require("../gamesys/config/db");
 const { closeConnection } = require("../gamesys/lib/db");
 const Deco = require("../models/Deco");
+const { createBackfillProgressBar } = require("../utils/backfillProgressBar");
 const {
   isVisualLabel,
   normalizeSearchText,
@@ -119,6 +120,8 @@ async function backfillDecoPrixVisuel({ dryRun = false, numCmds = null, sinceDat
   // saturer les ressources machine sur un run de plusieurs milliers de numCmd. fetchEnteteDevis
   // suffit : on n'a besoin que des lignes de devis, pas du matching catalogue stock.
   const connection = await dbConfig.getDbConnection();
+  logger.info(`backfillDecoPrixVisuel: ${aTraiter.length} candidat(s) à traiter (${byNumCmd.size} numCmd)`);
+  const bar = createBackfillProgressBar("backfillDecoPrixVisuel", aTraiter.length);
   try {
     for (const [numCmd, docs] of byNumCmd.entries()) {
       let enteteRows;
@@ -127,6 +130,7 @@ async function backfillDecoPrixVisuel({ dryRun = false, numCmds = null, sinceDat
       } catch (err) {
         resume.erreurs += docs.length;
         logger.warn(`backfillDecoPrixVisuel: fetchEnteteDevis échoué pour numCmd=${numCmd} : ${err.message}`);
+        bar.increment(docs.length, { ok: resume.misAJour, ko: resume.erreurs });
         continue;
       }
 
@@ -151,9 +155,12 @@ async function backfillDecoPrixVisuel({ dryRun = false, numCmds = null, sinceDat
         } catch (err) {
           resume.erreurs += 1;
           logger.warn(`backfillDecoPrixVisuel: échec _id=${doc._id} (numCmd=${numCmd}) : ${err.message}`);
+        } finally {
+          bar.increment(1, { ok: resume.misAJour, ko: resume.erreurs });
         }
       }
     }
+    bar.stop();
   } finally {
     await closeConnection(connection);
   }

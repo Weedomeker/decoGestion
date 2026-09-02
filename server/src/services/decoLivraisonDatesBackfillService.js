@@ -4,6 +4,7 @@ const dossierService = require("../gamesys/services/dossierService");
 const dbConfig = require("../gamesys/config/db");
 const { closeConnection } = require("../gamesys/lib/db");
 const Deco = require("../models/Deco");
+const { createBackfillProgressBar } = require("../utils/backfillProgressBar");
 
 async function backfillDecoLivraisonDates({
   concurrency = 5,
@@ -32,10 +33,12 @@ async function backfillDecoLivraisonDates({
 
   // Une seule connexion ODBC réutilisée pour toute la boucle.
   const connection = await dbConfig.getDbConnection();
+  const aTraiterNumCmds = [...numCmdClientMap.entries()];
+  const bar = createBackfillProgressBar("backfillDecoLivraisonDates", aTraiterNumCmds.length);
   try {
     const limit = pLimit(concurrency);
     await Promise.all(
-      [...numCmdClientMap.entries()].map(([numCmd, client]) =>
+      aTraiterNumCmds.map(([numCmd, client]) =>
         limit(async () => {
           try {
             // Synthèse commandes prioritaire : si le numCmd y figure, aucun aller-retour Gamesys.
@@ -84,10 +87,13 @@ async function backfillDecoLivraisonDates({
           } catch (err) {
             resume.erreurs += 1;
             logger.warn(`backfillDecoLivraisonDates: échec numCmd=${numCmd} : ${err.message}`);
+          } finally {
+            bar.increment(1, { ok: resume.misAJour, ko: resume.erreurs });
           }
         }),
       ),
     );
+    bar.stop();
   } finally {
     await closeConnection(connection);
   }

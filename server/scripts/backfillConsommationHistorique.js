@@ -1,5 +1,6 @@
 /**
- * Script ponctuel : backfill de l'historique des consommations profilés/kits depuis Gamesys.
+ * Script ponctuel : backfill de l'historique des consommations profilés/kits + stubs Deco depuis
+ * Gamesys (extraction unifiée, ex-gamesysConsommationSyncService + ex-decoGamesysStubSyncService).
  *
  * Usage :
  *   node server/scripts/backfillConsommationHistorique.js                          (dry-run, 12 derniers mois, tous clients)
@@ -15,7 +16,7 @@ require("dotenv").config({ path: path.join(__dirname, "../../.env") });
 
 const mongoose = require("mongoose");
 const connectMongo = require("../src/mongoose");
-const { syncConsommationsHistorique } = require("../src/services/gamesysConsommationSyncService");
+const { syncGamesysExtraction } = require("../src/services/gamesysExtractionSyncService");
 
 function parseArgs(argv) {
   const args = { months: 12, client: undefined, apply: false };
@@ -46,18 +47,20 @@ async function main() {
       `${apply ? "" : " — DRY-RUN"}`,
   );
 
-  const resume = await syncConsommationsHistorique({ sinceDate, client, dryRun: !apply });
+  const resume = await syncGamesysExtraction({ sinceDate, client, dryRun: !apply });
 
   console.log("\nRésumé :");
-  console.log(`  Candidats trouvés (profils/kits) : ${resume.candidats}`);
-  console.log(`  Déjà enregistrés en base          : ${resume.dejaExistants}`);
+  console.log(`  Candidats trouvés (commandes)      : ${resume.candidats}`);
+  console.log(`  Déjà enregistrés en base            : ${resume.dejaExistants}`);
   if (apply) {
-    console.log(`  Traités avec succès               : ${resume.traites}`);
-    console.log(`  Erreurs                           : ${resume.erreurs}`);
-    console.log(`  Réf. orphelines réconciliées      : ${resume.orphelinsReconcilies} (sur ${resume.orphelinsDetectes} détectées)`);
+    console.log(`  Stubs Deco traités avec succès      : ${resume.decoTraites}`);
+    console.log(`  Stubs Deco en erreur                : ${resume.decoErreurs}`);
+    console.log(`  Consommations traitées avec succès  : ${resume.consoTraites}`);
+    console.log(`  Consommations en erreur             : ${resume.consoErreurs}`);
+    console.log(`  Réf. orphelines réconciliées        : ${resume.orphelinsReconcilies} (sur ${resume.orphelinsDetectes} détectées)`);
   } else {
-    console.log(`  Restants à traiter (mode réel)    : ${resume.candidats - resume.dejaExistants}`);
-    console.log(`  Réf. orphelines détectées         : ${resume.orphelinsDetectes} (stock_profiles)`);
+    console.log(`  Restants à traiter (mode réel)      : ${resume.candidats - resume.dejaExistants}`);
+    console.log(`  Réf. orphelines détectées           : ${resume.orphelinsDetectes} (stock_profiles)`);
     console.log("\nMode dry-run — aucune donnée écrite. Relancer avec --apply pour importer réellement.");
   }
 

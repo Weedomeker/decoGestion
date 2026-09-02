@@ -2,7 +2,7 @@ const { expect } = require("chai");
 const sinon = require("sinon");
 
 const Deco = require("../../server/src/models/Deco");
-const decoGamesysStubSyncService = require("../../server/src/services/decoGamesysStubSyncService");
+const gamesysExtractionSyncService = require("../../server/src/services/gamesysExtractionSyncService");
 const { repairDecoGamesysStubs } = require("../../server/src/services/decoGamesysStubRepairService");
 
 describe("decoGamesysStubRepairService.repairDecoGamesysStubs()", () => {
@@ -23,10 +23,13 @@ describe("decoGamesysStubRepairService.repairDecoGamesysStubs()", () => {
   beforeEach(() => {
     findStub = sinon.stub(Deco, "find");
     deleteManyStub = sinon.stub(Deco, "deleteMany").resolves({ deletedCount: 0 });
-    syncStub = sinon.stub(decoGamesysStubSyncService, "syncDecoStubsDepuisGamesys").resolves({
+    syncStub = sinon.stub(gamesysExtractionSyncService, "syncGamesysExtraction").resolves({
       candidats: 0,
       dejaExistants: 0,
-      crees: 0,
+      decoTraites: 0,
+      decoErreurs: 0,
+      consoTraites: 0,
+      consoErreurs: 0,
       erreurs: 0,
     });
   });
@@ -76,7 +79,16 @@ describe("decoGamesysStubRepairService.repairDecoGamesysStubs()", () => {
       { _id: "b", numCmd: 167723 },
     ]);
     deleteManyStub.resolves({ deletedCount: 2 });
-    syncStub.resolves({ candidats: 2, dejaExistants: 0, crees: 2, erreurs: 0 });
+    const resyncResume = {
+      candidats: 2,
+      dejaExistants: 0,
+      decoTraites: 2,
+      decoErreurs: 0,
+      consoTraites: 0,
+      consoErreurs: 0,
+      erreurs: 0,
+    };
+    syncStub.resolves(resyncResume);
 
     const resume = await repairDecoGamesysStubs({ sinceDate, dryRun: false });
 
@@ -86,7 +98,7 @@ describe("decoGamesysStubRepairService.repairDecoGamesysStubs()", () => {
       candidats: 2,
       numCmds: [167728, 167723],
       supprimes: 2,
-      resync: { candidats: 2, dejaExistants: 0, crees: 2, erreurs: 0 },
+      resync: resyncResume,
     });
   });
 });

@@ -2,6 +2,7 @@ const logger = require("../logger/logger");
 const Deco = require("../models/Deco");
 const ConsommationCommande = require("../models/ConsommationCommande");
 const { sumArticlesPrix } = require("./profilsKitsService");
+const { createBackfillProgressBar } = require("../utils/backfillProgressBar");
 
 // Peuple Deco.prixTotal pour les stubs "profils/kits seulement" (pkOnly: true) déjà en base, à
 // partir des articles de la ConsommationCommande correspondante (même numCmd) — ces stubs n'ont pas
@@ -17,6 +18,7 @@ async function backfillPkOnlyPrixTotal({ dryRun = false, sinceDate = null } = {}
 
   if (dryRun || stubs.length === 0) return resume;
 
+  const bar = createBackfillProgressBar("backfillPkOnlyPrixTotal", stubs.length);
   for (const stub of stubs) {
     try {
       const conso = await ConsommationCommande.findOne({ numCmd: stub.numCmd }, { articles: 1 }).lean();
@@ -33,8 +35,11 @@ async function backfillPkOnlyPrixTotal({ dryRun = false, sinceDate = null } = {}
     } catch (err) {
       resume.erreurs += 1;
       logger.warn(`backfillPkOnlyPrixTotal: échec _id=${stub._id} (numCmd=${stub.numCmd}) : ${err.message}`);
+    } finally {
+      bar.increment(1, { ok: resume.misAJour, ko: resume.erreurs });
     }
   }
+  bar.stop();
 
   return resume;
 }
