@@ -4,6 +4,7 @@ const dossierService = require("../gamesys/services/dossierService");
 const dbConfig = require("../gamesys/config/db");
 const { closeConnection } = require("../gamesys/lib/db");
 const Deco = require("../models/Deco");
+const { createBackfillProgressBar } = require("../utils/backfillProgressBar");
 
 async function backfillDecoCommandeInfo({
   concurrency = 5,
@@ -24,6 +25,7 @@ async function backfillDecoCommandeInfo({
   const numCmds = [...new Set(aTraiter.map((doc) => doc.numCmd))];
 
   const connection = await dbConfig.getDbConnection();
+  const bar = createBackfillProgressBar("backfillDecoCommandeInfo", numCmds.length);
   try {
     const limit = pLimit(concurrency);
     await Promise.all(
@@ -66,10 +68,13 @@ async function backfillDecoCommandeInfo({
           } catch (err) {
             resume.erreurs += 1;
             logger.warn(`backfillDecoCommandeInfo: échec numCmd=${numCmd} : ${err.message}`);
+          } finally {
+            bar.increment(1, { ok: resume.misAJour, ko: resume.erreurs });
           }
         }),
       ),
     );
+    bar.stop();
   } finally {
     await closeConnection(connection);
   }

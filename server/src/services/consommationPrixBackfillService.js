@@ -4,6 +4,7 @@ const dossierService = require("../gamesys/services/dossierService");
 const { isProfileLabel, isKitPoseLabel } = require("../gamesys/utils/reference");
 const { getPrixForArticle } = require("./profilsKitsService");
 const ConsommationCommande = require("../models/ConsommationCommande");
+const { createBackfillProgressBar } = require("../utils/backfillProgressBar");
 
 function predicateForType(type) {
   return type === "kit" ? isKitPoseLabel : isProfileLabel;
@@ -21,6 +22,7 @@ async function backfillConsommationPrix({ concurrency = 5, dryRun = false, since
 
   if (dryRun || aTraiter.length === 0) return resume;
 
+  const bar = createBackfillProgressBar("backfillConsommationPrix", aTraiter.length);
   const limit = pLimit(concurrency);
   await Promise.all(
     aTraiter.map((doc) =>
@@ -49,10 +51,13 @@ async function backfillConsommationPrix({ concurrency = 5, dryRun = false, since
         } catch (err) {
           resume.erreurs += 1;
           logger.warn(`backfillConsommationPrix: échec numCmd=${doc.numCmd} : ${err.message}`);
+        } finally {
+          bar.increment(1, { ok: resume.misAJour, ko: resume.erreurs });
         }
       }),
     ),
   );
+  bar.stop();
 
   return resume;
 }
