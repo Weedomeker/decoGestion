@@ -45,7 +45,6 @@
     "p-limit": "^3.1.0",
     "pdf-lib": "^1.17.1",
     "pdf2pic": "^3.1.4",
-    "pdftopic": "^0.2.0",
     "piscina": "^5.2.0",
     "serve-index": "^1.9.1",
     "winston": "^3.18.3",
