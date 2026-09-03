@@ -52,7 +52,6 @@
     "pdf-poppler": "^0.2.1",
     "pdf2pic": "^3.1.4",
     "pdfkit": "^0.15.1",
-    "pdftopic": "^0.2.0",
     "piscina": "^5.2.0",
     "serve-index": "^1.9.1",
     "uuid": "^11.0.3",
