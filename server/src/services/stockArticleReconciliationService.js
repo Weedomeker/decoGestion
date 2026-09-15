@@ -12,7 +12,11 @@ async function reconcileStockArticlesFromConsommations({ dryRun = false } = {}) 
     { $group: { _id: "$articles.ref", type: { $first: "$articles.type" }, libelle: { $first: "$articles.libelle" } } },
   ]);
 
-  const refsExistantes = new Set(await StockProfile.distinct("ref"));
+  const [refsDirectes, aliasesExistants] = await Promise.all([
+    StockProfile.distinct("ref"),
+    StockProfile.distinct("aliases"),
+  ]);
+  const refsExistantes = new Set([...refsDirectes, ...aliasesExistants]);
   const orphelines = parRef.filter((r) => !refsExistantes.has(r._id));
 
   if (dryRun) {

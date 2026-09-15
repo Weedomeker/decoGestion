@@ -25,7 +25,13 @@ async function getStockProfiles(req, res) {
     if (type === "profil" || type === "kit") filter.type = type;
     if (q && q.trim()) {
       const regex = new RegExp(q.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
-      filter.$or = [{ ref: regex }, { modele: regex }, { libelle: regex }, { codeArticle: regex }];
+      filter.$or = [
+        { ref: regex },
+        { modele: regex },
+        { libelle: regex },
+        { codeArticle: regex },
+        { aliases: regex },
+      ];
     }
     const items = await StockProfile.find(filter).sort({ type: 1, libelle: 1 }).limit(300).lean();
     return res.json(items);
