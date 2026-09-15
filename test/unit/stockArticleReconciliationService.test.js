@@ -60,4 +60,30 @@ describe("stockArticleReconciliationService.reconcileStockArticlesFromConsommati
     expect(result.orphelinsDetectes).to.equal(1);
     expect(result.crees).to.equal(0);
   });
+
+  it("comptabilise les échecs de création sans interrompre les autres", async () => {
+    aggregateStub.resolves([
+      { _id: "REF-A", type: "profil", libelle: "PROFIL A" },
+      { _id: "REF-B", type: "kit", libelle: "KIT B" },
+    ]);
+    distinctStub.withArgs("ref").resolves([]);
+    distinctStub.withArgs("aliases").resolves([]);
+    findOneAndUpdateStub.onFirstCall().rejects(new Error("Mongo indisponible"));
+    findOneAndUpdateStub.onSecondCall().resolves({});
+
+    const result = await reconcileStockArticlesFromConsommations({ dryRun: false });
+
+    expect(result).to.deep.equal({ orphelinsDetectes: 2, crees: 1 });
+  });
+
+  it("vérifie la structure du pipeline aggregate (ignore les articles sans ref)", async () => {
+    aggregateStub.resolves([]);
+    distinctStub.withArgs("ref").resolves([]);
+    distinctStub.withArgs("aliases").resolves([]);
+
+    await reconcileStockArticlesFromConsommations({ dryRun: false });
+
+    const pipeline = aggregateStub.firstCall.args[0];
+    expect(pipeline[1]).to.deep.equal({ $match: { "articles.ref": { $nin: [null, ""] } } });
+  });
 });
