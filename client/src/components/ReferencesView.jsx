@@ -401,6 +401,7 @@ function ReferencesView() {
               <Table.Row>
                 <Table.HeaderCell sorted={pkSorted("ref")} onClick={() => handlePkSort("ref")}>Référence</Table.HeaderCell>
                 <Table.HeaderCell sorted={pkSorted("libelle")} onClick={() => handlePkSort("libelle")}>Libellé</Table.HeaderCell>
+                <Table.HeaderCell>Aliases</Table.HeaderCell>
                 <Table.HeaderCell sorted={pkSorted("stockDisponible")} onClick={() => handlePkSort("stockDisponible")}>Stock dispo</Table.HeaderCell>
                 <Table.HeaderCell>Actions</Table.HeaderCell>
               </Table.Row>
@@ -408,7 +409,7 @@ function ReferencesView() {
             <Table.Body>
               {!pkLoading && sortedPkItems.length === 0 && pkEditingId !== "new" && (
                 <Table.Row>
-                  <Table.Cell colSpan={4}>Aucun article trouvé.</Table.Cell>
+                  <Table.Cell colSpan={5}>Aucun article trouvé.</Table.Cell>
                 </Table.Row>
               )}
               {pkEditingId === "new" && (
@@ -430,6 +431,7 @@ function ReferencesView() {
                       onKeyDown={(e) => e.key === "Enter" && submitPkForm()}
                     />
                   </Table.Cell>
+                  <Table.Cell />
                   <Table.Cell>{pkFormData.stockDisponible ?? 0}</Table.Cell>
                   <Table.Cell>
                     <Button compact size="mini" color="green" icon="check" onClick={submitPkForm} title="Enregistrer" />
@@ -461,6 +463,9 @@ function ReferencesView() {
                           onKeyDown={(e) => e.key === "Enter" && submitPkForm()}
                         />
                       ) : item.libelle}
+                    </Table.Cell>
+                    <Table.Cell className="references-cell-aliases">
+                      {(item.aliases || []).join(", ") || null}
                     </Table.Cell>
                     <Table.Cell>{item.stockDisponible ?? 0}</Table.Cell>
                     <Table.Cell>

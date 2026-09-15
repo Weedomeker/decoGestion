@@ -85,3 +85,13 @@
 .references-check-warning {
   color: #c0392b;
 }
+
+.references-cell-aliases {
+  color: #888;
+  font-size: 0.85em;
+  font-style: italic;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
