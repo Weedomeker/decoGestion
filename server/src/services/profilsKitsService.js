@@ -146,6 +146,10 @@ async function getPrixVisuel({ cmd, ref, deco, format, soleDoc = false, orientat
 }
 
 async function upsertArticle(ref, fields) {
+  // Si la ref est déjà un alias d'un doc canonique, ne rien créer
+  const aliasOwner = await StockProfile.findOne({ aliases: ref }).lean();
+  if (aliasOwner) return;
+
   await StockProfile.findOneAndUpdate(
     { ref },
     {
@@ -339,4 +343,4 @@ async function saveProfilsKits(job) {
   }
 }
 
-module.exports = { saveProfilsKits, getQtyForArticle, getPrixForArticle, getPrixVisuel, sumArticlesPrix };
+module.exports = { saveProfilsKits, getQtyForArticle, getPrixForArticle, getPrixVisuel, sumArticlesPrix, upsertArticle };

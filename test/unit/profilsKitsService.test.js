@@ -11,6 +11,7 @@ const {
   getPrixForArticle,
   getPrixVisuel,
   sumArticlesPrix,
+  upsertArticle,
 } = require("../../server/src/services/profilsKitsService");
 const { isProfileLabel, isKitPoseLabel } = require("../../server/src/gamesys/utils/reference");
 
@@ -104,6 +105,8 @@ describe("profilsKitsService.saveProfilsKits()", () => {
 
   beforeEach(() => {
     getDossierDetailStub = sinon.stub(dossierService, "getDossierDetail");
+    // upsertArticle appelle findOne({aliases: ref}) avant findOneAndUpdate — stub nécessaire
+    sinon.stub(StockProfile, "findOne").returns({ lean: sinon.stub().resolves(null) });
     stockArticleStub = sinon.stub(StockProfile, "findOneAndUpdate").resolves({});
     consommationUpsertStub = sinon
       .stub(ConsommationCommande, "findOneAndUpdate")
@@ -588,5 +591,35 @@ describe("profilsKitsService.getPrixVisuel()", () => {
     const prix = await getPrixVisuel({ cmd: 164629, ref: "", deco: "AUTRE CHOSE", soleDoc: true });
 
     expect(prix).to.be.undefined;
+  });
+});
+
+describe("upsertArticle — comportement avec aliases", () => {
+  let findOneStub;
+  let findOneAndUpdateStub;
+
+  beforeEach(() => {
+    findOneStub = sinon.stub(StockProfile, "findOne").returns({ lean: sinon.stub().resolves(null) });
+    findOneAndUpdateStub = sinon.stub(StockProfile, "findOneAndUpdate").resolves(null);
+  });
+
+  afterEach(() => sinon.restore());
+
+  it("ne crée pas de nouveau doc si la ref est déjà un alias d'un canonique", async () => {
+    findOneStub.returns({ lean: sinon.stub().resolves({ _id: "abc", ref: "94953589", aliases: ["PROFMAT255A"] }) });
+
+    await upsertArticle("PROFMAT255A", { libelle: "PROFILE Alu Mat", type: "profil" });
+
+    expect(findOneAndUpdateStub.called).to.be.false;
+  });
+
+  it("crée bien un nouveau doc si la ref n'est pas un alias", async () => {
+    findOneStub.returns({ lean: sinon.stub().resolves(null) });
+
+    await upsertArticle("PROFNOUVEAU255A", { libelle: "PROFILE Nouveau", type: "profil" });
+
+    expect(findOneAndUpdateStub.calledOnce).to.be.true;
+    const [filter] = findOneAndUpdateStub.firstCall.args;
+    expect(filter.ref).to.equal("PROFNOUVEAU255A");
   });
 });
