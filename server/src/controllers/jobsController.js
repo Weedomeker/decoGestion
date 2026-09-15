@@ -341,6 +341,35 @@ async function addJob(req, res) {
     });
   }
 
+  // Anti-doublon : state.jobs.jobs (vérifié plus bas) ne protège que la file en mémoire, pas
+  // encore lancée par run_jobs. Une fois le job traité et retiré de la file, rien n'empêchait
+  // de recréer un Deco identique en base pour la même commande (cf. doublons numCmd 167966,
+  // 166835, 167998 en prod, sept. 2026). On bloque donc aussi contre l'historique déjà enregistré.
+  if (matchRef && data.numCmd && !req.body.force) {
+    const DUPLICATE_CHECK_WINDOW_MS = 48 * 60 * 60 * 1000;
+    // sousDossier n'est pas toujours enregistré (flux crédence/saisie manuelle) : le champ est
+    // alors totalement absent du document, pas juste "" — { sousDossier: "" } ne matcherait pas
+    // un champ absent en MongoDB. $in: ["", null] couvre absent + null + "".
+    const sousDossierQuery = data.sousDossier ? data.sousDossier : { $in: ["", null] };
+    const recentDuplicate = await modelDeco
+      .findOne({
+        numCmd: Number(data.numCmd),
+        sousDossier: sousDossierQuery,
+        ref: matchRef,
+        client,
+        createdAt: { $gte: new Date(Date.now() - DUPLICATE_CHECK_WINDOW_MS) },
+      })
+      .sort({ createdAt: -1 })
+      .lean();
+    if (recentDuplicate) {
+      const when = recentDuplicate.createdAt ? new Date(recentDuplicate.createdAt).toLocaleString("fr-FR") : "date inconnue";
+      return res.status(409).json({
+        error: `Cette commande (n°${data.numCmd}${data.sousDossier ? `/${data.sousDossier}` : ""}, réf. ${matchRef}) a déjà été traitée le ${when}${recentDuplicate.user ? ` par ${recentDuplicate.user}` : ""} (statut actuel : ${recentDuplicate.status || "?"}). Renvoyez la requête avec { force: true } pour forcer un nouveau passage.`,
+        code: "DUPLICATE_RECENT_JOB",
+      });
+    }
+  }
+
   // Validation MongoDB des références extraites
   const RefModelClient = refModels[client];
   const RefModelClient2 = refModels[client2];
