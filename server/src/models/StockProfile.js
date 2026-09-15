@@ -10,6 +10,7 @@ const stockProfileSchema = new mongoose.Schema(
     famille: { type: String, default: "" },
     sousFamille: { type: String, default: "" },
     stockDisponible: { type: Number, default: 0 },
+    aliases: { type: [String], default: [] },
   },
   { timestamps: true },
 );
@@ -17,6 +18,7 @@ const stockProfileSchema = new mongoose.Schema(
 // La requête réelle (stockController) trie sur { type, libelle } — l'index composé sert le tri,
 // contrairement à { type: 1 } seul (cardinalité 2, inexploitable).
 stockProfileSchema.index({ type: 1, libelle: 1 });
+stockProfileSchema.index({ aliases: 1 }, { sparse: true });
 
 const StockProfile = mongoose.model("StockProfile", stockProfileSchema, "stock_profiles");
 
