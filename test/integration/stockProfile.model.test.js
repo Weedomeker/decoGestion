@@ -78,7 +78,7 @@ describe("Modèle StockProfile (intégration)", () => {
     expect(found.ref).to.equal("94953589");
   });
 
-  it("refuse les aliases dupliqués dans le même doc via le validateur", async () => {
+  it("accepte les aliases dupliqués (déduplication non gérée par le schéma)", async () => {
     const doc = await StockProfile.create({
       ref: "94953589",
       type: "profil",
