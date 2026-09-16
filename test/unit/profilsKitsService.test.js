@@ -181,6 +181,31 @@ describe("profilsKitsService.saveProfilsKits()", () => {
     expect(opts.upsert).to.be.true;
   });
 
+  it("upserte un StockProfile avec la ref numérique (modele) quand Gamesys n'expose qu'une référence client alphanumérique legacy (ex: profilés MURANEO)", async () => {
+    getDossierDetailStub.resolves({
+      profileReferences: [
+        {
+          reference: undefined,
+          articleReference: "PROFNOIR255A",
+          modele: "94964442",
+          libelle: "PROFIL NOIR 255",
+        },
+      ],
+      kitPosesReferences: [],
+      sousDossiers: [
+        {
+          enteteDevis: [{ endv_identif: "PROFIL NOIR 255", endv_quant: 1, endv_px_total: 12.5 }],
+        },
+      ],
+    });
+
+    await saveProfilsKits(fakeJob());
+
+    expect(stockArticleStub.calledOnce).to.be.true;
+    const [filter] = stockArticleStub.firstCall.args;
+    expect(filter).to.deep.equal({ ref: "94964442" });
+  });
+
   it("crée ConsommationCommande avec quantité issue de l'entête devis (profil) via upsert atomique", async () => {
     getDossierDetailStub.resolves(GROUPED_WITH_PROFIL);
 

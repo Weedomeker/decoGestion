@@ -7,6 +7,7 @@ const {
   normalizeSearchText,
   extractOrientationHint,
   labelMatchesOrientation,
+  isNumericReference,
 } = require("../gamesys/utils/reference");
 const StockProfile = require("../models/StockProfile");
 const ConsommationCommande = require("../models/ConsommationCommande");
@@ -145,6 +146,17 @@ async function getPrixVisuel({ cmd, ref, deco, format, soleDoc = false, orientat
   return Number.isFinite(prix) ? prix : undefined;
 }
 
+// r.reference/r.articleReference peuvent porter la référence client Gamesys brute
+// (st_art_ref_client, ex: "PROFNOIR255A" pour les profilés MURANEO) alors que r.modele porte le
+// code interne numérique fiable (ex: "94964442") sur la même ligne stock — sans cette préférence,
+// upsertArticle fabrique un StockProfile.ref alphanumérique à chaque commande touchant cet article,
+// y compris pour des refs déjà fusionnées manuellement dans un alias (mergeStockProfileAliases.js).
+function resolveArticleRef(r) {
+  if (isNumericReference(r.reference)) return r.reference;
+  if (isNumericReference(r.modele)) return r.modele;
+  return r.reference || r.articleReference || r.modele || r.libelle;
+}
+
 async function upsertArticle(ref, fields) {
   // Si la ref est déjà un alias d'un doc canonique, ne rien créer
   const aliasOwner = await StockProfile.findOne({ aliases: ref }).lean();
@@ -204,7 +216,7 @@ async function saveProfilsKitsFromGrouped(grouped, job) {
   const articles = [];
 
   for (const r of profileReferences) {
-    const ref = r.reference || r.articleReference || r.modele || r.libelle;
+    const ref = resolveArticleRef(r);
     if (!ref) continue;
     try {
       await upsertArticle(ref, { ...r, type: "profil" });
@@ -221,7 +233,7 @@ async function saveProfilsKitsFromGrouped(grouped, job) {
   }
 
   for (const r of kitPosesReferences) {
-    const ref = r.reference || r.articleReference || r.modele || r.libelle;
+    const ref = resolveArticleRef(r);
     if (!ref) continue;
     try {
       await upsertArticle(ref, { ...r, type: "kit" });
@@ -354,6 +366,7 @@ async function saveProfilsKitsFromGrouped(grouped, job) {
 module.exports = {
   saveProfilsKits,
   saveProfilsKitsFromGrouped,
+  resolveArticleRef,
   getQtyForArticle,
   getPrixForArticle,
   getPrixVisuel,
