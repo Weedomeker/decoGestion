@@ -299,7 +299,10 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
  else {
       visuelTag = "";
     }
-    const fileName = `${commandId}${visuelTag}${vernisTag}_${ex.split("/")[0]}.pdf`;
+    const formatTag =
+      (useSecond ? cmd.format2_visu : cmd.format_visu)
+        ?.split("_").pop()?.trim() || "unknown";
+    const fileName = `${commandId}${visuelTag}${vernisTag}_${formatTag}_${ex.split("/")[0]}.pdf`;
     await fs.promises.writeFile(`${outPath}/${fileName}`, pdfBytes);
   }
  catch (error) {
@@ -316,6 +319,23 @@ async function createStickersPage(directory, outputPath, pageSize = "A4") {
   const outputPdf = await PDFDocument.create();
   const files = fs.readdirSync(directory).filter((file) => file.endsWith(".pdf"));
   //.filter((file) => /^[\d]/.test(file));
+
+  function extractFormat(fileName) {
+    const match = fileName.match(/_([^_]+)_\d{2}\.pdf$/);
+    return match ? match[1] : "unknown";
+  }
+
+  function formatArea(fmtStr) {
+    const match = fmtStr.match(/(\d+)x(\d+)/i);
+    return match ? parseInt(match[1]) * parseInt(match[2]) : 0;
+  }
+
+  files.sort((a, b) => {
+    const idA = extractCommandId(a);
+    const idB = extractCommandId(b);
+    if (idA !== idB) return idA.localeCompare(idB);
+    return formatArea(extractFormat(b)) - formatArea(extractFormat(a));
+  });
 
   if (files.length === 0) {
     logger.error("Aucun fichier PDF trouvé dans le répertoire.");
