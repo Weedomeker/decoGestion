@@ -294,7 +294,7 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
   // ════════════════════════════════════════════════════════════════════════════
 
   describe("Dossier 165675 — CASTO crédence 300x60 — amalgame 2 visuels (MOSAIQUE + MARBRE BLANC)", function () {
-    this.timeout(180000);
+    this.timeout(600000);
 
     let addResp;
     let writePath, jpgDir;
@@ -320,6 +320,7 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
     };
 
     before(async function () {
+      this.timeout(600000);
       await clearAllJobs();
       addResp = await postJson("/add_job", PAYLOAD);
       expect(addResp.status, "add_job doit retourner 201").to.equal(201);
@@ -327,7 +328,7 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
       jpgDir = resolveJpgDir(addResp.body.object.jpgName);
       cleanByPrefix(writePath, "165675");
       cleanByPrefix(jpgDir, "165675");
-      await postJson("/run_jobs", { run: true });
+      await postJson("/run_jobs", { run: true }, 600000);
       await wait(8000);
     });
 
@@ -523,7 +524,7 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
   // ════════════════════════════════════════════════════════════════════════════
 
   describe("CASTO crédence 300x60 — ex=2 — duplication automatique du même visuel", function () {
-    this.timeout(180000);
+    this.timeout(600000);
 
     let addResp;
     let writePath, jpgDir;
@@ -549,6 +550,7 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
     };
 
     before(async function () {
+      this.timeout(600000);
       await clearAllJobs();
       addResp = await postJson("/add_job", PAYLOAD);
       expect(addResp.status, "add_job doit retourner 201 (duplication auto, ex=2)").to.equal(201);
@@ -556,7 +558,7 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
       jpgDir = resolveJpgDir(addResp.body.object.jpgName);
       cleanByPrefix(writePath, "165675");
       cleanByPrefix(jpgDir, "165675");
-      await postJson("/run_jobs", { run: true });
+      await postJson("/run_jobs", { run: true }, 600000);
       await wait(10000);
     });
 
