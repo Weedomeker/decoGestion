@@ -1,7 +1,9 @@
 const fs = require("fs");
 const path = require("path");
 
-const SOURCE_DIR = path.join(`\\\\NASSYNORS1221\\agence\\1-décokin\\ DECO-K-IN\\05 PHOTOS\\05 Photo BricoMarché`);
+const SOURCE_DIR = path.join(
+  `\\\\NASSYNORS1221\\agence\\1-décokin\\ DECO-K-IN\\05 PHOTOS\\01 Photo DecoKin\\01 VISUEL`,
+);
 const DEST_DIR = "./output";
 
 // Création dossier output
@@ -45,7 +47,8 @@ function normalize(str) {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9 ]/g, "") // nettoie caractères chelous
+    .replace(/\bu(\d)/g, "$1") // strip préfixe U des codes couleur (U535 → 535)
+    .replace(/[^a-z0-9 ]/g, "")
     .trim();
 }
 
@@ -125,6 +128,21 @@ jpgs.forEach((jpg) => {
       match = scored[0].pdf;
       fallbackUsed++;
       console.log(`⚠️ Fallback utilisé pour: ${jpg.name}`);
+    }
+  }
+
+  // 🔁 FALLBACK 2 : même dossier, sans contrainte de dimension (cas U-prefix)
+  if (!match) {
+    const sameFolderPdfs = pdfs.filter((pdf) => pdf.folder === jpg.folder);
+    const scored2 = sameFolderPdfs.map((pdf) => {
+      const common = jpg.key.words.filter((w) => pdf.key.words.includes(w) && w.length > 2);
+      return { pdf, score: common.length };
+    });
+    scored2.sort((a, b) => b.score - a.score);
+    if (scored2[0] && scored2[0].score >= 2) {
+      match = scored2[0].pdf;
+      fallbackUsed++;
+      console.log(`⚠️ Fallback dossier utilisé pour: ${jpg.name}`);
     }
   }
 

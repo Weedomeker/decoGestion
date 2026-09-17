@@ -3,7 +3,6 @@ const path = require("path");
 const { fromPath } = require("pdf2pic");
 const pLimit = require("p-limit");
 const cliProgress = require("cli-progress");
-const e = require("express");
 const logger = require("./logger/logger");
 
 // Function to send logs to the terminal
@@ -32,9 +31,10 @@ function createProgressBar(totalFiles) {
   return progressBar;
 }
 
-// Extract the reference number from the filename
+// Extrait la première séquence de 7+ chiffres isolés (lookahead/lookbehind évitent les captures partielles).
+// LM → 8 chiffres, CASTO → EAN-13 (13 chiffres), BRICO/ECOM → alphanumérique sans 7+ chiffres → retourne null.
 function extractReference(filename) {
-  const regex = /\d{7,}/;
+  const regex = /(?<!\d)\d{7,}(?!\d)/;
   const match = filename.match(regex);
   return match ? match[0] : null;
 }
@@ -66,7 +66,7 @@ async function processSinglePDF(
   counters,
   verbose,
 ) {
-  const { jpgDirectory, density, width, height } = pdfOptions;
+  const { jpgDirectory, density, height } = pdfOptions;
   const pdfFilename = path.basename(pdfPath);
   const pdfReference = extractReference(pdfFilename);
   const outputFilename = path.parse(pdfFilename).name;
@@ -85,7 +85,7 @@ async function processSinglePDF(
 
   if (existingReferences.has(pdfReference)) {
     counters.skipped++;
-  } else if (existingNames.has(outputFilename)) {
+  } else if (existingNames.has(outputFilename.toUpperCase())) {
     counters.skipped++;
   } else {
     sendLog(`Génération de la JPG pour la référence ${pdfReference}...`, verbose);
@@ -131,6 +131,27 @@ async function processAllPDFs({
   parallelLimit,
   verbose = true,
 } = {}) {
+  if (!pdfDirectory || !jpgDirectory) {
+    logger.warn(
+      `processAllPDFs ignoré: chemin manquant (pdfDirectory="${pdfDirectory}", jpgDirectory="${jpgDirectory}")`,
+    );
+    return;
+  }
+
+  try {
+    await fs.promises.access(pdfDirectory);
+  } catch {
+    logger.error(`processAllPDFs ignoré: dossier source inaccessible — ${pdfDirectory}`);
+    return;
+  }
+
+  try {
+    await fs.promises.access(jpgDirectory);
+  } catch {
+    logger.error(`processAllPDFs ignoré: dossier de destination inaccessible — ${jpgDirectory}`);
+    return;
+  }
+
   try {
     // 1. Récupérer tous les PDFs
     const pdfFiles = await findAllPDFs(pdfDirectory);
@@ -139,15 +160,15 @@ async function processAllPDFs({
     const existingJPGFiles = await fs.promises.readdir(jpgDirectory);
     const existingReferences = new Set(existingJPGFiles.map(extractReference).filter((ref) => ref !== null));
     const existingNames = new Set(
-      existingJPGFiles.map((file) => path.parse(file).name).filter((name) => name !== null),
+      existingJPGFiles.map((file) => path.parse(file).name.toUpperCase()).filter((name) => name !== null),
     );
 
     // 3. Filtrer uniquement les PDFs dont le JPG n'existe PAS encore
     const pdfsToGenerate = pdfFiles.filter((pdfPath) => {
       const ref = extractReference(path.basename(pdfPath));
-      const name = path.parse(path.basename(pdfPath)).name;
+      const name = path.parse(path.basename(pdfPath)).name.toUpperCase();
 
-      // Vérifier à la fois par référence et par nom de fichier
+      // Vérifier à la fois par référence et par nom de fichier (comparaison insensible à la casse)
       if (ref) {
         return !existingReferences.has(ref) && !existingNames.has(name);
       }

@@ -18,11 +18,15 @@ const getPreview = async (ref, jpgName, isStock) => {
     const sourcePath = path.join(previewDir, file);
     const destPath = path.resolve(`${jpgName}.jpg`);
 
-    // 🔄 Charger l'image et la tourner de 90° et si isStock ecrire Stock centrer dans l'image
+    // 🔄 Charger l'image et la tourner de 90° si la largeur est plus petite que la longueur, et si isStock ecrire Stock centrer dans l'image
     const image = await Jimp.read(sourcePath);
 
+    if (image.bitmap.width > image.bitmap.height) {
+      image.rotate(90, false);
+    }
+
     await new Promise((resolve, reject) => {
-      image.rotate(90, false).write(destPath, (err) => {
+      image.write(destPath, (err) => {
         if (err) reject(err);
         else resolve();
       });

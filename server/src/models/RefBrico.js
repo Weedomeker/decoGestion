@@ -2,13 +2,16 @@ const mongoose = require("mongoose");
 
 const refBricoSchema = new mongoose.Schema(
   {
-    ref: { type: String },
+    ref: { type: String, unique: true },
     model: { type: String },
     finition: { type: String },
     format: { type: String },
   },
   { collection: "brico_ref_deco" },
 ); // préciser le nom exact de la collection Mongo
+
+refBricoSchema.index({ model: "text", finition: "text" });
+refBricoSchema.index({ model: 1 }); // tri listReferences .sort({ model: 1 })
 
 const RefBrico = mongoose.model("RefBrico", refBricoSchema);
 

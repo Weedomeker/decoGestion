@@ -1,7 +1,6 @@
 const { PDFDocument, degrees, StandardFonts, rgb } = require("pdf-lib");
 const fs = require("fs");
-const path = require("path");
-const { cmToPoints, pointsToCm } = require("./convertUnits");
+const { cmToPoints } = require("./convertUnits");
 const logger = require("./logger/logger");
 
 // --- Placement des panneaux ---
@@ -47,7 +46,7 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
     const helveticaFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     const embeddedPanels = [];
 
-    for (let v of visuals) {
+    for (const v of visuals) {
       // --- Lire le PDF source ---
       const vBytes = await fs.promises.readFile(v.file);
       const vPdf = await PDFDocument.load(vBytes);
@@ -99,7 +98,7 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
 
     for (let i = 0; i < embeddedPanels.length; i++) {
       const p = embeddedPanels[i];
-      let pos = { ...positions[i] };
+      const pos = { ...positions[i] };
       const cx = pos.x + p.renderW / 2;
       const cy = pos.y + p.renderH / 2;
 
@@ -123,10 +122,9 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
 
     // ---Insertion des noms des fichiers---
     const checkPlateSize = plateW < 4000;
-    let xPosition = checkPlateSize ? cmToPoints(0.1) : cmToPoints(2);
-    let textSize = checkPlateSize ? 35 : 65;
+    const xPosition = checkPlateSize ? cmToPoints(0.1) : cmToPoints(2);
+    const textSize = checkPlateSize ? 35 : 65;
     const textFichiers = text.join(" + ");
-    const textWidth = helveticaFont.widthOfTextAtSize(textFichiers, textSize);
 
     page.drawText(textFichiers, {
       x: -xPosition + plateW,
@@ -158,8 +156,8 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
         });
       };
       // Calcul de la position des repères en points (en utilisant cmToPoints)
-      let regSize = cmToPoints(0.3);
-      let regPosition = regSize + cmToPoints(1);
+      const regSize = cmToPoints(0.3);
+      const regPosition = regSize + cmToPoints(1);
 
       // 1 --------------------- 4
       // 2                       |

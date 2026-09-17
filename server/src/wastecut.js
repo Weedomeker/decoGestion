@@ -5,7 +5,7 @@ function Wastcut(widthPlate, heightPlate, decWidth, decHeight) {
   const espacement = 80;
   const fraise = 0.3;
   const paths = {};
-  let layers = [];
+  const layers = [];
   let interval = heightPlate / espacement;
 
   // Check debord plaque si wastecut necessaire

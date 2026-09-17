@@ -10,18 +10,8 @@ function pointsToCm(points) {
   return points / 28.3464567;
 }
 
-// Conversion d'unité inch -> points
-function inchToPoints(inch) {
-  return inch * 72;
-}
-
-// Conversion d'unité points -> inch
-function pointsToInch(points) {
-  return points / 72;
-}
-
 function cmToPxl(cm) {
   return (96 * cm) / 2.54;
 }
 
-module.exports = { cmToPoints, pointsToCm, inchToPoints, pointsToInch, cmToPxl };
+module.exports = { cmToPoints, pointsToCm, cmToPxl };

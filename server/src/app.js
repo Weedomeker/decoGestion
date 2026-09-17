@@ -1,12 +1,10 @@
 const { degrees, PDFDocument, rgb, StandardFonts } = require("pdf-lib");
 require("dotenv").config();
-const HOST = process.env.HOST || "localhost";
-const PORT = process.env.PORT || 8000;
 const fs = require("fs");
-const { cmToPoints, pointsToCm, cmToPxl } = require("./convertUnits");
+const { cmToPoints } = require("./convertUnits");
 const logger = require("./logger/logger");
 
-async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg) {
+async function modifyPdf(filePath, writePath, fileName, formatTauro, reg) {
   try {
     const readPdf = await fs.promises.readFile(filePath);
     const pdfDoc = await PDFDocument.load(readPdf);
@@ -24,8 +22,8 @@ async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg
     const largeurPlaque = cmToPoints(largeurPlaqueCm);
     const longueurPlaque = cmToPoints(longueurPlaqueCm);
 
-    let xPosition = cmToPoints(0.5);
-    let textSize = 35;
+    const xPosition = cmToPoints(0.5);
+    const textSize = 35;
     const text = fileName;
     const textWidth = helveticaFont.widthOfTextAtSize(text, textSize);
 
@@ -40,8 +38,8 @@ async function modifyPdf(filePath, writePath, fileName, format, formatTauro, reg
         });
       };
       // Calcul de la position des repères en points (en utilisant cmToPoints)
-      let regSize = cmToPoints(0.3);
-      let regPosition = regSize + cmToPoints(1);
+      const regSize = cmToPoints(0.3);
+      const regPosition = regSize + cmToPoints(1);
       // drawRegmarks(-regPosition, height - regPosition);
       // drawRegmarks(-regPosition, height - regPosition - cmToPoints(10));
       // drawRegmarks(-regPosition, regPosition);

@@ -1,0 +1,9 @@
+.env
+.env.*
+node_modules
+client/node_modules
+*.log
+server/public/tmp
+.git
+docs
+test

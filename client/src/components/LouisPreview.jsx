@@ -1,22 +1,21 @@
-const HOST = import.meta.env.VITE_HOST;
-const PORT = import.meta.env.VITE_PORT;
 import PropTypes from "prop-types";
-import { Embed } from "semantic-ui-react";
+import { Embed, Modal } from "semantic-ui-react";
+import { API_BASE } from "../utils/api";
 
-function LouisPreview({ show }) {
-  if (show) {
-    return (
-      <div className="preview-deco">
-        <Embed active url={`http://${HOST}:${PORT}/louis`} />
-      </div>
-    );
-  } else {
-    return;
-  }
+function LouisPreview({ open, onClose }) {
+  return (
+    <Modal open={open} onClose={onClose} size="large" closeIcon>
+      <Modal.Header>Explorateur fichiers</Modal.Header>
+      <Modal.Content style={{ height: "70vh", padding: 0 }}>
+        <Embed active url={`${API_BASE}/louis`} />
+      </Modal.Content>
+    </Modal>
+  );
 }
 
 LouisPreview.propTypes = {
-  show: PropTypes.bool,
+  open: PropTypes.bool,
+  onClose: PropTypes.func,
 };
 
 export default LouisPreview;

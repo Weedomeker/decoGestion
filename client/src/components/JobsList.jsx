@@ -2,9 +2,10 @@ import PropTypes from "prop-types";
 import { useEffect, useState } from "react";
 import {
   Button,
-  ButtonContent,
   Checkbox,
+  Confirm,
   Icon,
+  Message,
   Progress,
   Table,
   TableBody,
@@ -15,15 +16,12 @@ import {
   TableRow,
 } from "semantic-ui-react";
 import "../css/JobsList.css";
-import "./InfoModal";
+import { API_BASE, WS_BASE } from "../utils/api";
 
-const HOST = import.meta.env.VITE_HOST;
-const PORT = import.meta.env.VITE_PORT;
-
-function JobsList({ show, formatTauro }) {
+function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
   const [data, setData] = useState([]);
   const [isLoading, setLoading] = useState(true);
-  const [refreshFlag, setRefreshFlag] = useState(false);
+  const [refreshFlag, setRefreshFlag] = useState(0);
   const [startTime, setStartTime] = useState(null);
   const [endTime, setEndTime] = useState(null);
   const [onLoading, setOnLoading] = useState(false);
@@ -32,6 +30,11 @@ function JobsList({ show, formatTauro }) {
   // const [stickersData, setStickersData] = useState(true);
   // const [paperSticker, setPaperSticker] = useState('A4');
   const [filter, setFilter] = useState([]);
+  const [wsConnected, setWsConnected] = useState(false);
+  const [actionError, setActionError] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [confirmClearCompleted, setConfirmClearCompleted] = useState(false);
+  const [confirmRunJobs, setConfirmRunJobs] = useState(false);
 
   useEffect(() => {
     if (data.length > 0) {
@@ -39,33 +42,21 @@ function JobsList({ show, formatTauro }) {
       if (totalJobs > 0) {
         setProgress((data[0].completed.length / totalJobs) * 100);
       }
+      onPendingCountChange?.(data[0].jobs.length);
     }
   }, [data]);
 
+  // WebSocket : connexion avec reconnexion automatique
   useEffect(() => {
-    const dataFetch = async () => {
-      try {
-        const response = await fetch(`http://${HOST}:${PORT}/jobs/`, { method: "GET" });
-        const res = await response.json();
-        setData([{ jobs: res.jobs, completed: res.completed }]);
-        setLoading(false);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        setLoading(false);
-      }
-    };
-    dataFetch();
+    let ws;
+    let reconnectTimer;
+    let unmounted = false;
 
-    const ws = new WebSocket(`ws://${HOST}:${PORT}`);
-    ws.onopen = () => {
-      console.log("Connected to WebSocket server");
-    };
-
-    ws.onmessage = (event) => {
+    function handleMessage(event) {
       const message = JSON.parse(event.data);
 
       if (message.type === "update") {
-        setRefreshFlag((prev) => !prev);
+        setRefreshFlag((prev) => prev + 1);
       }
 
       if (message.type === "start") {
@@ -76,21 +67,12 @@ function JobsList({ show, formatTauro }) {
       if (message.completedJob) {
         setData((prevData) => {
           const prev = prevData[0];
-
-          // Toujours transformer recu en tableau
+          if (!prev) return prevData;
           const completedJobs = Array.isArray(message.completedJob) ? message.completedJob : [message.completedJob];
-
-          // Ajouter les jobs complétés au tableau completed
           const updatedCompleted = [...prev.completed, ...completedJobs];
-
-          // Supprimer ces jobs de la liste jobs
           const updatedJobs = prev.jobs.filter((job) => !completedJobs.some((cj) => cj._id === job._id));
-
-          // Mise à jour de la progression
           const total = updatedCompleted.length + updatedJobs.length;
-          const newProgress = (updatedCompleted.length / total) * 100;
-          setProgress(newProgress);
-
+          setProgress((updatedCompleted.length / total) * 100);
           return [{ jobs: updatedJobs, completed: updatedCompleted }];
         });
       }
@@ -98,27 +80,64 @@ function JobsList({ show, formatTauro }) {
       if (message.type === "end") {
         setEndTime(message.endTime);
         setOnLoading(false);
-        setProgress(100); // S'assurer que la barre affiche bien 100% à la fin
+        setProgress(100);
       }
-    };
+    }
 
-    ws.onclose = () => {
-      console.log("Disconnected from WebSocket server");
-    };
+    let attempt = 0;
+    const MAX_DELAY = 30000;
 
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-    };
+    function connect() {
+      ws = new WebSocket(WS_BASE);
+      ws.onopen = () => {
+        attempt = 0;
+        setWsConnected(true);
+      };
+      ws.onmessage = handleMessage;
+      ws.onerror = () => {
+        setWsConnected(false);
+      };
+      ws.onclose = () => {
+        setWsConnected(false);
+        if (!unmounted) {
+          const delay = Math.min(1000 * Math.pow(2, attempt), MAX_DELAY);
+          attempt++;
+          reconnectTimer = setTimeout(connect, delay);
+        }
+      };
+    }
+
+    connect();
 
     return () => {
-      ws.close();
+      unmounted = true;
+      clearTimeout(reconnectTimer);
+      if (ws) ws.close();
     };
-  }, [show, refreshFlag]);
+  }, []);
+
+  // Fetch des données : déclenché au montage, quand show change, ou quand refreshFlag s'incrémente
+  useEffect(() => {
+    const dataFetch = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/jobs/`, { method: "GET" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const res = await response.json();
+        setData([{ jobs: res.jobs, completed: res.completed }]);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        setLoading(false);
+      }
+    };
+    dataFetch();
+  }, [refreshFlag, refreshToken]);
 
   useEffect(() => {
     const dataFetch = async () => {
       try {
-        const response = await fetch(`http://${HOST}:${PORT}/config/`, { method: "GET" });
+        const response = await fetch(`${API_BASE}/config/`, { method: "GET" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const res = await response.json();
         setFilter(res.vernis);
       } catch (error) {
@@ -129,20 +148,20 @@ function JobsList({ show, formatTauro }) {
   }, []);
 
   const handleGenerateStickers = async () => {
+    setActionError(null);
     try {
-      const response = await fetch(`http://${HOST}:${PORT}/generate_stickers`, {
+      const response = await fetch(`${API_BASE}/generate_stickers`, {
         method: "POST",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
       });
 
       if (!response.ok) {
-        console.error("Failed to generate stickers:", response.statusText);
-        return;
+        const result = await response.json().catch(() => ({}));
+        setActionError(result.error || `Erreur génération stickers (${response.status})`);
       }
-
-      console.log("Stickers generated successfully");
     } catch (error) {
-      console.error("Error deleting jobs:", error);
+      console.error("Error generating stickers:", error);
+      setActionError("Impossible de contacter le serveur.");
     }
   };
 
@@ -164,81 +183,75 @@ function JobsList({ show, formatTauro }) {
   };
 
   const runJobsList = async () => {
+    setActionError(null);
     try {
-      const response = await fetch(`http://${HOST}:${PORT}/run_jobs`, {
-        method: "POST",
-        headers: { Accept: "application/json", "Content-Type": "application/json" },
-        body: JSON.stringify({
-          run: true,
-          formatTauro: formatTauro,
-          // sortFolder: sortFolder,
-          // stickersData: stickersData,
-          // paperSticker: paperSticker,
-        }),
-      });
+      if (nbJobs > 0) {
+        const response = await fetch(`${API_BASE}/run_jobs`, {
+          method: "POST",
+          headers: { Accept: "application/json", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            run: true,
+            formatTauro: formatTauro,
+          }),
+        });
 
-      if (!response.ok) {
-        console.error("Failed to run jobs:", response.statusText);
-        return;
+        if (!response.ok) {
+          const result = await response.json().catch(() => ({}));
+          setActionError(result.error || `Erreur traitement des jobs (${response.status})`);
+          return;
+        }
+        setRefreshFlag((prev) => prev + 1);
       }
-      setRefreshFlag((prev) => !prev);
     } catch (error) {
       console.error("Error running jobs:", error);
+      setActionError("Impossible de contacter le serveur.");
     }
   };
 
   const handleDeleteJob = async (id) => {
+    setActionError(null);
     try {
-      const response = await fetch(`http://${HOST}:${PORT}/delete_job`, {
+      const response = await fetch(`${API_BASE}/delete_job`, {
         method: "DELETE",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
-        body: JSON.stringify({ _id: id }), // Envoie l'ID du job à supprimer
+        body: JSON.stringify({ _id: id }),
       });
 
-      // Gestion de la réponse de suppression
       if (!response.ok) {
-        console.error("Failed to delete job:", response.statusText);
+        const result = await response.json().catch(() => ({}));
+        setActionError(result.error || `Erreur suppression du job (${response.status})`);
         return;
       }
 
-      console.log("Job deleted successfully");
-
       // Mise à jour de l'état après la suppression réussie
-      const updateJobs = data[0].jobs.filter((item) => item._id !== id);
-
-      setData((prevData) => [
-        {
-          ...prevData[0],
-          jobs: updateJobs,
-        },
-      ]);
+      setData((prevData) => [{ ...prevData[0], jobs: prevData[0].jobs.filter((item) => item._id !== id) }]);
     } catch (error) {
       console.error("Error deleting job:", error);
+      setActionError("Impossible de contacter le serveur.");
     }
   };
 
   const handleDeleteJobComplete = async () => {
-    setData((prevData) => [
-      {
-        ...prevData[0],
-        completed: [],
-      },
-    ]);
+    setActionError(null);
+    const snapshot = data[0]?.completed ?? [];
+    setData((prevData) => [{ ...prevData[0], completed: [] }]);
     try {
-      const response = await fetch(`http://${HOST}:${PORT}/delete_job_completed`, {
+      const response = await fetch(`${API_BASE}/delete_job_completed`, {
         method: "DELETE",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({ clear: true }),
       });
 
       if (!response.ok) {
-        console.error("Failed to delete all jobs:", response.statusText);
-        return;
+        // Restaurer l'état si l'appel a échoué
+        setData((prevData) => [{ ...prevData[0], completed: snapshot }]);
+        const result = await response.json().catch(() => ({}));
+        setActionError(result.error || `Erreur suppression des jobs terminés (${response.status})`);
       }
-
-      console.log("Jobs deleted successfully");
     } catch (error) {
       console.error("Error deleting jobs:", error);
+      setData((prevData) => [{ ...prevData[0], completed: snapshot }]);
+      setActionError("Impossible de contacter le serveur.");
     }
   };
 
@@ -273,7 +286,7 @@ function JobsList({ show, formatTauro }) {
             },
           ];
           // Si credences → ajouter la deuxième ligne
-          if (value.format_visu.match(/\d{3}x\d{2,}/i) && value.visuel2) {
+          if (value.format_visu && value.format_visu.match(/\d{3}x\d{2,}/i) && value.visuel2) {
             entries.push({
               ...baseEntry,
               cmd: value.cmd2,
@@ -287,7 +300,7 @@ function JobsList({ show, formatTauro }) {
           // Générer les lignes (1 pour LM, 2 pour CASTO)
           return entries.map((entry, idx) => {
             const title = entry.jpgName?.split("/")?.pop() ?? "";
-            const url = `http://${HOST}:${PORT}/public/` + entry.jpgName.replace(/#/i, "%23");
+            const url = `${API_BASE}/public/` + entry.jpgName.replace(/#/i, "%23");
 
             let visuelName = entry.visuel?.split("/")?.pop() ?? "";
             const regexFormat = visuelName.match(/\d{3}x\d{2,}/i);
@@ -320,6 +333,7 @@ function JobsList({ show, formatTauro }) {
                 key={`${i}-${idx}`}
                 disabled={status === "jobs" ? onLoading : null}
                 className="table-row"
+                data-client={entry.client}
                 style={value.teinteMasse ? { color: "#fc7703", fontWeight: "bold" } : null}
               >
                 <TableCell>{entry.client}</TableCell>
@@ -340,19 +354,24 @@ function JobsList({ show, formatTauro }) {
                 <TableCell>{checkVernis(entry.visuel)?.slice(0, 1)?.toUpperCase()}</TableCell>
                 <TableCell>{entry.format_visu?.split("_").pop()}</TableCell>
                 <TableCell>{entry.format_Plaque?.split("_").pop()}</TableCell>
-                <TableCell>{entry.ex}</TableCell>
-                <TableCell>{entry.cut ? <Icon name="cut" /> : null}</TableCell>
+                <TableCell>
+                  {entry.ex}
+                  {entry.cut ? <Icon name="cut" size="tiny" fitted style={{ marginLeft: "3px", opacity: 0.55 }} /> : null}
+                </TableCell>
 
                 {status === "jobs" ? (
                   <TableCell>
                     <Button
                       compact
                       size="mini"
-                      color="grey"
-                      onClick={() => handleDeleteJob(entry.jobId)}
+                      color="red"
+                      className="row-delete-btn"
+                      onClick={() => setConfirmDeleteId(entry.jobId)}
                       disabled={onLoading}
+                      title="Supprimer ce job de la file"
+                      aria-label="Supprimer ce job de la file"
                     >
-                      <Icon name="remove" fitted inverted />
+                      <Icon name="remove" fitted />
                     </Button>
                   </TableCell>
                 ) : (
@@ -365,8 +384,21 @@ function JobsList({ show, formatTauro }) {
       : [];
 
     const newTable = !isLoading && (
-      <div className="jobs-table-container">
-        <Table size="small" compact columns={"11"} className="jobs-table" striped>
+      <div className="jobs-table-wrapper">
+        <div className="jobs-table-container">
+        <Table size="small" compact columns={"10"} className="jobs-table" striped>
+          <colgroup>
+            <col style={{ width: "56px" }} />
+            <col style={{ width: "120px" }} />
+            <col style={{ width: "80px" }} />
+            <col style={{ width: "100px" }} />
+            <col style={{ width: "auto" }} />
+            <col style={{ width: "64px" }} />
+            <col style={{ width: "70px" }} />
+            <col style={{ width: "70px" }} />
+            <col style={{ width: "48px" }} />
+            <col style={{ width: "60px" }} />
+          </colgroup>
           <TableHeader className="sticky-header">
             <TableRow className="table-row">
               <TableHeaderCell>Clients</TableHeaderCell>
@@ -379,7 +411,6 @@ function JobsList({ show, formatTauro }) {
               <TableHeaderCell>Plaques</TableHeaderCell>
               <TableHeaderCell>Ex</TableHeaderCell>
               <TableHeaderCell />
-              <TableHeaderCell />
             </TableRow>
           </TableHeader>
 
@@ -390,7 +421,7 @@ function JobsList({ show, formatTauro }) {
           {status === "jobs" && (
             <TableFooter className="sticky-footer">
               <TableRow>
-                <TableHeaderCell colSpan="11" collapsing>
+                <TableHeaderCell colSpan="10" collapsing>
                   <div className="sticky-footer-content">
                     <div className="checkbox-footer">
                       {!onLoading &&
@@ -398,32 +429,24 @@ function JobsList({ show, formatTauro }) {
                           <Button
                             type="button"
                             color="green"
-                            animated="fade"
                             size="small"
                             compact
+                            icon="file text"
+                            content="Générer stickers"
                             onClick={() => handleGenerateStickers()}
                             disabled={onLoading}
-                          >
-                            <ButtonContent visible>
-                              <Icon name="file text" inverted />
-                            </ButtonContent>
-                            <ButtonContent hidden content="Générer stickers" />
-                          </Button>
+                          />
                         ) : (
                           <Button
                             type="button"
                             color="red"
-                            animated="fade"
                             size="small"
                             compact
-                            onClick={() => runJobsList()}
-                            disabled={onLoading}
-                          >
-                            <ButtonContent visible>
-                              <Icon name="send" inverted />
-                            </ButtonContent>
-                            <ButtonContent hidden content="Traiter la file" />
-                          </Button>
+                            icon="send"
+                            content="Traiter la file"
+                            onClick={() => setConfirmRunJobs(true)}
+                            disabled={onLoading || nbJobs === 0}
+                          />
                         ))}
 
                       {!onLoading && (
@@ -455,14 +478,16 @@ function JobsList({ show, formatTauro }) {
           {status === "completed" && (
             <TableFooter className="sticky-footer">
               <TableRow>
-                <TableHeaderCell colSpan="11" collapsing>
+                <TableHeaderCell colSpan="10" collapsing>
                   <div className="sticky-footer-content">
-                    <Button animated="fade" color="red" size="small" compact onClick={() => handleDeleteJobComplete()}>
-                      <ButtonContent hidden content="Clear" />
-                      <ButtonContent visible>
-                        <Icon name="warning circle" />
-                      </ButtonContent>
-                    </Button>
+                    <Button
+                      color="red"
+                      size="small"
+                      compact
+                      icon="warning circle"
+                      content="Vider l'historique"
+                      onClick={() => setConfirmClearCompleted(true)}
+                    />
 
                     {executionTime && (data?.[0]?.jobs?.length ?? 0) === 0 && (
                       <pre>
@@ -478,30 +503,102 @@ function JobsList({ show, formatTauro }) {
             </TableFooter>
           )}
         </Table>
+        </div>
       </div>
     );
 
     return newTable;
   };
 
+  const nbJobs = data?.[0]?.jobs?.length ?? 0;
+  const nbCompleted = data?.[0]?.completed?.length ?? 0;
+
   const jobs = ItemsJob("jobs");
   const completed = ItemsJob("completed");
 
-  if (show) {
-    return (
-      <div className="preview-deco">
-        {jobs}
-        {completed}
-      </div>
-    );
-  } else {
-    return null;
-  }
+  return (
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+      {!wsConnected && (
+        <div
+          style={{
+            background: "var(--warning-soft)",
+            color: "var(--warning)",
+            padding: "4px 10px",
+            fontSize: "0.85em",
+            borderBottom: "1px solid var(--warning)",
+          }}
+        >
+          ⚠ Temps réel déconnecté — reconnexion en cours…
+        </div>
+      )}
+      {actionError && (
+        <div
+          style={{
+            background: "var(--danger-soft)",
+            color: "var(--danger)",
+            padding: "4px 10px",
+            fontSize: "0.85em",
+            borderBottom: "1px solid var(--danger)",
+            cursor: "pointer",
+          }}
+          onClick={() => setActionError(null)}
+        >
+          ✕ {actionError}
+        </div>
+      )}
+      <div className="jobs-section-label">File en attente ({nbJobs})</div>
+      {jobs}
+      {nbCompleted > 0 && (
+        <div className="jobs-section-label jobs-section-label--completed">Traités ({nbCompleted})</div>
+      )}
+      {nbCompleted > 0 && completed}
+
+      <Confirm
+        open={confirmDeleteId !== null}
+        header="Supprimer ce job ?"
+        content="Ce job sera retiré de la file en attente. Cette action est irréversible."
+        confirmButton="Supprimer"
+        cancelButton="Annuler"
+        onCancel={() => setConfirmDeleteId(null)}
+        onConfirm={() => {
+          handleDeleteJob(confirmDeleteId);
+          setConfirmDeleteId(null);
+        }}
+      />
+
+      <Confirm
+        open={confirmClearCompleted}
+        header="Vider l'historique des jobs traités ?"
+        content={`${nbCompleted} job${nbCompleted > 1 ? "s" : ""} traité${nbCompleted > 1 ? "s" : ""} seront définitivement supprimés de l'historique.`}
+        confirmButton="Vider"
+        cancelButton="Annuler"
+        onCancel={() => setConfirmClearCompleted(false)}
+        onConfirm={() => {
+          handleDeleteJobComplete();
+          setConfirmClearCompleted(false);
+        }}
+      />
+
+      <Confirm
+        open={confirmRunJobs}
+        header="Traiter la file ?"
+        content={`${nbJobs} job${nbJobs > 1 ? "s" : ""} en attente vont être traités (génération PDF/découpe). Cette opération peut prendre du temps.`}
+        confirmButton="Traiter"
+        cancelButton="Annuler"
+        onCancel={() => setConfirmRunJobs(false)}
+        onConfirm={() => {
+          runJobsList();
+          setConfirmRunJobs(false);
+        }}
+      />
+    </div>
+  );
 }
 
 JobsList.propTypes = {
-  show: PropTypes.bool,
   formatTauro: PropTypes.array,
+  refreshToken: PropTypes.number,
+  onPendingCountChange: PropTypes.func,
 };
 
 export default JobsList;
