@@ -13,6 +13,8 @@ const { expect } = require("chai");
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const mongoose = require("mongoose");
+const connectMongo = require("../../server/src/mongoose");
 const Deco = require("../../server/src/models/Deco");
 
 // Chargement optionnel : requiert odbc (pilote natif), absent sur certaines machines
@@ -113,6 +115,21 @@ function findFilesInDir(dir, suffix) {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe("Crédences CASTO et BRICO — exécution complète", function () {
+  // Un fichier de test model précédent (mongoTestHelper) peut avoir fermé la connexion
+  // Mongoose partagée (mongoose.connection.close()) — les Deco.deleteMany des "after" ci-dessous
+  // ont besoin d'une vraie connexion à la base "Test", indépendamment de l'état laissé par les
+  // autres fichiers.
+  before(async function () {
+    this.timeout(30000);
+    if (mongoose.connection.readyState !== 1) await connectMongo();
+  });
+  // Referme la connexion qu'on vient d'ouvrir : sinon elle reste active pour les fichiers de test
+  // suivants, qui échouent en essayant d'ouvrir leur propre connexion (mongoTestHelper, base
+  // en mémoire) avec une URI différente sur la connexion Mongoose partagée.
+  after(async function () {
+    this.timeout(15000);
+    await mongoose.connection.close();
+  });
 
   // ════════════════════════════════════════════════════════════════════════════
   // 1. normalizeDossierApiPayload — détection du format crédence (unitaire)
