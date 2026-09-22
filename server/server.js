@@ -27,6 +27,7 @@ const { processJob } = require("./src/controllers/jobsController");
 const { syncConsommationsHistorique } = require("./src/services/gamesysConsommationSyncService");
 const { backfillRecentDecoData } = require("./src/services/startupPrixBackfillService");
 const { syncDecoStubsDepuisGamesys } = require("./src/services/decoGamesysStubSyncService");
+const { syncAnnulationsDepuisGamesys } = require("./src/services/decoAnnulationSyncService");
 
 const PORT = process.env.PORT || 8000;
 
@@ -265,4 +266,20 @@ server.listen(PORT, async () => {
       logger.warn(`Sync stubs Deco échouée : ${error.message}`);
     }
   }, DECO_STUB_SYNC_INITIAL_DELAY_MS);
+
+  // Vérification unique au démarrage : les stubs Deco encore en "A lancer" (gamesysStub:true,
+  // donc jamais réclamés par un job) dont la commande a depuis été annulée dans Gamesys basculent
+  // en status "Annulé" — évite qu'un job annulé reste affiché comme "à traiter". Porte sur tous
+  // les stubs "A lancer" existants, pas seulement les récents (cf. decoAnnulationSyncService) :
+  // programmée après la sync de stubs ci-dessus pour vérifier la population à jour.
+  const ANNULATION_SYNC_INITIAL_DELAY_MS = 4 * 60 * 1000;
+
+  setTimeout(async () => {
+    try {
+      const resume = await syncAnnulationsDepuisGamesys();
+      logger.info(`Sync annulations Gamesys : ${JSON.stringify(resume)}`);
+    } catch (error) {
+      logger.warn(`Sync annulations Gamesys échouée : ${error.message}`);
+    }
+  }, ANNULATION_SYNC_INITIAL_DELAY_MS);
 });

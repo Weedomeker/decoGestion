@@ -1185,6 +1185,45 @@ async function listCommandesRecentes({ sinceDate, client } = {}) {
   return client ? all.filter((c) => c.client === client) : all;
 }
 
+// endv_date_annul n'est jamais NULL côté Gamesys : une sentinelle '1900-01-01' signifie "pas
+// annulé", une vraie date signifie annulé. Quelques dossiers legacy portent une date d'annulation
+// antérieure à leur date de commande (donnée incohérente, vérifié manuellement) — on les exclut
+// via la comparaison annul >= cmde plutôt que de se fier à endv_statut_dossier (valeurs numériques
+// non documentées côté Gamesys).
+const SENTINEL_PAS_ANNULE = "1900-01-01";
+
+function toDateOnly(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
+// Interroge fd_entete_devi pour un lot de numéros de commande (format "cmd/sousDossier", ex:
+// "168251/00") et renvoie ceux réellement annulés parmi eux.
+async function checkAnnulations(connection, numeroCommandes) {
+  const numeros = (numeroCommandes || []).filter(Boolean);
+  if (numeros.length === 0) return [];
+
+  const numerosText = sqlTextList(numeros);
+  const rows = await query(
+    connection,
+    `
+    select endv_no_commande, endv_date_cmde, endv_date_annul
+    from public.fd_entete_devi
+    where endv_no_commande in (${numerosText})
+  `
+  );
+
+  return rows
+    .filter((row) => {
+      const annul = toDateOnly(row.endv_date_annul);
+      const cmde = toDateOnly(row.endv_date_cmde);
+      return annul && annul !== SENTINEL_PAS_ANNULE && cmde && annul >= cmde;
+    })
+    .map((row) => row.endv_no_commande);
+}
+
 async function searchDossiers({ q = "", limit = 10 } = {}) {
   const search = String(q || "").trim();
   if (search.length < 2) return [];
@@ -1544,6 +1583,7 @@ module.exports = {
   listDossiers,
   listCommandesAvecProfilsKits,
   listCommandesRecentes,
+  checkAnnulations,
   groupCandidatesFromRows,
   groupAllCandidatesFromRows,
   searchDossiers,
