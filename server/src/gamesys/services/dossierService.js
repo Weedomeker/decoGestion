@@ -47,8 +47,15 @@ function getPreferredRefModel(dosClient) {
 // Mapping dos_client (Gamesys) → enum client applicatif (ConsommationCommande.client)
 const CLIENT_APP_NAME = { LM: "LM", CAS: "CASTO", BM: "BRICO", ECOM: "ECOM" };
 
+// Comptes internes magasin Leroy Merlin (LM047M, LM295M, ...) : achats PLV/signalétique showroom
+// (vitrophanies, moulures, ILV, facturation), pas des commandes déco — mesuré sur 2025-2026,
+// 31/32 commandes sans aucun visuel/profil/kit. Exclus volontairement, y compris la rare exception.
+// Toujours "préfixe connu" pour hasKnownClientPrefix → pas repêchés non plus par le catalogue.
+const COMPTE_INTERNE_MAGASIN_LM = /^LM\d+M$/;
+
 function mapDosClientToAppClient(dosClient) {
   const key = String(dosClient || "").toUpperCase();
+  if (COMPTE_INTERNE_MAGASIN_LM.test(key)) return null;
   for (const prefix of Object.keys(CLIENT_APP_NAME)) {
     if (key.startsWith(prefix)) return CLIENT_APP_NAME[prefix];
   }
