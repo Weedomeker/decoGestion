@@ -29,7 +29,7 @@ async function createSymlink(target, dir, pathUpdate) {
 
   // 3. Si le lien existe déjà et pointe vers la bonne cible → rien à faire
   if (existingTarget !== null && normalizePath(existingTarget) === normalizePath(target)) {
-    logger.info(`Symlink ${pathUpdate ? "inchangé" : "déjà présent"}: ${path.basename(dir)}`);
+    logger.debug(`Symlink ${pathUpdate ? "inchangé" : "déjà présent"}: ${path.basename(dir)}`);
     return { ok: true };
   }
 
@@ -64,7 +64,7 @@ async function createSymlink(target, dir, pathUpdate) {
     return { ok: true };
   } catch (e) {
     if (e.code === "EEXIST") {
-      logger.info(`Symlink déjà présent: ${path.basename(dir)}`);
+      logger.debug(`Symlink déjà présent: ${path.basename(dir)}`);
       return { ok: true };
     }
     if (e.code === "EPERM") {

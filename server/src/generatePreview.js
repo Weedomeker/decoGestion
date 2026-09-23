@@ -199,7 +199,7 @@ async function processAllPDFs({
     progressBar.stop();
 
     logger.info(
-      `✅ Traitement terminé (${path.basename(pdfDirectory)}): 🖼️  ${counters.generated} générés | ✅ ${counters.skipped} ignorés | ❌ ${counters.failure} échoués.`,
+      `Aperçus PDF ${path.basename(pdfDirectory)} : ${counters.generated} générés · ${counters.skipped} déjà à jour · ${counters.failure} échecs`,
     );
   } catch (error) {
     logger.error(`❌ Error: ${error.message}`);

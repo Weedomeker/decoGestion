@@ -32,8 +32,21 @@ fileRotateTransport.on("error", (err) => {
   console.error("[Logger] Transport NAS inaccessible:", err.message);
 });
 
+// Console : "HH:mm:ss  INFO   message", niveau coloré et aligné (le fichier garde le format
+// horodaté complet ci-dessus, sans codes couleur).
+const LEVEL_COLORS = { error: "\x1b[31m", warn: "\x1b[33m", info: "\x1b[36m", debug: "\x1b[90m" };
+const DIM = "\x1b[90m";
+const RESET = "\x1b[0m";
+
 const consoleTransport = new winston.transports.Console({
-  format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
+  format: winston.format.combine(
+    winston.format.timestamp({ format: "HH:mm:ss" }),
+    winston.format.printf((info) => {
+      const color = LEVEL_COLORS[info.level] || "";
+      const level = info.level.toUpperCase().padEnd(5);
+      return `${DIM}${info.timestamp}${RESET}  ${color}${level}${RESET}  ${info.message}`;
+    }),
+  ),
 });
 
 const logger = winston.createLogger({

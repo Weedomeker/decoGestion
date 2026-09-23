@@ -38,6 +38,8 @@ async function linkFolders(pathUpdate) {
     }
   }
 
+  if (success.length) logger.info(`Symlinks OK : ${success.map((k) => k.toUpperCase()).join(", ")}`);
+
   return { success, failed };
 }
 
