@@ -120,7 +120,6 @@ describe("profilsKitsService.saveProfilsKits()", () => {
 
   afterEach(() => {
     sinon.restore();
-    delete process.env.GAMESYS_QUERY_TIMEOUT_MS;
   });
 
   const fakeJob = (cmd = 164629, client = "LM") => ({ cmd, client });
@@ -315,16 +314,6 @@ describe("profilsKitsService.saveProfilsKits()", () => {
 
   it("retourne false (pas undefined) si getDossierDetail échoue, pour que l'appelant distingue un vrai échec d'un \"rien à faire\"", async () => {
     getDossierDetailStub.rejects(new Error("ODBC timeout"));
-
-    const result = await saveProfilsKits(fakeJob());
-
-    expect(result).to.equal(false);
-    expect(consommationUpsertStub.called).to.be.false;
-  });
-
-  it("n'attend pas indéfiniment et retourne false si getDossierDetail ne répond jamais dans le délai imparti", async () => {
-    process.env.GAMESYS_QUERY_TIMEOUT_MS = "20";
-    getDossierDetailStub.returns(new Promise(() => {})); // ne se résout jamais (connexion ODBC dégradée)
 
     const result = await saveProfilsKits(fakeJob());
 

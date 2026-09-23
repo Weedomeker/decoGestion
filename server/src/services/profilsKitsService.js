@@ -167,22 +167,7 @@ async function upsertArticle(ref, fields) {
   );
 }
 
-// Le pool de connexions ODBC (gamesys/config/db.js) peut se dégrader sévèrement (une connexion
-// normalement <1s peut monter à ~30s) après plusieurs cycles connect/close dans le même process —
-// observé en conditions réelles sur syncConsommationsHistorique (concurrency:3), qui restait bloqué
-// des dizaines de minutes sans jamais achever un candidat. Un timeout dur borne les dégâts : au-delà,
-// on traite ça comme l'échec ODBC déjà géré ci-dessous (return false, retenté au cycle suivant)
-// plutôt que de laisser l'appelant (sync récurrente ou job utilisateur) bloqué indéfiniment.
-function withTimeout(promise, ms, label) {
-  let timer;
-  const timeout = new Promise((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`Timeout Gamesys après ${ms}ms (${label})`)), ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-}
-
 async function saveProfilsKits(job) {
-  const timeoutMs = parseInt(process.env.GAMESYS_QUERY_TIMEOUT_MS, 10) || 10000;
   let grouped;
   try {
     // view:"full" (pas "summary") : buildDetail() exécute le même travail Gamesys quel que soit le
@@ -192,11 +177,13 @@ async function saveProfilsKits(job) {
     // ODBC dédiées supplémentaires (ex-fetchDossierCommandeInfo/fetchDossierFormatPlaque) par
     // commande — la clé "livraison" (singulier, sous-ensemble de champs) de la vue "summary" devient
     // "livraisons" (pluriel, lignes brutes complètes) en vue "full".
-    grouped = await withTimeout(
-      dossierService.getDossierDetail({ commande: String(job.cmd), view: "full" }),
-      timeoutMs,
-      `getDossierDetail cmd=${job.cmd}`
-    );
+    //
+    // Pas de timeout ici : un timeout "Promise.race" arrête d'ATTENDRE l'appel ODBC sans l'ANNULER —
+    // l'opération réelle continue de tourner et de garder sa connexion. Combiné à concurrency:3 côté
+    // syncConsommationsHistorique, ça casse la comptabilité de p-limit (qui pense une place libérée
+    // alors que la connexion est toujours occupée) et accumule la charge réelle sur le pool au lieu de
+    // la plafonner — vérifié en conditions réelles le 22/09/2026 (testé et retiré pour cette raison).
+    grouped = await dossierService.getDossierDetail({ commande: String(job.cmd), view: "full" });
   } catch (err) {
     logger.warn(`saveProfilsKits: getDossierDetail échoué pour cmd=${job.cmd} : ${err.message}`);
     // false (pas undefined) : signale un vrai échec à l'appelant sans lever d'exception (jobsController
