@@ -37,7 +37,7 @@ describe("decoAnnulationSyncService.syncAnnulationsDepuisGamesys()", () => {
     expect(checkAnnulationsStub.called).to.be.false;
   });
 
-  it("bascule en \"Annulé\" un stub dont le sous-dossier est annulé côté Gamesys", async () => {
+  it("bascule en \"annule\" un stub dont le sous-dossier est annulé côté Gamesys", async () => {
     leanStub.resolves([{ _id: "id1", numCmd: 168217, sousDossier: "00", pkOnly: false }]);
     checkAnnulationsStub.resolves(["168217/00"]);
 
@@ -45,7 +45,7 @@ describe("decoAnnulationSyncService.syncAnnulationsDepuisGamesys()", () => {
 
     expect(resume).to.deep.equal({ candidats: 1, annules: 1, erreurs: 0 });
     expect(checkAnnulationsStub.calledOnceWith(fakeConnection, ["168217/00"])).to.be.true;
-    expect(updateOneStub.calledOnceWith({ _id: "id1" }, { $set: { status: "Annulé" } })).to.be.true;
+    expect(updateOneStub.calledOnceWith({ _id: "id1" }, { $set: { status: "annule" } })).to.be.true;
   });
 
   it("ne touche pas un stub dont le sous-dossier n'est pas annulé côté Gamesys", async () => {
@@ -65,7 +65,7 @@ describe("decoAnnulationSyncService.syncAnnulationsDepuisGamesys()", () => {
     const resume = await syncAnnulationsDepuisGamesys();
 
     expect(resume).to.deep.equal({ candidats: 1, annules: 1, erreurs: 0 });
-    expect(updateOneStub.calledOnceWith({ _id: "idPk" }, { $set: { status: "Annulé" } })).to.be.true;
+    expect(updateOneStub.calledOnceWith({ _id: "idPk" }, { $set: { status: "annule" } })).to.be.true;
   });
 
   it("ne bascule pas un stub pkOnly partiellement annulé (annulation incomplète)", async () => {
@@ -87,7 +87,7 @@ describe("decoAnnulationSyncService.syncAnnulationsDepuisGamesys()", () => {
 
     expect(resume).to.deep.equal({ candidats: 1, annules: 1, erreurs: 0 });
     expect(checkAnnulationsParCommandeStub.calledOnceWith(fakeConnection, [168051])).to.be.true;
-    expect(updateOneStub.calledOnceWith({ _id: "idPk" }, { $set: { status: "Annulé" } })).to.be.true;
+    expect(updateOneStub.calledOnceWith({ _id: "idPk" }, { $set: { status: "annule" } })).to.be.true;
   });
 
   it("ne bascule pas un stub pkOnly sans sousDossiers dont la commande n'est pas entièrement annulée", async () => {

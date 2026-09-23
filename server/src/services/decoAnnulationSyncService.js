@@ -4,7 +4,7 @@ const dbConfig = require("../gamesys/config/db");
 const { closeConnection } = require("../gamesys/lib/db");
 const Deco = require("../models/Deco");
 
-// Bascule status:"A lancer" -> "Annulé" sur les stubs Gamesys proactifs (gamesysStub:true, cf.
+// Bascule status:"A lancer" -> "annule" sur les stubs Gamesys proactifs (gamesysStub:true, cf.
 // decoGamesysStubSyncService.js) dont la commande a été annulée depuis dans Gamesys. Porte sur
 // TOUS les stubs "A lancer" existants (pas de fenêtre glissante) : un stub peut rester en attente
 // plusieurs jours avant d'être réclamé par l'utilisateur, et une annulation peut survenir bien
@@ -62,7 +62,10 @@ async function syncAnnulationsDepuisGamesys({ dryRun = false } = {}) {
 
     resume.annules += 1;
     if (!dryRun) {
-      await Deco.updateOne({ _id: stub._id }, { $set: { status: "Annulé" } });
+      // "annule" (minuscule, sans accent) : valeur utilisée en prod pour les commandes annulées,
+      // aux côtés de "expe"/"decoupe"/"print" — écrite aussi par l'autre application qui partage
+      // la base. Ne pas mettre "Annulé", qui n'y serait pas reconnu.
+      await Deco.updateOne({ _id: stub._id }, { $set: { status: "annule" } });
     }
   }
 
