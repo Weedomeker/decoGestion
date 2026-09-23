@@ -17,8 +17,17 @@ async function syncAnnulationsDepuisGamesys({ dryRun = false } = {}) {
 
   const sousDossiersDuStub = (stub) => (stub.pkOnly ? stub.sousDossiers || [] : [stub.sousDossier].filter(Boolean));
 
+  // Stubs pkOnly créés par la sync de stubs sans sousDossiers (seul profilsKitsService ou le
+  // backfill manuel les renseignent) : vérifiés au niveau de la commande entière.
+  const sansSousDossiers = (stub) => stub.pkOnly && sousDossiersDuStub(stub).length === 0;
+
   const numeros = new Set();
+  const numCmdsSansSousDossiers = new Set();
   for (const stub of stubs) {
+    if (sansSousDossiers(stub)) {
+      numCmdsSansSousDossiers.add(stub.numCmd);
+      continue;
+    }
     for (const sousDossier of sousDossiersDuStub(stub)) {
       numeros.add(`${stub.numCmd}/${sousDossier}`);
     }
@@ -26,8 +35,14 @@ async function syncAnnulationsDepuisGamesys({ dryRun = false } = {}) {
 
   const connection = await dbConfig.getDbConnection();
   let annulesSet;
+  let commandesAnnuleesSet;
   try {
     annulesSet = new Set(await dossierService.checkAnnulations(connection, [...numeros]));
+    commandesAnnuleesSet = new Set(
+      numCmdsSansSousDossiers.size > 0
+        ? await dossierService.checkAnnulationsParCommande(connection, [...numCmdsSansSousDossiers])
+        : [],
+    );
   } catch (err) {
     logger.warn(`syncAnnulationsDepuisGamesys: échec requête Gamesys : ${err.message}`);
     resume.erreurs = stubs.length;
@@ -40,7 +55,9 @@ async function syncAnnulationsDepuisGamesys({ dryRun = false } = {}) {
     const sousDossiers = sousDossiersDuStub(stub);
     // pkOnly agrège plusieurs sous-dossiers dans un seul stub : on n'annule que si TOUS sont
     // annulés côté Gamesys, pour ne jamais masquer une commande partiellement encore active.
-    const toutAnnule = sousDossiers.length > 0 && sousDossiers.every((sd) => annulesSet.has(`${stub.numCmd}/${sd}`));
+    const toutAnnule = sansSousDossiers(stub)
+      ? commandesAnnuleesSet.has(Number(stub.numCmd))
+      : sousDossiers.length > 0 && sousDossiers.every((sd) => annulesSet.has(`${stub.numCmd}/${sd}`));
     if (!toutAnnule) continue;
 
     resume.annules += 1;

@@ -62,3 +62,62 @@ describe("dossierService.checkAnnulations()", () => {
     expect(result).to.deep.equal([]);
   });
 });
+
+describe("dossierService.checkAnnulationsParCommande()", () => {
+  const { checkAnnulationsParCommande } = require("../../server/src/gamesys/services/dossierService");
+
+  it("ne fait aucune requête et renvoie [] quand la liste de commandes est vide", async () => {
+    const connection = { query: sinon.stub() };
+
+    const result = await checkAnnulationsParCommande(connection, []);
+
+    expect(result).to.deep.equal([]);
+    expect(connection.query.called).to.be.false;
+  });
+
+  it("interroge fd_entete_devi sur tous les sous-dossiers des commandes demandées", async () => {
+    const connection = { query: sinon.stub().resolves([]) };
+
+    await checkAnnulationsParCommande(connection, [168051, 168052]);
+
+    expect(connection.query.calledOnce).to.be.true;
+    const [sql] = connection.query.firstCall.args;
+    expect(sql).to.match(/from public\.fd_entete_devi/);
+    expect(sql).to.match(/endv_no_commande like '168051\/%'/);
+    expect(sql).to.match(/endv_no_commande like '168052\/%'/);
+  });
+
+  it("retient une commande dont TOUS les sous-dossiers sont annulés", async () => {
+    const connection = {
+      query: sinon.stub().resolves([
+        { endv_no_commande: "168051/01", endv_date_cmde: "2026-09-17", endv_date_annul: "2026-09-21" },
+        { endv_no_commande: "168051/02", endv_date_cmde: "2026-09-17", endv_date_annul: "2026-09-22" },
+      ]),
+    };
+
+    const result = await checkAnnulationsParCommande(connection, [168051]);
+
+    expect(result).to.deep.equal([168051]);
+  });
+
+  it("ignore une commande partiellement annulée", async () => {
+    const connection = {
+      query: sinon.stub().resolves([
+        { endv_no_commande: "168051/01", endv_date_cmde: "2026-09-17", endv_date_annul: "2026-09-21" },
+        { endv_no_commande: "168051/02", endv_date_cmde: "2026-09-17", endv_date_annul: "1900-01-01" },
+      ]),
+    };
+
+    const result = await checkAnnulationsParCommande(connection, [168051]);
+
+    expect(result).to.deep.equal([]);
+  });
+
+  it("ignore une commande absente de Gamesys", async () => {
+    const connection = { query: sinon.stub().resolves([]) };
+
+    const result = await checkAnnulationsParCommande(connection, [168051]);
+
+    expect(result).to.deep.equal([]);
+  });
+});

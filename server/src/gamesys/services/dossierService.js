@@ -1199,6 +1199,12 @@ function toDateOnly(value) {
   return d.toISOString().slice(0, 10);
 }
 
+function estAnnule(row) {
+  const annul = toDateOnly(row.endv_date_annul);
+  const cmde = toDateOnly(row.endv_date_cmde);
+  return Boolean(annul && annul !== SENTINEL_PAS_ANNULE && cmde && annul >= cmde);
+}
+
 // Interroge fd_entete_devi pour un lot de numéros de commande (format "cmd/sousDossier", ex:
 // "168251/00") et renvoie ceux réellement annulés parmi eux.
 async function checkAnnulations(connection, numeroCommandes) {
@@ -1215,13 +1221,35 @@ async function checkAnnulations(connection, numeroCommandes) {
   `
   );
 
-  return rows
-    .filter((row) => {
-      const annul = toDateOnly(row.endv_date_annul);
-      const cmde = toDateOnly(row.endv_date_cmde);
-      return annul && annul !== SENTINEL_PAS_ANNULE && cmde && annul >= cmde;
-    })
-    .map((row) => row.endv_no_commande);
+  return rows.filter(estAnnule).map((row) => row.endv_no_commande);
+}
+
+// Variante au niveau commande : renvoie les numCmd (ex: 168051) dont TOUS les sous-dossiers
+// présents dans fd_entete_devi sont annulés. Sert aux stubs pkOnly créés sans sousDossiers (cf.
+// decoGamesysStubSyncService.js) : faute de savoir quels sous-dossiers portent les profils/kits,
+// on exige l'annulation de la commande entière. LIKE 'N/%' plutôt que split_part pour garder
+// l'index sur endv_no_commande.
+async function checkAnnulationsParCommande(connection, numCmds) {
+  const commandes = [...new Set((numCmds || []).map(Number).filter((n) => Number.isInteger(n) && n > 0))];
+  if (commandes.length === 0) return [];
+
+  const conditions = commandes.map((n) => `endv_no_commande like '${n}/%'`).join(" or ");
+  const rows = await query(
+    connection,
+    `
+    select endv_no_commande, endv_date_cmde, endv_date_annul
+    from public.fd_entete_devi
+    where ${conditions}
+  `
+  );
+
+  const toutAnnuleParCommande = new Map();
+  for (const row of rows) {
+    const numCmd = Number(String(row.endv_no_commande).split("/")[0]);
+    toutAnnuleParCommande.set(numCmd, (toutAnnuleParCommande.get(numCmd) ?? true) && estAnnule(row));
+  }
+
+  return commandes.filter((n) => toutAnnuleParCommande.get(n) === true);
 }
 
 async function searchDossiers({ q = "", limit = 10 } = {}) {
@@ -1584,6 +1612,7 @@ module.exports = {
   listCommandesAvecProfilsKits,
   listCommandesRecentes,
   checkAnnulations,
+  checkAnnulationsParCommande,
   groupCandidatesFromRows,
   groupAllCandidatesFromRows,
   searchDossiers,

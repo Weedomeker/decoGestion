@@ -10,6 +10,7 @@ describe("decoAnnulationSyncService.syncAnnulationsDepuisGamesys()", () => {
   let findStub;
   let leanStub;
   let checkAnnulationsStub;
+  let checkAnnulationsParCommandeStub;
   let updateOneStub;
   let getDbConnectionStub;
   let fakeConnection;
@@ -19,6 +20,7 @@ describe("decoAnnulationSyncService.syncAnnulationsDepuisGamesys()", () => {
     leanStub = sinon.stub();
     findStub = sinon.stub(Deco, "find").returns({ lean: leanStub });
     checkAnnulationsStub = sinon.stub(dossierService, "checkAnnulations");
+    checkAnnulationsParCommandeStub = sinon.stub(dossierService, "checkAnnulationsParCommande").resolves([]);
     updateOneStub = sinon.stub(Deco, "updateOne").resolves();
     getDbConnectionStub = sinon.stub(dbConfig, "getDbConnection").resolves(fakeConnection);
   });
@@ -74,6 +76,39 @@ describe("decoAnnulationSyncService.syncAnnulationsDepuisGamesys()", () => {
 
     expect(resume).to.deep.equal({ candidats: 1, annules: 0, erreurs: 0 });
     expect(updateOneStub.called).to.be.false;
+  });
+
+  it("vérifie au niveau commande un stub pkOnly sans sousDossiers et le bascule si tout est annulé", async () => {
+    leanStub.resolves([{ _id: "idPk", numCmd: 168051, pkOnly: true }]);
+    checkAnnulationsStub.resolves([]);
+    checkAnnulationsParCommandeStub.resolves([168051]);
+
+    const resume = await syncAnnulationsDepuisGamesys();
+
+    expect(resume).to.deep.equal({ candidats: 1, annules: 1, erreurs: 0 });
+    expect(checkAnnulationsParCommandeStub.calledOnceWith(fakeConnection, [168051])).to.be.true;
+    expect(updateOneStub.calledOnceWith({ _id: "idPk" }, { $set: { status: "Annulé" } })).to.be.true;
+  });
+
+  it("ne bascule pas un stub pkOnly sans sousDossiers dont la commande n'est pas entièrement annulée", async () => {
+    leanStub.resolves([{ _id: "idPk", numCmd: 168051, sousDossiers: [], pkOnly: true }]);
+    checkAnnulationsStub.resolves([]);
+    checkAnnulationsParCommandeStub.resolves([]);
+
+    const resume = await syncAnnulationsDepuisGamesys();
+
+    expect(resume).to.deep.equal({ candidats: 1, annules: 0, erreurs: 0 });
+    expect(checkAnnulationsParCommandeStub.calledOnceWith(fakeConnection, [168051])).to.be.true;
+    expect(updateOneStub.called).to.be.false;
+  });
+
+  it("n'interroge pas Gamesys au niveau commande pour les stubs pkOnly qui ont des sousDossiers", async () => {
+    leanStub.resolves([{ _id: "idPk", numCmd: 168051, sousDossiers: ["01"], pkOnly: true }]);
+    checkAnnulationsStub.resolves([]);
+
+    await syncAnnulationsDepuisGamesys();
+
+    expect(checkAnnulationsParCommandeStub.called).to.be.false;
   });
 
   it("compte le candidat en erreur et ne plante pas quand checkAnnulations échoue", async () => {
