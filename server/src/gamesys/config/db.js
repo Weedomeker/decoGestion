@@ -39,6 +39,12 @@ function getPool() {
         initialSize: 2,
         incrementSize: 2,
         maxSize: POOL_SIZE,
+        // reuseConnections:false — une connexion pooled inactive plusieurs minutes (délais entre
+        // les étapes de démarrage) peut être coupée silencieusement côté réseau/firewall ; par
+        // défaut le pool la réutiliserait telle quelle (connexion morte), provoquant un blocage à
+        // l'usage. false force une connexion fraîche à chaque checkout (coût : un round-trip
+        // connect/login supplémentaire, borné par connectionTimeout/loginTimeout ci-dessus).
+        reuseConnections: false,
       })
       .catch((err) => {
         // Ne pas mémoriser une promesse rejetée : sinon tous les getDbConnection() ultérieurs
