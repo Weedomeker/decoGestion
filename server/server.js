@@ -208,27 +208,26 @@ server.listen(PORT, async () => {
     });
   }, 30_000);
 
-  // Sync récurrente des consommations profils/kits (Gamesys → ConsommationCommande/StockArticle),
+  // Sync unique au démarrage des consommations profils/kits (Gamesys → ConsommationCommande/StockArticle),
   // pour couvrir les commandes qui ne passent jamais par le pipeline normal de jobs decoGestion.
-  // Fenêtre glissante (10j) plus large que l'intervalle : rattrape les retards Gamesys sans créer
-  // de doublons (syncConsommationsHistorique ignore les numCmd déjà connus).
-  const SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
+  // Fenêtre glissante (10j) : le serveur redémarrant au moins une fois par jour, elle rattrape les
+  // retards Gamesys sans créer de doublons (syncConsommationsHistorique ignore les numCmd déjà connus).
+  // Pas de setInterval : l'ancien setInterval(24h) imbriqué dans ce setTimeout ne s'exécutait qu'à
+  // 24h05 après démarrage, donc jamais en pratique (constaté le 23/09/2026).
   const SYNC_LOOKBACK_DAYS = 10;
   const SYNC_INITIAL_DELAY_MS = 5 * 60 * 1000;
 
-  setTimeout(() => {
-    setInterval(async () => {
-      try {
-        const sinceDate = new Date(Date.now() - SYNC_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
-        const resume = await syncConsommationsHistorique({ sinceDate, concurrency: 3 });
-        logger.info(
-          `Sync Gamesys consommations : ${resume.traites} traitées, ${resume.dejaExistants} déjà connues, ${resume.erreurs} erreurs (sur ${resume.candidats} candidats). ` +
-            `Réconciliation stock_profiles : ${resume.orphelinsReconcilies}/${resume.orphelinsDetectes} orphelines corrigées.`,
-        );
-      } catch (error) {
-        logger.warn(`Sync Gamesys consommations échouée : ${error.message}`);
-      }
-    }, SYNC_INTERVAL_MS);
+  setTimeout(async () => {
+    try {
+      const sinceDate = new Date(Date.now() - SYNC_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+      const resume = await syncConsommationsHistorique({ sinceDate, concurrency: 3 });
+      logger.info(
+        `Sync Gamesys consommations : ${resume.traites} traitées, ${resume.dejaExistants} déjà connues, ${resume.erreurs} erreurs (sur ${resume.candidats} candidats). ` +
+          `Réconciliation stock_profiles : ${resume.orphelinsReconcilies}/${resume.orphelinsDetectes} orphelines corrigées.`,
+      );
+    } catch (error) {
+      logger.warn(`Sync Gamesys consommations échouée : ${error.message}`);
+    }
   }, SYNC_INITIAL_DELAY_MS);
 
   // Backfill unique au démarrage des prix/date de livraison des commandes récentes ajoutées
