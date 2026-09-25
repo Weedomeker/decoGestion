@@ -1,0 +1,75 @@
+const logger = require("../logger/logger");
+const dossierService = require("../gamesys/services/dossierService");
+const dbConfig = require("../gamesys/config/db");
+const { closeConnection } = require("../gamesys/lib/db");
+const Deco = require("../models/Deco");
+
+// Bascule status:"A lancer" -> "annule" sur les stubs Gamesys proactifs (gamesysStub:true, cf.
+// decoGamesysStubSyncService.js) dont la commande a été annulée depuis dans Gamesys. Porte sur
+// TOUS les stubs "A lancer" existants (pas de fenêtre glissante) : un stub peut rester en attente
+// plusieurs jours avant d'être réclamé par l'utilisateur, et une annulation peut survenir bien
+// après la création du stub — cf. dossierService.checkAnnulations pour la règle de détection.
+async function syncAnnulationsDepuisGamesys({ dryRun = false } = {}) {
+  const stubs = await Deco.find({ gamesysStub: true, status: "A lancer" }).lean();
+
+  const resume = { candidats: stubs.length, annules: 0, erreurs: 0 };
+  if (stubs.length === 0) return resume;
+
+  const sousDossiersDuStub = (stub) => (stub.pkOnly ? stub.sousDossiers || [] : [stub.sousDossier].filter(Boolean));
+
+  // Stubs pkOnly créés par la sync de stubs sans sousDossiers (seul profilsKitsService ou le
+  // backfill manuel les renseignent) : vérifiés au niveau de la commande entière.
+  const sansSousDossiers = (stub) => stub.pkOnly && sousDossiersDuStub(stub).length === 0;
+
+  const numeros = new Set();
+  const numCmdsSansSousDossiers = new Set();
+  for (const stub of stubs) {
+    if (sansSousDossiers(stub)) {
+      numCmdsSansSousDossiers.add(stub.numCmd);
+      continue;
+    }
+    for (const sousDossier of sousDossiersDuStub(stub)) {
+      numeros.add(`${stub.numCmd}/${sousDossier}`);
+    }
+  }
+
+  const connection = await dbConfig.getDbConnection();
+  let annulesSet;
+  let commandesAnnuleesSet;
+  try {
+    annulesSet = new Set(await dossierService.checkAnnulations(connection, [...numeros]));
+    commandesAnnuleesSet = new Set(
+      numCmdsSansSousDossiers.size > 0
+        ? await dossierService.checkAnnulationsParCommande(connection, [...numCmdsSansSousDossiers])
+        : [],
+    );
+  } catch (err) {
+    logger.warn(`syncAnnulationsDepuisGamesys: échec requête Gamesys : ${err.message}`);
+    resume.erreurs = stubs.length;
+    return resume;
+  } finally {
+    await closeConnection(connection);
+  }
+
+  for (const stub of stubs) {
+    const sousDossiers = sousDossiersDuStub(stub);
+    // pkOnly agrège plusieurs sous-dossiers dans un seul stub : on n'annule que si TOUS sont
+    // annulés côté Gamesys, pour ne jamais masquer une commande partiellement encore active.
+    const toutAnnule = sansSousDossiers(stub)
+      ? commandesAnnuleesSet.has(Number(stub.numCmd))
+      : sousDossiers.length > 0 && sousDossiers.every((sd) => annulesSet.has(`${stub.numCmd}/${sd}`));
+    if (!toutAnnule) continue;
+
+    resume.annules += 1;
+    if (!dryRun) {
+      // "annule" (minuscule, sans accent) : valeur utilisée en prod pour les commandes annulées,
+      // aux côtés de "expe"/"decoupe"/"print" — écrite aussi par l'autre application qui partage
+      // la base. Ne pas mettre "Annulé", qui n'y serait pas reconnu.
+      await Deco.updateOne({ _id: stub._id }, { $set: { status: "annule" } });
+    }
+  }
+
+  return resume;
+}
+
+module.exports = { syncAnnulationsDepuisGamesys };

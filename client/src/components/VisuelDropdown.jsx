@@ -28,7 +28,7 @@ function filterName(name) {
   return newName;
 }
 
-function VisuelDropdown({ files, isFile, onSelectedFile, selectedFile, error, enabled }) {
+function VisuelDropdown({ files, isFile, onSelectedFile, selectedFile, error, enabled, isLoading }) {
   const filesOptions = files.map((file, index) => ({
     text: filterName(file?.name),
     value: file?.name,
@@ -56,6 +56,7 @@ function VisuelDropdown({ files, isFile, onSelectedFile, selectedFile, error, en
       fluid
       search
       selection
+      loading={isLoading}
       value={selectedFile || null}
       options={filesOptions}
       onChange={handleChange}
@@ -74,6 +75,7 @@ VisuelDropdown.propTypes = {
   onSelectedFile: PropTypes.func.isRequired,
   error: PropTypes.bool,
   enabled: PropTypes.bool,
+  isLoading: PropTypes.bool,
 };
 
 export default VisuelDropdown;

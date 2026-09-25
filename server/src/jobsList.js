@@ -21,6 +21,15 @@ function createJob(
   cut,
   teinteMasse,
   stock,
+  prodBlanc,
+  client2,
+  refDbData,
+  refDbData2,
+  prix,
+  prix2,
+  sousDossier,
+  sousDossier2,
+  surMesureData,
 ) {
   const date = new Date();
 
@@ -28,6 +37,7 @@ function createJob(
     _id: Date.now(),
     date: date,
     client: client,
+    client2: client2 || client,
     cmd: parseInt(cmd),
     cmd2: cmd2 ? parseInt(cmd2) : 0,
     ville: ville,
@@ -42,13 +52,27 @@ function createJob(
     visuPath: visuPath,
     visuPath2: visuPath2,
     writePath: writePath,
-    jpgName: jpgName !== undefined ? jpgName.split("/").slice(2).join("/") + ".jpg" : "",
-    jpgName2: jpgName2 !== undefined ? jpgName2.split("/").slice(2).join("/") + ".jpg" : "",
+    jpgName: jpgName !== undefined ? `${jpgName.split("/").slice(2).join("/")  }.jpg` : "",
+    jpgName2: jpgName2 !== undefined ? `${jpgName2.split("/").slice(2).join("/")  }.jpg` : "",
     perte: perte,
     reg: reg,
     cut: cut,
     teinteMasse: teinteMasse,
     useStock: stock,
+    prodBlanc: !!prodBlanc,
+    refDbData: refDbData || null,
+    refDbData2: refDbData2 || null,
+    // Prix du sous-dossier Gamesys, déjà calculé sans ambiguïté côté frontend au moment de la
+    // sélection du visuel (voir dossierApiController.js:sumEntetePrix) — undefined pour le flux de
+    // saisie manuelle, où saveDeco retombe sur le matching approximatif getPrixVisuel.
+    prix: prix != null && prix !== "" ? Number(prix) : undefined,
+    prix2: prix2 != null && prix2 !== "" ? Number(prix2) : undefined,
+    sousDossier: sousDossier || undefined,
+    sousDossier2: sousDossier2 || undefined,
+    surMesure: !!(surMesureData && surMesureData.surMesure),
+    surMesureKind: surMesureData?.surMesureKind || undefined,
+    orientation: surMesureData?.orientation || undefined,
+    printFormat: surMesureData?.printFormat || undefined,
   };
 
   return newJob;
