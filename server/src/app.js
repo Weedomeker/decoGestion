@@ -3,6 +3,7 @@ require("dotenv").config();
 const fs = require("fs");
 const { cmToPoints } = require("./convertUnits");
 const logger = require("./logger/logger");
+const { repairPageContentStreams } = require("./utils/repairPdfContent");
 
 async function modifyPdf(filePath, writePath, fileName, formatTauro, reg) {
   try {
@@ -14,6 +15,11 @@ async function modifyPdf(filePath, writePath, fileName, formatTauro, reg) {
     const pages = pdfDoc.getPages();
     const firstPage = pages[0];
     const { width, height } = firstPage.getSize();
+
+    // Un flux source abîmé fait abandonner la page au RIP avant les repères/texte
+    if (repairPageContentStreams(pdfDoc, firstPage) > 0) {
+      logger.warn(`Flux de contenu PDF réparé (source abîmé) : ${filePath}`);
+    }
 
     const fTauro = formatTauro.split("_").pop();
     const [largeurPlaqueCm, longueurPlaqueCm] = fTauro.split("x").map(Number);

@@ -2,6 +2,7 @@ const { PDFDocument, degrees, StandardFonts, rgb } = require("pdf-lib");
 const fs = require("fs");
 const { cmToPoints } = require("./convertUnits");
 const logger = require("./logger/logger");
+const { repairPageContentStreams } = require("./utils/repairPdfContent");
 
 // --- Placement des panneaux ---
 function placeOne(plateW, plateH, w, h) {
@@ -52,6 +53,9 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
       const vPdf = await PDFDocument.load(vBytes);
 
       const vPage = vPdf.getPages()[0];
+      if (repairPageContentStreams(vPdf, vPage) > 0) {
+        logger.warn(`Flux de contenu PDF réparé (source abîmé) : ${v.file}`);
+      }
       const realW = vPage.getWidth();
       const realH = vPage.getHeight();
 
