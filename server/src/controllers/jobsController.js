@@ -27,7 +27,9 @@ const usePdfWorker = require("../utils/pdfWorker");
 const { castoName } = require("../utils/jobNames");
 const { buildCoteClientComment } = require("../utils/coteClient");
 const { extractRefFromFilename, validateRefFormat, REF_FORMAT_HINT } = require("../services/referencesCheckService");
-const { decoQueue, queueEvents } = require("../services/queueService");
+const { setConcurrency } = require("../services/queueService");
+const queueControl = require("../services/queueControlService");
+const { saveJobsConcurrency } = require("../services/configService");
 
 // Résout sur le premier modèle qui retourne un document non-null, avec son index.
 // Court-circuite dès le premier résultat trouvé plutôt que d'attendre tous les modèles.
@@ -937,43 +939,30 @@ async function runJobs(req, res) {
     return res.status(400).json({ error: "Jobs not run" });
   }
 
+  if (queueControl.isRunning()) {
+    return res.status(409).json({ error: "Un traitement est déjà en cours" });
+  }
+
   try {
-    state.jobs.completed = [];
-    const jobsToRun = [...state.jobs.jobs];
+    // `ids` optionnel : ne traiter qu'une sélection (dans l'ordre de la liste) ; absent = toute la file.
+    const jobsToRun = queueControl.selectJobs(state.jobs.jobs, req.body.ids);
 
     if (jobsToRun.length === 0) {
       return res.status(400).json({ error: "Aucun job à traiter" });
     }
 
+    state.jobs.completed = [];
     const startTime = performance.now();
     broadcastWS({ type: "start", startTime });
 
-    const bullJobs = await Promise.all(
-      jobsToRun.map((job) =>
-        decoQueue.add(
-          "process-job",
-          {
-            job,
-            sortFolder: req.body.sortFolder,
-            ip: req.ip,
-          },
-          {
-            attempts: 3,
-            backoff: { type: "exponential", delay: 5000 },
-          },
-        ),
-      ),
+    const { failed, cancelled } = await queueControl.enqueueRun(jobsToRun, {
+      sortFolder: req.body.sortFolder,
+      ip: req.ip,
+    });
+
+    logger.info(
+      `✅ Traitement terminé (${jobsToRun.length} job(s), ${failed} en échec, ${cancelled} annulé(s)).`,
     );
-
-    logger.info(`📥 ${bullJobs.length} job(s) ajoutés à la queue BullMQ.`);
-
-    try {
-      await Promise.all(bullJobs.map((bj) => bj.waitUntilFinished(queueEvents, 7200000)));
-    } catch (err) {
-      logger.error(`⚠️ Un ou plusieurs jobs ont échoué définitivement : ${err.message}`);
-    }
-
-    logger.info("✅ Tous les jobs ont été traités.");
 
     const resultsSummary = state.jobs.completed.map(({ cmd, cmd2 }) => [cmd, cmd2 > 0 ? cmd2 : ""]);
     logger.info(
@@ -1021,6 +1010,76 @@ function deleteJob(req, res) {
   return res.sendStatus(200);
 }
 
+// Réordonne la file d'attente ; pendant un traitement, l'ordre est répercuté sur les priorités
+// BullMQ des jobs pas encore démarrés.
+async function reorderJobs(req, res) {
+  const { ids } = req.body;
+  if (!Array.isArray(ids)) {
+    return res.status(400).json({ error: "Liste d'ids requise" });
+  }
+
+  state.jobs.jobs = queueControl.reorderByIds(state.jobs.jobs, ids);
+  const reprioritized = await queueControl.applyPriorities(state.jobs.jobs);
+  broadcastWS({ type: "update" });
+
+  return res.status(200).json({ reprioritized });
+}
+
+async function getQueueStatus(req, res) {
+  res.json(await queueControl.getStatus());
+}
+
+async function pauseQueue(req, res) {
+  try {
+    await queueControl.pause();
+    queueControl.broadcastQueueStatus();
+    res.json(await queueControl.getStatus());
+  } catch (error) {
+    logger.error(`Pause de la queue impossible : ${error.message}`);
+    res.status(500).json({ error: "Impossible de mettre la file en pause" });
+  }
+}
+
+async function resumeQueue(req, res) {
+  try {
+    await queueControl.resume();
+    queueControl.broadcastQueueStatus();
+    res.json(await queueControl.getStatus());
+  } catch (error) {
+    logger.error(`Reprise de la queue impossible : ${error.message}`);
+    res.status(500).json({ error: "Impossible de reprendre la file" });
+  }
+}
+
+async function cancelQueue(req, res) {
+  if (!queueControl.isRunning()) {
+    return res.status(409).json({ error: "Aucun traitement en cours" });
+  }
+  try {
+    const removed = await queueControl.cancelPending();
+    queueControl.broadcastQueueStatus();
+    res.json({ removed });
+  } catch (error) {
+    logger.error(`Annulation impossible : ${error.message}`);
+    res.status(500).json({ error: "Impossible d'annuler le traitement" });
+  }
+}
+
+function setQueueConcurrency(req, res) {
+  try {
+    const concurrency = setConcurrency(req.body.concurrency);
+    saveJobsConcurrency(concurrency);
+    queueControl.broadcastQueueStatus();
+    res.json({ concurrency });
+  } catch (error) {
+    if (error instanceof RangeError) {
+      return res.status(400).json({ error: error.message });
+    }
+    logger.error(`Réglage de la concurrence impossible : ${error.message}`);
+    res.status(500).json({ error: "Impossible d'enregistrer la concurrence" });
+  }
+}
+
 function deleteCompletedJobs(req, res) {
   const clearJobs = req.body.clear;
 
@@ -1033,9 +1092,13 @@ function deleteCompletedJobs(req, res) {
 }
 
 async function generateStickersOnly(req, res) {
+  if (queueControl.isRunning()) {
+    return res.status(409).json({ error: "Un traitement est déjà en cours" });
+  }
+
   try {
     state.jobs.completed = [];
-    const jobsToRun = [...state.jobs.jobs];
+    const jobsToRun = queueControl.selectJobs(state.jobs.jobs, req.body?.ids);
 
     if (!state.paths.sessionPRINTSA) {
       return res.status(400).json({ error: "sessionPRINTSA est manquant" });
@@ -1449,6 +1512,12 @@ module.exports = {
   runJobs,
   deleteJob,
   deleteCompletedJobs,
+  reorderJobs,
+  getQueueStatus,
+  pauseQueue,
+  resumeQueue,
+  cancelQueue,
+  setQueueConcurrency,
   generateStickersOnly,
   generateStickerQuick,
   previewStickerQuick,

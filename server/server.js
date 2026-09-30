@@ -14,7 +14,7 @@ const connectMongo = require("./src/mongoose");
 const { processAllPDFs } = require("./src/generatePreview");
 const registerRoutes = require("./src/routes");
 const { state, loadAppVersion } = require("./src/services/appState");
-const { linkFolders } = require("./src/services/configService");
+const { linkFolders, getConfig } = require("./src/services/configService");
 const { initWebSocket, broadcastHealth } = require("./src/services/websocketService");
 const { checkOdbcConnection, getOdbcStatus } = require("./src/gamesys/config/db");
 const { checkNetworkPaths } = require("./src/services/networkChecker");
@@ -24,6 +24,7 @@ const { BullMQAdapter } = require("@bull-board/api/bullMQAdapter");
 const { ExpressAdapter } = require("@bull-board/express");
 const { decoQueue, initWorker } = require("./src/services/queueService");
 const { processJob } = require("./src/controllers/jobsController");
+const { syncPausedState } = require("./src/services/queueControlService");
 const { syncConsommationsHistorique } = require("./src/services/gamesysConsommationSyncService");
 const { backfillRecentDecoData, formatBackfillResume } = require("./src/services/startupPrixBackfillService");
 const { formatResume } = require("./src/logger/formatResume");
@@ -115,7 +116,10 @@ initWorker(async (bullJob) => {
   const { job, sortFolder, ip } = bullJob.data;
   const fakeReq = { body: { sortFolder }, ip };
   await processJob(job, fakeReq);
-});
+}, { concurrency: getConfig()?.jobsConcurrency });
+
+// La pause BullMQ persiste dans Redis : l'UI doit refléter l'état réel dès le démarrage.
+syncPausedState();
 
 // 404 — doit être après toutes les routes
 app.use((req, res) => {

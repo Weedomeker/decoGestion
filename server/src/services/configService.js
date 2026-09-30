@@ -23,7 +23,9 @@ async function linkFolders(pathUpdate) {
   const failed = [];
 
   for (const key in config) {
-    if (key !== "vernis") {
+    // Seuls les chemins (strings) sont des dossiers à lier — `vernis` (tableau) et
+    // `jobsConcurrency` (nombre) sont des réglages.
+    if (typeof config[key] === "string") {
       const result = await symlink(
         config[key],
         path.join(state.paths.serverRoot, `./public/${key.toUpperCase()}`),
@@ -62,7 +64,12 @@ async function saveConfig(nextConfig) {
     if (fs.existsSync(configPath)) {
       previousConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
     }
-    fs.writeFileSync(configPath, JSON.stringify(nextConfig, null, 2));
+    // `jobsConcurrency` n'est géré que par saveJobsConcurrency : la modale Config peut renvoyer
+    // une valeur périmée (chargée avant un changement depuis la JobsList).
+    const merged = { ...nextConfig };
+    delete merged.jobsConcurrency;
+    if (previousConfig.jobsConcurrency !== undefined) merged.jobsConcurrency = previousConfig.jobsConcurrency;
+    fs.writeFileSync(configPath, JSON.stringify(merged, null, 2));
   } catch (error) {
     throw new Error(`Impossible d'écrire config.json: ${error.message}`);
   }
@@ -71,8 +78,20 @@ async function saveConfig(nextConfig) {
   return { previousConfig, linkResult };
 }
 
+// Persiste la concurrence des jobs sans relancer les symlinks (réglage, pas un chemin).
+function saveJobsConcurrency(concurrency) {
+  const config = getConfig() || {};
+  config.jobsConcurrency = concurrency;
+  try {
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+  } catch (error) {
+    throw new Error(`Impossible d'écrire config.json: ${error.message}`);
+  }
+}
+
 module.exports = {
   linkFolders,
   getConfig,
   saveConfig,
+  saveJobsConcurrency,
 };
