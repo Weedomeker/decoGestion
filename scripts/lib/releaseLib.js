@@ -71,6 +71,16 @@ function releaseNotes(entry) {
   return entry.split("\n").slice(1).join("\n").trim();
 }
 
+// Annulation d'un commit de release raté : les fichiers sont déjà indexés, donc `git checkout --`
+// (qui restaure depuis l'index) ne ferait rien — on désindexe puis on restaure depuis HEAD.
+function commitUndoCommand(files, newFiles) {
+  const existing = files.filter((f) => !newFiles.includes(f));
+  const parts = [`git reset -q HEAD -- ${files.join(" ")}`];
+  if (existing.length) parts.push(`git checkout HEAD -- ${existing.join(" ")}`);
+  if (newFiles.length) parts.push(`git clean -f -- ${newFiles.join(" ")}`);
+  return parts.join(" && ");
+}
+
 function formatDate(date) {
   const pad = (n) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
@@ -84,5 +94,6 @@ module.exports = {
   renderChangelogEntry,
   prependToChangelog,
   releaseNotes,
+  commitUndoCommand,
   formatDate,
 };

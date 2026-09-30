@@ -92,6 +92,20 @@ describe("releaseLib", () => {
     });
   });
 
+  describe("commitUndoCommand()", () => {
+    it("désindexe puis restaure depuis HEAD (git checkout -- seul restaurerait depuis l'index, déjà modifié)", () => {
+      expect(lib.commitUndoCommand(["package.json", "CHANGELOG.md"], [])).to.equal(
+        "git reset -q HEAD -- package.json CHANGELOG.md && git checkout HEAD -- package.json CHANGELOG.md",
+      );
+    });
+
+    it("supprime un fichier créé par la release (CHANGELOG.md absent de HEAD)", () => {
+      expect(lib.commitUndoCommand(["package.json", "CHANGELOG.md"], ["CHANGELOG.md"])).to.equal(
+        "git reset -q HEAD -- package.json CHANGELOG.md && git checkout HEAD -- package.json && git clean -f -- CHANGELOG.md",
+      );
+    });
+  });
+
   describe("formatDate()", () => {
     it("formate en YYYY-MM-DD local", () => {
       expect(lib.formatDate(new Date(2026, 8, 5, 23, 30))).to.equal("2026-09-05");

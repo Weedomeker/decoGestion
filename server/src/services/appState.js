@@ -72,7 +72,17 @@ function gitShortCommit(rootDir) {
 
 // En dev, build-info.json (reste d'un build local) serait périmé : on lit package.json + git.
 function loadAppVersion(rootDir = projectRoot, { preferBuildInfo = process.env.NODE_ENV !== "development" } = {}) {
-  const buildInfo = preferBuildInfo ? readJson(path.join(rootDir, "build-info.json")) : null;
+  const packageJson = readJson(path.join(rootDir, "package.json"));
+  let buildInfo = preferBuildInfo ? readJson(path.join(rootDir, "build-info.json")) : null;
+
+  // Build fait avant la release (puis copie) : sa version et son commit sont faux, on ne s'y fie pas
+  // pour ne pas enregistrer une mauvaise app_version sur chaque Deco.
+  if (buildInfo?.version && packageJson?.version && buildInfo.version !== packageJson.version) {
+    logger.warn(
+      `build-info.json périmé (v${buildInfo.version} ≠ package.json v${packageJson.version}) : relancez npm run build.`,
+    );
+    buildInfo = null;
+  }
 
   if (buildInfo?.version) {
     state.app = {
@@ -81,7 +91,6 @@ function loadAppVersion(rootDir = projectRoot, { preferBuildInfo = process.env.N
       buildDate: buildInfo.buildDate || null,
     };
   } else {
-    const packageJson = readJson(path.join(rootDir, "package.json"));
     if (!packageJson) logger.error(`Lecture de package.json impossible dans ${rootDir}`);
     state.app = { version: packageJson?.version, commit: gitShortCommit(rootDir), buildDate: null };
   }

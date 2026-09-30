@@ -17,6 +17,7 @@ describe("appState.loadAppVersion()", () => {
   const BUILD_INFO = { version: "2.4.0", commit: "abc1234", buildDate: "2026-09-30T12:00:00.000Z" };
 
   it("hors dev (prod), utilise build-info.json en priorité (poste sans .git)", () => {
+    fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({ version: "2.4.0" }));
     fs.writeFileSync(path.join(tmpDir, "build-info.json"), JSON.stringify(BUILD_INFO));
 
     loadAppVersion(tmpDir, { preferBuildInfo: true });
@@ -43,6 +44,16 @@ describe("appState.loadAppVersion()", () => {
     loadAppVersion(tmpDir, { preferBuildInfo: true });
 
     expect(state.app).to.deep.equal({ version: "2.3.0", commit: null, buildDate: null });
+  });
+
+  it("ignore un build-info.json périmé (build fait avant la release, version ≠ package.json)", () => {
+    // Scénario : npm run build (2.3.0), puis npm run release (→ 2.4.0), puis copie en prod.
+    fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({ version: "2.4.0" }));
+    fs.writeFileSync(path.join(tmpDir, "build-info.json"), JSON.stringify({ ...BUILD_INFO, version: "2.3.0" }));
+
+    loadAppVersion(tmpDir, { preferBuildInfo: true });
+
+    expect(state.app).to.deep.equal({ version: "2.4.0", commit: null, buildDate: null });
   });
 
   it("ignore un build-info.json corrompu", () => {

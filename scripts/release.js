@@ -166,7 +166,7 @@ async function release(opts) {
     {
       label: "commit de release",
       command: `git add ${files.join(" ")} && git commit -m "chore(release): ${nextTag}"`,
-      undo: `git checkout -- ${files.join(" ")}`,
+      undo: lib.commitUndoCommand(files, existing ? [] : ["CHANGELOG.md"]),
       action: () => {
         git("add", ...files);
         git("commit", "-m", `chore(release): ${nextTag}`);
