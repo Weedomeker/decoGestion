@@ -2,14 +2,40 @@ import PropTypes from "prop-types";
 import { Image } from "semantic-ui-react";
 import logo from "../images/logo_deco_noir.svg";
 
-const Header = ({ appVersion, onFichiers, configNode, statusNode, activeView, onViewChange, pendingCount, theme, onThemeToggle }) => {
-  const numVersion = appVersion && appVersion.match(/\d/g)?.join(".");
+const Header = ({ appInfo, onVersionClick, onFichiers, configNode, statusNode, activeView, onViewChange, pendingCount, theme, onThemeToggle }) => {
+  const version = appInfo?.version;
+  const buildDetails = [
+    appInfo?.commit && `commit ${appInfo.commit}`,
+    appInfo?.buildDate && `build du ${new Date(appInfo.buildDate).toLocaleString("fr-FR")}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div className="header">
       <div className="header-brand">
         <Image src={logo} className="header-logo" />
-        {numVersion && <span className="header-version">v{numVersion}</span>}
+        {version && (
+          <button
+            type="button"
+            className="header-version"
+            onClick={onVersionClick}
+            title={buildDetails ? `${buildDetails} — Quoi de neuf ?` : "Quoi de neuf ?"}
+          >
+            v{version}
+          </button>
+        )}
+        {appInfo?.updateAvailable && appInfo.latest && (
+          <a
+            className="header-update"
+            href={appInfo.latest.url}
+            target="_blank"
+            rel="noreferrer"
+            title="Voir la nouvelle version sur GitHub"
+          >
+            Mise à jour {appInfo.latest.version}
+          </a>
+        )}
       </div>
 
       <div className="header-tabs">
@@ -74,7 +100,14 @@ const Header = ({ appVersion, onFichiers, configNode, statusNode, activeView, on
 };
 
 Header.propTypes = {
-  appVersion: PropTypes.string,
+  appInfo: PropTypes.shape({
+    version: PropTypes.string,
+    commit: PropTypes.string,
+    buildDate: PropTypes.string,
+    updateAvailable: PropTypes.bool,
+    latest: PropTypes.shape({ version: PropTypes.string, url: PropTypes.string }),
+  }),
+  onVersionClick: PropTypes.func,
   onFichiers: PropTypes.func,
   configNode: PropTypes.node,
   statusNode: PropTypes.node,
