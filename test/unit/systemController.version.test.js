@@ -71,6 +71,19 @@ describe("systemController — version et changelog", () => {
     expect(res.body.map((e) => e.version)).to.deep.equal(["2.4.0"]);
   });
 
+  it("GET /changelog borne `limit` (négatif ou énorme) entre 1 et 50", () => {
+    const versions = Array.from({ length: 60 }, (_, i) => `## [1.0.${i}] - 2026-01-01\n\n### Corrections\n- x\n`);
+    fs.writeFileSync(path.join(tmpDir, "CHANGELOG.md"), `# Changelog\n\n${versions.reverse().join("\n")}`);
+
+    const negative = fakeRes();
+    systemController.getChangelog({ query: { limit: "-3" } }, negative);
+    const huge = fakeRes();
+    systemController.getChangelog({ query: { limit: "999" } }, huge);
+
+    expect(negative.body).to.have.length(1);
+    expect(huge.body).to.have.length(50);
+  });
+
   it("GET /changelog renvoie [] sans CHANGELOG", () => {
     const res = fakeRes();
 

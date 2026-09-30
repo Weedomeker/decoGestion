@@ -43,13 +43,13 @@ function WhatsNew({ currentVersion, manualOpen, onManualClose }) {
     }
     if (lastSeen === currentVersion) return;
 
+    // Liste vide (CHANGELOG.md pas encore copié en prod) : on ne mémorise PAS la version,
+    // pour que les nouveautés s'affichent dès que le fichier sera là.
     fetchChangelog(`since=${encodeURIComponent(lastSeen)}`)
       .then((list) => {
         if (list.length > 0) {
           setEntries(list);
           setAutoOpen(true);
-        } else {
-          writeLastSeen(currentVersion);
         }
       })
       .catch((error) => console.error("Erreur chargement du changelog :", error));

@@ -39,6 +39,36 @@ function sectionOf(commit) {
   return SECTION_TITLES[commit.type] ? commit.type : null;
 }
 
+function countPublishable(commits) {
+  return commits.filter((c) => sectionOf(c) !== null).length;
+}
+
+// `--init` sans version tomberait sinon sur une release normale : on refuse explicitement.
+function parseArgs(argv) {
+  const opts = { level: null, dryRun: false, yes: false, init: null };
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (["major", "minor", "patch"].includes(arg)) opts.level = arg;
+    else if (arg === "--dry-run") opts.dryRun = true;
+    else if (arg === "--yes") opts.yes = true;
+    else if (arg === "--init") {
+      const version = argv[++i];
+      if (!/^\d+\.\d+\.\d+$/.test(version || "")) throw new Error("Usage : npm run release -- --init X.Y.Z");
+      opts.init = version;
+    } else throw new Error(`Argument inconnu : ${arg}`);
+  }
+  return opts;
+}
+
+// Met à jour la version d'un package.json / package-lock.json en conservant ses fins de ligne.
+function setJsonVersion(text, version) {
+  const eol = text.includes("\r\n") ? "\r\n" : "\n";
+  const json = JSON.parse(text);
+  json.version = version;
+  if (json.packages && json.packages[""]) json.packages[""].version = version;
+  return `${JSON.stringify(json, null, 2)}\n`.replace(/\n/g, eol);
+}
+
 function renderItem(commit) {
   return commit.scope ? `- **${commit.scope}** : ${commit.description}` : `- ${commit.description}`;
 }
@@ -89,6 +119,9 @@ function formatDate(date) {
 module.exports = {
   SECTION_TITLES,
   parseCommit,
+  parseArgs,
+  countPublishable,
+  setJsonVersion,
   determineBump,
   bumpVersion,
   renderChangelogEntry,

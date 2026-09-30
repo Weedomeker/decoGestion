@@ -51,7 +51,7 @@ async function getVersion(req, res) {
 }
 
 function getChangelog(req, res) {
-  const limit = parseInt(req.query.limit) || 5;
+  const limit = Math.min(Math.max(parseInt(req.query.limit) || 5, 1), 50);
   res.json(
     readChangelog({
       since: req.query.since,

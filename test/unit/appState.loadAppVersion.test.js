@@ -26,6 +26,15 @@ describe("appState.loadAppVersion()", () => {
     expect(state.appVersion).to.equal("2.4.0");
   });
 
+  it("marque le commit « -dirty » quand le build contenait des modifications non commitées", () => {
+    fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({ version: "2.4.0" }));
+    fs.writeFileSync(path.join(tmpDir, "build-info.json"), JSON.stringify({ ...BUILD_INFO, dirty: true }));
+
+    loadAppVersion(tmpDir, { preferBuildInfo: true });
+
+    expect(state.app.commit).to.equal("abc1234-dirty");
+  });
+
   it("en dev (défaut sous NODE_ENV=development), ignore un build-info.json périmé", () => {
     fs.writeFileSync(path.join(tmpDir, "build-info.json"), JSON.stringify(BUILD_INFO));
     const originalEnv = process.env.NODE_ENV;

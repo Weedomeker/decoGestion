@@ -38,6 +38,13 @@ describe("changelogService", () => {
       expect(entries[2].sections).to.deep.equal({});
     });
 
+    it("ignore les titres non numériques comme [Unreleased] (et leurs entrées)", () => {
+      const md = "# Changelog\n\n## [Unreleased]\n\n### Nouveautés\n- en cours\n\n## [2.4.0] - 2026-09-30\n\n### Corrections\n- a\n";
+      const entries = parseChangelog(md);
+      expect(entries.map((e) => e.version)).to.deep.equal(["2.4.0"]);
+      expect(entries[0].sections).to.deep.equal({ Corrections: [{ scope: null, text: "a" }] });
+    });
+
     it("renvoie [] pour un contenu vide ou sans version", () => {
       expect(parseChangelog("")).to.deep.equal([]);
       expect(parseChangelog("# Changelog\n\nrien")).to.deep.equal([]);

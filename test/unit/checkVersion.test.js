@@ -66,6 +66,27 @@ describe("checkVersion()", () => {
     expect(fetchImpl.callCount).to.equal(1);
   });
 
+  it("appels simultanés à cache vide : une seule requête GitHub (démarrage + /version)", async () => {
+    let release;
+    const fetchImpl = sinon.stub().returns(new Promise((resolve) => (release = resolve)));
+
+    const first = checkVersion({ fetchImpl, now: NOW });
+    const second = checkVersion({ fetchImpl, now: NOW });
+    release(releaseResponse("v2.5.0"));
+    const results = await Promise.all([first, second]);
+
+    expect(fetchImpl.callCount).to.equal(1);
+    expect(results.map((r) => r.latest.version)).to.deep.equal(["2.5.0", "2.5.0"]);
+  });
+
+  it("interroge GitHub avec un délai court (le Header attend /version)", async () => {
+    const fetchImpl = sinon.stub().resolves(releaseResponse("v2.5.0"));
+
+    await checkVersion({ fetchImpl, now: NOW });
+
+    expect(fetchImpl.firstCall.args[1].timeout).to.be.at.most(5000);
+  });
+
   it("traite une réponse HTTP non-ok comme un échec", async () => {
     const fetchImpl = sinon.stub().resolves({ ok: false, status: 403, json: async () => ({}) });
 

@@ -31,19 +31,6 @@ function fail(message) {
   process.exit(1);
 }
 
-function parseArgs(argv) {
-  const opts = { level: null, dryRun: false, yes: false, init: null };
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i];
-    if (["major", "minor", "patch"].includes(arg)) opts.level = arg;
-    else if (arg === "--dry-run") opts.dryRun = true;
-    else if (arg === "--yes") opts.yes = true;
-    else if (arg === "--init") opts.init = argv[++i];
-    else fail(`Argument inconnu : ${arg}`);
-  }
-  return opts;
-}
-
 function confirm(question) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   return new Promise((resolve) =>
@@ -60,13 +47,28 @@ function checkPreconditions({ requireMainAncestor }) {
   if (branch !== "dev") fail(`Les releases se font depuis dev (branche actuelle : ${branch}).`);
   if (git("status", "--porcelain")) fail("Des modifications ne sont pas commitées : commitez ou remisez-les d'abord.");
 
-  git("fetch", "origin", "--tags");
+  try {
+    git("fetch", "origin", "--tags");
+  } catch (error) {
+    fail(`Impossible de récupérer origin (réseau ou conflit de tag) :\n${error.stderr || error.message}`);
+  }
   if (git("rev-parse", "HEAD") !== git("rev-parse", "origin/dev")) {
     fail("dev n'est pas synchronisée avec origin/dev (faites un pull ou un push d'abord).");
   }
+  if (!succeeds(() => run("gh", ["--version"]))) fail("gh (GitHub CLI) est introuvable : installez-le (winget install GitHub.cli).");
   if (!succeeds(() => run("gh", ["auth", "status"]))) fail("gh n'est pas authentifié : lancez `gh auth login`.");
   if (requireMainAncestor && !succeeds(() => git("merge-base", "--is-ancestor", "origin/main", "HEAD"))) {
     fail("origin/main n'est pas un ancêtre de dev : lancez d'abord `npm run release -- --init <version>`.");
+  }
+}
+
+// Un tag laissé par une release ratée (local, ou déjà poussé) ferait échouer la release après écriture.
+function assertTagFree(tag) {
+  if (succeeds(() => git("rev-parse", "-q", "--verify", `refs/tags/${tag}`))) {
+    fail(`Le tag ${tag} existe déjà en local (release précédente interrompue ?) : supprimez-le avec \`git tag -d ${tag}\`.`);
+  }
+  if (git("ls-remote", "--tags", "origin", `refs/tags/${tag}`)) {
+    fail(`Le tag ${tag} existe déjà sur origin : cette version a déjà été publiée.`);
   }
 }
 
@@ -96,10 +98,7 @@ function setVersionInFiles(version) {
   for (const file of VERSION_FILES) {
     const filePath = path.join(ROOT, file);
     if (!fs.existsSync(filePath)) continue;
-    const json = JSON.parse(fs.readFileSync(filePath, "utf8"));
-    json.version = version;
-    if (json.packages && json.packages[""]) json.packages[""].version = version;
-    fs.writeFileSync(filePath, `${JSON.stringify(json, null, 2)}\n`);
+    fs.writeFileSync(filePath, lib.setJsonVersion(fs.readFileSync(filePath, "utf8"), version));
     touched.push(file);
   }
   return touched;
@@ -140,9 +139,10 @@ async function release(opts) {
 
   const next = lib.bumpVersion(current, level);
   const nextTag = `v${next}`;
+  assertTagFree(nextTag);
   const entry = lib.renderChangelogEntry(next, lib.formatDate(new Date()), commits);
 
-  console.log(`\nRelease ${tag} → ${nextTag} (${level}, ${commits.length} commit(s) publiables)\n`);
+  console.log(`\nRelease ${tag} → ${nextTag} (${level}, ${lib.countPublishable(commits)} entrée(s) au CHANGELOG)\n`);
   console.log(entry);
 
   if (opts.dryRun) {
@@ -201,17 +201,18 @@ async function release(opts) {
     },
   ]);
 
+  fs.rmSync(notesFile, { force: true });
   console.log(`\n✔ ${nextTag} publiée. Pensez à \`npm run build\` avant la copie sur le poste de prod.`);
 }
 
 // Une seule fois : rejoint l'historique de main dans dev (fast-forward possible ensuite),
 // puis pose le tag de référence sur le commit où package.json est passé à cette version.
 async function init(version, opts) {
-  if (!/^\d+\.\d+\.\d+$/.test(version || "")) fail("Usage : npm run release -- --init X.Y.Z");
   checkPreconditions({ requireMainAncestor: false });
   if (lastTag()) fail(`Un tag de version existe déjà (${lastTag()}) : --init ne sert qu'une fois.`);
 
   const tag = `v${version}`;
+  assertTagFree(tag);
   const needMerge = !succeeds(() => git("merge-base", "--is-ancestor", "origin/main", "HEAD"));
   const introduced = git("log", "--reverse", "--format=%H", "-G", `"version": "${version}"`, "--", "package.json")
     .split("\n")
@@ -234,13 +235,24 @@ async function init(version, opts) {
   }
 
   if (needMerge) {
-    git("merge", "--no-ff", "--no-commit", "origin/main");
-    // main ne doit rien apporter de neuf : on refuse un merge qui modifierait le code.
+    // main ne doit rien apporter de neuf : conflit ou changement de contenu → on annule le merge
+    // (dépôt remis dans son état d'origine) et on laisse la fusion à faire à la main.
+    try {
+      git("merge", "--no-ff", "--no-commit", "origin/main");
+    } catch (error) {
+      succeeds(() => git("merge", "--abort"));
+      fail(`Le merge de origin/main dans dev a échoué (conflit ?) ; merge annulé, fusion à faire à la main.\n${error.stderr || error.message}`);
+    }
     if (!succeeds(() => git("diff", "--cached", "--quiet"))) {
       git("merge", "--abort");
-      fail("origin/main contient des changements absents de dev : fusion à faire à la main.");
+      fail("origin/main contient des changements absents de dev : merge annulé, fusion à faire à la main.");
     }
-    git("commit", "--no-edit");
+    try {
+      git("commit", "--no-edit");
+    } catch (error) {
+      succeeds(() => git("merge", "--abort"));
+      fail(`Le commit du merge a échoué ; merge annulé.\n${error.stderr || error.message}`);
+    }
   }
 
   runSteps([
@@ -264,5 +276,10 @@ async function init(version, opts) {
   console.log(`\n✔ Versioning amorcé sur ${tag}. Prochaine étape : npm run release`);
 }
 
-const opts = parseArgs(process.argv.slice(2));
+let opts;
+try {
+  opts = lib.parseArgs(process.argv.slice(2));
+} catch (error) {
+  fail(error.message);
+}
 (opts.init ? init(opts.init, opts) : release(opts)).catch((error) => fail(error.stack || error.message));

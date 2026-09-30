@@ -85,11 +85,9 @@ function loadAppVersion(rootDir = projectRoot, { preferBuildInfo = process.env.N
   }
 
   if (buildInfo?.version) {
-    state.app = {
-      version: buildInfo.version,
-      commit: buildInfo.commit || null,
-      buildDate: buildInfo.buildDate || null,
-    };
+    // "-dirty" : le build contenait des modifications non commitées, le sha seul ne suffit pas à le retrouver.
+    const commit = buildInfo.commit ? `${buildInfo.commit}${buildInfo.dirty ? "-dirty" : ""}` : null;
+    state.app = { version: buildInfo.version, commit, buildDate: buildInfo.buildDate || null };
   } else {
     if (!packageJson) logger.error(`Lecture de package.json impossible dans ${rootDir}`);
     state.app = { version: packageJson?.version, commit: gitShortCommit(rootDir), buildDate: null };

@@ -106,6 +106,52 @@ describe("releaseLib", () => {
     });
   });
 
+  describe("parseArgs()", () => {
+    it("lit niveau, --dry-run, --yes et --init <version>", () => {
+      expect(lib.parseArgs(["minor", "--dry-run", "--yes"])).to.deep.equal({
+        level: "minor",
+        dryRun: true,
+        yes: true,
+        init: null,
+      });
+      expect(lib.parseArgs(["--init", "2.3.0"]).init).to.equal("2.3.0");
+    });
+
+    it("refuse --init sans version (sinon une vraie release serait lancée)", () => {
+      expect(() => lib.parseArgs(["--init"])).to.throw(/--init X\.Y\.Z/);
+      expect(() => lib.parseArgs(["--init", "--dry-run"])).to.throw(/--init X\.Y\.Z/);
+    });
+
+    it("refuse un argument inconnu", () => {
+      expect(() => lib.parseArgs(["--force"])).to.throw(/Argument inconnu : --force/);
+    });
+  });
+
+  describe("countPublishable()", () => {
+    it("ne compte que les commits qui apparaissent dans le CHANGELOG", () => {
+      const commits = ["feat: a", "fix: b", "chore: c", "docs: d", "refactor(x)!: e"].map((s) => lib.parseCommit(s));
+      expect(lib.countPublishable(commits)).to.equal(3);
+    });
+  });
+
+  describe("setJsonVersion()", () => {
+    it("met à jour version et packages[''] d'un lockfile", () => {
+      const lock = JSON.stringify({ version: "2.3.0", packages: { "": { version: "2.3.0" }, x: {} } }, null, 2);
+      const result = JSON.parse(lib.setJsonVersion(lock, "2.4.0"));
+      expect(result.version).to.equal("2.4.0");
+      expect(result.packages[""].version).to.equal("2.4.0");
+    });
+
+    it("conserve les fins de ligne CRLF d'origine", () => {
+      const crlf = '{\r\n  "version": "2.3.0"\r\n}\r\n';
+      expect(lib.setJsonVersion(crlf, "2.4.0")).to.equal('{\r\n  "version": "2.4.0"\r\n}\r\n');
+    });
+
+    it("garde LF quand le fichier est en LF", () => {
+      expect(lib.setJsonVersion('{\n  "version": "1.0.0"\n}\n', "1.0.1")).to.equal('{\n  "version": "1.0.1"\n}\n');
+    });
+  });
+
   describe("formatDate()", () => {
     it("formate en YYYY-MM-DD local", () => {
       expect(lib.formatDate(new Date(2026, 8, 5, 23, 30))).to.equal("2026-09-05");

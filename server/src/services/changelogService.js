@@ -3,7 +3,9 @@ const fs = require("fs");
 const logger = require("../logger/logger");
 const { compareVersions } = require("../utils/version");
 
-const VERSION_RE = /^## \[([^\]]+)\](?:\s+-\s+(\d{4}-\d{2}-\d{2}))?/;
+// Seules les versions publiées (X.Y.Z) comptent : une section « [Unreleased] » est ignorée.
+const VERSION_RE = /^## \[(\d+\.\d+\.\d+)\](?:\s+-\s+(\d{4}-\d{2}-\d{2}))?/;
+const OTHER_HEADING_RE = /^## /;
 const SECTION_RE = /^### (.+)$/;
 const ITEM_RE = /^- (?:\*\*(.+?)\*\* : )?(.+)$/;
 
@@ -19,6 +21,12 @@ function parseChangelog(markdown) {
     if (versionMatch) {
       entry = { version: versionMatch[1], date: versionMatch[2] || null, sections: {} };
       entries.push(entry);
+      section = null;
+      continue;
+    }
+    if (OTHER_HEADING_RE.test(line)) {
+      // Titre non publié : ses lignes ne doivent pas se rattacher à la version précédente.
+      entry = null;
       section = null;
       continue;
     }
