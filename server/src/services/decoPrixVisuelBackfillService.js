@@ -123,7 +123,7 @@ async function backfillDecoPrixVisuel({ dryRun = false, numCmds = null, sinceDat
     for (const [numCmd, docs] of byNumCmd.entries()) {
       let enteteRows;
       try {
-        enteteRows = await dossierService.fetchEnteteDevis(connection, String(numCmd), null, null);
+        enteteRows = await dossierService.fetchEnteteDevis(connection, String(numCmd), null);
       } catch (err) {
         resume.erreurs += docs.length;
         logger.warn(`backfillDecoPrixVisuel: fetchEnteteDevis échoué pour numCmd=${numCmd} : ${err.message}`);
@@ -186,7 +186,7 @@ async function repairDecoPrixVisuel({ dryRun = false, numCmds = null } = {}) {
     for (const [numCmd, docs] of byNumCmd.entries()) {
       let enteteRows;
       try {
-        enteteRows = await dossierService.fetchEnteteDevis(connection, String(numCmd), null, null);
+        enteteRows = await dossierService.fetchEnteteDevis(connection, String(numCmd), null);
       } catch (err) {
         resume.erreurs += docs.length;
         logger.warn(`repairDecoPrixVisuel: fetchEnteteDevis échoué pour numCmd=${numCmd} : ${err.message}`);
