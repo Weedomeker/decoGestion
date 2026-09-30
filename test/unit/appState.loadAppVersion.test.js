@@ -27,8 +27,14 @@ describe("appState.loadAppVersion()", () => {
 
   it("en dev (défaut sous NODE_ENV=development), ignore un build-info.json périmé", () => {
     fs.writeFileSync(path.join(tmpDir, "build-info.json"), JSON.stringify(BUILD_INFO));
+    const originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "development";
 
-    loadAppVersion(tmpDir);
+    try {
+      loadAppVersion(tmpDir);
+    } finally {
+      process.env.NODE_ENV = originalEnv;
+    }
 
     expect(state.app.version).to.equal("2.3.0");
   });
