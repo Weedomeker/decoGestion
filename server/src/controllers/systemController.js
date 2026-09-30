@@ -1,5 +1,7 @@
+const path = require("path");
 const logger = require("../logger/logger");
 const checkVersion = require("../checkVersion");
+const { readChangelog } = require("../services/changelogService");
 const { state } = require("../services/appState");
 const { getFormatsTauro } = require("../services/formatsService");
 const { getDecoPaths } = require("../services/pathService");
@@ -37,8 +39,33 @@ function getFormatsTauroHandler(req, res) {
   res.json(getFormatsTauro());
 }
 
+async function getVersion(req, res) {
+  try {
+    const { latest, updateAvailable } = await checkVersion();
+    const { version, commit, buildDate } = state.app;
+    res.json({ version, commit, buildDate, latest, updateAvailable });
+  } catch (error) {
+    logger.error(`getVersion: ${error.message}`);
+    res.status(500).json({ error: "Erreur de lecture de la version" });
+  }
+}
+
+function getChangelog(req, res) {
+  const limit = parseInt(req.query.limit) || 5;
+  res.json(
+    readChangelog({
+      since: req.query.since,
+      limit,
+      current: state.app.version,
+      filePath: path.join(state.paths.projectRoot, "CHANGELOG.md"),
+    }),
+  );
+}
+
 module.exports = {
   getProcess,
   getPath,
   getFormatsTauro: getFormatsTauroHandler,
+  getVersion,
+  getChangelog,
 };

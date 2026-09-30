@@ -815,6 +815,7 @@ async function processJob(job, req) {
       perte: job.perte ? parseFloat(job.perte) : 0,
       status: safeRef ? "A imprimer" : "ref_invalide",
       app_version: `v${state.appVersion}`,
+      app_commit: state.app.commit || undefined,
       ip: req.ip.split(":").pop() === "1" || req.hostname === "localhost" ? os.hostname() : req.ip.split(":").pop(),
       comment: buildCoteClientComment(
         job.printFormat,
