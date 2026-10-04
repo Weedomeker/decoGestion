@@ -835,6 +835,14 @@ async function processJob(job, req) {
     await claimStubOrCreate(modelDeco, cmd || 0, data);
   };
 
+  // S7 — livrable vérifié AVANT toute écriture en base : si BullMQ retente le job, le stub
+  // Gamesys a déjà été réclamé à la 1ère tentative et claimStubOrCreate créerait un doublon.
+  if (deliverableError) {
+    logger.error(`❌ Job ${job.cmd} en échec : ${deliverableError}`);
+    broadcastWS({ type: "jobError", job, reason: deliverableError });
+    throw new Error(`Job ${job.cmd} : ${deliverableError}`);
+  }
+
   try {
     const totalTime = parseFloat((((jpgTime ?? 0) + (pdfTime ?? 0)) / 1000).toFixed(2)) || 0;
     // Calculé avant le 1er saveDeco pour savoir si un 2e panneau (crédence amalgamée) va être
@@ -917,15 +925,6 @@ async function processJob(job, req) {
         logger.error(`Erreur génération fichier de coupe pour le job ${job.cmd}: ${error.message}`);
       }
     }
-  }
-
-  // S7 — si le livrable n'a pas pu être produit, on ne marque PAS le job terminé : on émet un
-  // jobError et on throw pour que BullMQ retente (attempts: 3) puis le laisse en échec définitif.
-  // Le job reste alors dans state.jobs.jobs (runJobs ne le filtre que s'il est dans completed).
-  if (deliverableError) {
-    logger.error(`❌ Job ${job.cmd} en échec : ${deliverableError}`);
-    broadcastWS({ type: "jobError", job, reason: deliverableError });
-    throw new Error(`Job ${job.cmd} : ${deliverableError}`);
   }
 
   state.jobs.completed.push(job);
