@@ -2,7 +2,9 @@ const { Queue, Worker, QueueEvents } = require('bullmq');
 const IORedis = require('ioredis');
 const logger = require('../logger/logger');
 
-const JOBS_CONCURRENCY = parseInt(process.env.JOBS_CONCURRENCY) || 3;
+const MIN_CONCURRENCY = 1;
+const MAX_CONCURRENCY = 8;
+const DEFAULT_CONCURRENCY = parseInt(process.env.JOBS_CONCURRENCY) || 3;
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
 function makeConnection() {
@@ -21,10 +23,20 @@ function makeConnection() {
 const decoQueue = new Queue('deco-jobs', { connection: makeConnection() });
 const queueEvents = new QueueEvents('deco-jobs', { connection: makeConnection() });
 
-function initWorker(processor) {
-  const worker = new Worker('deco-jobs', processor, {
+let worker = null;
+let concurrency = DEFAULT_CONCURRENCY;
+
+function isValidConcurrency(n) {
+  return Number.isInteger(n) && n >= MIN_CONCURRENCY && n <= MAX_CONCURRENCY;
+}
+
+function initWorker(processor, options = {}) {
+  const requested = parseInt(options.concurrency);
+  if (isValidConcurrency(requested)) concurrency = requested;
+
+  worker = new Worker('deco-jobs', processor, {
     connection: makeConnection(),
-    concurrency: JOBS_CONCURRENCY,
+    concurrency,
   });
 
   worker.on('failed', (job, err) => {
@@ -38,4 +50,29 @@ function initWorker(processor) {
   return worker;
 }
 
-module.exports = { decoQueue, queueEvents, initWorker };
+function getConcurrency() {
+  return concurrency;
+}
+
+// Modifiable à chaud : le setter BullMQ est pris en compte par la boucle du worker
+// dès le prochain job récupéré (les jobs actifs ne sont pas interrompus).
+function setConcurrency(n) {
+  const value = parseInt(n);
+  if (!isValidConcurrency(value)) {
+    throw new RangeError(`Concurrence invalide : ${n} (attendu ${MIN_CONCURRENCY}-${MAX_CONCURRENCY})`);
+  }
+  concurrency = value;
+  if (worker) worker.concurrency = value;
+  logger.info(`⚙️ Concurrence des jobs réglée à ${value}`);
+  return value;
+}
+
+module.exports = {
+  decoQueue,
+  queueEvents,
+  initWorker,
+  getConcurrency,
+  setConcurrency,
+  MIN_CONCURRENCY,
+  MAX_CONCURRENCY,
+};

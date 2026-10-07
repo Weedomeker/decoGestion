@@ -247,7 +247,57 @@ img.ui.image:not(.header-logo) {
   color: var(--text-muted);
   letter-spacing: 0.5px;
   line-height: 1;
-  padding-bottom: 2px;
+  padding: 0 0 2px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.header-version:hover,
+.header-version:focus-visible {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.header-update {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--warning) !important;
+  background: var(--warning-soft);
+  border: 1px solid var(--warning);
+  border-radius: 10px;
+  padding: 1px 7px;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+.whatsnew-entry + .whatsnew-entry {
+  margin-top: 1.4em;
+  padding-top: 1em;
+  border-top: 1px solid var(--border-dim);
+}
+
+.whatsnew-version {
+  margin-bottom: 0.4em;
+}
+
+.whatsnew-date {
+  font-weight: 400;
+  font-size: 0.8em;
+  color: var(--text-muted);
+}
+
+.whatsnew-section h4 {
+  margin: 0.8em 0 0.3em;
+}
+
+.whatsnew-section ul {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.whatsnew-empty {
+  color: var(--text-muted);
 }
 
 .header-actions {

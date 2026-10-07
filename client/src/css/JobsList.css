@@ -159,3 +159,64 @@
   overflow: hidden;
   width: 100%;
 }
+
+/* ===================== FILE : DRAG & DROP / SÉLECTION ===================== */
+
+/* Un <tbody> par job (drag & drop) : les rayures se font par job, pas par ligne,
+   pour que les 2 lignes d'une crédence restent visuellement groupées. */
+.ui.striped.table.jobs-table tbody.job-group > tr {
+  background: transparent !important;
+}
+.ui.striped.table.jobs-table tbody.job-group:nth-of-type(2n) > tr {
+  background: rgba(42, 37, 32, 0.02) !important;
+}
+.ui.table.jobs-table tbody.job-group.dragging > tr > td {
+  background: var(--bg-elevated) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.jobs-table td.job-control-cell,
+.jobs-table th.job-control-cell {
+  padding: 0 4px !important;
+  text-align: center;
+}
+
+.job-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  opacity: 0.45;
+  touch-action: none;
+  padding: 4px 2px;
+}
+.job-drag-handle:hover,
+.job-drag-handle:focus-visible {
+  opacity: 1;
+}
+.dragging .job-drag-handle {
+  cursor: grabbing;
+}
+
+/* ===================== FILE : CONCURRENCE ===================== */
+
+.concurrency-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.concurrency-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.concurrency-control .ui.compact.selection.dropdown {
+  min-width: 4em;
+  min-height: 0;
+  padding: 5px 2.2em 5px 10px;
+}
+.concurrency-control .ui.selection.dropdown > .dropdown.icon {
+  padding: 5px 8px;
+}

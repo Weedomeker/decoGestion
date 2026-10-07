@@ -24,6 +24,7 @@ import StatsView from "./components/StatsView";
 import StickerView from "./components/StickerView";
 import TeinteMasseDropdown from "./components/TeinteMasseDropdown";
 import VisuelDropdown from "./components/VisuelDropdown";
+import WhatsNew from "./components/WhatsNew";
 import { isCredenceFormat } from "./utils/credence";
 import { formatPrix } from "./utils/prix";
 
@@ -42,7 +43,8 @@ function App() {
   const [checkFolder, setCheckFolder] = useState("LM");
   const [showAddFormat, setShowAddFormat] = useState(false);
   const [selectedFormatTauro, setSelectedFormatTauro] = useState("");
-  const [version, setVersion] = useState(null);
+  const [appInfo, setAppInfo] = useState(null);
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const [isloadingFormatTauro, setLoadingFormatTauro] = useState(true);
   const [files, setFiles] = useState([{ name: "", fileSize: "" }]);
   const [files2, setFiles2] = useState([{ name: "", fileSize: "" }]);
@@ -393,22 +395,12 @@ function App() {
       });
   }, []);
 
-  //Get App version
+  // Version de l'appli (+ commit, date de build et alerte de mise à jour)
   useEffect(() => {
-    fetch(`${API_BASE}/process`, {
-      method: "GET",
-      headers: {
-        Accept: "Application/json",
-        "Content-Type": "application/json",
-      },
-    })
-      .then((res) => res.json())
-      .then((res) => {
-        setVersion(res.version);
-      })
-      .catch((err) => {
-        console.error(err);
-      });
+    fetch(`${API_BASE}/version`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then(setAppInfo)
+      .catch((err) => console.error(err));
   }, []);
 
   useEffect(() => {
@@ -849,7 +841,8 @@ function App() {
   return (
     <div className="container">
       <Header
-        appVersion={version}
+        appInfo={appInfo}
+        onVersionClick={() => setWhatsNewOpen(true)}
         onFichiers={() => setIsLouisOpen(true)}
         configNode={<Config />}
         statusNode={<ServerStatus onHealthChange={setHealthData} />}
@@ -858,6 +851,11 @@ function App() {
         pendingCount={pendingCount}
         theme={theme}
         onThemeToggle={toggleTheme}
+      />
+      <WhatsNew
+        currentVersion={appInfo?.version}
+        manualOpen={whatsNewOpen}
+        onManualClose={() => setWhatsNewOpen(false)}
       />
 
       <div className="view-area">

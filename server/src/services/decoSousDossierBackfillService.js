@@ -117,7 +117,7 @@ async function backfillDecoSousDossier({ concurrency = 5, dryRun = false } = {})
       [...byNumCmd.entries()].map(([numCmd, docs]) =>
         limit(async () => {
           try {
-            const rows = await dossierService.fetchEnteteDevis(connection, String(numCmd), "", null);
+            const rows = await dossierService.fetchEnteteDevis(connection, String(numCmd), "");
             for (const doc of docs) {
               const { sousDossier, origine } = await matchSousDossier(connection, rows, doc);
               if (sousDossier == null) {

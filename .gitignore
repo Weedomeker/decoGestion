@@ -53,3 +53,4 @@ coverage/
 .nyc_output/
 server/scripts/reports/*.md
 server/scripts/reports/*.txt
+build-info.json

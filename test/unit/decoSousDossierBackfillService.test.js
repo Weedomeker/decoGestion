@@ -202,7 +202,7 @@ describe("decoSousDossierBackfillService.backfillDecoSousDossier()", () => {
       { _id: "a", numCmd: 165594, ref: "94964437", deco: "ONYX GAUCHE", format: "125x255" },
       { _id: "b", numCmd: 165594, ref: "94964438", deco: "ONYX GAUCHE", format: "150x255" },
     ]);
-    fetchEnteteDevisStub.withArgs(fakeConnection, "165594", "", null).resolves(ROWS_165594);
+    fetchEnteteDevisStub.withArgs(fakeConnection, "165594", "").resolves(ROWS_165594);
 
     const resume = await backfillDecoSousDossier({ dryRun: false });
 
@@ -245,9 +245,9 @@ describe("decoSousDossierBackfillService.backfillDecoSousDossier()", () => {
       { _id: "a", numCmd: 1, ref: "R1", deco: "V1", format: "100x255" },
       { _id: "b", numCmd: 2, ref: "R2", deco: "V2", format: "100x255" },
     ]);
-    fetchEnteteDevisStub.withArgs(fakeConnection, "1", "", null).rejects(new Error("ODBC timeout"));
+    fetchEnteteDevisStub.withArgs(fakeConnection, "1", "").rejects(new Error("ODBC timeout"));
     fetchEnteteDevisStub
-      .withArgs(fakeConnection, "2", "", null)
+      .withArgs(fakeConnection, "2", "")
       .resolves([{ endv_no_commande: "2/00", endv_identif: "V2 100x255cm" }]);
 
     const resume = await backfillDecoSousDossier({ dryRun: false });

@@ -14,7 +14,7 @@ const connectMongo = require("./src/mongoose");
 const { processAllPDFs } = require("./src/generatePreview");
 const registerRoutes = require("./src/routes");
 const { state, loadAppVersion } = require("./src/services/appState");
-const { linkFolders } = require("./src/services/configService");
+const { linkFolders, getConfig } = require("./src/services/configService");
 const { initWebSocket, broadcastHealth } = require("./src/services/websocketService");
 const { checkOdbcConnection, getOdbcStatus } = require("./src/gamesys/config/db");
 const { checkNetworkPaths } = require("./src/services/networkChecker");
@@ -24,11 +24,7 @@ const { BullMQAdapter } = require("@bull-board/api/bullMQAdapter");
 const { ExpressAdapter } = require("@bull-board/express");
 const { decoQueue, initWorker } = require("./src/services/queueService");
 const { processJob } = require("./src/controllers/jobsController");
-const { syncConsommationsHistorique } = require("./src/services/gamesysConsommationSyncService");
-const { backfillRecentDecoData, formatBackfillResume } = require("./src/services/startupPrixBackfillService");
-const { formatResume } = require("./src/logger/formatResume");
-const { syncDecoStubsDepuisGamesys } = require("./src/services/decoGamesysStubSyncService");
-const { syncAnnulationsDepuisGamesys } = require("./src/services/decoAnnulationSyncService");
+const { syncPausedState } = require("./src/services/queueControlService");
 
 const PORT = process.env.PORT || 8000;
 
@@ -115,7 +111,10 @@ initWorker(async (bullJob) => {
   const { job, sortFolder, ip } = bullJob.data;
   const fakeReq = { body: { sortFolder }, ip };
   await processJob(job, fakeReq);
-});
+}, { concurrency: getConfig()?.jobsConcurrency });
+
+// La pause BullMQ persiste dans Redis : l'UI doit refléter l'état réel dès le démarrage.
+syncPausedState();
 
 // 404 — doit être après toutes les routes
 app.use((req, res) => {
@@ -209,77 +208,6 @@ server.listen(PORT, async () => {
     });
   }, 30_000);
 
-  // Tâches Gamesys uniques au démarrage, exécutées à la suite (pas en parallèle : évite la
-  // contention sur le pool ODBC) dès que le démarrage ci-dessus est terminé. Remplace 4 setTimeout
-  // à délais fixes (2/3/4/5 min) qui étalaient ~1 min de travail réel sur plus de 5 min.
-  // L'ordre est significatif : les annulations portent sur les stubs, donc après leur sync.
-  //
-  // - Backfill prix/livraison : commandes récentes ajoutées manuellement dans une autre appli
-  //   (jamais passées par le pipeline Gamesys normal). Fenêtre courte (défaut 2j) — les backlogs
-  //   plus anciens se rattrapent via les scripts CLI manuels.
-  // - Stubs Deco (gamesysStub:true) pour les dossiers Gamesys récents sans document Deco —
-  //   réclamés ensuite via claimStubOrCreate. Un dossier apparu après le démarrage n'a pas de stub
-  //   avant le prochain redémarrage, sans perte fonctionnelle (repli sur la création classique).
-  // - Annulations : les stubs encore "A lancer" dont la commande a été annulée dans Gamesys
-  //   basculent en "Annulé" (tous les stubs, pas seulement les récents, cf. decoAnnulationSyncService).
-  // - Consommations profils/kits (→ ConsommationCommande/StockArticle) pour les commandes qui ne
-  //   passent jamais par le pipeline de jobs. Fenêtre de 10j : le serveur redémarrant au moins une
-  //   fois par jour, elle rattrape les retards Gamesys (les numCmd déjà connus sont ignorés).
-  const DAY_MS = 24 * 60 * 60 * 1000;
-  const PRIX_BACKFILL_LOOKBACK_DAYS = parseInt(process.env.PRIX_BACKFILL_LOOKBACK_DAYS, 10) || 2;
-  const DECO_STUB_SYNC_LOOKBACK_DAYS = parseInt(process.env.DECO_STUB_SYNC_LOOKBACK_DAYS, 10) || 5;
-  const SYNC_CONSO_LOOKBACK_DAYS = 10;
-
-  const startupTasks = [
-    {
-      name: `Backfill prix/livraison récents (${PRIX_BACKFILL_LOOKBACK_DAYS}j)`,
-      run: async () =>
-        formatBackfillResume(
-          await backfillRecentDecoData({ sinceDate: new Date(Date.now() - PRIX_BACKFILL_LOOKBACK_DAYS * DAY_MS) }),
-        ),
-    },
-    {
-      name: `Sync stubs Deco depuis Gamesys (${DECO_STUB_SYNC_LOOKBACK_DAYS}j)`,
-      run: async () =>
-        formatResume(
-          await syncDecoStubsDepuisGamesys({ sinceDate: new Date(Date.now() - DECO_STUB_SYNC_LOOKBACK_DAYS * DAY_MS) }),
-        ),
-    },
-    {
-      name: "Sync annulations Gamesys",
-      run: async () => formatResume(await syncAnnulationsDepuisGamesys()),
-    },
-    {
-      name: "Sync consommations profils/kits (10j)",
-      run: async () => {
-        const resume = await syncConsommationsHistorique({
-          sinceDate: new Date(Date.now() - SYNC_CONSO_LOOKBACK_DAYS * DAY_MS),
-          concurrency: 3,
-        });
-        const { candidats, traites, dejaExistants, erreurs, orphelinsDetectes, orphelinsReconcilies } = resume;
-        const orphelins = orphelinsDetectes
-          ? ` · ${orphelinsReconcilies}/${orphelinsDetectes} orphelins stock_profiles corrigés`
-          : "";
-        return formatResume({ candidats, traites, dejaExistants, erreurs }) + orphelins;
-      },
-    },
-  ];
-
-  const seconds = (since) => `${((Date.now() - since) / 1000).toFixed(1)}s`;
-  const startupTasksStart = Date.now();
-  let startupTasksFailed = 0;
-  for (const task of startupTasks) {
-    const taskStart = Date.now();
-    try {
-      const result = await task.run();
-      logger.info(`✔ ${task.name} — ${result} (${seconds(taskStart)})`);
-    } catch (error) {
-      startupTasksFailed += 1;
-      logger.warn(`✘ ${task.name} — échec : ${error.message} (${seconds(taskStart)})`);
-    }
-  }
-  logger.info(
-    `Tâches Gamesys de démarrage terminées en ${seconds(startupTasksStart)}` +
-      (startupTasksFailed ? ` (${startupTasksFailed} en échec)` : ""),
-  );
+  // La synchro de fond Gamesys → Mongo (stubs « A lancer », consommations profils/kits, annulations,
+  // compléments de prix/dates) tourne en continu dans decoGestion-API (SRV-APP), plus ici.
 });

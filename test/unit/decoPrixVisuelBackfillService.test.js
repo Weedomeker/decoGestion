@@ -86,7 +86,7 @@ describe("decoPrixVisuelBackfillService.backfillDecoPrixVisuel()", () => {
 
     expect(getDbConnectionStub.calledOnce).to.be.true;
     expect(fetchEnteteDevisStub.callCount).to.equal(1);
-    expect(fetchEnteteDevisStub.calledWith(fakeConnection, "164629", null, null)).to.be.true;
+    expect(fetchEnteteDevisStub.calledWith(fakeConnection, "164629", null)).to.be.true;
     expect(resume.misAJour).to.equal(2);
     expect(updateOneStub.calledWith({ _id: "a", prix: { $exists: false } }, { $set: { prix: 243.69 } })).to.be.true;
     expect(updateOneStub.calledWith({ _id: "b", prix: { $exists: false } }, { $set: { prix: 187.5 } })).to.be.true;
@@ -148,8 +148,8 @@ describe("decoPrixVisuelBackfillService.backfillDecoPrixVisuel()", () => {
       { _id: "a", numCmd: 1, ref: "X" },
       { _id: "b", numCmd: 2, ref: "V001" },
     ]);
-    fetchEnteteDevisStub.withArgs(fakeConnection, "1", null, null).rejects(new Error("ODBC timeout"));
-    fetchEnteteDevisStub.withArgs(fakeConnection, "2", null, null).resolves(ENTETE_TWO_VISUELS);
+    fetchEnteteDevisStub.withArgs(fakeConnection, "1", null).rejects(new Error("ODBC timeout"));
+    fetchEnteteDevisStub.withArgs(fakeConnection, "2", null).resolves(ENTETE_TWO_VISUELS);
     updateOneStub.resolves({ modifiedCount: 1 });
 
     const resume = await backfillDecoPrixVisuel({ dryRun: false });

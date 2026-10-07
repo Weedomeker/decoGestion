@@ -36,6 +36,7 @@ const decoSchema = new mongoose.Schema({
   perte: { type: Number },
   status: { type: String },
   app_version: { type: String },
+  app_commit: { type: String },
   ip: { type: String },
   comment: { type: String, default: "" },
   surMesure: { type: Boolean, default: false },

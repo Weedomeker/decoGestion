@@ -789,12 +789,16 @@ function buildGroupedResponse(details, view) {
 // un dossier après coup — sans ce fallback par seq, l'entête d'origine (et ses profils/kits) devient
 // introuvable ici alors qu'elle avait bien été repérée à la détection, et la commande est ignorée
 // silencieusement (aucune erreur, aucun article sauvegardé).
-async function fetchEnteteDevis(connection, commande, code, seq) {
+// Pas de critère endv_seq = dos_seq : ce sont deux numérotations indépendantes. Sur les ~9 000
+// dossiers dont dos_seq tombe dans la plage des endv_seq, 97,5 % des collisions pointent vers la
+// ligne d'une autre commande (ex : 163137/01 récupérait "CHAUX BEIGE" de 167846/03), et aucun
+// dossier n'est relié uniquement par ce seq (mesuré le 29/09/2026).
+async function fetchEnteteDevis(connection, commande, code) {
   try {
     const rows = await query(
       connection,
-      `select * from public.fd_entete_devi where endv_no_dossier = ? or endv_no_commande = ? or endv_no_cmde_globale = ? or endv_no_dossier_site_donneur = ? or endv_coduniq = ? or endv_seq = ?`,
-      [commande, commande, commande, commande, code, seq]
+      `select * from public.fd_entete_devi where endv_no_dossier = ? or endv_no_commande = ? or endv_no_cmde_globale = ? or endv_no_dossier_site_donneur = ? or endv_coduniq = ?`,
+      [commande, commande, commande, commande, code]
     );
     return uniqueBy(rows, (row) => row.endv_seq);
   } catch (error) {
@@ -823,7 +827,7 @@ async function fetchSousDossiersVisuels(connection, numero) {
   const resultats = [];
   for (const dossier of dossiers) {
     const commande = dossier.dos_no_cmde || "";
-    const enteteDevis = await fetchEnteteDevis(connection, commande, dossier.dos_codeuniq, dossier.dos_seq);
+    const enteteDevis = await fetchEnteteDevis(connection, commande, dossier.dos_codeuniq);
     if (enteteDevis.length === 0) continue;
 
     const preferredRefModel = getPreferredRefModel(dossier.dos_client);
@@ -881,7 +885,7 @@ async function buildDetail(connection, dossier) {
 
   // Batch principal (connection) + batch lié (conn2) en parallèle
   const primaryBatch = async () => {
-    const enteteDevis = await fetchEnteteDevis(connection, dossierCommande, dossierCode, dosSeq);
+    const enteteDevis = await fetchEnteteDevis(connection, dossierCommande, dossierCode);
     const dossierExtRows = dossierCommande
       ? await fetchOptionalRows(connection, `select * from public.fd_dossier_ext where dos_seq = ? or dos_no_cmde = ?`, [dosSeq, dossierCommande])
       : await fetchOptionalRows(connection, `select * from public.fd_dossier_ext where dos_seq = ?`, [dosSeq]);
