@@ -127,11 +127,15 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
 
   const refStr = ref && ref !== 0 ? String(ref) : null;
 
-  // Priorité ref (case-insensitive) ; fallback nom visuel si aucun match
+  // Miniature recherchée par ref uniquement (case-insensitive) : le repli par nom de visuel a été
+  // retiré (a26cfc0) car un même décor existe en plusieurs formats. Sans ref (étiquette saisie à la
+  // main), l'absence de miniature est donc normale — seule une ref sans aperçu mérite un warn.
   const images = refStr
     ? files.filter((file) => file.toLowerCase().endsWith(".jpg") && file.toLowerCase().includes(refStr.toLowerCase()))
     : [];
-  if (images.length === 0) {
+  if (!refStr) {
+    logger.info(`generateStickers: pas de référence pour "${visuel}", étiquette sans miniature`);
+  } else if (images.length === 0) {
     logger.warn(`generateStickers: aucun JPG trouvé par référence "${refStr}" pour "${visuel}"`);
   }
 

@@ -41,4 +41,24 @@ describe("gamesys/lib/db.js — query()", () => {
     const [, options] = connection.query.firstCall.args;
     expect(options).to.deep.equal({ timeout: 30 });
   });
+
+  it("journalise la cause du driver (odbcErrors) et un extrait de la requête, puis relance l'erreur", async () => {
+    const logger = require("../../server/src/logger/logger");
+    const logError = sinon.stub(logger, "error");
+    const odbcError = new Error("[odbc] Error executing the sql statement");
+    odbcError.odbcErrors = [{ state: "42S02", code: -141, message: "Table fd_ent_cmde introuvable" }];
+    const connection = { query: sinon.stub().rejects(odbcError) };
+
+    let thrown;
+    try {
+      await query(connection, "select *\n  from fd_ent_cmde where id = ?", [1]);
+    } catch (err) {
+      thrown = err;
+    }
+
+    expect(thrown).to.equal(odbcError);
+    const message = logError.firstCall.args[0];
+    expect(message).to.include("driver: 42S02 -141 Table fd_ent_cmde introuvable");
+    expect(message).to.include("SQL: select * from fd_ent_cmde where id = ?");
+  });
 });

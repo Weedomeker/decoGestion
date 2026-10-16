@@ -15,6 +15,17 @@ function queryTimeoutSeconds() {
   return parseInt(process.env.ODBC_QUERY_TIMEOUT, 10) || 15;
 }
 
+// node-odbc ne met qu'un message générique dans error.message ("Error executing the sql
+// statement") : la vraie cause du driver (SQLSTATE + message) est dans error.odbcErrors. Sans elle
+// ni la requête, une erreur isolée en prod (15/10/2026) était impossible à diagnostiquer.
+function describeOdbcFailure(error, sql) {
+  const details = (Array.isArray(error?.odbcErrors) ? error.odbcErrors : [])
+    .map((e) => [e.state, e.code, e.message].filter((v) => v !== undefined && v !== "").join(" "))
+    .filter(Boolean);
+  const sqlExcerpt = String(sql || "").replace(/\s+/g, " ").trim().slice(0, 200);
+  return `${details.length ? ` | driver: ${details.join(" ; ")}` : ""}${sqlExcerpt ? ` | SQL: ${sqlExcerpt}` : ""}`;
+}
+
 async function query(connection, sql, params = []) {
   try {
     const options = { timeout: queryTimeoutSeconds() };
@@ -26,7 +37,7 @@ async function query(connection, sql, params = []) {
     const result = await connection.query(sql, params, options);
     return Array.from(result);
   } catch (error) {
-    logger.error(`Erreur requête SQL: ${error.message}`);
+    logger.error(`Erreur requête SQL: ${error.message}${describeOdbcFailure(error, sql)}`);
     throw error;
   }
 }
