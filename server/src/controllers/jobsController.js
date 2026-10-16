@@ -24,6 +24,7 @@ const dossierService = require("../gamesys/services/dossierService");
 const { saveFormatsTauroIfNeeded } = require("../services/formatsService");
 const { broadcastWS, broadcastCompletedJob } = require("../services/websocketService");
 const usePdfWorker = require("../utils/pdfWorker");
+const { createStagingDir, deliverToHotFolder, removeStagingDir } = require("../utils/hotFolderDelivery");
 const { castoName } = require("../utils/jobNames");
 const { buildCoteClientComment } = require("../utils/coteClient");
 const { extractRefFromFilename, validateRefFormat, REF_FORMAT_HINT } = require("../services/referencesCheckService");
@@ -578,30 +579,34 @@ async function processJob(job, req) {
     return;
   }
 
-  const pdfName = `${job.writePath}/${fileName}`;
-  const pdfName2 = `${job.writePath}/${fileName2}` || "";
   const jpgName = `${state.paths.jpgPath}/${state.paths.sessionPRINTSA}/${fileName}`;
   const jpgName2 = isCredences ? `${state.paths.jpgPath}/${state.paths.sessionPRINTSA}/${fileName2}` || "" : "";
 
   if (!job.teinteMasse && !isStock) {
+    // job.writePath est le hot folder du RIP Tauro : il consomme le PDF dès son arrivée. Le PDF est
+    // donc produit et vérifié dans un dossier local, le JPG en est tiré, et le PDF n'est déposé
+    // dans le hot folder qu'en dernier, une fois tout le livrable validé — sinon la vérification
+    // échouait (ENOENT) et chaque retry BullMQ renvoyait le PDF à l'impression.
+    const pdfBaseName = isCredences
+      ? `${castoName(fileName)}${job.visuPath2 ? ` + ${castoName(fileName2)}` : ""}.pdf`
+      : `${fileName}.pdf`;
+    let stagingDir = null;
+    let stagedPdfPath = null;
+
     try {
+      stagingDir = await createStagingDir();
+      stagedPdfPath = path.join(stagingDir, pdfBaseName);
       const startPdf = performance.now();
       if (isCredences) {
         const visuals = [{ file: job.visuPath, name: fileName }];
         if (job.visuPath2) {
           visuals.push({ file: job.visuPath2, name: fileName2 });
         }
-        await amalgameCredences(
-          { visuals, plaque: job.format_Plaque },
-          path.join(
-            job.writePath,
-            `${castoName(fileName)}${job.visuPath2 ? ` + ${  castoName(fileName2)}` : ""}.pdf`,
-          ),
-        );
+        await amalgameCredences({ visuals, plaque: job.format_Plaque }, stagedPdfPath);
         const endPdf = performance.now();
         pdfTime = endPdf - startPdf;
       } else {
-        await modifyPdf(job.visuPath, job.writePath, fileName, job.format_Plaque, job.reg);
+        await modifyPdf(job.visuPath, stagingDir, fileName, job.format_Plaque, job.reg);
         const endPdf = performance.now();
         pdfTime = endPdf - startPdf;
       }
@@ -610,16 +615,13 @@ async function processJob(job, req) {
       deliverableError = deliverableError || `Échec de génération du PDF : ${error.message || error}`;
     }
 
-    if (!job.teinteMasse) {
-      const outPdfPath = isCredences
-        ? path.join(job.writePath, `${castoName(fileName)}${job.visuPath2 ? ` + ${  castoName(fileName2)}` : ""}.pdf`)
-        : `${pdfName}.pdf`;
+    if (stagedPdfPath) {
       try {
-        if (!fs.existsSync(outPdfPath) || fs.statSync(outPdfPath).size === 0) {
-          logger.error(`❌ PDF de sortie manquant ou vide pour le job ${job.cmd} : ${outPdfPath}`);
+        if (!fs.existsSync(stagedPdfPath) || fs.statSync(stagedPdfPath).size === 0) {
+          logger.error(`❌ PDF de sortie manquant ou vide pour le job ${job.cmd} : ${stagedPdfPath}`);
           deliverableError = deliverableError || "PDF de sortie manquant ou vide";
         } else {
-          logger.info(`✅ PDF OK (${fs.statSync(outPdfPath).size} octets) : ${path.basename(outPdfPath)}`);
+          logger.info(`✅ PDF OK (${fs.statSync(stagedPdfPath).size} octets) : ${pdfBaseName}`);
         }
       } catch (err) {
         logger.error(`❌ Impossible de vérifier le PDF pour le job ${job.cmd} : ${err.message}`);
@@ -643,13 +645,7 @@ async function processJob(job, req) {
         const startJpg = performance.now();
         if (job.ref) {
           if (isCredences && job.visuPath2) {
-            await usePdfWorker({
-              pdf: path.join(
-                job.writePath,
-                `${castoName(pdfName.split("/").pop())} + ${castoName(pdfName2.split("/").pop())}.pdf`,
-              ),
-              jpg: outJpgPath,
-            });
+            await usePdfWorker({ pdf: stagedPdfPath, jpg: outJpgPath });
           } else {
             await getPreview(job.ref, jpgName, isStock);
           }
@@ -657,7 +653,7 @@ async function processJob(job, req) {
           const visuelNoExt = job.visuel?.replace(/\.[^.]+$/, "") || "";
           const previewFound = visuelNoExt ? await getPreview(visuelNoExt, jpgName, isStock) : false;
           if (!previewFound) {
-            await usePdfWorker({ pdf: `${pdfName}.pdf`, jpg: outJpgPath });
+            await usePdfWorker({ pdf: stagedPdfPath, jpg: outJpgPath });
           }
         }
         const endJpg = performance.now();
@@ -678,6 +674,17 @@ async function processJob(job, req) {
       logger.error(`❌ Impossible de vérifier le JPG pour le job ${job.cmd} : ${err.message}`);
       deliverableError = deliverableError || `Vérification du JPG impossible : ${err.message}`;
     }
+
+    if (!deliverableError) {
+      try {
+        await deliverToHotFolder(stagedPdfPath, path.join(job.writePath, pdfBaseName));
+        logger.info(`📤 PDF déposé dans le hot folder : ${pdfBaseName}`);
+      } catch (err) {
+        logger.error(`❌ Dépôt du PDF impossible pour le job ${job.cmd} : ${err.message}`);
+        deliverableError = `Dépôt du PDF dans le hot folder impossible : ${err.message}`;
+      }
+    }
+    await removeStagingDir(stagingDir);
   } else {
     try {
       await generateImages(job, state.paths.previewDeco, `${jpgName}.jpg`, isStock);
