@@ -1,6 +1,6 @@
 const { expect } = require("chai");
 const sinon = require("sinon");
-const { claimStubOrCreate, computeSousDossiersPkOnly } = require("../../server/src/services/decoStubService");
+const { claimStubOrCreate, computeSousDossiersPkOnly, filtreDecoNonLancee } = require("../../server/src/services/decoStubService");
 
 describe("decoStubService.claimStubOrCreate()", () => {
   it("réclame le stub existant (gamesysStub:true) et repasse gamesysStub à false", async () => {
@@ -89,9 +89,69 @@ describe("decoStubService.claimStubOrCreate()", () => {
 
     await claimStubOrCreate(FakeDeco, 167731, { deco: "MARBRE NERF", ref: "94953664", sousDossier: "07" });
 
-    expect(findOneAndUpdateStub.calledOnce).to.be.true;
+    // 1er appel : stub du sous-dossier ; 2e : reprise d'une Deco non lancée (jamais un stub par ref).
+    expect(findOneAndUpdateStub.calledTwice).to.be.true;
+    expect(findOneAndUpdateStub.secondCall.args[0]).to.include({ numCmd: 167731, ref: "94953664", sousDossier: "07" });
     expect(saveStub.calledOnce).to.be.true;
   });
+
+  it("reprend la Deco non lancée du même panneau au lieu de créer un doublon (job relancé)", async () => {
+    const reprise = { _id: "deco1", numCmd: 167515, sousDossier: "03", ref: "94953664", status: "A imprimer" };
+    const findOneAndUpdateStub = sinon.stub();
+    findOneAndUpdateStub.onFirstCall().resolves(null);
+    findOneAndUpdateStub.onSecondCall().resolves(reprise);
+    const saveStub = sinon.stub();
+    function FakeDeco(data) {
+      Object.assign(this, data);
+      this.save = saveStub;
+    }
+    FakeDeco.findOneAndUpdate = findOneAndUpdateStub;
+
+    const data = { deco: "MARBRE NERF", ref: "94953664", sousDossier: "03", ex: 2, comment: "" };
+    const result = await claimStubOrCreate(FakeDeco, 167515, data);
+
+    expect(result).to.equal(reprise);
+    expect(saveStub.called).to.be.false;
+    const [filtre, update, options] = findOneAndUpdateStub.secondCall.args;
+    expect(filtre).to.deep.equal(filtreDecoNonLancee(167515, data));
+    expect(update.$set).to.not.have.property("comment");
+    expect(update.$set.ex).to.equal(2);
+    expect(options).to.deep.equal({ new: true, sort: { createdAt: 1 } });
+  });
+
+  it("filtreDecoNonLancee : même panneau, aucune étape datée, hors stub, SAV et prise en stock", () => {
+    const filtre = filtreDecoNonLancee(167515, { ref: "94953664" });
+
+    expect(filtre).to.include({ numCmd: 167515, ref: "94953664" });
+    expect(filtre.sousDossier).to.deep.equal({ $in: [null, ""] });
+    expect(filtre.gamesysStub).to.deep.equal({ $ne: true });
+    for (const etape of ["print", "vernis", "decoupe", "expe", "annule"]) {
+      expect(filtre[`statusDates.${etape}`]).to.deep.equal({ $exists: false });
+    }
+    expect(filtre.mag.$not.test("SAV MULSANNE")).to.be.true;
+    expect(filtre.mag.$not.test("SAVIGNY")).to.be.false;
+    expect(filtre.comment.$not.test("Pris en stock le 12/10/2026")).to.be.true;
+  });
+
+  for (const [cas, data] of [
+    ["un SAV", { ref: "94953664", sousDossier: "00", mag: "SAV JAUX" }],
+    ["une prise en stock", { ref: "94953664", sousDossier: "00", comment: "Pris en stock le 12/10/2026" }],
+  ]) {
+    it(`crée toujours un document pour ${cas} (jamais de reprise)`, async () => {
+      const findOneAndUpdateStub = sinon.stub().resolves(null);
+      const saveStub = sinon.stub().resolves();
+      function FakeDeco(d) {
+        Object.assign(this, d);
+        this.save = saveStub;
+      }
+      FakeDeco.findOneAndUpdate = findOneAndUpdateStub;
+
+      await claimStubOrCreate(FakeDeco, 167515, data);
+
+      expect(findOneAndUpdateStub.calledOnce).to.be.true;
+      expect(saveStub.calledOnce).to.be.true;
+    });
+  }
 
   it("crée un nouveau document quand aucun stub n'existe pour ce numCmd", async () => {
     const findOneAndUpdateStub = sinon.stub().resolves(null);

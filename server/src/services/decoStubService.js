@@ -39,9 +39,43 @@ async function claimStubOrCreate(Model, numCmd, data) {
     }
   }
 
+  const repris = await reprendreDecoNonLancee(Model, numCmd, data);
+  if (repris) return repris;
+
   const created = new Model(data);
   await created.save();
   return created;
+}
+
+// Job relancé pour un panneau dont la Deco n'est pas encore lancée (PDF régénéré, nouvel essai) :
+// on met cette Deco à jour au lieu d'en créer une seconde. Les 51 doublons supprimés en prod le
+// 16/10/2026 étaient tous dans ce cas (original encore non imprimé à la création de la copie).
+// Une réimpression (Deco déjà passée par une étape), un SAV ou une prise en stock restent des
+// documents distincts : ils partagent légitimement numCmd et sous-dossier.
+const ETAPES_LANCEES = ["print", "vernis", "decoupe", "expe", "annule"];
+const SAV_PATTERN = /\bsav\b/i;
+const PRIS_EN_STOCK = /^Pris en stock/;
+
+const estSav = (data) => SAV_PATTERN.test(data.mag || "") || SAV_PATTERN.test(data.deco || "");
+
+function filtreDecoNonLancee(numCmd, data) {
+  return {
+    numCmd,
+    ref: data.ref,
+    sousDossier: data.sousDossier ? data.sousDossier : { $in: [null, ""] },
+    gamesysStub: { $ne: true },
+    ...Object.fromEntries(ETAPES_LANCEES.map((etape) => [`statusDates.${etape}`, { $exists: false }])),
+    mag: { $not: SAV_PATTERN },
+    deco: { $not: SAV_PATTERN },
+    comment: { $not: PRIS_EN_STOCK },
+  };
+}
+
+async function reprendreDecoNonLancee(Model, numCmd, data) {
+  if (!numCmd || !data.ref || estSav(data) || PRIS_EN_STOCK.test(data.comment || "")) return null;
+  const $set = { ...data };
+  if (!$set.comment) delete $set.comment;
+  return Model.findOneAndUpdate(filtreDecoNonLancee(numCmd, data), { $set }, { new: true, sort: { createdAt: 1 } });
 }
 
 // Sous-dossiers d'origine des profils/kits d'un dossier (Deco.sousDossiers, stub pkOnly) — à partir
@@ -61,4 +95,4 @@ function computeSousDossiersPkOnly(sousDossiers) {
   return suffixes.length ? suffixes : undefined;
 }
 
-module.exports = { claimStubOrCreate, computeSousDossiersPkOnly };
+module.exports = { claimStubOrCreate, computeSousDossiersPkOnly, filtreDecoNonLancee };
