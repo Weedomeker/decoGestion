@@ -25,6 +25,7 @@ const { saveFormatsTauroIfNeeded } = require("../services/formatsService");
 const { broadcastWS, broadcastCompletedJob } = require("../services/websocketService");
 const usePdfWorker = require("../utils/pdfWorker");
 const { createStagingDir, deliverToHotFolder, removeStagingDir } = require("../utils/hotFolderDelivery");
+const { withMongoRetry } = require("../utils/retryMongo");
 const { castoName } = require("../utils/jobNames");
 const { buildCoteClientComment } = require("../utils/coteClient");
 const { extractRefFromFilename, validateRefFormat, REF_FORMAT_HINT } = require("../services/referencesCheckService");
@@ -839,7 +840,12 @@ async function processJob(job, req) {
       nombreKitPose: commandeInfo?.nombreKitPose ?? undefined,
       formatPlaqueGamesys: formatPlaqueGamesys ?? undefined,
     };
-    await claimStubOrCreate(modelDeco, cmd || 0, data);
+    // Retenter ne crée pas de doublon si la 1re écriture a abouti sans réponse : le stub déjà
+    // réclamé est alors repris par reprendreDecoNonLancee (même numCmd/ref/sousDossier) — sauf
+    // ref absente, où un doublon reste possible dans ce cas rare.
+    await withMongoRetry(() => claimStubOrCreate(modelDeco, cmd || 0, data), {
+      label: `Sauvegarde Deco job ${job.cmd}`,
+    });
   };
 
   // S7 — livrable vérifié AVANT toute écriture en base : si BullMQ retente le job, le stub
