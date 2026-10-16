@@ -59,7 +59,10 @@ base AS (
 		ent_date_crea_cmd >= CURRENT_DATE - interval '1 year'
 		AND ((ent_code_client LIKE 'LM%' AND ent_code_client NOT LIKE '%M') OR fo_rep_code IN ('SST', 'CRO'))
 		AND ent_statut_livraison >= 2
-		AND ent_statut_commande < 900
+		-- Sous-dossiers annulés : statut dossier 7 ou date d'annulation >= date de commande. Le statut de
+		-- commande 900 seul marque une commande clôturée (ex. plage 101/102xxx de janvier-février 2026).
+		AND NOT COALESCE(endv_statut_dossier = 7
+			OR (endv_date_annul > DATE '1900-01-01' AND endv_date_annul >= endv_date_cmde), false)
 	GROUP BY
 		ent_code_client, fo_nom_1, fo_ville, ent_rmq_int, ent_ref_client, ent_no_offre,
 		ent_date_crea_cmd, ent_total_lignes_ht, ent_total_livraisons_ht
