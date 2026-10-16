@@ -181,7 +181,8 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
     await fs.promises.writeFile(writePath, pdfBytes);
     logger.info("PDF généré avec succès !");
   } catch (e) {
-    logger.error("Erreur modifyPdf:", e);
+    // Remonte à processJob : avalée ici, l'erreur ne laissait qu'un « PDF de sortie manquant ».
+    throw new Error(`Amalgame crédences impossible : ${e.message}`, { cause: e });
   }
 }
 

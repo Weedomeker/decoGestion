@@ -7,17 +7,19 @@ const logFormat = winston.format.combine(
   winston.format.printf((info) => `${info.timestamp} - [${info.level.toUpperCase()}] - ${info.message}`),
 );
 
-// Transport NAS (production) ou relatif (dev)
-const fileRotateTransport = new winston.transports.DailyRotateFile({
-  filename:
-    process.env.NODE_ENV === "production"
-      ? "\\\\NASSYNORS1221\\production\\decoGestion\\logs\\decoGestion-%DATE%.log"
-      : "../decoGestion/logs/decoGestion-%DATE%.log",
-  datePattern: "YYYY-MM-DD",
-  zippedArchive: false,
-  maxSize: "20m",
-  maxFiles: "14d",
-});
+// Transport NAS, en production seulement. En dev, l'ancien chemin relatif
+// (../decoGestion/logs) désignait le même dossier que le fallback local : chaque ligne était
+// écrite deux fois dans le même fichier.
+const fileRotateTransport =
+  process.env.NODE_ENV === "production"
+    ? new winston.transports.DailyRotateFile({
+        filename: "\\\\NASSYNORS1221\\production\\decoGestion\\logs\\decoGestion-%DATE%.log",
+        datePattern: "YYYY-MM-DD",
+        zippedArchive: false,
+        maxSize: "20m",
+        maxFiles: "14d",
+      })
+    : null;
 
 // Fallback local toujours actif — utilisé si le NAS est inaccessible
 const localFallbackTransport = new winston.transports.DailyRotateFile({
@@ -28,7 +30,7 @@ const localFallbackTransport = new winston.transports.DailyRotateFile({
   maxFiles: "14d",
 });
 
-fileRotateTransport.on("error", (err) => {
+fileRotateTransport?.on("error", (err) => {
   console.error("[Logger] Transport NAS inaccessible:", err.message);
 });
 
@@ -52,7 +54,7 @@ const consoleTransport = new winston.transports.Console({
 const logger = winston.createLogger({
   level: "info",
   format: logFormat,
-  transports: [fileRotateTransport, localFallbackTransport, consoleTransport],
+  transports: [fileRotateTransport, localFallbackTransport, consoleTransport].filter(Boolean),
 });
 
 module.exports = logger;
