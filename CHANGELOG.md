@@ -1,0 +1,207 @@
+# Changelog
+
+## [2.4.0] - 2026-10-16
+
+### Nouveautés
+- **release** : commande npm run release (et --init)
+- **version** : version, badge de mise à jour et fenêtre Quoi de neuf
+- **version** : endpoints /version et /changelog, traçabilité app_commit
+- **version** : build-info.json, state.app et alerte basée sur les releases GitHub
+- **version** : lecture du CHANGELOG pour la fenêtre Quoi de neuf
+- **release** : logique d'analyse des commits et rendu du CHANGELOG
+- **version** : utilitaires compareVersions et bumpVersion
+- **queue** : pilotage de la file de jobs depuis la JobsList
+- **logs** : logs de démarrage plus lisibles
+- **gamesys** : bascule automatiquement en Annulé les stubs A lancer annulés côté Gamesys
+- **stickers** : trie les étiquettes par format sur la page — grands formats en haut
+- **stock** : affiche les aliases dans la table Profils & Kits
+- **stock** : script de migration fusion StockProfile aliases
+- **stock** : recherche et réconciliation tiennent compte des aliases
+- **stock** : upsertArticle ignore les refs déjà alias d'un canonique
+- **stock** : ajoute le champ aliases au schéma StockProfile
+- **sur-mesure** : finition = vernis Mat/Brillant (dos_imp_1_fac_p_1)
+- **gamesys** : repli fc_references pour le magasin quand ff_livraison est vide
+- **gamesys** : résout la référence stock par endv_orderline_seq_article
+- **sur-mesure** : affiche le code compte pro dans l'Historique
+- **sur-mesure** : stubs À lancer via le sync Gamesys + marqueur Historique
+- **sur-mesure** : App.jsx — payloads, badge, filtre, merge key orientation/printFormat
+- **sur-mesure** : buildRows consomme surMesureKind (filet teinte-masse) et porte les champs sur-mesure
+- **sur-mesure** : jobsController persiste surMesure + comment 'Cote client' + colonne CSV
+- **sur-mesure** : matchPrixVisuel/getPrixVisuel acceptent un orientation explicite
+- **sur-mesure** : createJob accepte surMesureData
+- **sur-mesure** : champs Deco surMesure/surMesureKind/orientation + hook skip Ref* pour visuel
+- **sur-mesure** : propage les champs sur-mesure dans la payload /dossier-api
+- **sur-mesure** : buildVisualReferences pose surMesure/deco/finition/format/orientation/printFormat
+- **sur-mesure** : util pur de detection et parsing (surMesure.js)
+- rattache a ECOM les commandes Gamesys sans prefixe enseigne via la famille catalogue
+- support minimal du type client PRO + fiabilise le sync consommations Gamesys
+- statut "PK a coliser" pour les stubs pkOnly + backfill mag dans decoLivraisonDates
+- repli format/finition Gamesys direct + enrichir ConsommationCommande
+- creer un stub Deco par sous-dossier visuel avec ref/format/mag/dibond/ex Gamesys
+- associer chaque Deco a son sous-dossier Gamesys precis (bon article, bonne ligne)
+- creer proactivement les Deco depuis Gamesys et enrichir les donnees de commande
+- lancer un backfill automatique des prix/dates au demarrage du serveur
+- peupler prixTotal sur les stubs pkOnly a partir de ConsommationCommande
+- detailler le prix par visuel sur Deco et fiabiliser sa resolution
+- peupler le prix (Gamesys endv_px_total) sur Deco et ConsommationCommande
+- peupler dateLivraisonSouhaitee sur Deco et ajouter le backfill associe
+- passer l'edition Profils & Kits en edition a la ligne
+- ajouter onglet Profils & Kits avec CRUD et tri dans l'onglet References
+- ajouter dates depart usine et livraison souhaitee a ConsommationCommande
+- backfill historique + sync continue des consommations profils/kits Gamesys
+- suivi production dossiers PK uniquement dans lm_commandes
+- retour utilisateur détaillé pour la sauvegarde profils/kits en BDD
+- gardes-fous filtrage PDF par enseigne (LM/CASTO/BRICO/ECOM)
+- refonte résolution références Gamesys + optimisations démarrage
+- appeler saveProfilsKits après chaque job traité
+- service saveProfilsKits — persistance profils/kits depuis Gamesys
+- ajouter les modèles StockArticle et ConsommationCommande
+- navigateur de répertoires dans le panneau Configuration
+- accès Bull Board depuis le popup ServerStatus + thème cohérent
+- réordonner les sections du mode Manuel (client en premier)
+- rendre le bouton submit sticky en mode Dossier
+- ajouter bouton reset visible dans la barre d'onglets
+- remplacer icônes PB/TM par toggle chips dans le tableau Dossier
+- ajouter empty state en mode Dossier
+- ajouter vue Historique avec filtres, pagination et export CSV
+- ajouter GET /history/export — export CSV de l'historique
+- ajouter pagination et filtres à GET /history
+- Sprint 2 Task 2 — Vue Dashboard StatsView (recharts + cards + tableau)
+- ajouter endpoint GET /stats?period=week|month|all
+- Sprint 1 UX — skeleton, toasts, tooltips, stepper, preview duale, badge stock
+- initialiser worker BullMQ et monter Bull Board /admin/queues
+- migrer runJobs vers BullMQ — enqueue + waitUntilFinished, supprimer backup JSON
+- créer queueService — Queue BullMQ, QueueEvents et factory initWorker
+- ajouter BullMQ, ioredis, bull-board et infrastructure Redis Docker
+- sécuriser les références visuelles + fix connexion MongoDB
+- fuzzy search MongoDB en fallback + améliorations JPG/stickers/refs
+- confirmation interactive --fix + script verifyAndFixFiles complet
+- mode --fix et --dry-run avec applyFixes et fuzzy search Gamesys
+- exporter REF_REGEX_BY_CLIENT depuis referencesCheckService
+- intégration vérification Gamesys (ODBC) dans le rapport de cohérence références
+- gestion CRUD des références visuels + vérification de cohérence disque/base
+- hook SessionStart -- affiche le mode dev/prod au demarrage
+- palette Stone chaud — fond beige, accent quasi-noir #292524
+- CSS global — fond #f5f5f5, bordures adoucies, chips scrollables 74px
+- PreviewDeco style C — image pleine largeur, fond #fafafa
+- header-version V3 — 8px fantôme aligné bas
+- CSS srv-status — icône, badge, tooltip sombre
+- ServerStatus — icône serveur + badge + tooltip au survol
+- badge de statut réseau sur les boutons clients (dot 6px)
+- ServerStatus — dot animé + Popup de détail réseau
+- App.jsx consomme healthData — bascule auto, onglet et boutons clients grisés si KO
+- ServerStatus remonte healthData via onHealthChange, affiche clients réseau KO
+- intègre checkNetworkPaths au démarrage et dans le check périodique
+- inclut state.networkStatus (symlinks) dans /health
+- service networkChecker — vérifie accès fs aux chemins réseau
+- ajoute networkStatus au state initial
+- indicateur statut serveur/MongoDB/ODBC dans le header
+- React Error Boundary — capture les erreurs de rendu
+- check périodique MongoDB + ODBC, broadcast WebSocket health
+- middleware Express global (erreur, 404), process handlers et check ODBC démarrage
+- MongoDB — événements connexion et retry (5 tentatives, 3s)
+- ajouter endpoint GET /health avec état MongoDB et ODBC
+- ODBC — ajouter checkOdbcConnection() et cache statut
+- améliorer statusline avec limites de taux, contexte et infos complètes
+- complétion manuelle 2e panneau crédence + robustesse symlink/erreurs
+- bloquer soumission crédences BRICO/CASTO sans 2e panneau
+- rejeter crédences BRICO/CASTO sans 2e visuel (400)
+
+### Corrections
+- **logs** : etiquette sans ref en info, cause du driver ODBC dans les erreurs SQL
+- **jobs** : retente la sauvegarde Deco quand MongoDB est injoignable
+- **jobs** : genere le PDF en local et ne le depose dans le hot folder qu'une fois le livrable valide
+- **jobs** : reprend la Deco non lancee d'un job relance au lieu de creer un doublon
+- **docs** : requete de suivi - exclut les sous-dossiers annules, plus les commandes cloturees
+- **jobs** : évite les doublons MongoDB lors des retries BullMQ
+- **version** : corrige les points mineurs de la revue du versioning
+- **release** : annulation correcte d'un commit de release et build-info périmé ignoré
+- **gamesys** : ne relie plus l'entête devis par endv_seq = dos_seq
+- **pdf** : répare les flux de contenu Flate tronqués des PDF source
+- **sync** : écrit le statut "annule" (convention prod) au lieu de "Annulé"
+- **gamesys** : exclut les comptes internes magasin LM###M de l'extraction
+- **sync** : vérifie les annulations des stubs PK sans sousDossiers
+- **sync** : lance syncConsommationsHistorique une fois au démarrage
+- **gamesys** : désactive reuseConnections sur le pool ODBC
+- **gamesys** : ajoute un timeout natif ODBC par requête (SQL_ATTR_QUERY_TIMEOUT)
+- **gamesys** : borne saveProfilsKits par un timeout pour éviter un blocage indéfini
+- **test** : reconnecte Mongoose au démarrage de credences/jobExecution
+- **test** : aligne le timeout du dossier CASTO 165675 sur celui de BRICO 164927
+- **test** : force NODE_ENV=development sur les scripts de test
+- **stock** : retire sparse inutile sur index aliases, renomme test trompeur
+- **jobs** : un livrable PDF/JPG manquant fait échouer le job
+- **gamesys** : getPool ne met plus en cache une promesse ODBC rejetée
+- **sur-mesure** : parseSurMesureRefClient robuste au texte libre Gamesys
+- **sur-mesure** : revue finale — revert hook skip, resserre signal B, parse endv_ref_client, clear selection filtre, +minors
+- connexion ODBC dediee par candidat + reclamation de stub par ref
+- poser un status explicite ("A imprimer"/"A lancer") au lieu de "" a la creation
+- empecher claimStubOrCreate d'ecraser le stub d'un autre visuel
+- ajouter une correspondance exacte fs_stock + fallback gencod pour les visuels
+- convertir dibond au format cm attendu (au lieu du mm brut Gamesys)
+- fusionner les visuels identiques dupliques en 1 ex au lieu de perdre les exemplaires
+- corriger le calcul du prix par visuel Gamesys (backfill et flux live)
+- respecter la finition Mat/Brillant lors de la resolution des references visuelles par model+format
+- verifier le stock visuel en mode dossier et gerer les quantites partielles
+- ne pas exiger le terme ANGLE pour les profilés classiques dans getProfileSearchTerms
+- garantir un id unique par visuel dans normalizeDossierApiPayload
+- corriger la resolution de reference Gamesys pour les profils/cornieres/kits
+- corriger la recherche de reference stock pour les cornieres
+- corriger la detection et la recuperation des consommations profils/kits Gamesys
+- resoudre la reference visuelle par lookup MongoDB model+format
+- supprimer le fallback NO CC dans la resolution de reference visuelle
+- garder visibles les visuels sans reference + avertir en amont
+- distinguer statut 'aucune reference trouvee' de 'aucun fichier local'
+- matching PDF base uniquement sur les references Gamesys
+- corriger le biais Mat dans la resolution des references visuelles Gamesys
+- empêcher les doublons ConsommationCommande (upsert atomique + script de nettoyage)
+- configuration ESLint/Prettier et nettoyage des erreurs de lint backend
+- recherches de fichiers exclusivement via référence dans tout le pipeline
+- résolution référence LM prioritaire dans enrichRowsWithMongoRef + filtrage refs 8 chiffres
+- quantité par article (getQtyForArticle) + validation numCmd
+- mapper codeArticle sur codeTarif dans upsertArticle
+- corriger le deadlock ODBC dans buildDetail lors du chargement de dossiers avec plusieurs sous-dossiers
+- priorité ref case-insensitive pour l'image des stickers + vue Sticker rapide
+- aligner les options de production en flex-row horizontal
+- rendre le filtre client case-insensitive dans buildHistoryFilter
+- arrondir formatDuration en secondes entières (évite le floating point)
+- corriger row.ville→mag, formatDuration en secondes et échapper regex buildHistoryFilter
+- refactoriser le filtre MongoDB partagé et clarifier formatDate
+- garder l'appel main() sous require.main === module dans verifyAndFixFiles
+- limiter le spam Redis ECONNREFUSED — retryStrategy + error handler
+- ajouter TTL 2h à waitUntilFinished + corriger message log runJobs
+- queueService — accents logs, fallback cmd, commentaire connexions BullMQ
+- trier les sous-dossiers par numéro décroissant + fallback U-prefix generateMiniatures
+- findFirstRef accepte les refs Number et String en base MongoDB
+- corrections mineures post-review — VITE_PROTOCOL, short-circuit ref, routes mortes
+- 3 correctifs review finale branche audit
+- uniformiser le retour de getConfig() — null uniquement
+- remove HOST/PORT props from DossierAutocomplete, use API_BASE import
+- utiliser path.join() pour les chemins au lieu de la concaténation
+- supprimer le flag /g des regex BRICO/ECOM pour éviter les bugs de stateful regex
+- corriger détection cross-client avec Promise.all (Task 6)
+- correction mutation state immuable dans JobsList
+- flag unavailable=true quand Gamesys est inaccessible
+- protéger les accès null/undefined dans addJob et runJobs
+- échapper les RegExp de recherche pour prévenir le ReDoS
+- exclure profils et teinte masse de la comparaison Gamesys/MongoDB
+- corrections UX — fallback Ville, confirmations destructives, accessibilite
+- InfoStockModal stock prop — retrait isRequired (null valide à l'init)
+- **deps** : migration vite 4 → 5 + plugin-react mis à jour
+- **deps** : mise à jour des dépendances vulnérables (minor bumps)
+- audit complet — bugs logiques, requêtes HTTP et nettoyage console.log
+- alignement input/bouton Dossier API + simplification condition checkboxes
+- boutons suppression dans le tableau + nettoyage colonnes File
+- cohérence données, validation refs MongoDB et prodBlanc
+- robustesse erreurs réseau, Gamesys et symlinks
+- addJob — validation des champs obligatoires avant traitement
+- audit securite et qualite - 14 correctifs
+- ServerStatus — évite stale closure via useRef pour onHealthChange
+- corriger le démarrage serveur — symlinks, génération JPG et connexion MongoDB
+
+### Performances
+- **startup** : enchaîne les tâches Gamesys dès la fin du démarrage
+- **mongo** : index manquants (Deco, Ref*, StockProfile) + numCmd:0 autorisé
+- paralléliser runJobs avec p-limit (concurrence 3) + extraire processJob
+- paralléliser la recherche multi-modèles de référence
+- ajout index MongoDB manquants (Stocks, Deco, Ref*, User)
+- paralléliser les requêtes ODBC et ajouter un pool de connexions
