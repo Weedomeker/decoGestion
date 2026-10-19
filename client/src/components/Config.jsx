@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Button,
   ButtonContent,
+  Dropdown,
   Header,
   Icon,
   Input,
@@ -11,6 +12,17 @@ import {
   ModalContent,
 } from "semantic-ui-react";
 import { API_BASE } from "../utils/api";
+
+// Mise en page des JPG des jobs (nom du fichier en en-tête). Défaut serveur : A4 portrait.
+const JPG_PAGE_FORMATS = [
+  { key: "A4", value: "A4", text: "A4" },
+  { key: "A3", value: "A3", text: "A3" },
+  { key: "none", value: "none", text: "Désactivée (JPG brut)" },
+];
+const JPG_PAGE_ORIENTATIONS = [
+  { key: "portrait", value: "portrait", text: "Portrait" },
+  { key: "paysage", value: "paysage", text: "Paysage" },
+];
 
 function Config() {
   const [open, setOpen] = useState(false);
@@ -190,6 +202,26 @@ function Config() {
                 value={data.BRICO || ""}
                 onChange={(e, v) => setData((prev) => ({ ...prev, BRICO: v.value }))}
                 action={browseBtn("BRICO")}
+              />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, color: "white" }}>
+              <span>Page JPG :</span>
+              <Dropdown
+                selection
+                options={JPG_PAGE_FORMATS}
+                value={data.jpgPage?.format || "A4"}
+                onChange={(e, v) =>
+                  setData((prev) => ({ ...prev, jpgPage: { orientation: "portrait", ...prev.jpgPage, format: v.value } }))
+                }
+              />
+              <Dropdown
+                selection
+                options={JPG_PAGE_ORIENTATIONS}
+                disabled={data.jpgPage?.format === "none"}
+                value={data.jpgPage?.orientation || "portrait"}
+                onChange={(e, v) =>
+                  setData((prev) => ({ ...prev, jpgPage: { format: "A4", ...prev.jpgPage, orientation: v.value } }))
+                }
               />
             </div>
           </ModalContent>

@@ -31,7 +31,30 @@ const { buildCoteClientComment } = require("../utils/coteClient");
 const { extractRefFromFilename, validateRefFormat, REF_FORMAT_HINT } = require("../services/referencesCheckService");
 const { setConcurrency } = require("../services/queueService");
 const queueControl = require("../services/queueControlService");
-const { saveJobsConcurrency } = require("../services/configService");
+const { saveJobsConcurrency, getConfig } = require("../services/configService");
+const { composeJpgPage } = require("../composeJpgPage");
+
+// Met le JPG du job au format de page configuré, avec son nom en en-tête.
+// En cas d'échec, le JPG brut reste livré : la mise en page ne doit pas bloquer la production.
+// Un JPG fraîchement écrit peut rester verrouillé un instant sous Windows (antivirus, indexation) :
+// l'ouverture échoue alors en UNKNOWN/EBUSY/EPERM, d'où quelques nouvelles tentatives espacées.
+async function applyJpgPage(jpgPath, cmd) {
+  if (!fs.existsSync(jpgPath) || fs.statSync(jpgPath).size === 0) return;
+  const transientCodes = ["UNKNOWN", "EBUSY", "EPERM"];
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await composeJpgPage(jpgPath, getConfig()?.jpgPage);
+      return;
+    } catch (error) {
+      if (attempt < 3 && transientCodes.includes(error.code)) {
+        await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+        continue;
+      }
+      logger.error(`❌ Mise en page du JPG impossible pour le job ${cmd} : ${error.message}`);
+      return;
+    }
+  }
+}
 
 // Résout sur le premier modèle qui retourne un document non-null, avec son index.
 // Court-circuite dès le premier résultat trouvé plutôt que d'attendre tous les modèles.
@@ -662,6 +685,9 @@ async function processJob(job, req) {
       } catch (error) {
         logger.error(`Error generating JPG for job ${job.cmd}:`, error);
       }
+
+      // Uniquement sur un JPG fraîchement généré : un JPG déjà présent a déjà reçu sa mise en page.
+      await applyJpgPage(outJpgPath, job.cmd);
     }
 
     try {
@@ -689,6 +715,7 @@ async function processJob(job, req) {
   } else {
     try {
       await generateImages(job, state.paths.previewDeco, `${jpgName}.jpg`, isStock);
+      await applyJpgPage(`${jpgName}.jpg`, job.cmd);
     } catch (error) {
       logger.error(`Error generating JPG for job ${job.cmd}:`, error);
       deliverableError = deliverableError || `Échec de génération de l'image : ${error.message || error}`;
