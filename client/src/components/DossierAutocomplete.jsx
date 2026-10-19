@@ -5,6 +5,7 @@ import { isCredenceFormat } from "../utils/credence";
 import { API_BASE } from "../utils/api";
 import { isDefinitelyWrongClient } from "../utils/referenceValidation";
 import { formatPrix } from "../utils/prix";
+import { findFormatTauro } from "../utils/formatTauro";
 
 const CLIENTS = ["LM", "CASTO", "ECOM", "BRICO"];
 const CLIENT_ALIASES = {
@@ -34,12 +35,6 @@ function findFormatFolder(folders, format) {
   const token = formatToken(format);
   if (!token) return null;
   return folders.find((folder) => normalizeText(`${folder?.name} ${folder?.path}`).includes(token)) || null;
-}
-
-function findFormatTauro(formatTauro, format) {
-  const token = formatToken(format);
-  if (!token) return "";
-  return formatTauro.find((value) => normalizeText(value).includes(token)) || "";
 }
 
 // Vérifie si une référence apparaît dans un nom de fichier.

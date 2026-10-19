@@ -211,8 +211,15 @@ async function addJob(req, res) {
     orientation: req.body.orientation,
     printFormat: req.body.printFormat,
   };
+  // Les refus n'apparaissaient que dans le navigateur : un dossier bloqué ne laissait aucune trace côté serveur.
+  const reject = (status, body) => {
+    logger.warn(
+      `add_job refusé (${status}) cmd=${data.numCmd} client=${data.client} visuel=${data.visuel} format=${data.format} formatTauro=${data.formatTauro} : ${body.error}`,
+    );
+    return res.status(status).json(body);
+  };
   if (!data.client || !data.visuel || !data.formatTauro || !data.format) {
-    return res.status(400).json({ error: "Champs obligatoires manquants : client, visuel, format, formatTauro." });
+    return reject(400, { error: "Champs obligatoires manquants : client, visuel, format, formatTauro." });
   }
 
   const client = data.client.toUpperCase();
@@ -239,7 +246,7 @@ async function addJob(req, res) {
   // Validation du nombre d'exemplaires
   const nbEx = parseInt(data.ex);
   if (!nbEx || nbEx < 1) {
-    return res.status(400).json({ error: "Le nombre d'exemplaires doit être un entier positif (≥ 1)." });
+    return reject(400, { error: "Le nombre d'exemplaires doit être un entier positif (≥ 1)." });
   }
 
   // Crédences BRICO/CASTO : règle selon le nombre d'exemplaires
@@ -247,7 +254,7 @@ async function addJob(req, res) {
   const _formatVisuCheck = format?.match(/\d{3}x\d{2}(?!\d)/i)?.[0] || "";
   if (_formatVisuCheck && (client === "BRICO" || client === "CASTO")) {
     if (nbEx === 1 && !data.visuel2) {
-      return res.status(400).json({
+      return reject(400, {
         error: "Les crédences BRICO/CASTO (1 ex) doivent être amalgamées avec un 2e visuel différent.",
       });
     }
@@ -266,7 +273,7 @@ async function addJob(req, res) {
     const fin1 = /brillant/i.test(visuPath) ? "BRILLANT" : /mat/i.test(visuPath) ? "MAT" : null;
     const fin2 = /brillant/i.test(visuPath2) ? "BRILLANT" : /mat/i.test(visuPath2) ? "MAT" : null;
     if (fin1 && fin2 && fin1 !== fin2) {
-      return res.status(400).json({
+      return reject(400, {
         error: `Amalgame impossible : finitions incompatibles (panneau 1 : ${fin1}, panneau 2 : ${fin2}). Les deux crédences doivent avoir la même finition.`,
       });
     }
@@ -275,12 +282,12 @@ async function addJob(req, res) {
   // Vérification que les fichiers visuels existent bien sur le disque
   if (visuPath && !teinteMasse) {
     if (!fs.existsSync(path.resolve(visuPath))) {
-      return res.status(400).json({ error: `Visuel introuvable sur le disque : ${visuPath}` });
+      return reject(400, { error: `Visuel introuvable sur le disque : ${visuPath}` });
     }
   }
   if (visuPath2 && !teinteMasse) {
     if (!fs.existsSync(path.resolve(visuPath2))) {
-      return res.status(400).json({ error: `2e visuel introuvable sur le disque : ${visuPath2}` });
+      return reject(400, { error: `2e visuel introuvable sur le disque : ${visuPath2}` });
     }
   }
 
@@ -328,7 +335,7 @@ async function addJob(req, res) {
       fs.mkdirSync(`${state.paths.jpgPath}/${state.paths.sessionPRINTSA}`, { recursive: true });
     }
   } catch (err) {
-    return res.status(500).json({ error: `Impossible de créer le dossier de sortie : ${err.message}` });
+    return reject(500, { error: `Impossible de créer le dossier de sortie : ${err.message}` });
   }
 
   state.process.jpgName = `${state.paths.jpgPath}/${state.paths.sessionPRINTSA}/${state.process.fileName}`;
@@ -356,13 +363,13 @@ async function addJob(req, res) {
 
   // Validation du format de la référence extraite (avant toute requête MongoDB)
   if (matchRef && !teinteMasse && !validateRefFormat(matchRef, client)) {
-    return res.status(400).json({
+    return reject(400, {
       error: `Format de référence non conforme pour le client ${client} : "${matchRef}" extrait de "${visuel}". Attendu : ${REF_FORMAT_HINT[client] || "format inconnu"}.`,
       code: "REF_FORMAT_INVALID",
     });
   }
   if (matchRef2 && visuel2 && !validateRefFormat(matchRef2, client2)) {
-    return res.status(400).json({
+    return reject(400, {
       error: `Format de référence non conforme pour le client ${client2} (visuel 2) : "${matchRef2}" extrait de "${visuel2}". Attendu : ${REF_FORMAT_HINT[client2] || "format inconnu"}.`,
       code: "REF_FORMAT_INVALID",
     });
@@ -380,7 +387,7 @@ async function addJob(req, res) {
 
   // Vérification référence 1
   if (!matchRef && !teinteMasse) {
-    return res.status(400).json({
+    return reject(400, {
       error: `Impossible d'extraire une référence du fichier "${visuel}" pour le client ${client}.`,
       code: "REF_EXTRACTION_FAILED",
     });
@@ -398,7 +405,7 @@ async function addJob(req, res) {
         logger.warn(`⚠️ ${refCrossClientWarning}`);
       }
       if (!refValidated) {
-        return res.status(400).json({
+        return reject(400, {
           error: `Référence "${matchRef}" introuvable en base MongoDB (client ${client}). Vérifiez que ce visuel est bien référencé.`,
           code: "REF_NOT_FOUND",
         });
@@ -409,7 +416,7 @@ async function addJob(req, res) {
       if (formatFromRef && formatFromFile && formatFromRef !== formatFromFile) {
         const msg = `Format incohérent pour la ref ${matchRef} : sélectionné=${formatFromFile}, base=${formatFromRef}. Vérifiez le format du visuel.`;
         logger.warn(`⚠️ ${msg}`);
-        return res.status(400).json({ error: msg, code: "FORMAT_MISMATCH" });
+        return reject(400, { error: msg, code: "FORMAT_MISMATCH" });
       }
       // RefEcom.blanc : forcer prodBlanc si la référence est marquée blanc en base
       if (client === "ECOM" && refValidated.blanc === true && !prodBlanc) {
@@ -440,7 +447,7 @@ async function addJob(req, res) {
         refCrossClientWarning = refCrossClientWarning ? `${refCrossClientWarning} · ${warn2}` : warn2;
       }
       if (!refValidated2) {
-        return res.status(400).json({
+        return reject(400, {
           error: `Référence 2 "${matchRef2}" introuvable en base MongoDB (client ${client2}). Vérifiez que ce visuel est bien référencé.`,
           code: "REF_NOT_FOUND",
         });
@@ -450,7 +457,7 @@ async function addJob(req, res) {
       if (formatFromRef2 && formatFromFile2 && formatFromRef2 !== formatFromFile2) {
         const msg2 = `Format incohérent pour la ref 2 ${matchRef2} : sélectionné=${formatFromFile2}, base=${formatFromRef2}. Vérifiez le format du visuel.`;
         logger.warn(`⚠️ ${msg2}`);
-        return res.status(400).json({ error: msg2, code: "FORMAT_MISMATCH" });
+        return reject(400, { error: msg2, code: "FORMAT_MISMATCH" });
       }
     } catch (err) {
       logger.error(`Erreur MongoDB validation ref2 "${matchRef2}" (${client2}) : ${err.message}`);

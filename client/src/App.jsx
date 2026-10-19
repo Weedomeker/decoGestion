@@ -263,7 +263,8 @@ function App() {
         if (j._absorbedBy) {
           next.delete(j.id); // Force-déselectionne les partenaires absorbés même si déjà sélectionnés
         } else if (!prev.has(j.id) && (
-          (j.type !== "profils_kits" && j.selectedFileObject) ||
+          // Sans format plaque, add_job refuserait la ligne (400) : l'utilisateur la coche après avoir choisi la plaque
+          (j.type !== "profils_kits" && j.selectedFileObject && j.formatTauroValue) ||
           (j.type === "profils_kits" && pkOnlyDossiers.has(j.dossierNumero))
         )) {
           next.add(j.id);
@@ -511,6 +512,18 @@ function App() {
         selectedDossierNumeros.has(j.dossierNumero)
       );
       const pkJobsToSubmit = [...explicitPkJobs, ...derivedPkJobs];
+
+      const missingFormatTauro = visualJobsToSubmit.filter((j) => !j.formatTauroValue);
+      if (missingFormatTauro.length > 0) {
+        const details = missingFormatTauro.map((j) => `N°${j.numCmd || j.id} (${j.formatTauro || "format inconnu"})`).join(", ");
+        setModalData({
+          open: true,
+          message: "",
+          object: null,
+          error: `Format plaque à choisir pour ${missingFormatTauro.length} ligne${missingFormatTauro.length > 1 ? "s" : ""} : ${details}.`,
+        });
+        return;
+      }
 
       const unpairedCredences = visualJobsToSubmit.filter(
         (j) =>
