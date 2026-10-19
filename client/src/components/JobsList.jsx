@@ -425,7 +425,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
     if (value.format_visu && value.format_visu.match(/\d{3}x\d{2,}/i) && value.visuel2) {
       entries.push({
         ...baseEntry,
-        cmd: value.cmd2,
+        cmd: value.complementStock ? "STOCK" : value.cmd2,
         visuel: value.visuel2,
         jpgName: value.jpgName2,
         format_visu: value.format2_visu,

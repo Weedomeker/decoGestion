@@ -56,6 +56,8 @@ function App() {
   const [fileSize2, setFileSize2] = useState("");
   const [numCmd, setNumCmd] = useState("");
   const [numCmd2, setNumCmd2] = useState("");
+  // Crédence 1 ex : 2e panneau = même visuel, envoyé en stock (pas de 2e commande)
+  const [credenceStock, setCredenceStock] = useState(false);
   const [ville, setVille] = useState("");
   const [ex, setEx] = useState(1);
   const [isFooter, setIsFooter] = useState(false);
@@ -571,7 +573,10 @@ function App() {
         const stockHits = [];
 
         for (const job of visualJobsToSubmit) {
+          // "+1 stock" : le backend duplique le visuel 1 en panneau stock (cmd2 = 0)
+          const credenceStock = !!job.credence2?._stock && Number(job.ex) === 1;
           const payload = {
+            complementStock: credenceStock,
             client: job.client || checkFolder,
             client2: job.credence2?.client || job.client || checkFolder,
             allFormatTauro: formatTauro,
@@ -677,7 +682,9 @@ function App() {
 
     // Mode normal : un seul job via le formulaire
     const _isCredenceFormat = isCredenceFormat(selectedFormat);
-    if (_isCredenceFormat && (checkFolder === "BRICO" || checkFolder === "CASTO")) {
+    const _credenceStock =
+      credenceStock && _isCredenceFormat && (checkFolder === "BRICO" || checkFolder === "CASTO") && Number(ex) === 1;
+    if (_isCredenceFormat && (checkFolder === "BRICO" || checkFolder === "CASTO") && !_credenceStock) {
       if (Number(ex) === 1 && !selectedFile2) {
         setModalData({
           open: true,
@@ -708,11 +715,12 @@ function App() {
       formatTauro: selectedFormatTauro,
       prodBlanc: checkProdBlanc,
       format: selectedFormat,
-      format2: selectedFormat2,
+      format2: _credenceStock ? "" : selectedFormat2,
       visuel: selectedFile,
-      visuel2: selectedFile2,
+      visuel2: _credenceStock ? "" : selectedFile2,
       numCmd: numCmd,
-      numCmd2: numCmd2,
+      numCmd2: _credenceStock ? "" : numCmd2,
+      complementStock: _credenceStock,
       ville: ville,
       ex: ex,
       perte: perte,
@@ -796,6 +804,7 @@ function App() {
     setFileSize2("");
     setNumCmd("");
     setNumCmd2("");
+    setCredenceStock(false);
     setVille("");
     setEx(1);
     setFiles([{ name: "", fileSize: "" }]);
@@ -1251,14 +1260,16 @@ function App() {
                                                   <Label
                                                     size="mini"
                                                     color={
-                                                      job.credence2
+                                                      job.credence2?._stock
+                                                        ? "teal"
+                                                        : job.credence2
                                                         ? "green"
                                                         : job.client === "BRICO" || job.client === "CASTO"
                                                         ? "red"
                                                         : "yellow"
                                                     }
                                                   >
-                                                    {job.credence2 ? "2 panneaux" : "1 panneau"}
+                                                    {job.credence2?._stock ? "1 panneau + 1 stock" : job.credence2 ? "2 panneaux" : "1 panneau"}
                                                   </Label>
                                                   {job.credence2?._manual && (
                                                     <span style={{ fontSize: "0.75em", color: "#888", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -1283,7 +1294,32 @@ function App() {
                                                     value={job.credence2?.id || null}
                                                     onChange={(_, d) => pairCredence(job.id, d.value || null)}
                                                   />
-                                                  {(!job.credence2 || job.credence2._manual) && (
+                                                  {(job.client === "BRICO" || job.client === "CASTO") &&
+                                                    Number(job.ex) === 1 &&
+                                                    (!job.credence2 || job.credence2._stock) && (
+                                                    <Popup
+                                                      content="Complète la plaque avec le même visuel : le 2e panneau part en stock"
+                                                      trigger={
+                                                        <Button
+                                                          type="button"
+                                                          size="mini"
+                                                          compact
+                                                          color={job.credence2?._stock ? "grey" : "teal"}
+                                                          onClick={() => {
+                                                            setCredenceEditId(null);
+                                                            setDossierJobs((prev) =>
+                                                              prev.map((j) =>
+                                                                j.id === job.id ? { ...j, credence2: j.credence2?._stock ? null : { _stock: true } } : j,
+                                                              ),
+                                                            );
+                                                          }}
+                                                        >
+                                                          {job.credence2?._stock ? "Retirer stock" : "+1 stock"}
+                                                        </Button>
+                                                      }
+                                                    />
+                                                  )}
+                                                  {(!job.credence2 || job.credence2._manual || job.credence2._stock) && (
                                                     <Button
                                                       type="button"
                                                       size="mini"
@@ -1709,6 +1745,28 @@ function App() {
                 {isCredenceFormat(selectedFormat) && (
                   <div className="form-section form-section--accented" data-client={checkFolder}>
                     <span className="form-section-label"><Icon name="clone" size="small" /> Crédence — 2e partie</span>
+                    {(checkFolder === "BRICO" || checkFolder === "CASTO") && Number(ex) === 1 && (
+                      <Form.Field>
+                        <Checkbox
+                          toggle
+                          label="Compléter avec 1 ex du même visuel pour le stock"
+                          checked={credenceStock}
+                          onChange={(e, d) => {
+                            setCredenceStock(d.checked);
+                            if (d.checked) {
+                              setSelectedFormat2("");
+                              setSelectedFile2("");
+                              setPreview2(null);
+                              setFileSize2("");
+                              setNumCmd2("");
+                              setError({ ...error, numCmd: false });
+                            }
+                          }}
+                        />
+                      </Form.Field>
+                    )}
+                    {!(credenceStock && Number(ex) === 1) && (
+                    <>
                     <Form.Field required error={error.format}>
                       <FormatDropdown
                         placeholder={checkFolder}
@@ -1865,6 +1923,8 @@ function App() {
                         onWheel={(e) => e.preventDefault()}
                       />
                     </Form.Field>
+                    </>
+                    )}
                   </div>
                 )}
 

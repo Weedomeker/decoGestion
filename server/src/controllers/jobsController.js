@@ -252,16 +252,36 @@ async function addJob(req, res) {
   // Crédences BRICO/CASTO : règle selon le nombre d'exemplaires
   // (?!\d) évite de capturer "100x25" dans "100x255" — seules "300x60" / "255x60" matchent
   const _formatVisuCheck = format?.match(/\d{3}x\d{2}(?!\d)/i)?.[0] || "";
-  if (_formatVisuCheck && (client === "BRICO" || client === "CASTO")) {
-    if (nbEx === 1 && !data.visuel2) {
+  const isCredenceBricoCasto = !!_formatVisuCheck && (client === "BRICO" || client === "CASTO");
+  // 1 ex complété par le même visuel sans n° de commande 2 : le 2e panneau part en stock.
+  // Explicite (complementStock) ou implicite (même visuel choisi en 2e partie, N° commande 2 vide).
+  const sameVisuelSansCmd2 = !!data.visuel2 && data.visuel2 === data.visuel && !parseInt(data.numCmd2);
+  const complementStock = isCredenceBricoCasto && nbEx === 1 && (req.body.complementStock === true || sameVisuelSansCmd2);
+  if (req.body.complementStock === true && !complementStock) {
+    return reject(400, {
+      error: "Le complément stock n'est possible que pour une crédence BRICO/CASTO à 1 ex.",
+    });
+  }
+  if (isCredenceBricoCasto) {
+    if (complementStock) {
+      data.visuel2 = data.visuel;
+      data.format2 = data.format;
+      data.numCmd2 = 0;
+      data.sousDossier2 = "";
+      data.prix2 = undefined;
+      visuel2 = visuel;
+      visuPath2 = data.visuel;
+      format2 = data.format;
+    } else if (nbEx === 1 && !data.visuel2) {
       return reject(400, {
         error: "Les crédences BRICO/CASTO (1 ex) doivent être amalgamées avec un 2e visuel différent.",
       });
-    }
-    if (nbEx >= 2 && !data.visuel2) {
-      // 2 ex : même visuel amalgamé 2 fois sur la plaque
+    } else if (nbEx >= 2 && !data.visuel2) {
+      // 2 ex : même visuel amalgamé 2 fois sur la plaque, les 2 panneaux appartiennent à la commande —
+      // sans numCmd2, cmd2 vaudrait 0 et l'étiquette V2 sortirait en "STOCK" (generateStickers).
       data.visuel2 = data.visuel;
       data.format2 = data.format;
+      if (!parseInt(data.numCmd2)) data.numCmd2 = data.numCmd;
       visuel2 = visuel;
       visuPath2 = data.visuel;
       format2 = data.format;
@@ -503,13 +523,15 @@ async function addJob(req, res) {
       printFormat: data.printFormat || undefined,
     },
   );
+  if (complementStock) newJob.complementStock = true;
 
   const jobExist = state.jobs.jobs.find(
     (item) =>
       item.cmd === newJob.cmd &&
       item.ref === newJob.ref &&
       item.visuel === newJob.visuel &&
-      item.visuel2 === newJob.visuel2,
+      item.visuel2 === newJob.visuel2 &&
+      !!item.complementStock === !!newJob.complementStock,
   );
 
   if (!jobExist) {
@@ -549,6 +571,9 @@ async function processJob(job, req) {
   const regexCredences = /^\d{3}x\d{2}$/i;
   const isCredences = regexCredences.test(job.format_visu);
   const isStock = job?.useStock;
+  // Crédence 1 ex complétée par le même visuel : le 2e panneau imprimé alimente le stock. Rien n'est
+  // imprimé quand la commande est prise en stock (useStock), donc pas de complément dans ce cas.
+  const isComplementStock = !!job?.complementStock && isCredences && !isStock;
 
   let pdfTime = 0;
   let jpgTime = 0;
@@ -861,7 +886,11 @@ async function processJob(job, req) {
       ip: req.ip.split(":").pop() === "1" || req.hostname === "localhost" ? os.hostname() : req.ip.split(":").pop(),
       comment: buildCoteClientComment(
         job.printFormat,
-        isStock ? `Pris en stock le ${new Date().toLocaleString()}` : "",
+        isStock
+          ? `Pris en stock le ${new Date().toLocaleString()}`
+          : isComplementStock
+            ? `+${parseInt(job.ex) || 1} panneau(x) mis en stock le ${new Date().toLocaleString()}`
+            : "",
       ),
       prodBlanc: !!job.prodBlanc,
       surMesure: !!job.surMesure,
@@ -950,6 +979,33 @@ async function processJob(job, req) {
         error,
       );
     }
+  }
+
+  if (isComplementStock && job.ref && String(job.ref) !== "0") {
+    try {
+      // 1 panneau en stock par plaque imprimée (job.ex plaques).
+      const stockQtyAdded = parseInt(job.ex) || 1;
+      const finition = /brillant/i.test(job.visuel) ? "BRILLANT" : /mat/i.test(job.visuel) ? "MAT" : "";
+      await Stocks.findOneAndUpdate(
+        { ref: String(job.ref) },
+        {
+          $inc: { ex: stockQtyAdded },
+          $setOnInsert: { visuel: job.visuel, format: job.format_visu, finition },
+        },
+        { new: true, upsert: true },
+      );
+      logger.info(
+        `Stock alimenté pour la référence: ${job.cmd} ${job.visuel?.replace(".pdf", "")} ${job.ref} ${job.format_visu} (+${stockQtyAdded}ex)`,
+      );
+    } catch (error) {
+      logger.error(
+        `Erreur lors de l'ajout au stock pour la référence: ${job.cmd} ${job.visuel?.replace(".pdf", "")} ${job.ref} ${job.format_visu}: `,
+        error,
+      );
+      broadcastWS({ type: "jobWarning", job, reason: `Stock non mis à jour : ${error.message}` });
+    }
+  } else if (isComplementStock) {
+    logger.warn(`Complément stock ignoré pour le job ${job.cmd} : pas de référence valide (${job.visuel})`);
   }
 
   if (job.cut) {

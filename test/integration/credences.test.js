@@ -16,6 +16,7 @@ const path = require("path");
 const mongoose = require("mongoose");
 const connectMongo = require("../../server/src/mongoose");
 const Deco = require("../../server/src/models/Deco");
+const Stocks = require("../../server/src/models/Stocks");
 
 // Chargement optionnel : requiert odbc (pilote natif), absent sur certaines machines
 let normalizeDossierApiPayload;
@@ -708,6 +709,118 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
         teinteMasse: false, prodBlanc: false, perte: null, regmarks: false, cut: false, stock: false,
       });
       expect(r.status, `Attendu 201, reçu ${r.status} : ${JSON.stringify(r.body)}`).to.equal(201);
+    });
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // 7. Complément stock — crédence 1 ex complétée par le même visuel, 2e panneau en stock
+  // ════════════════════════════════════════════════════════════════════════════
+
+  describe("Complément stock — crédence 1 ex + même visuel pour le stock", function () {
+    this.timeout(30000);
+
+    const CASTO_MOSAIQUE = "server/public/CASTO/2_300x60/CRED 300x60cm MOSAIQUE 3664711694254 MAT.pdf";
+    const BRICO_VELTIS = "server/public/BRICO/255x60/VELTIS BRILLANT 255x60 VELTIS-25560.pdf";
+    const base = {
+      ville: "Test",
+      teinteMasse: false, prodBlanc: false, perte: null, regmarks: false, cut: false, stock: false,
+      allFormatTauro: TAURO_FORMATS,
+    };
+
+    beforeEach(async () => clearAllJobs());
+    after(async () => clearAllJobs());
+
+    it("CASTO ex=1 + complementStock → 201, visuel dupliqué, cmd2 = 0", async () => {
+      const r = await postJson("/add_job", {
+        ...base, client: "CASTO", numCmd: "99010", numCmd2: "", ex: 1,
+        visuel: CASTO_MOSAIQUE, format: "server/public/CASTO/2_300x60/", visuel2: "", format2: "",
+        formatTauro: "Deco_Std_150x305", complementStock: true,
+      });
+      expect(r.status, JSON.stringify(r.body)).to.equal(201);
+      expect(r.body.object.complementStock).to.equal(true);
+      expect(r.body.object.visuPath2).to.equal(r.body.object.visuPath);
+      expect(r.body.object.cmd2).to.equal(0);
+    });
+
+    it("BRICO ex=1 : même visuel en 2e partie sans N° commande 2 → complément stock implicite", async () => {
+      const r = await postJson("/add_job", {
+        ...base, client: "BRICO", numCmd: "99011", numCmd2: "", ex: 1,
+        visuel: BRICO_VELTIS, format: "server/public/BRICO/255x60/",
+        visuel2: BRICO_VELTIS, format2: "server/public/BRICO/255x60/",
+        formatTauro: "Deco_Std_126x260",
+      });
+      expect(r.status, JSON.stringify(r.body)).to.equal(201);
+      expect(r.body.object.complementStock).to.equal(true);
+      expect(r.body.object.cmd2).to.equal(0);
+    });
+
+    it("complementStock avec ex=2 → rejet 400", async () => {
+      const r = await postJson("/add_job", {
+        ...base, client: "CASTO", numCmd: "99012", numCmd2: "", ex: 2,
+        visuel: CASTO_MOSAIQUE, format: "server/public/CASTO/2_300x60/", visuel2: "", format2: "",
+        formatTauro: "Deco_Std_150x305", complementStock: true,
+      });
+      expect(r.status, JSON.stringify(r.body)).to.equal(400);
+      expect(r.body.error).to.match(/stock/i);
+    });
+
+    it("ex=2 dupliqué sans N° commande 2 (flux dossier) → cmd2 = cmd, pas de panneau stock", async () => {
+      const r = await postJson("/add_job", {
+        ...base, client: "CASTO", numCmd: "99013", numCmd2: "", ex: 2,
+        visuel: CASTO_MOSAIQUE, format: "server/public/CASTO/2_300x60/", visuel2: "", format2: "",
+        formatTauro: "Deco_Std_150x305",
+      });
+      expect(r.status, JSON.stringify(r.body)).to.equal(201);
+      expect(r.body.object.cmd2).to.equal(99013);
+      expect(r.body.object.complementStock).to.not.equal(true);
+    });
+  });
+
+  describe("Complément stock — run_jobs alimente la collection Stocks (+1)", function () {
+    this.timeout(600000);
+
+    const REF = "3664711694254";
+    let addResp, writePath, jpgDir, stockAvant;
+
+    before(async function () {
+      await clearAllJobs();
+      stockAvant = (await Stocks.findOne({ ref: REF }).lean())?.ex || 0;
+      addResp = await postJson("/add_job", {
+        client: "CASTO", numCmd: "99014", numCmd2: "", ville: "Test", ex: 1,
+        visuel: "server/public/CASTO/2_300x60/CRED 300x60cm MOSAIQUE 3664711694254 MAT.pdf",
+        format: "server/public/CASTO/2_300x60/", visuel2: "", format2: "",
+        formatTauro: "Deco_Std_150x305", allFormatTauro: TAURO_FORMATS, complementStock: true,
+        teinteMasse: false, prodBlanc: false, perte: null, regmarks: false, cut: false, stock: false,
+      });
+      expect(addResp.status, JSON.stringify(addResp.body)).to.equal(201);
+      writePath = addResp.body.object.writePath;
+      jpgDir = resolveJpgDir(addResp.body.object.jpgName);
+      await postJson("/run_jobs", { run: true }, 600000);
+      await wait(10000);
+    });
+
+    after(async function () {
+      await clearAllJobs();
+      cleanByPrefix(writePath, "99014");
+      cleanByPrefix(jpgDir, "99014");
+      await Deco.deleteMany({ numCmd: 99014 });
+      // Remet le stock de la base Test dans son état initial
+      if (stockAvant > 0) await Stocks.updateOne({ ref: REF }, { $set: { ex: stockAvant } });
+      else await Stocks.deleteOne({ ref: REF });
+    });
+
+    it("stock de la ref incrémenté de 1", async () => {
+      const apres = await Stocks.findOne({ ref: REF }).lean();
+      expect(apres, "document Stocks attendu").to.not.be.null;
+      expect(apres.ex).to.equal(stockAvant + 1);
+      expect(apres.format).to.equal("300x60");
+    });
+
+    it("1 seule entrée Deco (panneau stock non historisé comme commande)", async () => {
+      const entries = await Deco.find({ numCmd: 99014 }).lean();
+      expect(entries.length).to.equal(1);
+      expect(entries[0].ex).to.equal(1);
+      expect(entries[0].comment).to.match(/mis en stock/);
     });
   });
 });
