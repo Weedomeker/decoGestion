@@ -13,6 +13,9 @@ const LOCK_DURATION_MS = parseInt(process.env.JOBS_LOCK_DURATION_MS) || 15 * 60 
 
 function makeConnection() {
   const conn = new IORedis(REDIS_URL, {
+    // Redis n'est publié que sur 127.0.0.1 (docker-compose) ; sous Node 17+, "localhost" se
+    // résout d'abord en ::1 → ECONNREFUSED masqué ci-dessous, et la file ne traitait plus rien.
+    family: 4,
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
     retryStrategy: (times) => Math.min(times * 500, 10000),
