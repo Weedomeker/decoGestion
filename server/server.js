@@ -66,18 +66,18 @@ app.use(compression());
 app.use("/public", express.static(__dirname));
 app.use("/public/PREVIEW", express.static(path.join(__dirname, "/public/PREVIEW")));
 app.use(express.static(path.join(__dirname, "../client/dist")));
-app.use(
-  "/louis",
-  express.static(path.join(__dirname, `/public/${state.paths.sessionPRINTSA}/`)),
-  serveIndex(path.join(__dirname, `/public/${state.paths.sessionPRINTSA}/`), { icons: true }),
-);
-app.use(
-  "/qrcode",
-  express.static(path.join(__dirname, `/public/${state.paths.sessionPRINTSA}/QRCodes/`)),
-  serveIndex(path.join(__dirname, `/public/${state.paths.sessionPRINTSA}/QRCodes/`), {
-    icons: true,
-  }),
-);
+// Le dossier de session change à minuit : on résout le chemin à chaque requête.
+function sessionFolderMiddleware(subFolder) {
+  return (req, res, next) => {
+    const dir = path.join(__dirname, `/public/${state.paths.sessionPRINTSA}/${subFolder}`);
+    express.static(dir)(req, res, (err) => {
+      if (err) return next(err);
+      serveIndex(dir, { icons: true })(req, res, next);
+    });
+  };
+}
+app.use("/louis", sessionFolderMiddleware(""));
+app.use("/qrcode", sessionFolderMiddleware("QRCodes/"));
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "../client/dist/index.html"));

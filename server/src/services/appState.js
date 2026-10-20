@@ -3,14 +3,17 @@ const fs = require("fs");
 const { execFileSync } = require("child_process");
 const logger = require("../logger/logger");
 
-const dayDate = new Date()
-  .toLocaleDateString("fr-FR", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  })
-  .replace(".", "")
-  .toLocaleUpperCase();
+// Recalculée à chaque lecture : le serveur de prod tourne plusieurs jours sans redémarrage.
+function dayDate(date = new Date()) {
+  return date
+    .toLocaleDateString("fr-FR", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    })
+    .replace(".", "")
+    .toLocaleUpperCase();
+}
 
 const serverRoot = path.join(__dirname, "../..");
 const projectRoot = path.join(serverRoot, "..");
@@ -23,7 +26,9 @@ const state = {
     decoBRICO: "",
     previewDeco: "",
     jpgPath: "./server/public",
-    sessionPRINTSA: `PRINTSA#${dayDate}`,
+    get sessionPRINTSA() {
+      return `PRINTSA#${dayDate()}`;
+    },
     saveFolder:
       process.env.NODE_ENV === "development"
         ? path.join(serverRoot, "/public/tmp")
