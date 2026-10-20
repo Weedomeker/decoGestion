@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.5.1] - 2026-10-20
+
+### Corrections
+- **queue** : connexion Redis forcée en IPv4, la file ne traitait plus rien
+
+### Performances
+- **jobs** : JPG des crédences en quelques secondes, aperçus fiabilisés
+
 ## [2.5.0] - 2026-10-20
 
 ### Nouveautés
