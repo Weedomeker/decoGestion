@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.5.0] - 2026-10-20
+
+### Nouveautés
+- **logs** : logs plus lisibles et copiés dans MongoDB (collection logs)
+- **ux** : modale de stock groupée et validation dossier sans modale
+- **ux** : formulaire plus rapide, progression d'ajout et raccourcis clavier
+- **dossier** : UX credences et lignes a corriger dans l'onglet dossier
+- **credences** : complement stock pour les credences BRICO/CASTO 1 ex
+- **jpg** : mise en page des JPG des jobs avec le nom du fichier en en-tete
+
+### Corrections
+- **queue** : jobs lourds relancés en parallèle (stalled) et étiquettes en double
+- **session** : dossier PRINTSA du jour recalculé à chaque usage
+- **ux** : changement de client, filtre sur-mesure, TM et avertissements conservent la saisie
+- **dossier** : plaque Tauro englobante pour les formats Gamesys absents, refus add_job journalises
+
 ## [2.4.1] - 2026-10-16
 
 ### Corrections
