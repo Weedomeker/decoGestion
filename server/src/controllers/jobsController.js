@@ -50,10 +50,15 @@ async function applyJpgPage(jpgPath, cmd) {
         await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
         continue;
       }
-      logger.error(`❌ Mise en page du JPG impossible pour le job ${cmd} : ${error.message}`);
+      logger.error(`Mise en page du JPG impossible : ${error.message}`, { cmd });
       return;
     }
   }
+}
+
+// 1234567 → "1.2 Mo" (lignes de log).
+function formatSize(bytes) {
+  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} Mo` : `${Math.round(bytes / 1024)} Ko`;
 }
 
 // Résout sur le premier modèle qui retourne un document non-null, avec son index.
@@ -422,7 +427,7 @@ async function addJob(req, res) {
       // Vérifier si la référence provient d'une collection d'un autre client
       if (refValidated && resultIndex > 0) {
         refCrossClientWarning = `Référence "${matchRef}" déclarée pour le client ${client} mais trouvée dans une autre collection. Vérifiez la cohérence.`;
-        logger.warn(`⚠️ ${refCrossClientWarning}`);
+        logger.warn(`${refCrossClientWarning}`);
       }
       if (!refValidated) {
         return reject(400, {
@@ -435,12 +440,12 @@ async function addJob(req, res) {
       const formatFromFile = format?.match(/\d{2,}x\d{2,}/i)?.[0]?.toLowerCase();
       if (formatFromRef && formatFromFile && formatFromRef !== formatFromFile) {
         const msg = `Format incohérent pour la ref ${matchRef} : sélectionné=${formatFromFile}, base=${formatFromRef}. Vérifiez le format du visuel.`;
-        logger.warn(`⚠️ ${msg}`);
+        logger.warn(`${msg}`);
         return reject(400, { error: msg, code: "FORMAT_MISMATCH" });
       }
       // RefEcom.blanc : forcer prodBlanc si la référence est marquée blanc en base
       if (client === "ECOM" && refValidated.blanc === true && !prodBlanc) {
-        logger.warn(`⚠️ RefEcom ${matchRef} marquée blanc=true en base mais prodBlanc=false — correction automatique`);
+        logger.warn(`RefEcom ${matchRef} marquée blanc=true en base mais prodBlanc=false — correction automatique`);
         prodBlanc = true;
         prodBlancCorrected = true;
         state.process.writePath = path.join(state.paths.saveFolder, "Prod avec BLANC");
@@ -463,7 +468,7 @@ async function addJob(req, res) {
 
       if (refValidated2 && resultIndex2 > 0) {
         const warn2 = `Référence 2 "${matchRef2}" déclarée pour le client ${client2} mais trouvée dans une autre collection. Vérifiez la cohérence.`;
-        logger.warn(`⚠️ ${warn2}`);
+        logger.warn(`${warn2}`);
         refCrossClientWarning = refCrossClientWarning ? `${refCrossClientWarning} · ${warn2}` : warn2;
       }
       if (!refValidated2) {
@@ -476,7 +481,7 @@ async function addJob(req, res) {
       const formatFromFile2 = format2?.match(/\d{2,}x\d{2,}/i)?.[0]?.toLowerCase();
       if (formatFromRef2 && formatFromFile2 && formatFromRef2 !== formatFromFile2) {
         const msg2 = `Format incohérent pour la ref 2 ${matchRef2} : sélectionné=${formatFromFile2}, base=${formatFromRef2}. Vérifiez le format du visuel.`;
-        logger.warn(`⚠️ ${msg2}`);
+        logger.warn(`${msg2}`);
         return reject(400, { error: msg2, code: "FORMAT_MISMATCH" });
       }
     } catch (err) {
@@ -583,23 +588,23 @@ async function processJob(job, req) {
   // d'échec ; en fin de fonction on émet un jobError et on throw (BullMQ retente selon attempts).
   let deliverableError = null;
 
-  logger.info(
-    `▶ Job ${job.cmd} | client=${job.client} | ref=${job.ref} | visuel=${job.visuel} | format=${job.format_visu} | ${job.ex}ex`,
-  );
+  // Chaque ligne de ce job porte cmd/client : préfixe [cmd] dans la console, champs filtrables en base.
+  const log = logger.child({ cmd: job.cmd, client: job.client });
+  const startJob = performance.now();
+
+  log.info(`Début ${job.client} · ${job.visuel} · ${job.format_visu} · ${job.ex} ex`, { ref: job.ref });
   if (isCredences && job.visuPath2) {
-    logger.info(`  + 2e panneau | ref2=${job.ref2} | visuel2=${job.visuel2} | visuPath2=${job.visuPath2}`);
+    log.info(`2e panneau · ${job.visuel2}`, { ref2: job.ref2 });
   }
 
   if (job.refDbData && !job.teinteMasse) {
     if (!fs.existsSync(path.resolve(job.visuPath))) {
-      logger.error(`❌ Job ${job.cmd} annulé : visuel introuvable sur le disque : ${job.visuPath}`);
+      log.error(`Annulé : visuel introuvable sur le disque (${job.visuPath})`);
       broadcastWS({ type: "jobError", job, reason: "Visuel introuvable sur le disque" });
       return;
     }
     if (String(job.ref) !== String(job.refDbData.ref)) {
-      logger.error(
-        `❌ Job ${job.cmd} annulé : incohérence ref (job.ref=${job.ref} ≠ pinned=${job.refDbData.ref})`,
-      );
+      log.error(`Annulé : incohérence de référence (job ${job.ref} ≠ attendue ${job.refDbData.ref})`);
       broadcastWS({ type: "jobError", job, reason: "Incohérence de référence" });
       return;
     }
@@ -631,7 +636,7 @@ async function processJob(job, req) {
       if (!fs.existsSync(vernisFolder)) fs.mkdirSync(vernisFolder, { recursive: true });
     }
   } catch (err) {
-    logger.error(`❌ Impossible de créer les dossiers pour le job ${job.cmd} : ${err.message}`);
+    log.error("Création des dossiers de sortie impossible :", err);
     return;
   }
 
@@ -667,20 +672,20 @@ async function processJob(job, req) {
         pdfTime = endPdf - startPdf;
       }
     } catch (error) {
-      logger.error(`Erreur de modification du PDF pour le job ${job.cmd}: ${error}`);
+      log.error("Génération du PDF échouée :", error);
       deliverableError = deliverableError || `Échec de génération du PDF : ${error.message || error}`;
     }
 
     if (stagedPdfPath) {
       try {
         if (!fs.existsSync(stagedPdfPath) || fs.statSync(stagedPdfPath).size === 0) {
-          logger.error(`❌ PDF de sortie manquant ou vide pour le job ${job.cmd} : ${stagedPdfPath}`);
+          log.error(`PDF manquant ou vide : ${stagedPdfPath}`);
           deliverableError = deliverableError || "PDF de sortie manquant ou vide";
         } else {
-          logger.info(`✅ PDF OK (${fs.statSync(stagedPdfPath).size} octets) : ${pdfBaseName}`);
+          log.info(`PDF OK (${formatSize(fs.statSync(stagedPdfPath).size)})`);
         }
       } catch (err) {
-        logger.error(`❌ Impossible de vérifier le PDF pour le job ${job.cmd} : ${err.message}`);
+        log.error("Vérification du PDF impossible :", err);
         deliverableError = deliverableError || `Vérification du PDF impossible : ${err.message}`;
       }
     }
@@ -695,7 +700,7 @@ async function processJob(job, req) {
     const jpgDejaPresent = fs.existsSync(outJpgPath) && fs.statSync(outJpgPath).size > 0;
 
     if (jpgDejaPresent) {
-      logger.info(`✅ JPG déjà présent, génération ignorée : ${path.basename(outJpgPath)}`);
+      log.info("JPG déjà présent, génération ignorée");
     } else {
       try {
         const startJpg = performance.now();
@@ -715,7 +720,7 @@ async function processJob(job, req) {
         const endJpg = performance.now();
         jpgTime = endJpg - startJpg;
       } catch (error) {
-        logger.error(`Error generating JPG for job ${job.cmd}:`, error);
+        log.error("Génération du JPG échouée :", error);
       }
 
       // Uniquement sur un JPG fraîchement généré : un JPG déjà présent a déjà reçu sa mise en page.
@@ -724,22 +729,22 @@ async function processJob(job, req) {
 
     try {
       if (!fs.existsSync(outJpgPath) || fs.statSync(outJpgPath).size === 0) {
-        logger.error(`❌ JPG de sortie manquant ou vide pour le job ${job.cmd} : ${outJpgPath}`);
+        log.error(`JPG manquant ou vide : ${outJpgPath}`);
         deliverableError = deliverableError || "JPG de sortie manquant ou vide";
       } else {
-        logger.info(`✅ JPG OK (${fs.statSync(outJpgPath).size} octets) : ${path.basename(outJpgPath)}`);
+        log.info(`JPG OK (${formatSize(fs.statSync(outJpgPath).size)})`);
       }
     } catch (err) {
-      logger.error(`❌ Impossible de vérifier le JPG pour le job ${job.cmd} : ${err.message}`);
+      log.error("Vérification du JPG impossible :", err);
       deliverableError = deliverableError || `Vérification du JPG impossible : ${err.message}`;
     }
 
     if (!deliverableError) {
       try {
         await deliverToHotFolder(stagedPdfPath, path.join(job.writePath, pdfBaseName));
-        logger.info(`📤 PDF déposé dans le hot folder : ${pdfBaseName}`);
+        log.info(`PDF déposé dans le hot folder : ${pdfBaseName}`);
       } catch (err) {
-        logger.error(`❌ Dépôt du PDF impossible pour le job ${job.cmd} : ${err.message}`);
+        log.error("Dépôt du PDF dans le hot folder impossible :", err);
         deliverableError = `Dépôt du PDF dans le hot folder impossible : ${err.message}`;
       }
     }
@@ -749,7 +754,7 @@ async function processJob(job, req) {
       await generateImages(job, state.paths.previewDeco, `${jpgName}.jpg`, isStock);
       await applyJpgPage(`${jpgName}.jpg`, job.cmd);
     } catch (error) {
-      logger.error(`Error generating JPG for job ${job.cmd}:`, error);
+      log.error("Génération de l'image échouée :", error);
       deliverableError = deliverableError || `Échec de génération de l'image : ${error.message || error}`;
     }
   }
@@ -820,7 +825,7 @@ async function processJob(job, req) {
       try {
         ({ dateLivraisonSouhaitee } = await dossierService.getDossierLivraisonDates(cmd));
       } catch (err) {
-        logger.warn(`saveDeco: dateLivraisonSouhaitee non récupérée pour cmd=${cmd} : ${err.message}`);
+        log.warn(`Gamesys : date de livraison non récupérée pour ${cmd} : ${err.message}`);
       }
       try {
         // prixTotal vient de commandeInfo (fetchDossierCommandeInfo interroge aussi endv_px_total
@@ -829,12 +834,12 @@ async function processJob(job, req) {
         commandeInfo = await dossierService.getDossierCommandeInfo(cmd);
         prixTotal = commandeInfo?.prixTotal ?? null;
       } catch (err) {
-        logger.warn(`saveDeco: commandeInfo/prixTotal non récupérés pour cmd=${cmd} : ${err.message}`);
+        log.warn(`Gamesys : infos commande / prix total non récupérés pour ${cmd} : ${err.message}`);
       }
       try {
         formatPlaqueGamesys = await dossierService.getDossierFormatPlaque(cmd);
       } catch (err) {
-        logger.warn(`saveDeco: formatPlaqueGamesys non récupéré pour cmd=${cmd} : ${err.message}`);
+        log.warn(`Gamesys : format plaque non récupéré pour ${cmd} : ${err.message}`);
       }
       if (prix === undefined) {
         try {
@@ -860,7 +865,7 @@ async function processJob(job, req) {
             orientation: job.orientation || undefined,
           });
         } catch (err) {
-          logger.warn(`saveDeco: prix visuel non récupéré pour cmd=${cmd} : ${err.message}`);
+          log.warn(`Gamesys : prix du visuel non récupéré pour ${cmd} : ${err.message}`);
         }
       }
     }
@@ -914,7 +919,7 @@ async function processJob(job, req) {
   // S7 — livrable vérifié AVANT toute écriture en base : si BullMQ retente le job, le stub
   // Gamesys a déjà été réclamé à la 1ère tentative et claimStubOrCreate créerait un doublon.
   if (deliverableError) {
-    logger.error(`❌ Job ${job.cmd} en échec : ${deliverableError}`);
+    log.error(`Échec : ${deliverableError}`);
     broadcastWS({ type: "jobError", job, reason: deliverableError });
     throw new Error(`Job ${job.cmd} : ${deliverableError}`);
   }
@@ -951,7 +956,7 @@ async function processJob(job, req) {
       });
     }
   } catch (error) {
-    logger.error(`Erreur sauvegarde dossier pour le job ${job.cmd}: ${error.message}`);
+    log.error("Historique Deco non enregistré :", error);
     // Le PDF/JPG peut être bon mais l'historique Mongo absent — on ne fait pas échouer le job
     // (le livrable existe), mais on le signale explicitement au lieu d'un échec silencieux.
     broadcastWS({ type: "jobWarning", job, reason: `Historique non enregistré : ${error.message}` });
@@ -960,7 +965,7 @@ async function processJob(job, req) {
   try {
     await saveProfilsKits(job);
   } catch (err) {
-    logger.warn(`Profils/kits non enregistrés pour le job ${job.cmd} : ${err.message}`);
+    log.warn(`Profils/kits non enregistrés : ${err.message}`);
   }
 
   if (isStock) {
@@ -970,14 +975,9 @@ async function processJob(job, req) {
       // la portion "stock" — le solde à produire est un job séparé avec useStock=false.
       const stockQtyUsed = parseInt(job.ex) || 1;
       await Stocks.findOneAndUpdate({ ref: job.ref }, { $inc: { ex: -stockQtyUsed } }, { new: true });
-      logger.info(
-        `Stock mis à jour pour la référence: ${job.cmd} ${job.visuel?.replace(".pdf", "")} ${job.ref} ${job.format_visu} (${stockQtyUsed}ex déduit)`,
-      );
+      log.info(`Stock : -${stockQtyUsed} ex`, { ref: job.ref });
     } catch (error) {
-      logger.error(
-        `Erreur lors de la mise à jour du stock pour la référence: ${job.cmd} ${job.visuel?.replace(".pdf", "")} ${job.ref} ${job.format_visu}: `,
-        error,
-      );
+      log.error(`Stock non déduit (ref ${job.ref}) :`, error);
     }
   }
 
@@ -994,18 +994,13 @@ async function processJob(job, req) {
         },
         { new: true, upsert: true },
       );
-      logger.info(
-        `Stock alimenté pour la référence: ${job.cmd} ${job.visuel?.replace(".pdf", "")} ${job.ref} ${job.format_visu} (+${stockQtyAdded}ex)`,
-      );
+      log.info(`Stock : +${stockQtyAdded} ex (complément crédence)`, { ref: job.ref });
     } catch (error) {
-      logger.error(
-        `Erreur lors de l'ajout au stock pour la référence: ${job.cmd} ${job.visuel?.replace(".pdf", "")} ${job.ref} ${job.format_visu}: `,
-        error,
-      );
+      log.error(`Stock non alimenté (ref ${job.ref}) :`, error);
       broadcastWS({ type: "jobWarning", job, reason: `Stock non mis à jour : ${error.message}` });
     }
   } else if (isComplementStock) {
-    logger.warn(`Complément stock ignoré pour le job ${job.cmd} : pas de référence valide (${job.visuel})`);
+    log.warn(`Complément stock ignoré : pas de référence valide (${job.visuel})`);
   }
 
   if (job.cut) {
@@ -1025,11 +1020,12 @@ async function processJob(job, req) {
         createDec(wPlate, hPlate, width, height, pathCutFiles);
         generateCutFile(hPlate * 10, wPlate * 10, height * 10, width * 10, 6, pathCutFiles);
       } catch (error) {
-        logger.error(`Erreur génération fichier de coupe pour le job ${job.cmd}: ${error.message}`);
+        log.error("Fichier de coupe non généré :", error);
       }
     }
   }
 
+  log.info(`Terminé en ${((performance.now() - startJob) / 1000).toFixed(1)} s`);
   state.jobs.completed.push(job);
   broadcastCompletedJob(job);
 }
@@ -1063,15 +1059,12 @@ async function runJobs(req, res) {
       ip: req.ip,
     });
 
+    const traitees = state.jobs.completed.map(({ cmd, cmd2 }) => (cmd2 > 0 ? `${cmd}+${cmd2}` : cmd));
+    const duree = ((performance.now() - startTime) / 1000).toFixed(0);
     logger.info(
-      `✅ Traitement terminé (${jobsToRun.length} job(s), ${failed} en échec, ${cancelled} annulé(s)).`,
-    );
-
-    const resultsSummary = state.jobs.completed.map(({ cmd, cmd2 }) => [cmd, cmd2 > 0 ? cmd2 : ""]);
-    logger.info(
-      `📊 Résumé des commandes traitées :\n[${resultsSummary
-        .map(([cmd, cmd2]) => `${cmd}${cmd2 ? ` + ${  cmd2}` : ""}`)
-        .join(", ")}]`,
+      `Traitement terminé en ${duree} s : ${jobsToRun.length} job(s), ${failed} en échec, ${cancelled} annulé(s)${
+        traitees.length ? ` · ${traitees.join(", ")}` : ""
+      }`,
     );
 
     state.jobs.jobs = state.jobs.jobs.filter(
@@ -1084,12 +1077,12 @@ async function runJobs(req, res) {
     try {
       await generateStickersForJobs(state.jobs.completed);
     } catch (error) {
-      logger.error("❌ Erreur lors de la génération des étiquettes :", error);
+      logger.error("Génération des étiquettes échouée :", error);
     }
 
     res.status(200).json({ message: "Jobs completed successfully" });
   } catch (error) {
-    logger.error("Error running jobs:", error);
+    logger.error("Traitement des jobs échoué :", error);
     res.status(500).json({ error: "Internal server error" });
   }
 }
@@ -1222,7 +1215,7 @@ async function generateStickersOnly(req, res) {
 
     res.status(200).json({ message: "Étiquettes générées avec succès !" });
   } catch (error) {
-    logger.error("❌ Erreur lors de la génération des étiquettes :", error);
+    logger.error("Génération des étiquettes échouée :", error);
     res.status(500).json({ error: "Erreur lors de la génération des étiquettes" });
   }
 }
@@ -1406,7 +1399,7 @@ async function generateStickerQuick(req, res) {
     await generateStickersForJobs([syntheticJob]);
     res.status(200).json({ message: "Sticker généré avec succès !" });
   } catch (error) {
-    logger.error("❌ Erreur lors de la génération du sticker rapide :", error);
+    logger.error("Génération du sticker rapide échouée :", error);
     res.status(500).json({ error: "Erreur lors de la génération du sticker" });
   }
 }

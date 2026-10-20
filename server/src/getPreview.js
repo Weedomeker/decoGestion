@@ -11,7 +11,7 @@ const getPreview = async (ref, jpgName, isStock) => {
     const file = files.find((f) => f.includes(ref));
 
     if (!file) {
-      logger.info("preview: file not found");
+      logger.debug("getPreview : aperçu introuvable");
       return false;
     }
 
@@ -34,7 +34,7 @@ const getPreview = async (ref, jpgName, isStock) => {
 
     return destPath;
   } catch (err) {
-    logger.error("Error in getPreview:", err);
+    logger.error("getPreview : échec :", err);
     return false;
   }
 };

@@ -89,21 +89,21 @@ const createDec = (widthPlate, heightPlate, decWidth, decHeight, writePath) => {
       if (fs.existsSync(pathFile)) {
         fs.writeFileSync(`${pathFile  }/${  fileName  }.dxf`, dxf);
         fs.writeFileSync(`${pathFile  }/${  fileName  }.svg`, svg);
-        logger.info("Fichier dxf ✅");
-        logger.info("Fichier svg ✅");
+        logger.debug("Fichier de coupe .dxf généré");
+        logger.debug("Fichier de coupe .svg généré");
       } else {
         fs.mkdirSync(pathFile, { recursive: true });
         fs.writeFileSync(`${pathFile  }/${  fileName  }.dxf`, dxf);
         fs.writeFileSync(`${pathFile  }/${  fileName  }.svg`, svg);
-        logger.info("Fichier dxf ✅");
-        logger.info("Fichier svg ✅");
+        logger.debug("Fichier de coupe .dxf généré");
+        logger.debug("Fichier de coupe .svg généré");
       }
     } catch (error) {
-      logger.error(error);
+      logger.error("Fichier de coupe .dxf/.svg : échec :", error);
     }
     exportPath.push(fileName);
   } catch (err) {
-    logger.error(err);
+    logger.error("Fichier de coupe .dxf/.svg : échec :", err);
   }
 };
 

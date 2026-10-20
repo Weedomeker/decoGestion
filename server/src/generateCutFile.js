@@ -105,9 +105,9 @@ function generateCutFile(dibondWidth, dibondHeight, cutWidth, cutHeight, milling
       fs.mkdirSync(outPath, { recursive: true });
     }
     fs.writeFileSync(`${outPath}/${fileName}.cut`, content);
-    logger.info("Fichier cut ✅");
+    logger.debug("Fichier de coupe .cut généré");
   } catch (error) {
-    logger.error(error);
+    logger.error("Fichier de coupe .cut : échec :", error);
   }
 }
 
@@ -227,7 +227,7 @@ OpenCuttingKeyFor Dibond 3mm
     if (!fs.existsSync(outPath)) fs.mkdirSync(outPath, { recursive: true });
     fs.writeFileSync(path.join(outPath, fileName), content);
   } catch (err) {
-    logger.error(err);
+    logger.error("Fichier de coupe .cut : échec :", err);
   }
 }
 

@@ -92,7 +92,7 @@ async function enqueueRun(jobsToRun, extraData = {}) {
       }),
     );
 
-    logger.info(`📥 ${bullJobs.length} job(s) ajoutés à la queue BullMQ.`);
+    logger.info(`${bullJobs.length} job(s) ajoutés à la queue BullMQ.`);
     broadcastQueueStatus();
 
     const results = await Promise.allSettled(
@@ -104,7 +104,7 @@ async function enqueueRun(jobsToRun, extraData = {}) {
     );
 
     const failed = results.filter((r) => r.status === "rejected");
-    failed.forEach((r) => logger.error(`⚠️ Job en échec définitif : ${r.reason?.message ?? r.reason}`));
+    failed.forEach((r) => logger.error(`Job en échec définitif : ${r.reason?.message ?? r.reason}`));
 
     return {
       total: bullJobs.length,
@@ -165,7 +165,7 @@ async function cancelPending() {
     }
   }
 
-  logger.info(`🛑 Annulation : ${removed} job(s) non démarré(s) retiré(s) de la queue.`);
+  logger.info(`Annulation : ${removed} job(s) non démarré(s) retiré(s) de la queue.`);
   return removed;
 }
 
@@ -185,7 +185,7 @@ async function resume() {
 async function syncPausedState() {
   try {
     run.paused = await decoQueue.isPaused();
-    if (run.paused) logger.warn("⏸️ La queue BullMQ est en pause (état conservé dans Redis).");
+    if (run.paused) logger.warn("La queue BullMQ est en pause (état conservé dans Redis).");
   } catch (error) {
     logger.warn(`État de pause BullMQ illisible : ${error.message}`);
   }

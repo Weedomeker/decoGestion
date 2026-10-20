@@ -13,7 +13,7 @@ const pdfToimg = async (readFile, writeFile) => {
   if (!fs.existsSync(writeFile) || fs.statSync(writeFile).size === 0) {
     throw new Error(`Échec de la génération de l'image JPG : ${writeFile}`);
   }
-  logger.info("Image générée avec succès");
+  logger.debug("Image générée");
 };
 
 module.exports = async ({ pdf, jpg }) => {

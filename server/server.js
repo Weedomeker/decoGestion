@@ -28,14 +28,17 @@ const { syncPausedState } = require("./src/services/queueControlService");
 
 const PORT = process.env.PORT || 8000;
 
+// Copie des logs dans la collection MongoDB "logs" (mise en tampon jusqu'à la connexion).
+logger.enableMongo();
+
 process.on("uncaughtException", (err) => {
-  logger.error(`Exception non capturée : ${err.stack || err.message}`);
-  process.exit(1);
+  logger.error("Exception non capturée :", err);
+  // Laisse le temps d'écrire cette dernière erreur en base avant de quitter.
+  logger.flushMongo().finally(() => process.exit(1));
 });
 
 process.on("unhandledRejection", (reason) => {
-  const msg = reason instanceof Error ? reason.stack : String(reason);
-  logger.error(`Promesse rejetée non gérée : ${msg}`);
+  logger.error("Promesse rejetée non gérée :", reason instanceof Error ? reason : String(reason));
 });
 
 const app = express();
@@ -123,7 +126,7 @@ app.use((req, res) => {
 
 // Middleware d'erreur global — 4 paramètres obligatoires pour Express
 app.use((err, req, res, next) => {
-  logger.error(`Erreur non gérée [${req.method} ${req.path}] : ${err.stack || err.message}`);
+  logger.error(`Erreur non gérée [${req.method} ${req.path}] :`, err);
   res.status(err.status || 500).json({
     error: err.message || "Erreur interne du serveur",
   });
@@ -134,7 +137,7 @@ server.listen(PORT, async () => {
   await Promise.all([
     checkVersion()
       .then((result) => logger.info(result.message))
-      .catch((error) => logger.error("Error:", error)),
+      .catch((error) => logger.error("Vérification de version :", error)),
     linkFolders(false),
   ]);
 

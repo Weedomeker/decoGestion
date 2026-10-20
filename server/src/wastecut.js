@@ -17,7 +17,7 @@ function Wastcut(widthPlate, heightPlate, decWidth, decHeight) {
   const coupe = parseFloat((heightPlate / Math.round(interval)).toFixed(2));
 
   if (heightPlate < espacement) {
-    logger.info("no waste");
+    logger.debug("Pas de chute à découper");
   } else {
     //Left
     ((paths[`Left`] = new makerjs.paths.Line([parseFloat(`${-heightPlate / 2}`), 0], [-decHeight / 2 - fraise, 0])),

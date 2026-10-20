@@ -13,7 +13,7 @@ function filterVerni(name) {
     try {
       filtered = JSON.parse(readFile).vernis;
     } catch (error) {
-      return logger.error(error);
+      return logger.error("checkVernis : échec :", error);
     }
   }
 

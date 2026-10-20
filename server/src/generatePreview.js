@@ -113,7 +113,7 @@ async function processSinglePDF(
         throw new Error(`Generated file not found: ${generatedFile}`);
       }
     } catch (error) {
-      logger.error(`❌ Error generating JPG for ${pdfReference}: ${error.message}\n${error.stack}`);
+      logger.error(`Aperçu JPG non généré pour ${pdfReference} :`, error);
       counters.failure++;
     }
   }
@@ -202,7 +202,7 @@ async function processAllPDFs({
       `Aperçus PDF ${path.basename(pdfDirectory)} : ${counters.generated} générés · ${counters.skipped} déjà à jour · ${counters.failure} échecs`,
     );
   } catch (error) {
-    logger.error(`❌ Error: ${error.message}`);
+    logger.error("processAllPDFs : échec :", error);
   }
 }
 

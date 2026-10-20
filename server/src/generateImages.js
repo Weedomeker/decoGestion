@@ -56,7 +56,7 @@ async function generateImages(data, readFile, writeFile, isStock) {
 
     await image.writeAsync(path.join(path.dirname(writeFile), fileName));
   } catch (err) {
-    logger.error("❌ Erreur :", err);
+    logger.error("generateImages : échec :", err);
   }
 }
 

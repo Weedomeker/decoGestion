@@ -44,7 +44,7 @@ function initWorker(processor, options = {}) {
   });
 
   worker.on('completed', (job) => {
-    logger.info(`BullMQ job ${job?.data?.job?.cmd ?? 'unknown'} terminé`);
+    logger.debug(`BullMQ job ${job?.data?.job?.cmd ?? 'unknown'} terminé`);
   });
 
   return worker;
@@ -63,7 +63,7 @@ function setConcurrency(n) {
   }
   concurrency = value;
   if (worker) worker.concurrency = value;
-  logger.info(`⚙️ Concurrence des jobs réglée à ${value}`);
+  logger.info(`Concurrence des jobs réglée à ${value}`);
   return value;
 }
 

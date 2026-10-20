@@ -60,7 +60,7 @@ async function composeJpgPage(jpgPath, jpgPage) {
   sheet.quality(90);
   await sheet.writeAsync(jpgPath);
 
-  logger.info(`🖼️ Mise en page JPG ${jpgPage?.format ?? DEFAULT_PAGE.format} : ${path.basename(jpgPath)}`);
+  logger.debug(`Mise en page JPG ${jpgPage?.format ?? DEFAULT_PAGE.format} : ${path.basename(jpgPath)}`);
   return true;
 }
 

@@ -14,7 +14,7 @@ async function linkFolders(pathUpdate) {
     try {
       config = JSON.parse(readFile);
     } catch (error) {
-      logger.error(error);
+      logger.error("config.json illisible, symlinks non créés :", error);
       return { success: [], failed: [] };
     }
   }
