@@ -117,13 +117,8 @@ function App() {
     warning: null,
     pkSaved: null,
   });
-  const [modalInfoStock, setModalInfoStock] = useState({
-    open: false,
-    stock: null,
-    object: null,
-    use: false,
-  });
-  const [stockConfirmQueue, setStockConfirmQueue] = useState([]);
+  // Visuels en stock trouvés à l'ajout : [{ stock, object }], confirmés en une seule modale
+  const [stockHitsModal, setStockHitsModal] = useState([]);
   const [toasts, setToasts] = useState([]);
   const [stockBadge, setStockBadge] = useState(null);
   const [credenceEditId, setCredenceEditId] = useState(null);
@@ -262,7 +257,7 @@ function App() {
     setSelectedFormat2("");
     setSelectedFile2("");
     setPerte(0);
-    setModalInfoStock({ open: false, stock: null, object: null, use: false });
+    setStockHitsModal([]);
     setActiveTab("dossier");
     setDossierJobs(pairedJobs);
     setCredenceEditId(null);
@@ -511,45 +506,31 @@ function App() {
     });
   };
 
-  // Ouvre la confirmation suivante de la file (soumission dossier en masse : un visuel en stock
-  // à la fois pour ne pas empiler les modales), ou ferme s'il n'y en a plus.
-  const advanceStockQueue = (queue) => {
-    if (queue.length > 0) {
-      const [next, ...rest] = queue;
-      setStockConfirmQueue(rest);
-      setModalInfoStock({ open: true, stock: next.stock, object: next.object, use: false });
-    } else {
-      setModalInfoStock({ open: false, stock: null, object: null, use: false });
-    }
-  };
-
-  const handleCloseStock = () => {
-    advanceStockQueue(stockConfirmQueue);
-  };
-
-  const handleValidateStock = async () => {
-    const jobToUpdate = modalInfoStock.object;
-    const queue = stockConfirmQueue;
-
-    advanceStockQueue(queue);
-
-    try {
-      // Le serveur recalcule la quantité réellement disponible et scinde le job si le
-      // stock ne couvre pas toute la commande (voir applyStockToJob côté back).
-      const response = await fetch(`${API_BASE}/edit_job`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ _id: jobToUpdate?._id, useStock: true }),
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || "Une erreur est survenue");
+  const handleValidateStock = async (selected) => {
+    setStockHitsModal([]);
+    const messages = [];
+    const errors = [];
+    // Le serveur recalcule la quantité réellement disponible et scinde le job si le
+    // stock ne couvre pas toute la commande (voir applyStockToJob côté back).
+    for (const { object } of selected) {
+      try {
+        const response = await fetch(`${API_BASE}/edit_job`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ _id: object?._id, useStock: true }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Une erreur est survenue");
+        if (result.message) messages.push(result.message);
+      } catch (error) {
+        errors.push(`N°${object?.cmd ?? "?"} : ${error.message}`);
       }
-      if (result.message) showToast(result.message);
-      setJobsRefresh((prev) => prev + 1);
-    } catch (error) {
-      setModalData({ open: true, message: "", object: null, error: error.message });
     }
+    if (messages.length > 0) {
+      showToast(messages.length === 1 ? messages[0] : `${messages.length} visuels pris en stock`);
+    }
+    if (errors.length > 0) setModalData({ open: true, message: "", object: null, error: errors.join(" · ") });
+    setJobsRefresh((prev) => prev + 1);
   };
 
   const handleJobSubmit = async (e) => {
@@ -586,54 +567,15 @@ function App() {
       );
       const pkJobsToSubmit = [...explicitPkJobs, ...derivedPkJobs];
 
-      const missingFormatTauro = visualJobsToSubmit.filter((j) => !j.formatTauroValue);
-      if (missingFormatTauro.length > 0) {
-        const details = missingFormatTauro.map((j) => `N°${j.numCmd || j.id} (${j.formatTauro || "format inconnu"})`).join(", ");
-        setModalData({
-          open: true,
-          message: "",
-          object: null,
-          error: `Format plaque à choisir pour ${missingFormatTauro.length} ligne${missingFormatTauro.length > 1 ? "s" : ""} : ${details}.`,
-        });
-        return;
-      }
-
-      const unpairedCredences = visualJobsToSubmit.filter(
-        (j) =>
-          j.isCredence &&
-          !j.credence2 &&
-          (j.client === "BRICO" || j.client === "CASTO") &&
-          Number(j.ex) === 1,
-      );
-      if (unpairedCredences.length > 0) {
-        const details = unpairedCredences.map((j) => `N°${j.numCmd || j.id}`).join(", ");
-        setModalData({
-          open: true,
-          message: "",
-          object: null,
-          error: `${unpairedCredences.length} crédence${unpairedCredences.length > 1 ? "s" : ""} sans 2e panneau : ${details}. Les crédences BRICO/CASTO doivent être amalgamées.`,
-        });
-        return;
-      }
-
-      const incompatibleFinitions = visualJobsToSubmit.filter((j) => {
-        if (!j.isCredence || !j.credence2) return false;
-        const v1 = j.selectedFileObject?.name || "";
-        const v2 = j.credence2?.selectedFileObject?.name || "";
-        const fin1 = /brillant/i.test(v1) ? "BRILLANT" : /mat/i.test(v1) ? "MAT" : null;
-        const fin2 = /brillant/i.test(v2) ? "BRILLANT" : /mat/i.test(v2) ? "MAT" : null;
-        return fin1 && fin2 && fin1 !== fin2;
-      });
-      if (incompatibleFinitions.length > 0) {
-        const details = incompatibleFinitions
-          .map((j) => `N°${j.numCmd || j.id} (${/brillant/i.test(j.selectedFileObject?.name || "") ? "BRILLANT" : "MAT"} + ${/brillant/i.test(j.credence2?.selectedFileObject?.name || "") ? "BRILLANT" : "MAT"})`)
-          .join(", ");
-        setModalData({
-          open: true,
-          message: "",
-          object: null,
-          error: `Finitions incompatibles pour ${incompatibleFinitions.length} crédence${incompatibleFinitions.length > 1 ? "s" : ""} : ${details}. Les deux panneaux doivent avoir la même finition.`,
-        });
+      // Lignes bloquantes déjà signalées dans le tableau : on y amène l'utilisateur au lieu d'une modale
+      const issueJobs = visualJobsToSubmit.filter((j) => getDossierJobIssues(j).length > 0);
+      if (issueJobs.length > 0) {
+        const first = issueJobs[0];
+        scrollToJobRow(first.id);
+        showToast(
+          `${issueJobs.length} ligne${issueJobs.length > 1 ? "s" : ""} à corriger — N°${first.numCmd || first.id} : ${getDossierJobIssues(first)[0]}`,
+          "error",
+        );
         return;
       }
 
@@ -753,11 +695,7 @@ function App() {
           }
           setModalData({ open: true, message: "", object: null, error: errors.join(" · "), warning: warnings.length > 0 ? warnings.join("\n") : null, pkSaved: pkConfirmations.length > 0 ? pkConfirmations : null });
         }
-        if (stockHits.length > 0) {
-          const [first, ...rest] = stockHits;
-          setStockConfirmQueue(rest);
-          setModalInfoStock({ open: true, stock: first.stock, object: first.object, use: false });
-        }
+        if (stockHits.length > 0) setStockHitsModal(stockHits);
         setJobsRefresh((prev) => prev + 1);
       } catch (err) {
         setModalData({ open: true, message: "", object: null, error: err.message, warning: null });
@@ -816,7 +754,7 @@ function App() {
       surMesureKind: null,
       orientation: "",
       printFormat: "",
-      stock: modalInfoStock.use,
+      stock: false,
     };
 
     setSubmitProgress({ done: 0, total: 1 });
@@ -833,12 +771,7 @@ function App() {
       }
       setJobsRefresh((prev) => prev + 1);
       if (result.stock?.ex > 0) {
-        setModalInfoStock({
-          open: true,
-          stock: result.stock,
-          object: result.object,
-          use: false,
-        });
+        setStockHitsModal([{ stock: result.stock, object: result.object }]);
       } else {
         const notices = [
           result.refCrossClientWarning,
@@ -2325,12 +2258,10 @@ function App() {
       />
 
       <InfoStockModal
-        open={modalInfoStock.open}
-        onClose={handleCloseStock}
+        open={stockHitsModal.length > 0}
+        items={stockHitsModal}
+        onClose={() => setStockHitsModal([])}
         onValidate={handleValidateStock}
-        stock={modalInfoStock.stock}
-        job={modalInfoStock.object}
-        remaining={stockConfirmQueue.length}
       />
 
       <Toast toasts={toasts} onDismiss={dismissToast} />
