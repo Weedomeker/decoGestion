@@ -128,6 +128,8 @@ function App() {
   const [credence2Format, setCredence2Format] = useState("");
   const [healthData, setHealthData] = useState(null);
   const [surMesureOnly, setSurMesureOnly] = useState(false);
+  // Avec le filtre « Sur-mesure uniquement », les lignes masquées gardent leur coche mais ne partent pas
+  const isJobVisible = (j) => !surMesureOnly || j.surMesure;
   // Soumission en cours : bloque le double clic et affiche la progression (done/total)
   const [submitProgress, setSubmitProgress] = useState(null);
   const submittingRef = useRef(false);
@@ -548,7 +550,7 @@ function App() {
   const submitJobs = async () => {
     // Mode dossier : soumettre uniquement les jobs sélectionnés
     if (dossierJobs.length > 0) {
-      const jobsToSubmit = dossierJobs.filter((j) => selectedJobIds.has(j.id) && !j._absorbedBy);
+      const jobsToSubmit = dossierJobs.filter((j) => selectedJobIds.has(j.id) && !j._absorbedBy && isJobVisible(j));
       if (jobsToSubmit.length === 0) return;
 
       const visualJobsToSubmit = jobsToSubmit.filter((j) => j.type !== "profils_kits");
@@ -845,6 +847,34 @@ function App() {
     setSelectedJobIds(new Set());
   };
 
+  // Saisie manuelle : changer de client ne vide que ce qui dépend du client (formats, visuels,
+  // 2e panneau, options LM) ; plaque Tauro, N° commande, ville et exemplaires sont conservés
+  const handleClientChange = (c) => {
+    if (c === checkFolder) return;
+    setCheckFolder(c);
+    setSelectedFormat("");
+    setSelectedFormat2("");
+    setSelectedFile("");
+    setSelectedFile2("");
+    setFileSize("");
+    setFileSize2("");
+    setFiles([{ name: "", fileSize: "" }]);
+    setFiles2([{ name: "", fileSize: "" }]);
+    setIsFile(false);
+    setIsFile2(false);
+    setNumCmd2("");
+    setCredenceStock(false);
+    setCheckProdBlanc(false);
+    setPreview(null);
+    setPreview2(null);
+    setStockBadge(null);
+    setPerte("");
+    setError((e) => ({ ...e, format: false, visuel: false }));
+    setEnabled((en) => ({ ...en, visu: true }));
+    setWarnMsg((w) => ({ ...w, hidden: true }));
+    if (c !== "LM") setCheckGenerate((g) => ({ ...g, cut: false, teinteMasse: false }));
+  };
+
   const clientColor = (c) => {
     if (c === "LM") return "green";
     if (c === "CASTO") return "blue";
@@ -868,6 +898,10 @@ function App() {
     }
   }, [healthData]);
 
+  useEffect(() => {
+    if (activeTab !== "manuel") setWarnMsg((w) => (/format/i.test(w.header) ? { ...w, hidden: true } : w));
+  }, [activeTab]);
+
   const odbcOk = healthData?.odbc === "connected";
   const symlinkStatus = healthData?.symlinks ?? {};
   const anySymlinkOk = Object.values(symlinkStatus).some(Boolean);
@@ -879,6 +913,8 @@ function App() {
     !!selectedFile ||
     !!numCmd ||
     !!ville;
+
+  const selectedVisibleCount = dossierJobs.filter((j) => selectedJobIds.has(j.id) && isJobVisible(j)).length;
 
   // Confirmation avant de quitter uniquement s'il y a une saisie à perdre
   useEffect(() => {
@@ -1043,10 +1079,7 @@ function App() {
                         <input
                           type="checkbox"
                           checked={surMesureOnly}
-                          onChange={(e) => {
-                            setSurMesureOnly(e.target.checked);
-                            setSelectedJobIds(new Set());
-                          }}
+                          onChange={(e) => setSurMesureOnly(e.target.checked)}
                         />
                         Sur-mesure uniquement
                       </label>
@@ -1340,10 +1373,9 @@ function App() {
                                           type="button"
                                           className={`toggle-chip toggle-chip--tm${job.teinteMasse ? " toggle-chip--on" : ""}`}
                                           title={job.teinteMasse ? "Teinte masse : ON" : "Teinte masse : OFF"}
-                                          onClick={() => updateDossierJob(job._idx, {
-                                            teinteMasse: !job.teinteMasse,
-                                            selectedFileObject: null,
-                                          })}
+                                          onClick={() => updateDossierJob(job._idx, job.teinteMasse
+                                            ? { teinteMasse: false, selectedFileObject: job._visuelAvantTM ?? null, _visuelAvantTM: undefined }
+                                            : { teinteMasse: true, selectedFileObject: null, _visuelAvantTM: job.selectedFileObject })}
                                         >
                                           TM
                                         </button>
@@ -1644,8 +1676,7 @@ function App() {
                                 color={checkFolder === c ? clientColor(c) : undefined}
                                 onClick={() => {
                                   if (isKo) return;
-                                  handleResetForm();
-                                  setCheckFolder(c);
+                                  handleClientChange(c);
                                 }}
                                 disabled={isKo}
                                 icon={CLIENT_ICONS[c]}
@@ -2172,7 +2203,7 @@ function App() {
                 color={warnMsg.color}
               />
               {activeTab === "dossier" && (() => {
-                const issueJobs = dossierJobs.filter((j) => selectedJobIds.has(j.id) && getDossierJobIssues(j).length > 0);
+                const issueJobs = dossierJobs.filter((j) => selectedJobIds.has(j.id) && isJobVisible(j) && getDossierJobIssues(j).length > 0);
                 if (issueJobs.length === 0) return null;
                 return (
                   <button
@@ -2192,13 +2223,13 @@ function App() {
                 size="small"
                 className="submit-button"
                 loading={!!submitProgress && submitProgress.total <= 1}
-                disabled={!!submitProgress || (dossierJobs.length > 0 && selectedJobIds.size === 0)}
+                disabled={!!submitProgress || (dossierJobs.length > 0 && selectedVisibleCount === 0)}
                 title="Ctrl+Entrée"
                 content={
                   submitProgress && submitProgress.total > 1
                     ? `Ajout ${submitProgress.done}/${submitProgress.total}…`
                     : dossierJobs.length > 0
-                      ? `Ajouter (${selectedJobIds.size} sélectionné${selectedJobIds.size > 1 ? "s" : ""})`
+                      ? `Ajouter (${selectedVisibleCount} sélectionné${selectedVisibleCount > 1 ? "s" : ""})`
                       : "Ajouter"
                 }
               />
