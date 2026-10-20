@@ -706,9 +706,15 @@ async function processJob(job, req) {
         const startJpg = performance.now();
         if (job.ref) {
           if (isCredences && job.visuPath2) {
+            // Rendu depuis le PDF amalgamé plutôt que depuis les aperçus des panneaux : certains
+            // aperçus sont mal nommés (ex. "MARBRE BLANC CARRÉ 3664714023259" pour le marbre uni).
             await usePdfWorker({ pdf: stagedPdfPath, jpg: outJpgPath });
           } else {
-            await getPreview(job.ref, jpgName, isStock);
+            const previewFound = await getPreview(job.ref, jpgName, isStock, job.visuel);
+            if (!previewFound) {
+              log.warn(`Aucun aperçu pour la ref ${job.ref}, JPG rendu depuis le PDF`);
+              await usePdfWorker({ pdf: stagedPdfPath, jpg: outJpgPath });
+            }
           }
         } else {
           const visuelNoExt = job.visuel?.replace(/\.[^.]+$/, "") || "";

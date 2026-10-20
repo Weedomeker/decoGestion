@@ -7,6 +7,7 @@ const { degrees, PDFDocument, rgb, StandardFonts } = require("pdf-lib");
 const fs = require("fs");
 const path = require("path");
 const logger = require("./logger/logger");
+const { findPreviewFile } = require("./getPreview");
 
 function getVisuelsForCmd(cmdInfo) {
   const visuels = [
@@ -130,9 +131,9 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
   // Miniature recherchée par ref uniquement (case-insensitive) : le repli par nom de visuel a été
   // retiré (a26cfc0) car un même décor existe en plusieurs formats. Sans ref (étiquette saisie à la
   // main), l'absence de miniature est donc normale — seule une ref sans aperçu mérite un warn.
-  const images = refStr
-    ? files.filter((file) => file.toLowerCase().endsWith(".jpg") && file.toLowerCase().includes(refStr.toLowerCase()))
-    : [];
+  // Même sélection que les JPG des jobs : départage des refs partagées, ref 00000000 ignorée.
+  const previewFile = refStr ? findPreviewFile(refStr, visuel, files) : undefined;
+  const images = previewFile ? [previewFile] : [];
   if (!refStr) {
     logger.info(`generateStickers: pas de référence pour "${visuel}", étiquette sans miniature`);
   } else if (images.length === 0) {
