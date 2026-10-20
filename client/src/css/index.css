@@ -1021,7 +1021,19 @@ img.ui.image:not(.header-logo) {
   border: 1px solid var(--border-dim) !important;
   color: var(--text-primary) !important;
   padding: 4px 6px !important;
+  height: 35px; /* même hauteur que les dropdowns selection */
 }
+
+/* Lignes de jobs alignées en haut : le prix sous le visuel ne décale plus les autres champs */
+.dossier-table.ui.table tbody tr:not(.dossier-group-header):not(.credence-inline-form) > td {
+  vertical-align: top !important;
+}
+
+.dossier-table.ui.table tbody tr:not(.dossier-group-header):not(.credence-inline-form) > td:first-child {
+  padding-top: 13px !important; /* centre la checkbox (17px) sur la ligne des champs (35px) */
+}
+
+.dossier-table tbody .toggle-chip { margin-top: 9px; }
 
 .content .header { padding: 0; }
 
@@ -1040,6 +1052,78 @@ img.ui.image:not(.header-logo) {
   font-family: 'Figtree', -apple-system, sans-serif;
 }
 
+.credence-unpaired-warning > span { flex: 1; }
+
+/* Récap crédences du dossier */
+.credence-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--text-muted, #888);
+  font-family: 'Figtree', -apple-system, sans-serif;
+}
+
+.credence-summary__todo { color: var(--warning); }
+
+/* Cellule « 2e panneau » */
+.credence-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.credence-cell__partner {
+  font-size: 0.75em;
+  color: var(--text-muted, #888);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.credence-cell__partner:hover:not(:disabled) { color: var(--text-primary); text-decoration: underline; }
+
+/* Ligne cochée mais bloquante à la soumission */
+.dossier-table.ui.table tr.job-row--issue > td:first-child {
+  box-shadow: inset 3px 0 0 var(--danger);
+}
+
+.dossier-table.ui.table tr.job-row--issue > td {
+  background: linear-gradient(var(--danger-soft), var(--danger-soft)), var(--bg-input) !important;
+}
+
+.job-issue-icon.icon {
+  display: block;
+  margin: 6px auto 0 !important;
+  cursor: help;
+}
+
+.job-issues {
+  margin: 0;
+  padding-left: 1.1em;
+}
+
+@keyframes job-row-flash {
+  from { outline: 2px solid var(--danger); }
+  to { outline: 2px solid transparent; }
+}
+
+.dossier-table tr.job-row--flash { animation: job-row-flash 1.6s ease-out; }
+
+.credence-cell__actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
 .dossier-table.ui.table .credence-inline-form td {
   background: rgba(160, 120, 48, 0.04) !important;
   border-top: 1px dashed rgba(160, 120, 48, 0.25) !important;
@@ -1048,6 +1132,23 @@ img.ui.image:not(.header-logo) {
 .dossier-table .credence-inline-form label {
   color: var(--warning) !important;
 }
+
+/* Formulaire 2e panneau sur une ligne (annule le .field { width: 100% } et le form en colonne globaux) */
+.dossier-table .credence-inline-form .ui.form { flex-direction: row !important; }
+
+.dossier-table .credence-inline-form .field {
+  width: auto;
+  flex: 1 1 140px;
+  margin: 0 !important;
+}
+
+.dossier-table .credence-inline-form .field:nth-of-type(3) { flex: 3 1 260px; }
+
+.dossier-table .credence-inline-form .field:last-child { flex: 0 0 auto; }
+
+.dossier-table .credence-inline-form .field > label { text-align: left; }
+
+.dossier-table .credence-inline-form .ui.button { height: 35px; }
 
 /* ===================== SEMANTIC UI OVERRIDES ===================== */
 
@@ -1767,6 +1868,24 @@ img.ui.image:not(.header-logo) {
 .submit-bar--sticky .submit-button.ui.button {
   margin-top: 0 !important;
 }
+
+/* Lien « N lignes à corriger » au-dessus du bouton Ajouter */
+.submit-issues {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: var(--danger-soft);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  color: var(--danger);
+  font-size: 12px;
+  font-family: 'Figtree', -apple-system, sans-serif;
+  cursor: pointer;
+}
+
+.submit-issues:hover { text-decoration: underline; }
 
 /* ===================== TOASTS ===================== */
 .toast-container {
