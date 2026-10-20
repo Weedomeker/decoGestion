@@ -2,24 +2,11 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      # Sans mot de passe : accessible uniquement depuis le poste, pas depuis le réseau.
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
-    restart: unless-stopped
-
-  app:
-    build: .
-    ports:
-      - "8000:8000"
-    depends_on:
-      - redis
-    env_file:
-      - .env
-    environment:
-      - REDIS_URL=redis://redis:6379
-    volumes:
-      - ./server/public:/app/server/public
     restart: unless-stopped
 
 volumes:

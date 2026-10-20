@@ -1,5 +1,5 @@
 import PropTypes from "prop-types";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -853,4 +853,5 @@ JobsList.propTypes = {
   onPendingCountChange: PropTypes.func,
 };
 
-export default JobsList;
+// App.jsx porte tout l'état du formulaire : sans memo, chaque frappe re-rendait toute la file.
+export default memo(JobsList);
