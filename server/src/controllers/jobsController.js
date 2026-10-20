@@ -1026,6 +1026,12 @@ async function processJob(job, req) {
   }
 
   log.info(`Terminé en ${((performance.now() - startJob) / 1000).toFixed(1)} s`);
+  // Un job relancé par BullMQ (stalled/retry) ne doit pas être compté deux fois : generateStickers
+  // cumule les `ex` par cmd, un doublon transformait 1/2 en 1/4.
+  if (state.jobs.completed.some((completedJob) => completedJob._id === job._id)) {
+    log.warn("Job déjà terminé dans ce traitement, non recompté");
+    return;
+  }
   state.jobs.completed.push(job);
   broadcastCompletedJob(job);
 }

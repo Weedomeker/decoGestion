@@ -6,6 +6,10 @@ const MIN_CONCURRENCY = 1;
 const MAX_CONCURRENCY = 8;
 const DEFAULT_CONCURRENCY = parseInt(process.env.JOBS_CONCURRENCY) || 3;
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+// Un PDF de ~800 Mo bloque la boucle d'événements plus que les 30 s par défaut : le verrou n'était
+// pas renouvelé, BullMQ jugeait le job "stalled" et le relançait en parallèle de l'original
+// (PDF déposé deux fois dans le hot folder, job compté deux fois sur les étiquettes).
+const LOCK_DURATION_MS = parseInt(process.env.JOBS_LOCK_DURATION_MS) || 15 * 60 * 1000;
 
 function makeConnection() {
   const conn = new IORedis(REDIS_URL, {
@@ -37,6 +41,7 @@ function initWorker(processor, options = {}) {
   worker = new Worker('deco-jobs', processor, {
     connection: makeConnection(),
     concurrency,
+    lockDuration: LOCK_DURATION_MS,
   });
 
   worker.on('failed', (job, err) => {
