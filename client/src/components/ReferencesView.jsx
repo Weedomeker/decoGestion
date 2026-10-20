@@ -1,3 +1,4 @@
+import PropTypes from "prop-types";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Checkbox, Confirm, Form, Icon, Image, Input, Modal, Table } from "semantic-ui-react";
 import "../css/ReferencesView.css";
@@ -29,7 +30,8 @@ function sortItems(arr, col, dir) {
   });
 }
 
-function ReferencesView() {
+// previewList : aperçus JPG (clé Preview de /path), chargés une seule fois par App
+function ReferencesView({ previewList = [] }) {
   const [client, setClient] = useState("LM");
   const isProfilsKits = client === "PROFILS";
 
@@ -42,7 +44,6 @@ function ReferencesView() {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
-  const [previewList, setPreviewList] = useState([]);
   const [previewItem, setPreviewItem] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [checkLoading, setCheckLoading] = useState(false);
@@ -65,13 +66,6 @@ function ReferencesView() {
   const [pkSortDir, setPkSortDir] = useState("ascending");
 
   const debounceRef = useRef(null);
-
-  useEffect(() => {
-    fetch(`${BASE_URL}/path`)
-      .then((r) => r.json())
-      .then((d) => { if (d[0]?.Preview) setPreviewList(d[0].Preview); })
-      .catch(() => setPreviewList([]));
-  }, []);
 
   // ── fetch visuels ─────────────────────────────────────────────────────────
   const fetchItems = useCallback(async (selectedClient, query) => {
@@ -609,5 +603,9 @@ function ReferencesView() {
     </div>
   );
 }
+
+ReferencesView.propTypes = {
+  previewList: PropTypes.array,
+};
 
 export default ReferencesView;

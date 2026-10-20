@@ -236,7 +236,7 @@ function replaceLastToken(value, replacement) {
   return tokens.join(" ").trim();
 }
 
-function DossierAutocomplete({ pathData, formatTauro, onAutoFill, gamesysOk }) {
+function DossierAutocomplete({ pathData, formatTauro, onAutoFill, gamesysOk, consumedJobs }) {
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [loadedDossiers, setLoadedDossiers] = useState([]);
@@ -245,6 +245,27 @@ function DossierAutocomplete({ pathData, formatTauro, onAutoFill, gamesysOk }) {
   const [suggestionIndex, setSuggestionIndex] = useState(-1);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceRef = useRef(null);
+  const inputRef = useRef(null);
+
+  // Après un ajout à la file : retire les lignes soumises des dossiers chargés,
+  // et si tout est parti, revient au champ de recherche prêt pour le dossier suivant
+  useEffect(() => {
+    if (!consumedJobs) return;
+    if (consumedJobs.all) {
+      setLoadedDossiers([]);
+      setInputValue("");
+      setMessage(null);
+      inputRef.current?.focus();
+      return;
+    }
+    setLoadedDossiers((prev) => {
+      const remaining = prev
+        .map((d) => ({ ...d, jobs: d.jobs.filter((j) => !consumedJobs.ids.has(j.id)) }))
+        .filter((d) => d.jobs.length > 0);
+      if (remaining.length === 0) inputRef.current?.focus();
+      return remaining;
+    });
+  }, [consumedJobs]);
 
   useEffect(() => {
     const token = getLastToken(inputValue);
@@ -421,7 +442,10 @@ function DossierAutocomplete({ pathData, formatTauro, onAutoFill, gamesysOk }) {
       <div className="dossier-autocomplete-search">
         <div className="dossier-input-wrapper">
           <Input
-            placeholder="N° Dossier(s) — ex: 164629 164630"
+            ref={inputRef}
+            id="dossier-search"
+            autoFocus
+            placeholder="N° Dossier(s) — ex: 164629 164630   ( / )"
             value={inputValue}
             onChange={(e, d) => setInputValue(d.value)}
             disabled={gamesysOffline}
@@ -517,6 +541,7 @@ DossierAutocomplete.propTypes = {
   formatTauro: PropTypes.array.isRequired,
   onAutoFill: PropTypes.func,
   gamesysOk: PropTypes.bool,
+  consumedJobs: PropTypes.shape({ all: PropTypes.bool, ids: PropTypes.instanceOf(Set) }),
 };
 
 export default DossierAutocomplete;

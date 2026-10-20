@@ -1,5 +1,7 @@
 const REGEX_BLANC = /\+\s*blanc\b/i;
-import { Fragment, useEffect, useState } from "react";
+// Ordre des vues pour les raccourcis Alt+1…6 (même ordre que les onglets du Header)
+const VIEWS = ["form", "jobs", "references", "stats", "historique", "sticker"];
+import { Fragment, useEffect, useRef, useState } from "react";
 import { API_BASE } from "./utils/api";
 import { Button, Checkbox, Dropdown, Form, Icon, Input, Label, Popup, Table } from "semantic-ui-react";
 import CheckFormats from "./CheckFormats";
@@ -131,6 +133,12 @@ function App() {
   const [credence2Format, setCredence2Format] = useState("");
   const [healthData, setHealthData] = useState(null);
   const [surMesureOnly, setSurMesureOnly] = useState(false);
+  // Soumission en cours : bloque le double clic et affiche la progression (done/total)
+  const [submitProgress, setSubmitProgress] = useState(null);
+  const submittingRef = useRef(false);
+  // Jobs dossier soumis avec succès : DossierAutocomplete les retire de ses dossiers chargés
+  const [consumedJobs, setConsumedJobs] = useState(null);
+  const pathsLoadedAtRef = useRef(0);
 
   async function checkStockForVisuel(filename, client) {
     const base = filename.split(/[\\/]/).pop();
@@ -418,19 +426,6 @@ function App() {
     setCredence2Format("");
   }
 
-  useEffect(() => {
-    const handleBeforeUnload = (e) => {
-      e.preventDefault();
-      e.returnValue = ""; // nécessaire pour Chrome
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, []);
-
   //Get Format Tauro
   useEffect(() => {
     fetch(`${API_BASE}/formatsTauro`, {
@@ -461,8 +456,12 @@ function App() {
       .catch((err) => console.error(err));
   }, []);
 
-  useEffect(() => {
-    fetch(`${API_BASE}/path`, {
+  // /path renvoie les dossiers de visuels de tous les clients : un seul scan des partages
+  // réseau suffit (bouton « Actualiser » ou retour sur l'onglet après 2 min pour les nouveaux fichiers)
+  function loadPaths({ silent = false } = {}) {
+    if (!silent) setIsLoading(true);
+    pathsLoadedAtRef.current = Date.now();
+    return fetch(`${API_BASE}/path`, {
       method: "GET",
       headers: {
         Accept: "Application/json",
@@ -471,11 +470,7 @@ function App() {
       .then((res) => res.json())
       .then((res) => {
         if (Array.isArray(res)) {
-          setData(
-            res.map((res) => {
-              return res;
-            }),
-          );
+          setData(res);
         } else {
           setWarnMsg({
             hidden: false,
@@ -493,7 +488,18 @@ function App() {
         setIsLoading(false);
         setWarnMsg({ hidden: false, header: "Serveur inaccessible", msg: "Impossible de contacter le serveur. Vérifiez la connexion.", icon: "warning sign", color: "red" });
       });
-  }, [formatTauro, checkFolder]);
+  }
+
+  useEffect(() => {
+    loadPaths();
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && Date.now() - pathsLoadedAtRef.current > 120000) {
+        loadPaths({ silent: true });
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
 
   const handleClose = () => {
     setModalData({
@@ -547,8 +553,18 @@ function App() {
   };
 
   const handleJobSubmit = async (e) => {
-    e.preventDefault();
+    e?.preventDefault();
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    try {
+      await submitJobs();
+    } finally {
+      submittingRef.current = false;
+      setSubmitProgress(null);
+    }
+  };
 
+  const submitJobs = async () => {
     // Mode dossier : soumettre uniquement les jobs sélectionnés
     if (dossierJobs.length > 0) {
       const jobsToSubmit = dossierJobs.filter((j) => selectedJobIds.has(j.id) && !j._absorbedBy);
@@ -626,6 +642,10 @@ function App() {
         const warnings = [];
         const succeededIds = [];
         const stockHits = [];
+        const pkNumCmdCount = new Set(pkJobsToSubmit.map((j) => j.numCmd)).size;
+        const total = visualJobsToSubmit.length + pkNumCmdCount;
+        let done = 0;
+        setSubmitProgress({ done, total });
 
         for (const job of visualJobsToSubmit) {
           // "+1 stock" : le backend duplique le visuel 1 en panneau stock (cmd2 = 0)
@@ -675,6 +695,7 @@ function App() {
               warnings.push(`N°${job.numCmd || job.id} : Prod blanc activé automatiquement (ref base marquée blanc)`);
             if (result.stock?.ex > 0) stockHits.push({ stock: result.stock, object: result.object });
           }
+          setSubmitProgress({ done: ++done, total });
         }
 
         const pkConfirmations = [];
@@ -705,22 +726,31 @@ function App() {
               pkConfirmations.push(`N°${numCmd} (${pk.client}) — ${result.articles.length} article(s) enregistré(s) : ${lines.join(" | ")}`);
             }
           }
+          setSubmitProgress({ done: ++done, total });
         }
 
         if (errors.length === 0) {
           setDossierJobs([]);
           setSelectedJobIds(new Set());
+          setConsumedJobs({ all: true });
           if (warnings.length > 0 || pkConfirmations.length > 0) {
             setModalData({ open: true, message: "Commandes ajoutées", object: null, error: null, warning: warnings.length > 0 ? warnings.join("\n") : null, pkSaved: pkConfirmations.length > 0 ? pkConfirmations : null });
+          } else {
+            showToast(`${total} commande${total > 1 ? "s" : ""} ajoutée${total > 1 ? "s" : ""} à la file`);
           }
         } else {
           const succeededSet = new Set(succeededIds);
-          setDossierJobs((prev) => prev.filter((j) => !succeededSet.has(j.id) && !succeededSet.has(j._absorbedBy)));
+          const isConsumed = (j) => succeededSet.has(j.id) || succeededSet.has(j._absorbedBy);
+          setDossierJobs((prev) => prev.filter((j) => !isConsumed(j)));
           setSelectedJobIds((prev) => {
             const next = new Set(prev);
             succeededSet.forEach((id) => next.delete(id));
             return next;
           });
+          // Sans ça, retirer une étiquette de dossier ferait réapparaître les lignes déjà ajoutées
+          if (succeededIds.length > 0) {
+            setConsumedJobs({ ids: new Set(dossierJobs.filter(isConsumed).map((j) => j.id)) });
+          }
           setModalData({ open: true, message: "", object: null, error: errors.join(" · "), warning: warnings.length > 0 ? warnings.join("\n") : null, pkSaved: pkConfirmations.length > 0 ? pkConfirmations : null });
         }
         if (stockHits.length > 0) {
@@ -789,6 +819,7 @@ function App() {
       stock: modalInfoStock.use,
     };
 
+    setSubmitProgress({ done: 0, total: 1 });
     try {
       const response = await fetch(`${API_BASE}/add_job`, {
         method: "POST",
@@ -872,6 +903,7 @@ function App() {
     setPreview2(null);
     setStockBadge(null);
     setDossierJobs([]);
+    setConsumedJobs({ all: true });
     setCheckGenerate({
       cut: false,
       reg: true,
@@ -914,6 +946,39 @@ function App() {
     !!selectedFile ||
     !!numCmd ||
     !!ville;
+
+  // Confirmation avant de quitter uniquement s'il y a une saisie à perdre
+  useEffect(() => {
+    if (!hasFormContent) return;
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = ""; // nécessaire pour Chrome
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasFormContent]);
+
+  // Raccourcis : « / » recherche dossier, Ctrl+Entrée ajouter, Alt+1…6 changer de vue
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      const tag = e.target.tagName;
+      const typing = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || e.target.isContentEditable;
+      if (e.altKey && !e.ctrlKey && /^[1-6]$/.test(e.key)) {
+        e.preventDefault();
+        setActiveView(VIEWS[Number(e.key) - 1]);
+      } else if (e.key === "/" && !typing && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setActiveView("form");
+        if (odbcOk || !healthData) setActiveTab("dossier");
+        setTimeout(() => document.getElementById("dossier-search")?.focus(), 0);
+      } else if (e.key === "Enter" && e.ctrlKey && !e.defaultPrevented && activeView === "form" && !document.querySelector(".ui.modal")) {
+        e.preventDefault();
+        document.getElementById("job-form")?.requestSubmit();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [activeView, odbcOk, healthData]);
 
   return (
     <div className="container">
@@ -969,20 +1034,32 @@ function App() {
               icon="edit"
               content="Saisie manuelle"
             />
-            {hasFormContent && (
+            <div className="mode-tabs__tools">
               <button
                 type="button"
                 className="reset-btn"
-                onClick={handleResetForm}
-                title="Vider le formulaire"
+                onClick={() => loadPaths()}
+                disabled={isLoading}
+                title="Relire les dossiers de visuels sur le réseau (nouveaux fichiers)"
               >
-                <Icon name="times" size="small" />
-                Vider
+                <Icon name="refresh" size="small" loading={isLoading} />
+                Actualiser
               </button>
-            )}
+              {hasFormContent && (
+                <button
+                  type="button"
+                  className="reset-btn"
+                  onClick={handleResetForm}
+                  title="Vider le formulaire"
+                >
+                  <Icon name="times" size="small" />
+                  Vider
+                </button>
+              )}
+            </div>
           </div>
 
-          <Form onSubmit={handleJobSubmit}>
+          <Form id="job-form" onSubmit={handleJobSubmit}>
             {/* Mode dossier */}
             {activeTab === "dossier" && (
               <>
@@ -990,6 +1067,8 @@ function App() {
                   pathData={data[0] || {}}
                   formatTauro={formatTauro}
                   onAutoFill={handleDossierAutoFill}
+                  consumedJobs={consumedJobs}
+                  gamesysOk={healthData ? odbcOk : undefined}
                 />
                 {dossierJobs.length === 0 && (
                   <div className="dossier-empty-state">
@@ -2179,11 +2258,15 @@ function App() {
                 color="vk"
                 size="small"
                 className="submit-button"
-                disabled={dossierJobs.length > 0 && selectedJobIds.size === 0}
+                loading={!!submitProgress && submitProgress.total <= 1}
+                disabled={!!submitProgress || (dossierJobs.length > 0 && selectedJobIds.size === 0)}
+                title="Ctrl+Entrée"
                 content={
-                  dossierJobs.length > 0
-                    ? `Ajouter (${selectedJobIds.size} sélectionné${selectedJobIds.size > 1 ? "s" : ""})`
-                    : "Ajouter"
+                  submitProgress && submitProgress.total > 1
+                    ? `Ajout ${submitProgress.done}/${submitProgress.total}…`
+                    : dossierJobs.length > 0
+                      ? `Ajouter (${selectedJobIds.size} sélectionné${selectedJobIds.size > 1 ? "s" : ""})`
+                      : "Ajouter"
                 }
               />
             </div>
@@ -2196,7 +2279,7 @@ function App() {
           return (
             <div className={`preview-panel${activePreview ? " visible" : ""}`}>
               <p className="preview-label">Aperçu visuel</p>
-              <PreviewDeco fileSelected={activePreview} fileSelected2={activeTab === "manuel" ? preview2 : null} show={!!activePreview} client={checkFolder} />
+              <PreviewDeco fileSelected={activePreview} fileSelected2={activeTab === "manuel" ? preview2 : null} show={!!activePreview} client={checkFolder} previewList={data[0]?.Preview} />
             </div>
           );
         })()}
@@ -2211,7 +2294,7 @@ function App() {
       </div>
 
       <div className={`references-view-wrapper${activeView !== "references" ? " hidden" : ""}`}>
-        <ReferencesView />
+        <ReferencesView previewList={data[0]?.Preview} />
       </div>
 
       <div className={`stats-view-wrapper${activeView !== "stats" ? " hidden" : ""}`}>

@@ -2474,3 +2474,19 @@ img.ui.image:not(.header-logo) {
   color: var(--text-secondary);
   margin-top: 1px;
 }
+
+.mode-tabs__tools {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.mode-tabs__tools .reset-btn {
+  margin-left: 0;
+}
+
+.mode-tabs__tools .reset-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}

@@ -25,19 +25,10 @@ function resolveImageUrl(fileSelected, previewList) {
   return matched ? `${API_BASE}/${matched.path.split("\\").slice(1).join("/")}` : null;
 }
 
-function PreviewDeco({ fileSelected, fileSelected2, show }) {
-  const [previewList, setPreviewList] = useState([]);
+// previewList : aperçus JPG (clé Preview de /path), chargés une seule fois par App
+function PreviewDeco({ fileSelected, fileSelected2, show, previewList = [] }) {
   const [imageUrl, setImageUrl] = useState(null);
   const [imageUrl2, setImageUrl2] = useState(null);
-
-  useEffect(() => {
-    fetch(`${API_BASE}/path`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data[0].Preview) setPreviewList(data[0].Preview);
-      })
-      .catch((err) => console.error("Erreur preview:", err));
-  }, []);
 
   useEffect(() => {
     setImageUrl(resolveImageUrl(fileSelected, previewList));
@@ -101,6 +92,7 @@ PreviewDeco.propTypes = {
   fileSelected: PropTypes.string,
   fileSelected2: PropTypes.string,
   show: PropTypes.bool,
+  previewList: PropTypes.array,
 };
 
 export default PreviewDeco;

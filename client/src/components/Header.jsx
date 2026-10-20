@@ -39,23 +39,23 @@ const Header = ({ appInfo, onVersionClick, onFichiers, configNode, statusNode, a
       </div>
 
       <div className="header-tabs">
-        <button className={`header-tab${activeView === "form" ? " active" : ""}`} onClick={() => onViewChange("form")}>
+        <button className={`header-tab${activeView === "form" ? " active" : ""}`} onClick={() => onViewChange("form")} title="Alt+1">
           Formulaire
         </button>
-        <button className={`header-tab${activeView === "jobs" ? " active" : ""}`} onClick={() => onViewChange("jobs")}>
+        <button className={`header-tab${activeView === "jobs" ? " active" : ""}`} onClick={() => onViewChange("jobs")} title="Alt+2">
           File
           {pendingCount > 0 && <span className="tab-badge">{pendingCount}</span>}
         </button>
-        <button className={`header-tab${activeView === "references" ? " active" : ""}`} onClick={() => onViewChange("references")}>
+        <button className={`header-tab${activeView === "references" ? " active" : ""}`} onClick={() => onViewChange("references")} title="Alt+3">
           Références
         </button>
-        <button className={`header-tab${activeView === "stats" ? " active" : ""}`} onClick={() => onViewChange("stats")}>
+        <button className={`header-tab${activeView === "stats" ? " active" : ""}`} onClick={() => onViewChange("stats")} title="Alt+4">
           Stats
         </button>
-        <button className={`header-tab${activeView === "historique" ? " active" : ""}`} onClick={() => onViewChange("historique")}>
+        <button className={`header-tab${activeView === "historique" ? " active" : ""}`} onClick={() => onViewChange("historique")} title="Alt+5">
           Historique
         </button>
-        <button className={`header-tab${activeView === "sticker" ? " active" : ""}`} onClick={() => onViewChange("sticker")}>
+        <button className={`header-tab${activeView === "sticker" ? " active" : ""}`} onClick={() => onViewChange("sticker")} title="Alt+6">
           Sticker
         </button>
       </div>
