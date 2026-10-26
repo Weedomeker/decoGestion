@@ -176,6 +176,11 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
       drawRegmarks(globalMaxX, globalMaxY + regPosition); // 5
     }
 
+    // Plaque présentée en paysage au RIP comme les visuels standards (app.js) : sans /Rotate elle
+    // arrivait en portrait, tournée de 90° par rapport aux autres. +90 (et non -90 comme app.js) car
+    // le contenu est construit tourné à l'inverse : les repères retombent ainsi au même endroit.
+    page.setRotation(degrees(90));
+
     // --- Sauvegarde ---
     const pdfBytes = await pdfDoc.save();
     await fs.promises.writeFile(writePath, pdfBytes);

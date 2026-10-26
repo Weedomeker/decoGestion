@@ -11,13 +11,15 @@ const execFileAsync = promisify(execFile);
 const DENSITY = 30;
 const CONVERT_TIMEOUT_MS = 5 * 60 * 1000;
 
-const pdfToimg = async (readFile, writeFile) => {
+// `rotate` (degrés, sens horaire) s'applique après le rendu, qui respecte déjà le /Rotate du PDF.
+const pdfToimg = async (readFile, writeFile, rotate = 0) => {
   if (!fs.existsSync(readFile)) {
     throw new Error(`PDF introuvable pour la conversion en image : ${readFile}`);
   }
+  const rotateArgs = rotate ? ["-rotate", String(rotate)] : [];
   await execFileAsync(
     "convert",
-    ["-density", String(DENSITY), `pdf:${readFile}[0]`, "-background", "white", "-flatten", "-quality", "90", `jpg:${writeFile}`],
+    ["-density", String(DENSITY), `pdf:${readFile}[0]`, "-background", "white", "-flatten", ...rotateArgs, "-quality", "90", `jpg:${writeFile}`],
     { timeout: CONVERT_TIMEOUT_MS, windowsHide: true },
   );
 
@@ -27,6 +29,6 @@ const pdfToimg = async (readFile, writeFile) => {
   logger.debug("Image générée");
 };
 
-module.exports = async ({ pdf, jpg }) => {
-  await pdfToimg(pdf, jpg);
+module.exports = async ({ pdf, jpg, rotate }) => {
+  await pdfToimg(pdf, jpg, rotate);
 };

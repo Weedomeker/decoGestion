@@ -708,7 +708,9 @@ async function processJob(job, req) {
           if (isCredences && job.visuPath2) {
             // Rendu depuis le PDF amalgamé plutôt que depuis les aperçus des panneaux : certains
             // aperçus sont mal nommés (ex. "MARBRE BLANC CARRÉ 3664714023259" pour le marbre uni).
-            await usePdfWorker({ pdf: stagedPdfPath, jpg: outJpgPath });
+            // Le PDF de plaque est en paysage (/Rotate 90) ; le JPG crédence reste en portrait, dans
+            // le même sens que les aperçus.
+            await usePdfWorker({ pdf: stagedPdfPath, jpg: outJpgPath, rotate: -90 });
           } else {
             const previewFound = await getPreview(job.ref, jpgName, isStock, job.visuel);
             if (!previewFound) {

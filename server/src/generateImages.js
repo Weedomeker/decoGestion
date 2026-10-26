@@ -25,8 +25,10 @@ async function generateImages(data, readFile, writeFile, isStock) {
     const fontWhite = await Jimp.loadFont(Jimp.FONT_SANS_128_WHITE);
     const fontBlack = await Jimp.loadFont(Jimp.FONT_SANS_128_BLACK);
 
-    // 👉 Rotation AVANT d'écrire
-    image.rotate(90);
+    // 👉 Rotation AVANT d'écrire — sauf crédences : leur aperçu est déjà en portrait, format voulu du JPG
+    if (!/^\d{3}x\d{2}$/i.test(data.format_visu ?? "")) {
+      image.rotate(90);
+    }
 
     if (isStock) {
       function printWithStrokeCentered(image, fontMain, fontStroke, text, size = 2) {
