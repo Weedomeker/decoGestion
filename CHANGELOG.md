@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.5.2] - 2026-10-26
+
+### Corrections
+- **credences** : plaque en paysage comme les autres visuels, JPG en portrait
+
 ## [2.5.1] - 2026-10-20
 
 ### Corrections
