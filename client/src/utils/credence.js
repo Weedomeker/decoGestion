@@ -1,4 +1,5 @@
-const CREDENCE_RE = /\b\d{3}x\d{2}\b/i;
+// Pas de \b : "_" est un caractère de mot, donc \b échouait sur le dossier CASTO "2_300x60"
+const CREDENCE_RE = /(?<!\d)\d{3}x\d{2}(?!\d)/i;
 
 export function isCredenceFormat(format) {
   return format ? CREDENCE_RE.test(format) : false;
