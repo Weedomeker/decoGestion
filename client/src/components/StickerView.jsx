@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Button, Checkbox, Dropdown, Form, Icon, Input, Message } from "semantic-ui-react";
+import { Button, Checkbox, Form, Icon, Input, Message } from "semantic-ui-react";
+import Dropdown from "./AutoDropdown";
 import { API_BASE } from "../utils/api";
 
 function debounce(fn, ms) {

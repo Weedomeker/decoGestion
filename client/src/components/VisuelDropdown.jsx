@@ -1,5 +1,5 @@
 import PropTypes from "prop-types";
-import { Dropdown } from "semantic-ui-react";
+import Dropdown from "./AutoDropdown";
 
 function filterName(name) {
   if (!name) return;

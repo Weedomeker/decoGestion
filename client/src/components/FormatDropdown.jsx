@@ -1,5 +1,5 @@
 import PropTypes from "prop-types";
-import { Dropdown } from "semantic-ui-react";
+import Dropdown from "./AutoDropdown";
 
 function FormatDropdown({ data, isLoading, onSelectFormat, selectedFormat, error, enabled, placeholder = "" }) {
   const formatRegex = /\d{3}x\d{2,3}/i;

@@ -1215,6 +1215,13 @@ img.ui.image:not(.header-logo) {
   box-shadow: 0 4px 16px rgba(42,37,32,0.1) !important;
 }
 
+/* AutoDropdown : menu limité à la place disponible (sinon rogné par
+   .form-panel / .view-area et caché au niveau du footer) */
+.ui.dropdown.auto-dropdown--capped .menu {
+  max-height: var(--auto-dropdown-max-h) !important;
+  overflow-y: auto !important;
+}
+
 .ui.dropdown .menu > .item {
   color: var(--text-secondary) !important;
   border-top: 1px solid var(--border-dim) !important;
