@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.5.3] - 2026-10-28
+
+### Corrections
+- **credences** : 2e partie jamais affichée en saisie manuelle CASTO
+- **ui** : menus déroulants rognés au niveau du footer
+
 ## [2.5.2] - 2026-10-26
 
 ### Corrections
