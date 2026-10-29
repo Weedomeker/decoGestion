@@ -54,7 +54,8 @@ async function generateStickers(commande, outPath, showDataCmd = false) {
     }
 
     acc[key].items.push(curr);
-    acc[key].maxEx += curr.ex;
+    // Crédence dupliquée : ex = plaques de 2 panneaux, on numérote les panneaux commandés.
+    acc[key].maxEx += curr.panneaux || curr.ex;
 
     return acc;
   }, {});
@@ -65,14 +66,31 @@ async function generateStickers(commande, outPath, showDataCmd = false) {
   Object.values(groupedCommands).forEach(({ items, maxEx }) => {
     let currentEx = 0;
 
+    const formatEx = (n) => `${n.toString().padStart(2, "0")}/${maxEx.toString().padStart(2, "0")}`;
+
     items.forEach((cmdInfo) => {
+      let panneauxRestants = cmdInfo.panneaux;
       for (let i = 0; i < cmdInfo.ex; i++) {
-        currentEx++;
-        const exStr = `${currentEx.toString().padStart(2, "0")}/${maxEx.toString().padStart(2, "0")}`;
+        let exStr;
+        if (!cmdInfo.panneaux) {
+          currentEx++;
+          exStr = formatEx(currentEx);
+        }
 
         const visuels = getVisuelsForCmd(cmdInfo);
 
         visuels.forEach(({ commandId, visuelIndex, isStock }) => {
+          if (cmdInfo.panneaux) {
+            if (panneauxRestants > 0) {
+              panneauxRestants--;
+              currentEx++;
+              exStr = formatEx(currentEx);
+            } else if (cmdInfo.useStock) {
+              return; // panneau en trop jamais imprimé : rien n'est pris en stock pour lui
+            } else {
+              isStock = true; // panneau en trop d'un nombre impair : part en stock
+            }
+          }
           promises.push(
             createStickers(
               commandId,

@@ -57,7 +57,7 @@ const InfoModal = ({ open, onClose, message, object, error, warning, pkSaved }) 
               <Message.Header>{message}</Message.Header>
               {object && (
                 <pre>
-                  {`Cmd: ${object.cmd} | ${object.ville} | Réf: ${object.ref || "—"}\nVisuel: ${visuelName}\nFormat: ${object.format_visu} → ${object.format_Plaque?.split("_")?.pop()} | ${object.ex} ex`}
+                  {`Cmd: ${object.cmd} | ${object.ville} | Réf: ${object.ref || "—"}\nVisuel: ${visuelName}\nFormat: ${object.format_visu} → ${object.format_Plaque?.split("_")?.pop()} | ${object.panneaux || object.ex} ex`}
                   {object.visuel2
                     ? `\n\n2e panneau :\nCmd: ${object.cmd2 || object.cmd} | Réf: ${object.ref2 || "—"}\nVisuel: ${visuel2Name}`
                     : ""}

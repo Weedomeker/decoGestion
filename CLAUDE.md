@@ -93,7 +93,8 @@ Les crédences sont des panneaux de format `300x60` (CASTO) ou `255x60` (BRICO),
 | **≥ 2 ex** | Même visuel amalgamé **2 fois** sur la plaque  | Auto-dupliqué par le backend (`visuel2 = visuel1`) |
 
 - Si `ex=1` et `visuel2` absent → rejet **400** : `"Les crédences BRICO/CASTO (1 ex) doivent être amalgamées avec un 2e visuel différent."`
-- Si `ex≥2` et `visuel2` absent → backend duplique automatiquement (`data.visuel2`, `visuPath2`, `visuel2`, `format2`, `matchRef2` sont tous réassignés).
+- Si `ex≥2` et `visuel2` absent (ou identique à `visuel`) → backend duplique automatiquement (`data.visuel2`, `visuPath2`, `visuel2`, `format2`, `matchRef2` sont tous réassignés).
+- Côté job, `ex` = **nombre de plaques** (2 panneaux par plaque). En duplication, `job.panneaux` garde le nombre de panneaux commandés et `ex = ceil(panneaux / 2)` : 2 ex → 1 plaque, 3 ex → 2 plaques dont le panneau en trop part en stock (`processJob`, étiquette « STOCK »). Deco, prise en stock et étiquettes comptent en panneaux (`panneaux || ex`).
 
 ### Variables critiques dans `addJob`
 

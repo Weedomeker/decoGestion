@@ -589,7 +589,8 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
 
     it("add_job retourne 201 (duplication auto, pas de rejet)", () => expect(addResp.status).to.equal(201));
     it("client = CASTO", () => expect(addResp.body.object.client).to.equal("CASTO"));
-    it("ex = 2", () => expect(addResp.body.object.ex).to.equal(2));
+    it("ex = 1 plaque (2 panneaux)", () => expect(addResp.body.object.ex).to.equal(1));
+    it("panneaux = 2", () => expect(addResp.body.object.panneaux).to.equal(2));
     it("format_visu = 300x60", () => expect(addResp.body.object.format_visu).to.equal("300x60"));
     it("format_Plaque = 150x305", () => expect(addResp.body.object.format_Plaque).to.equal("150x305"));
     it("ref = EAN-13 MOSAIQUE (3664711694254)", () =>
@@ -773,6 +774,29 @@ describe("Crédences CASTO et BRICO — exécution complète", function () {
       expect(r.status, JSON.stringify(r.body)).to.equal(201);
       expect(r.body.object.cmd2).to.equal(99013);
       expect(r.body.object.complementStock).to.not.equal(true);
+    });
+
+    it("ex=3 dupliqué → 2 plaques, 3 panneaux (le 4e part en stock au run)", async () => {
+      const r = await postJson("/add_job", {
+        ...base, client: "CASTO", numCmd: "99015", numCmd2: "", ex: 3,
+        visuel: CASTO_MOSAIQUE, format: "server/public/CASTO/2_300x60/", visuel2: "", format2: "",
+        formatTauro: "Deco_Std_150x305",
+      });
+      expect(r.status, JSON.stringify(r.body)).to.equal(201);
+      expect(r.body.object.ex).to.equal(2);
+      expect(r.body.object.panneaux).to.equal(3);
+    });
+
+    it("ex=2 avec le même visuel choisi en 2e partie → dupliqué, 1 plaque", async () => {
+      const r = await postJson("/add_job", {
+        ...base, client: "BRICO", numCmd: "99016", numCmd2: "99016", ex: 2,
+        visuel: BRICO_VELTIS, format: "server/public/BRICO/255x60/",
+        visuel2: BRICO_VELTIS, format2: "server/public/BRICO/255x60/",
+        formatTauro: "Deco_Std_126x260",
+      });
+      expect(r.status, JSON.stringify(r.body)).to.equal(201);
+      expect(r.body.object.ex).to.equal(1);
+      expect(r.body.object.panneaux).to.equal(2);
     });
   });
 

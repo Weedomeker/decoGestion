@@ -426,6 +426,8 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
       entries.push({
         ...baseEntry,
         cmd: value.complementStock ? "STOCK" : value.cmd2,
+        // Crédence dupliquée (ex = plaques) : en nombre impair, le panneau en trop part en stock.
+        ex: value.panneaux ? value.panneaux - value.ex : value.ex,
         visuel: value.visuel2,
         jpgName: value.jpgName2,
         format_visu: value.format2_visu,

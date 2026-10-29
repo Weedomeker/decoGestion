@@ -147,7 +147,8 @@ async function editJob(req, res) {
 // correctement les étiquettes sur le total réel de la commande.
 async function applyStockToJob(objIndex, res) {
   const job = state.jobs.jobs[objIndex];
-  const requestedEx = parseInt(job.ex) || 0;
+  // Crédence dupliquée : le stock se compte en panneaux, job.ex en plaques de 2 panneaux.
+  const requestedEx = parseInt(job.panneaux || job.ex) || 0;
 
   if (!job.ref || requestedEx < 1) {
     return res.status(400).json({ error: "Job invalide pour une prise en stock." });
@@ -164,9 +165,10 @@ async function applyStockToJob(objIndex, res) {
     const stockQty = Math.min(availableEx, requestedEx);
     const remainingEx = requestedEx - stockQty;
 
+    const qty = (n) => (job.panneaux ? { panneaux: n, ex: Math.ceil(n / 2) } : { ex: n });
     if (remainingEx > 0) {
-      state.jobs.jobs[objIndex] = { ...job, ex: remainingEx, useStock: false };
-      const stockJob = { ...job, _id: Date.now(), ex: stockQty, useStock: true };
+      state.jobs.jobs[objIndex] = { ...job, ...qty(remainingEx), useStock: false };
+      const stockJob = { ...job, _id: Date.now(), ...qty(stockQty), useStock: true };
       state.jobs.jobs.push(stockJob);
     } else {
       state.jobs.jobs[objIndex] = { ...job, useStock: true };
@@ -267,6 +269,8 @@ async function addJob(req, res) {
       error: "Le complément stock n'est possible que pour une crédence BRICO/CASTO à 1 ex.",
     });
   }
+  // Crédence dupliquée : nombre de panneaux commandés (job.ex devient le nombre de plaques).
+  let panneauxDuplique = null;
   if (isCredenceBricoCasto) {
     if (complementStock) {
       data.visuel2 = data.visuel;
@@ -281,9 +285,13 @@ async function addJob(req, res) {
       return reject(400, {
         error: "Les crédences BRICO/CASTO (1 ex) doivent être amalgamées avec un 2e visuel différent.",
       });
-    } else if (nbEx >= 2 && !data.visuel2) {
+    } else if (nbEx >= 2 && (!data.visuel2 || data.visuel2 === data.visuel)) {
       // 2 ex : même visuel amalgamé 2 fois sur la plaque, les 2 panneaux appartiennent à la commande —
       // sans numCmd2, cmd2 vaudrait 0 et l'étiquette V2 sortirait en "STOCK" (generateStickers).
+      // Chaque plaque porte 2 panneaux : ex = nombre de plaques. Un nombre impair laisse un panneau
+      // en trop sur la dernière plaque, qui part en stock (processJob).
+      panneauxDuplique = nbEx;
+      data.ex = Math.ceil(nbEx / 2);
       data.visuel2 = data.visuel;
       data.format2 = data.format;
       if (!parseInt(data.numCmd2)) data.numCmd2 = data.numCmd;
@@ -529,6 +537,7 @@ async function addJob(req, res) {
     },
   );
   if (complementStock) newJob.complementStock = true;
+  if (panneauxDuplique) newJob.panneaux = panneauxDuplique;
 
   const jobExist = state.jobs.jobs.find(
     (item) =>
@@ -554,10 +563,15 @@ async function addJob(req, res) {
   }
 
   if (jobExist) {
-    jobExist.ex = parseInt(jobExist.ex) + parseInt(newJob.ex);
+    if (newJob.panneaux) {
+      jobExist.panneaux = (jobExist.panneaux || parseInt(jobExist.ex) * 2) + newJob.panneaux;
+      jobExist.ex = Math.ceil(jobExist.panneaux / 2);
+    } else {
+      jobExist.ex = parseInt(jobExist.ex) + parseInt(newJob.ex);
+    }
     broadcastWS({ type: "update", object: jobExist });
     return res.status(200).json({
-      message: `Exemplaires fusionnés avec la commande existante (total : ${jobExist.ex} ex).`,
+      message: `Exemplaires fusionnés avec la commande existante (total : ${jobExist.panneaux || jobExist.ex} ex).`,
       object: jobExist,
       stock: modelStock,
     });
@@ -579,6 +593,8 @@ async function processJob(job, req) {
   // Crédence 1 ex complétée par le même visuel : le 2e panneau imprimé alimente le stock. Rien n'est
   // imprimé quand la commande est prise en stock (useStock), donc pas de complément dans ce cas.
   const isComplementStock = !!job?.complementStock && isCredences && !isStock;
+  // Crédence dupliquée en nombre impair : le panneau en trop de la dernière plaque part en stock.
+  const panneauxEnTrop = isCredences && !isStock && job?.panneaux ? job.ex * 2 - job.panneaux : 0;
 
   let pdfTime = 0;
   let jpgTime = 0;
@@ -890,7 +906,7 @@ async function processJob(job, req) {
       deco: visuel,
       ref: safeRef,
       format: resolvedFormat,
-      ex: parseInt(job.ex),
+      ex: parseInt(job.panneaux || job.ex),
       temps,
       perte: job.perte ? parseFloat(job.perte) : 0,
       status: safeRef ? "A imprimer" : "ref_invalide",
@@ -903,7 +919,9 @@ async function processJob(job, req) {
           ? `Pris en stock le ${new Date().toLocaleString()}`
           : isComplementStock
             ? `+${parseInt(job.ex) || 1} panneau(x) mis en stock le ${new Date().toLocaleString()}`
-            : "",
+            : panneauxEnTrop > 0
+              ? `+${panneauxEnTrop} panneau(x) mis en stock le ${new Date().toLocaleString()}`
+              : "",
       ),
       prodBlanc: !!job.prodBlanc,
       surMesure: !!job.surMesure,
@@ -981,7 +999,7 @@ async function processJob(job, req) {
       // job.ex correspond ici exactement à la quantité prise en stock : en cas de couverture
       // partielle, applyStockToJob() (editJob) a scindé la commande et ce job ne porte que
       // la portion "stock" — le solde à produire est un job séparé avec useStock=false.
-      const stockQtyUsed = parseInt(job.ex) || 1;
+      const stockQtyUsed = parseInt(job.panneaux || job.ex) || 1;
       await Stocks.findOneAndUpdate({ ref: job.ref }, { $inc: { ex: -stockQtyUsed } }, { new: true });
       log.info(`Stock : -${stockQtyUsed} ex`, { ref: job.ref });
     } catch (error) {
@@ -989,10 +1007,10 @@ async function processJob(job, req) {
     }
   }
 
-  if (isComplementStock && job.ref && String(job.ref) !== "0") {
+  if ((isComplementStock || panneauxEnTrop > 0) && job.ref && String(job.ref) !== "0") {
     try {
-      // 1 panneau en stock par plaque imprimée (job.ex plaques).
-      const stockQtyAdded = parseInt(job.ex) || 1;
+      // Complément : 1 panneau en stock par plaque imprimée (job.ex plaques).
+      const stockQtyAdded = isComplementStock ? parseInt(job.ex) || 1 : panneauxEnTrop;
       const finition = /brillant/i.test(job.visuel) ? "BRILLANT" : /mat/i.test(job.visuel) ? "MAT" : "";
       await Stocks.findOneAndUpdate(
         { ref: String(job.ref) },
@@ -1007,7 +1025,7 @@ async function processJob(job, req) {
       log.error(`Stock non alimenté (ref ${job.ref}) :`, error);
       broadcastWS({ type: "jobWarning", job, reason: `Stock non mis à jour : ${error.message}` });
     }
-  } else if (isComplementStock) {
+  } else if (isComplementStock || panneauxEnTrop > 0) {
     log.warn(`Complément stock ignoré : pas de référence valide (${job.visuel})`);
   }
 
