@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.5.4] - 2026-10-29
+
+### Corrections
+- **credences** : 2 ex dupliqués = 1 plaque, plus 2 plaques (4 panneaux)
+
 ## [2.5.3] - 2026-10-28
 
 ### Corrections
