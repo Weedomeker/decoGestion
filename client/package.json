@@ -1,7 +1,7 @@
 {
   "name": "decogestion",
   "private": true,
-  "version": "2.5.6",
+  "version": "2.5.7",
   "type": "module",
   "proxy": "http://localhost:9000",
   "scripts": {

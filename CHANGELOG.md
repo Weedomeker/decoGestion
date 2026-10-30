@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.5.7] - 2026-10-30
+
+### Corrections
+- **etiquettes** : numerotation par panneau, amalgame meme commande en 01/02 + 02/02 (au lieu de 01/01 + 01/01)
+- **credences** : amalgame 255x60 + 300x60 en saisie manuelle, plaque agrandie a l'appairage
+
 ## [2.5.6] - 2026-10-30
 
 ### Corrections
