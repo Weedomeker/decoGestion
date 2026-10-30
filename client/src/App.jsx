@@ -28,7 +28,14 @@ import StickerView from "./components/StickerView";
 import TeinteMasseDropdown from "./components/TeinteMasseDropdown";
 import VisuelDropdown from "./components/VisuelDropdown";
 import WhatsNew from "./components/WhatsNew";
-import { isCredenceFormat, getFinition, finitionsCompatibles, needsCredencePartner, visuelLabel } from "./utils/credence";
+import {
+  isCredenceFormat,
+  getFinition,
+  finitionsCompatibles,
+  needsCredencePartner,
+  visuelLabel,
+  plaqueCredences,
+} from "./utils/credence";
 import { formatPrix } from "./utils/prix";
 
 function App() {
@@ -207,7 +214,13 @@ function App() {
       }
     });
     const pair = (primaryIdx, partnerIdx) => {
-      result[primaryIdx] = { ...result[primaryIdx], credence2: result[partnerIdx] };
+      const primary = result[primaryIdx];
+      const partner = result[partnerIdx];
+      result[primaryIdx] = {
+        ...primary,
+        credence2: partner,
+        formatTauroValue: plaqueCredences(formatTauro, primary.formatTauroValue, primary.formatPath, partner.formatPath),
+      };
       result[partnerIdx] = { ...result[partnerIdx], _absorbedBy: result[primaryIdx].id };
     };
     for (const indices of Object.values(credencesByDossier)) {
@@ -345,7 +358,11 @@ function App() {
       return prev.map((r) => {
         if (r.id === primaryId) {
           const partner = partnerId ? prev.find((x) => x.id === partnerId) : null;
-          return { ...r, credence2: partner || null };
+          return {
+            ...r,
+            credence2: partner || null,
+            formatTauroValue: plaqueCredences(formatTauro, r.formatTauroValue, r.formatPath, partner?.formatPath),
+          };
         }
         if (prevPartnerId && r.id === prevPartnerId) return { ...r, _absorbedBy: null };
         if (partnerId && r.id === partnerId) return { ...r, _absorbedBy: primaryId, credence2: null };
@@ -406,6 +423,7 @@ function App() {
         j.id === jobId
           ? {
               ...j,
+              formatTauroValue: plaqueCredences(formatTauro, j.formatTauroValue, j.formatPath, credence2Format || j.formatPath),
               credence2: {
                 _manual: true,
                 numCmd: credence2NumCmd,
@@ -1956,11 +1974,8 @@ function App() {
                         id="format"
                         className="format"
                         isLoading={isLoading}
-                        data={
-                          selectedFormat.match(/\d{3}x\d{2}/)
-                            ? data[0][checkFolder].filter((x) => x.name.includes(selectedFormat.match(/\d{3}x\d{2}/)[0]))
-                            : data[0][checkFolder] || []
-                        }
+                        // Tous les formats crédence du client : un 255x60 peut s'amalgamer avec un 300x60
+                        data={(data[0][checkFolder] || []).filter((x) => isCredenceFormat(x.name))}
                         value={selectedFormat2}
                         selectedFormat={selectedFormat2}
                         onSelectFormat={(e, v) => {
@@ -1976,6 +1991,8 @@ function App() {
                           const selected = data[0][checkFolder].find((x) => x.path === v.value);
 
                           setSelectedFormat2(v.value);
+                          // 255x60 + 300x60 : la plaque doit contenir le plus long des 2 panneaux
+                          setSelectedFormatTauro((curr) => plaqueCredences(formatTauro, curr, selectedFormat, v.value));
                           setFiles2(selected.files);
                           setIsFile2(true);
                           setSelectedFile2(null);

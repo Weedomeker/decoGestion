@@ -96,6 +96,11 @@ Les crédences sont des panneaux de format `300x60` (CASTO) ou `255x60` (BRICO),
 - Si `ex≥2` et `visuel2` absent (ou identique à `visuel`) → backend duplique automatiquement (`data.visuel2`, `visuPath2`, `visuel2`, `format2`, `matchRef2` sont tous réassignés).
 - Côté job, `ex` = **nombre de plaques** (2 panneaux par plaque). En duplication, `job.panneaux` garde le nombre de panneaux commandés et `ex = ceil(panneaux / 2)` : 2 ex → 1 plaque, 3 ex → 2 plaques dont le panneau en trop part en stock (`processJob`, étiquette « STOCK »). Deco, prise en stock et étiquettes comptent en panneaux (`panneaux || ex`).
 
+### Formats mélangés et plaque
+
+- Un 255x60 peut s'amalgamer avec un 300x60 (CASTO a les deux dossiers `1_255x60` et `2_300x60`) : la 2e partie du formulaire propose tous les formats crédence du client.
+- La plaque doit contenir l'emprise des 2 panneaux côte à côte (largeurs additionnées × plus grande longueur) : 255x60 + 300x60 → 120x300 → **150x305**. `plaqueCredences` (`client/src/utils/credence.js`) agrandit la plaque à l'appairage (auto, manuel, formulaire) ; `addJob` refuse en **400** une plaque trop petite (`server/src/utils/credencePlaque.js`), sinon le 300x60 sortait rogné à 260 cm.
+
 ### Variables critiques dans `addJob`
 
 `visuPath2`, `visuel2` (nom nettoyé) et `format2` sont initialisées **avant** le bloc crédences → elles sont déclarées `let` et réassignées dans le bloc de duplication. Ne pas les déclarer `const`.

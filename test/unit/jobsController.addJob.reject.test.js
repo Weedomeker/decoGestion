@@ -64,4 +64,28 @@ describe("jobsController.addJob() — journalisation des refus", () => {
     expect(warnStub.calledOnce).to.be.true;
     expect(warnStub.firstCall.args[0]).to.include("exemplaires");
   });
+
+  // 255x60 + 300x60 envoyés en 126x260 : le 300x60 sortait rogné à 260 cm sans erreur.
+  it("refuse une crédence amalgamée plus longue que la plaque", async () => {
+    await addJob(
+      {
+        body: {
+          client: "CASTO",
+          numCmd: "999803",
+          numCmd2: "999803",
+          ex: 1,
+          visuel: "server/public/CASTO/1_255x60/CRED 255x60cm MOSAIQUE CARRELEE 3664714617953 MAT.pdf",
+          format: "server/public/CASTO/1_255x60/",
+          visuel2: "server/public/CASTO/2_300x60/CRED 300x60cm MARBRE BLANC 3664714023259 MAT.pdf",
+          format2: "server/public/CASTO/2_300x60/",
+          formatTauro: "Deco_Std_126x260",
+        },
+      },
+      res,
+    );
+
+    expect(res.statusCode).to.equal(400);
+    expect(res.body.error).to.include("126x260");
+    expect(res.body.error).to.include("120x300");
+  });
 });

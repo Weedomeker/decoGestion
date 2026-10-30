@@ -28,6 +28,7 @@ const { createStagingDir, deliverToHotFolder, removeStagingDir } = require("../u
 const { withMongoRetry } = require("../utils/retryMongo");
 const { castoName } = require("../utils/jobNames");
 const { buildCoteClientComment } = require("../utils/coteClient");
+const { plaqueTropPetite } = require("../utils/credencePlaque");
 const { extractRefFromFilename, validateRefFormat, REF_FORMAT_HINT } = require("../services/referencesCheckService");
 const { setConcurrency } = require("../services/queueService");
 const queueControl = require("../services/queueControlService");
@@ -308,6 +309,16 @@ async function addJob(req, res) {
     if (fin1 && fin2 && fin1 !== fin2) {
       return reject(400, {
         error: `Amalgame impossible : finitions incompatibles (panneau 1 : ${fin1}, panneau 2 : ${fin2}). Les deux crédences doivent avoir la même finition.`,
+      });
+    }
+  }
+
+  // Crédences : la plaque doit contenir les panneaux côte à côte (255x60 + 300x60 → 150x305)
+  if (_formatVisuCheck && !teinteMasse) {
+    const emprise = plaqueTropPetite(formatTauro, format, visuPath2 ? format2 : "");
+    if (emprise) {
+      return reject(400, {
+        error: `Plaque ${formatTauro} trop petite pour les crédences (emprise ${emprise.width}x${emprise.height} requise). Choisissez une plaque plus grande.`,
       });
     }
   }
