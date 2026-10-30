@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.5.5] - 2026-10-30
+
+### Corrections
+- profils/kits - statut « pk à coliser » en minuscules, aligné sur la clé de config de decoGestion-API
+
 ## [2.5.4] - 2026-10-29
 
 ### Corrections
