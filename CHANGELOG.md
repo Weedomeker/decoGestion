@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.5.6] - 2026-10-30
+
+### Corrections
+- jobs - le statut pose (A imprimer, pk a coliser) l'est avec sa date dans statusDates, sinon decoGestion-API le vidait au save suivant
+
 ## [2.5.5] - 2026-10-30
 
 ### Corrections
