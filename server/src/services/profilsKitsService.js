@@ -328,7 +328,7 @@ async function saveProfilsKits(job) {
         numCmd,
         mag: job.ville || mag || "",
         date: new Date(),
-        status: "PK à coliser",
+        status: "pk à coliser",
         pkOnly: true,
         dateLivraisonSouhaitee,
         prixTotal: sumArticlesPrix(articles),

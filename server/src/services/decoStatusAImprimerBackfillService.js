@@ -4,7 +4,7 @@ const Deco = require("../models/Deco");
 // l'utilisateur via saveDeco, créés avant que ce chemin ne pose "A imprimer" dès le traitement.
 // gamesysStub: { $ne: true } exclut les stubs proactifs encore en attente (status:"A lancer"
 // désormais, cf. decoStatusALancerBackfillService.js). pkOnly: { $ne: true } exclut les dossiers
-// profils/kits qui doivent recevoir "PK à coliser" (cf. decoStatusPKAColiserBackfillService.js).
+// profils/kits qui doivent recevoir "pk à coliser" (cf. decoStatusPKAColiserBackfillService.js).
 // Purement Mongo-à-Mongo, aucun appel Gamesys nécessaire.
 async function backfillDecoStatusAImprimer({ dryRun = false } = {}) {
   const filter = { gamesysStub: { $ne: true }, pkOnly: { $ne: true }, status: "" };
