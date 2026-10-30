@@ -51,7 +51,7 @@ describe("decoStatusPKAColiserBackfillService.backfillDecoStatusPKAColiser()", (
 
     expect(resume).to.deep.equal({ candidats: 6, misAJour: 6 });
     expect(
-      updateManyStub.calledOnceWith({ gamesysStub: { $ne: true }, pkOnly: true, status: { $in: ["", "A imprimer"] } }, { $set: { status: "PK à coliser" } }),
+      updateManyStub.calledOnceWith({ gamesysStub: { $ne: true }, pkOnly: true, status: { $in: ["", "A imprimer"] } }, { $set: { status: "pk à coliser" } }),
     ).to.be.true;
   });
 });

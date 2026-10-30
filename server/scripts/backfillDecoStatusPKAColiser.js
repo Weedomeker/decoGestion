@@ -1,5 +1,5 @@
 /**
- * Script ponctuel : corrige Deco.status:"" -> "PK à coliser" sur les documents pkOnly déjà traités
+ * Script ponctuel : corrige Deco.status:"" -> "pk à coliser" sur les documents pkOnly déjà traités
  * par l'utilisateur, créés avant que profilsKitsService.js ne pose ce statut dès le traitement.
  * Purement Mongo-à-Mongo (aucun appel Gamesys) — voir decoStatusPKAColiserBackfillService.js.
  *
