@@ -184,6 +184,26 @@ describe("decoStubService.claimStubOrCreate()", () => {
     expect(findOneAndUpdateStub.called).to.be.false;
     expect(saveStub.calledOnce).to.be.true;
   });
+
+  it("pose la date du statut dans statusDates, à la réclamation comme à la création", async () => {
+    const date = new Date("2026-10-28T09:13:55Z");
+    const data = { ref: "94953671", sousDossier: "03", status: "A imprimer", date };
+    const entree = { date, user: "" };
+
+    const reclame = sinon.stub().resolves({ _id: "stub" });
+    await claimStubOrCreate(Object.assign(function FakeDeco() {}, { findOneAndUpdate: reclame }), 168527, data);
+    expect(reclame.firstCall.args[1].$set).to.deep.include({ status: "A imprimer", "statusDates.A imprimer": entree });
+
+    const saveStub = sinon.stub().resolves();
+    function FakeDeco(d) {
+      Object.assign(this, d);
+      this.save = saveStub;
+    }
+    FakeDeco.findOneAndUpdate = sinon.stub().resolves(null);
+    const cree = await claimStubOrCreate(FakeDeco, 168527, { ...data, status: "pk à coliser" });
+    expect(cree.statusDates).to.deep.equal({ "pk à coliser": entree });
+    expect(FakeDeco.findOneAndUpdate.secondCall.args[1].$set).to.have.property("statusDates.pk à coliser");
+  });
 });
 
 describe("decoStubService.computeSousDossiersPkOnly()", () => {

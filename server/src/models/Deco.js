@@ -35,6 +35,13 @@ const decoSchema = new mongoose.Schema({
   temps: { type: Number, min: 0 },
   perte: { type: Number },
   status: { type: String },
+  // Date de passage par statut, tenue par decoGestion-API qui en recalcule status à chaque save :
+  // un statut posé ici sans sa date y serait remplacé par une étape plus ancienne ou vidé.
+  statusDates: {
+    type: Map,
+    of: new mongoose.Schema({ date: Date, user: String }, { _id: false }),
+    default: undefined,
+  },
   app_version: { type: String },
   app_commit: { type: String },
   ip: { type: String },

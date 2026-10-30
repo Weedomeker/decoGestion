@@ -22,27 +22,33 @@
 // toujours.
 // Si rien ne correspond (dossier pas encore synchronisé, ou stub déjà réclamé), retombe sur une
 // création classique.
+// Le statut posé l'est avec sa date dans statusDates (cf. models/Deco.js) : sans elle, le prochain save
+// côté decoGestion-API le remplacerait par une étape plus ancienne ou le viderait.
+const dateStatut = (data) => (data.status ? { date: data.date || new Date(), user: data.user || "" } : null);
+
 async function claimStubOrCreate(Model, numCmd, data) {
+  const date = dateStatut(data);
+  const $set = date ? { ...data, [`statusDates.${data.status}`]: date } : data;
   if (numCmd) {
     const filter = { numCmd, gamesysStub: true };
     filter.sousDossier = data.sousDossier ? data.sousDossier : { $in: [null, ""] };
-    const claimed = await Model.findOneAndUpdate(filter, { $set: { ...data, gamesysStub: false } }, { new: true });
+    const claimed = await Model.findOneAndUpdate(filter, { $set: { ...$set, gamesysStub: false } }, { new: true });
     if (claimed) return claimed;
 
     if (!data.sousDossier && data.ref) {
       const claimedByRef = await Model.findOneAndUpdate(
         { numCmd, gamesysStub: true, ref: data.ref },
-        { $set: { ...data, gamesysStub: false } },
+        { $set: { ...$set, gamesysStub: false } },
         { new: true },
       );
       if (claimedByRef) return claimedByRef;
     }
   }
 
-  const repris = await reprendreDecoNonLancee(Model, numCmd, data);
+  const repris = await reprendreDecoNonLancee(Model, numCmd, data, $set);
   if (repris) return repris;
 
-  const created = new Model(data);
+  const created = new Model(date ? { ...data, statusDates: { [data.status]: date } } : data);
   await created.save();
   return created;
 }
@@ -71,9 +77,9 @@ function filtreDecoNonLancee(numCmd, data) {
   };
 }
 
-async function reprendreDecoNonLancee(Model, numCmd, data) {
+async function reprendreDecoNonLancee(Model, numCmd, data, valeurs = data) {
   if (!numCmd || !data.ref || estSav(data) || PRIS_EN_STOCK.test(data.comment || "")) return null;
-  const $set = { ...data };
+  const $set = { ...valeurs };
   if (!$set.comment) delete $set.comment;
   return Model.findOneAndUpdate(filtreDecoNonLancee(numCmd, data), { $set }, { new: true, sort: { createdAt: 1 } });
 }
