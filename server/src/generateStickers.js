@@ -40,77 +40,50 @@ async function generateStickers(commande, outPath, showDataCmd = false) {
     fs.mkdirSync(outPath, { recursive: true });
   }
 
-  // Grouper les commandes par `cmd` et accumuler les exemplaires
-  const groupedCommands = commande.reduce((acc, curr) => {
-    const key = curr.cmd;
+  await Promise.all(
+    planEtiquettes(commande).map(({ cmdInfo, commandId, visuelIndex, isStock, ex }) =>
+      createStickers(commandId, ex, outPath, { ...cmdInfo, commandId, visuelIndex, isStock }, showDataCmd),
+    ),
+  );
+}
 
-    if (!acc[key]) {
-      acc[key] = {
-        items: [],
-        maxEx: 0,
-        cmd: curr.cmd,
-        cmd2: curr.cmd2,
-      };
-    }
-
-    acc[key].items.push(curr);
-    // Crédence dupliquée : ex = plaques de 2 panneaux, on numérote les panneaux commandés.
-    acc[key].maxEx += curr.panneaux || curr.ex;
-
-    return acc;
-  }, {});
-
-  // Générer les stickers pour chaque commande
-  const promises = [];
-
-  Object.values(groupedCommands).forEach(({ items, maxEx }) => {
-    let currentEx = 0;
-
-    const formatEx = (n) => `${n.toString().padStart(2, "0")}/${maxEx.toString().padStart(2, "0")}`;
-
-    items.forEach((cmdInfo) => {
-      let panneauxRestants = cmdInfo.panneaux;
-      for (let i = 0; i < cmdInfo.ex; i++) {
-        let exStr;
-        if (!cmdInfo.panneaux) {
-          currentEx++;
-          exStr = formatEx(currentEx);
-        }
-
-        const visuels = getVisuelsForCmd(cmdInfo);
-
-        visuels.forEach(({ commandId, visuelIndex, isStock }) => {
-          if (cmdInfo.panneaux) {
-            if (panneauxRestants > 0) {
-              panneauxRestants--;
-              currentEx++;
-              exStr = formatEx(currentEx);
-            } else if (cmdInfo.useStock) {
-              return; // panneau en trop jamais imprimé : rien n'est pris en stock pour lui
-            } else {
-              isStock = true; // panneau en trop d'un nombre impair : part en stock
-            }
+// Une étiquette par panneau, numérotée par commande (NN/TT). Un amalgame de 2 panneaux de la même
+// commande donne 01/02 et 02/02 : numérotées par plaque, les 2 étiquettes sortaient en 01/01.
+// Les panneaux stock ne sont pas comptés ; leur numéro ne sert qu'au nom de fichier (après TT, unique).
+function planEtiquettes(commande) {
+  const panneaux = [];
+  commande.forEach((cmdInfo) => {
+    let panneauxRestants = cmdInfo.panneaux;
+    for (let i = 0; i < cmdInfo.ex; i++) {
+      getVisuelsForCmd(cmdInfo).forEach(({ commandId, visuelIndex, isStock }) => {
+        // Crédence dupliquée : ex = plaques de 2 panneaux, seuls les panneaux commandés sont numérotés.
+        if (cmdInfo.panneaux) {
+          if (panneauxRestants > 0) {
+            panneauxRestants--;
+          } else if (cmdInfo.useStock) {
+            return; // panneau en trop jamais imprimé : rien n'est pris en stock pour lui
+          } else {
+            isStock = true; // panneau en trop d'un nombre impair : part en stock
           }
-          promises.push(
-            createStickers(
-              commandId,
-              exStr,
-              outPath,
-              {
-                ...cmdInfo,
-                commandId,
-                visuelIndex,
-                isStock,
-              },
-              showDataCmd,
-            ),
-          );
-        });
-      }
-    });
+        }
+        panneaux.push({ cmdInfo, commandId, visuelIndex, isStock });
+      });
+    }
   });
 
-  await Promise.all(promises);
+  const totals = {};
+  panneaux.forEach((p) => {
+    if (!p.isStock) totals[p.commandId] = (totals[p.commandId] || 0) + 1;
+  });
+  const counters = {};
+  const pad = (n) => n.toString().padStart(2, "0");
+  return panneaux.map((p) => {
+    const total = totals[p.commandId] || 0;
+    // Le stock est compté à part, après le total : numéro de fichier unique, jamais imprimé
+    const key = p.isStock ? `${p.commandId}/stock` : p.commandId;
+    counters[key] = (counters[key] || 0) + 1;
+    return { ...p, ex: `${pad(counters[key] + (p.isStock ? total : 0))}/${pad(total)}` };
+  });
 }
 
 async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
@@ -498,4 +471,4 @@ function extractVernis(cmd) {
   if (/mat/i.test(visuelToCheck)) return false;
 }
 
-module.exports = { generateStickers, createStickersPage };
+module.exports = { generateStickers, createStickersPage, planEtiquettes };
