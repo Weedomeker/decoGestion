@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Cahier des charges decoGestion</title>
+<style>
+  :root { --ink:#1d2733; --muted:#5b6876; --line:#cdd5dd; --soft:#eef2f5; --accent:#0f5e7a; --warn:#9a4a00; }
+  @page { size:A4; margin:15mm 14mm 16mm;
+    @bottom-left { content:"Cahier des charges decoGestion, v2.5.7"; font:8pt "Segoe UI",Arial,sans-serif; color:#5b6876; }
+    @bottom-right { content:"Page " counter(page) " / " counter(pages); font:8pt "Segoe UI",Arial,sans-serif; color:#5b6876; }
+  }
+  @page :first { @bottom-left { content:""; } @bottom-right { content:""; } }
+  * { box-sizing:border-box; }
+  body { margin:0; color:var(--ink); background:#fff; font:9.4pt/1.38 "Segoe UI",Arial,sans-serif; }
+  h1 { font-size:25pt; line-height:1.15; margin:0 0 6pt; color:var(--accent); }
+  h2 { font-size:13.5pt; margin:15pt 0 5pt; padding-bottom:2pt; border-bottom:1.5pt solid var(--accent); color:var(--accent); break-after:avoid; }
+  h3 { font-size:10.4pt; margin:9pt 0 2pt; break-after:avoid; }
+  p { margin:0 0 5pt; }
+  ul { margin:0 0 5pt; padding-left:14pt; } li { margin-bottom:1.5pt; }
+  table { width:100%; border-collapse:collapse; margin:3pt 0 7pt; font-size:8.5pt; }
+  table.keep { break-inside:avoid; }
+  th { background:var(--soft); text-align:left; font-weight:600; }
+  th, td { border:.6pt solid var(--line); padding:2.6pt 4.5pt; vertical-align:top; }
+  tr { break-inside:avoid; } thead { display:table-header-group; }
+  code { font:8.3pt Consolas,monospace; background:var(--soft); padding:0 2pt; overflow-wrap:anywhere; }
+  .eg { font:8.5pt Consolas,monospace; background:var(--soft); padding:3pt 6pt; margin:2pt 0 6pt; overflow-wrap:anywhere; }
+  .note { border-left:2.5pt solid var(--accent); background:var(--soft); padding:4pt 7pt; margin:4pt 0 7pt; break-inside:avoid; }
+  .small { font-size:8.5pt; color:var(--muted); }
+  figure { margin:4pt 0 8pt; break-inside:avoid; } svg { width:100%; height:auto; display:block; }
+  figcaption { font-size:8.3pt; color:var(--muted); margin-top:2pt; }
+  .cover { min-height:245mm; display:flex; flex-direction:column; break-after:page; }
+  .cover .top { margin-top:18mm; }
+  .sub { font-size:12pt; color:var(--muted); margin-bottom:14pt; }
+  .meta td:first-child { width:30%; font-weight:600; background:var(--soft); }
+  .toc { columns:2; column-gap:10mm; margin-top:7pt; font-size:9.6pt; padding-left:15pt; }
+  .where td:last-child code { white-space:nowrap; overflow-wrap:normal; font-size:7.8pt; }
+  .box { fill:#fff; stroke:#0f5e7a; stroke-width:1.2; }
+  .box2 { fill:#eef2f5; stroke:#5b6876; stroke-width:1; }
+  svg text { font-family:"Segoe UI",Arial,sans-serif; font-size:11px; fill:#1d2733; }
+  svg .t { font-weight:600; font-size:12px; }
+  svg .s { font-size:9.8px; fill:#5b6876; }
+  svg .a { stroke:#5b6876; stroke-width:1.2; fill:none; marker-end:url(#ar); }
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div class="top">
+    <h1>Cahier des charges<br>decoGestion</h1>
+    <p class="sub">Préparation des fichiers d'impression des panneaux décoratifs</p>
+    <table class="meta">
+      <tr><td>Version décrite</td><td>2.5.7 (déployée le 30/10/2026)</td></tr>
+      <tr><td>Date du document</td><td>5 novembre 2026</td></tr>
+      <tr><td>Objet</td><td>Décrire ce que fait l'application aujourd'hui, ses règles et ce dont elle a besoin</td></tr>
+      <tr><td>Lecteurs</td><td>Atelier, opérateurs, responsables, développeurs</td></tr>
+    </table>
+    <div class="note">Les sections 1 à 8 se lisent sans connaissance technique. Les sections 9 et 10 et l'annexe B donnent le détail pour les développeurs.</div>
+    <h3>Sommaire</h3>
+    <ol class="toc">
+      <li>Objet et périmètre</li><li>Vue d'ensemble</li><li>Ce qu'il faut pour fonctionner</li>
+      <li>Règles par client</li><li>Nommer les fichiers sources</li><li>Cas particuliers</li>
+      <li>Traitement d'une commande</li><li>Ce que l'application produit</li>
+      <li>Données MongoDB</li><li>Données Gamesys</li>
+    </ol>
+    <p class="small" style="margin-left:15pt">Annexe A : points à vérifier. Annexe B : repères techniques.</p>
+    <h3>Glossaire</h3>
+    <table>
+      <tr><th style="width:23%">Terme</th><th>Sens dans ce document</th></tr>
+      <tr><td>Visuel</td><td>Décor à imprimer, fourni sous forme de fichier PDF.</td></tr>
+      <tr><td>Panneau</td><td>Pièce finie livrée au client, par exemple 100x210 cm.</td></tr>
+      <tr><td>Plaque</td><td>Support Dibond sur lequel on imprime, un peu plus grand que le panneau.</td></tr>
+      <tr><td>Exemplaire (ex)</td><td>Quantité commandée. Pour les crédences dupliquées, voir section 6.</td></tr>
+      <tr><td>Crédence</td><td>Panneau long et étroit de cuisine : 300x60 ou 255x60 cm.</td></tr>
+      <tr><td>Amalgame</td><td>Deux crédences imprimées côte à côte sur une même plaque.</td></tr>
+      <tr><td>Teinte masse</td><td>Panneau de couleur unie dans la matière : il n'y a rien à imprimer.</td></tr>
+      <tr><td>Sur-mesure (SM)</td><td>Panneau à la cote demandée par le client.</td></tr>
+      <tr><td>Dossier, sous-dossier</td><td>Commande Gamesys (167648) et chacune de ses lignes (167648/07).</td></tr>
+      <tr><td>Job</td><td>Une ligne de la file d'attente de l'application : un visuel ou une plaque à préparer.</td></tr>
+      <tr><td>Référentiel</td><td>Liste des références connues pour un client.</td></tr>
+      <tr><td>Commande pré-créée (stub)</td><td>Ligne créée automatiquement depuis Gamesys avant tout traitement, au statut « A lancer ».</td></tr>
+      <tr><td>Hot folder, RIP</td><td>Dossier surveillé par le logiciel d'impression Tauro (le RIP) : tout fichier déposé part en impression.</td></tr>
+      <tr><td>Repères (regmarks)</td><td>Points imprimés qui servent à caler la découpe.</td></tr>
+      <tr><td>Profils, kits</td><td>Accessoires de pose vendus avec les panneaux, sans impression.</td></tr>
+      <tr><td>Gamesys, NAS, Redis</td><td>Logiciel de gestion des commandes, serveur de fichiers, outil qui répartit les jobs.</td></tr>
+      <tr><td>EAN, PLV</td><td>Code-barres à 13 chiffres ; matériel publicitaire de magasin.</td></tr>
+    </table>
+  </div>
+</section>
+
+<h2>1. Objet et périmètre</h2>
+<p>decoGestion transforme une commande de panneaux décoratifs en fichiers prêts à produire : le PDF pour l'imprimante, une image de contrôle, les étiquettes et, si besoin, les fichiers de découpe. Elle garde aussi une trace de chaque commande traitée.</p>
+<p>L'application sert quatre clients : <b>LM</b> (Leroy Merlin), <b>CASTO</b> (Castorama), <b>BRICO</b> (Bricomarché) et <b>ECOM</b> (e-commerce et revendeurs).</p>
+<table>
+  <tr><th style="width:50%">decoGestion fait</th><th>decoGestion-API fait (application séparée)</th></tr>
+  <tr><td>Lire une commande dans Gamesys et pré-remplir le formulaire<br>Contrôler la commande avant production<br>Produire PDF, JPG, étiquettes, découpe<br>Gérer le stock pris ou ajouté par un job</td>
+      <td>Créer les commandes « A lancer » depuis Gamesys<br>Importer les annulations, prix, dates et consommations<br>Suivre l'avancement : impression, vernis, découpe, expédition<br>Afficher le tableau de suivi des commandes</td></tr>
+</table>
+
+<h2>2. Vue d'ensemble</h2>
+<figure>
+<svg viewBox="0 0 720 245" role="img" aria-label="Schéma des échanges entre decoGestion et les autres systèmes">
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#5b6876"/></marker></defs>
+  <rect class="box2" x="10" y="15" width="150" height="58" rx="4"/><text class="t" x="85" y="38" text-anchor="middle">Gamesys (ERP)</text><text class="s" x="85" y="56" text-anchor="middle">commandes, prix, livraison</text>
+  <rect class="box2" x="10" y="165" width="150" height="62" rx="4"/><text class="t" x="85" y="188" text-anchor="middle">NAS</text><text class="s" x="85" y="205" text-anchor="middle">PDF sources, aperçus JPG</text>
+  <rect class="box" x="255" y="75" width="190" height="96" rx="4"/><text class="t" x="350" y="105" text-anchor="middle">decoGestion</text><text class="s" x="350" y="124" text-anchor="middle">poste d'impression</text><text class="s" x="350" y="140" text-anchor="middle">formulaire, contrôles, file de jobs</text><text class="s" x="350" y="156" text-anchor="middle">Redis répartit le travail</text>
+  <rect class="box2" x="555" y="15" width="155" height="58" rx="4"/><text class="t" x="632" y="38" text-anchor="middle">Tauro (RIP)</text><text class="s" x="632" y="56" text-anchor="middle">impression depuis le hot folder</text>
+  <rect class="box2" x="555" y="94" width="155" height="58" rx="4"/><text class="t" x="632" y="117" text-anchor="middle">Dossier du jour</text><text class="s" x="632" y="135" text-anchor="middle">JPG, étiquettes, découpe</text>
+  <rect class="box2" x="555" y="173" width="155" height="58" rx="4"/><text class="t" x="632" y="196" text-anchor="middle">MongoDB</text><text class="s" x="632" y="214" text-anchor="middle">historique, références, stock</text>
+  <rect class="box2" x="255" y="199" width="190" height="36" rx="4"/><text class="t" x="350" y="222" text-anchor="middle">decoGestion-API (suivi)</text>
+  <path class="a" d="M160 52 L253 100"/><text class="s" x="212" y="70">lecture seule</text>
+  <path class="a" d="M160 188 L253 148"/>
+  <path class="a" d="M445 100 L553 48"/><text class="s" x="478" y="60">PDF</text>
+  <path class="a" d="M445 123 L553 123"/>
+  <path class="a" d="M445 146 L553 196"/>
+  <path class="a" d="M553 214 L447 217" marker-start="url(#ar)"/>
+  <path class="a" d="M160 64 H190 V217 H253" stroke-dasharray="4 3"/><text class="s" x="195" y="205">synchro</text>
+</svg>
+<figcaption>Gamesys est seulement lu. MongoDB est partagé entre decoGestion et decoGestion-API.</figcaption>
+</figure>
+<table>
+  <tr><th style="width:24%">Environnement</th><th style="width:22%">Base MongoDB</th><th style="width:14%">Port</th><th>Sortie PDF</th></tr>
+  <tr><td>Développement</td><td>Test</td><td>8000</td><td>Dossier local, rien ne part à l'impression</td></tr>
+  <tr><td>Production (poste d'impression)</td><td>DecoKin</td><td>9000</td><td>Hot folder Tauro</td></tr>
+</table>
+
+<h2>3. Ce qu'il faut pour fonctionner</h2>
+<h3>Sur le poste</h3>
+<ul>
+  <li>Node.js 20 ou plus, Docker Desktop pour Redis, GraphicsMagick et Ghostscript pour les aperçus.</li>
+  <li>Le pilote ODBC PostgreSQL et sa connexion <code>PostgreSQL35W</code> vers Gamesys.</li>
+  <li>L'accès au NAS, au hot folder <code>\\192.168.1.72\HotFolderRoot</code> et à MongoDB Atlas.</li>
+</ul>
+<h3>Réglages</h3>
+<table>
+  <tr><th style="width:27%">Fichier</th><th>Contenu</th></tr>
+  <tr><td><code>.env</code> et <code>client/.env</code></td><td>Port, accès MongoDB, Gamesys, Redis, clé Google Maps. Jamais dans git.</td></tr>
+  <tr><td><code>config.json</code></td><td>Dossiers réseau LM, CASTO, BRICO, ECOM, aperçus et Tauro, finitions, format de page des JPG, nombre de jobs en parallèle. Modifiable depuis la fenêtre Config.</td></tr>
+  <tr><td><code>server/formatsTauro.conf</code></td><td>Plaques proposées : 101x215, 126x260, 150x305, 151x260. Une plaque absente de cette liste peut bloquer une commande.</td></tr>
+</table>
+<h3>Fichiers sources</h3>
+<table>
+  <tr><th style="width:27%">Élément</th><th>Attendu</th></tr>
+  <tr><td>PDF des visuels</td><td>Un dossier par client, puis un sous-dossier par format dont le nom contient le format (<code>1_255x60</code>, <code>2_300x60</code>). L'extension doit être <code>.pdf</code> en minuscules, sinon le fichier n'apparaît pas.</td></tr>
+  <tr><td>Aperçus JPG</td><td>Dossier d'aperçus, un JPG par visuel, avec la référence dans le nom. Au démarrage, l'application crée les aperçus manquants à partir des PDF.</td></tr>
+  <tr><td>Modèles d'étiquettes</td><td><code>notice_deco.pdf</code> (LM, ECOM), <code>notice_casto.pdf</code>, <code>notice_brico.pdf</code> dans <code>server/public/images</code>. Les modèles CASTO et BRICO ne sont pas dans git : les copier à la main.</td></tr>
+  <tr><td>Référentiels</td><td>Chaque visuel doit être référencé, avec le bon format, dans MongoDB (écran Références).</td></tr>
+</table>
+<div class="note">Sans Gamesys, l'application reste utilisable en saisie manuelle. Prix, dates et informations commande restent alors vides. Sans Redis, aucun job n'est traité.</div>
+
+<h2>4. Règles par client</h2>
+<table>
+  <tr><th style="width:21%"></th><th>LM</th><th>CASTO</th><th>BRICO</th><th>ECOM</th></tr>
+  <tr><td><b>Code client Gamesys</b></td><td>commence par LM</td><td>commence par CAS</td><td>commence par BM</td><td>commence par ECOM</td></tr>
+  <tr><td><b>Référence dans le nom du fichier</b></td><td>8 chiffres<br>94953676</td><td>13 chiffres (EAN)<br>3664711694254</td><td>lettres, tiret, chiffres<br>VELTIS-25560</td><td>lettres, tiret, chiffres<br>HOKUSAID-100210</td></tr>
+  <tr><td><b>Nom du décor</b></td><td>avant le format</td><td>après le format</td><td>avant le format</td><td>avant le format</td></tr>
+  <tr><td><b>Modèle d'étiquette</b></td><td>déco</td><td>Casto</td><td>Brico</td><td>déco</td></tr>
+  <tr><td><b>Fichiers de découpe</b></td><td>oui, sur option</td><td>non</td><td>non</td><td>oui, sur option</td></tr>
+  <tr><td><b>Crédences</b></td><td>pas de règle d'amalgame imposée</td><td>300x60 et 255x60, règles section 6</td><td>255x60, règles section 6</td><td>pas de règle d'amalgame imposée</td></tr>
+  <tr><td><b>Particularité</b></td><td>Les comptes magasin du type LM047M sont ignorés (PLV, pas de déco)</td><td>Référence parfois lue dans le code-barres Gamesys</td><td></td><td>Une référence marquée « blanc » active la prod blanc automatiquement</td></tr>
+</table>
+<p><b>Autres comptes.</b> Les revendeurs sans préfixe connu (PRO…, comptes courts) sont rattachés à ECOM si toute la commande appartient au catalogue déco. Les comptes de test et internes (TEST, FORTDEMO, PRODFINI, VRAI, DECOKIN) sont exclus.</p>
+<p><b>Recherche d'une référence.</b> L'application cherche d'abord chez le client de la commande, puis chez les autres. Une référence trouvée chez un autre client déclenche un avertissement, sans bloquer.</p>
+
+<h2>5. Nommer les fichiers sources</h2>
+<p>Le nom du fichier porte les informations de production. Une erreur de nom bloque la commande ou fausse les étiquettes.</p>
+<p class="small">Exemples :</p>
+<div class="eg">LM : BETON TEINTE ACIER 125x210+BLANC 94953676 MAT.pdf<br>CASTO : CRED 300x60cm MOSAIQUE 3664711694254 MAT.pdf<br>BRICO : VELTIS BRILLANT 255x60 VELTIS-25560.pdf<br>ECOM : HOKUSAI DROIT 100x210 HOKUSAID-100210 MAT.pdf</div>
+<table class="keep">
+  <tr><th style="width:21%">Élément du nom</th><th>Règle</th><th style="width:36%">Effet</th></tr>
+  <tr><td>Référence</td><td>Obligatoire, au format du client (section 4)</td><td>Identifie le visuel, son aperçu et son stock</td></tr>
+  <tr><td>Format</td><td>Largeur x hauteur en cm, identique au référentiel</td><td>Une différence bloque la commande</td></tr>
+  <tr><td>MAT ou BRILLANT</td><td>Dans le nom</td><td>Trie les étiquettes, interdit le mélange en amalgame</td></tr>
+  <tr><td>+ BLANC</td><td>Signale un visuel avec blanc</td><td>Coche la prod blanc et change le dossier de sortie</td></tr>
+  <tr><td>GAUCHE, DROIT, CENTRE</td><td>Panneaux qui se suivent</td><td>Affiché sur l'étiquette, distingue les prix</td></tr>
+</table>
+
+<h2>6. Cas particuliers</h2>
+<h3>Crédences BRICO et CASTO</h3>
+<p>Une plaque porte toujours deux crédences. Le comportement dépend de la quantité commandée :</p>
+<table>
+  <tr><th style="width:27%">Commande</th><th>Ce qui est imprimé</th><th style="width:30%">Historique et stock</th></tr>
+  <tr><td>1 ex, avec un 2e visuel différent</td><td>Les 2 visuels côte à côte. L'application associe seule les crédences d'un même dossier, de même finition.</td><td>Une ligne par visuel</td></tr>
+  <tr><td>1 ex, même visuel ou « +1 stock »</td><td>Le visuel 2 fois</td><td>Le 2e panneau entre en stock, étiquette « STOCK »</td></tr>
+  <tr><td>1 ex, sans 2e visuel</td><td colspan="2">Refusé : il faut associer un 2e panneau</td></tr>
+  <tr><td>2 ex</td><td>Le visuel 2 fois sur 1 plaque</td><td>Une seule ligne, 2 panneaux</td></tr>
+  <tr><td>3 ex</td><td>2 plaques, soit 4 panneaux</td><td>3 panneaux livrés, 1 entre en stock</td></tr>
+</table>
+<ul>
+  <li><b>Finition</b> : un panneau MAT et un panneau BRILLANT ne peuvent pas partager une plaque.</li>
+  <li><b>Plaque</b> : elle doit contenir les deux panneaux côte à côte. Un 255x60 avec un 300x60 demande 120x300, donc une plaque 150x305. L'application l'agrandit à l'association et refuse une plaque trop petite.</li>
+  <li><b>Placement</b> : le plus grand panneau à gauche, les noms imprimés sur le bord de plaque.</li>
+</ul>
+<h3>Sur-mesure (SM)</h3>
+<p>Gamesys signale le sur-mesure par la sous-famille d'article SMES ou par un libellé comme « Panneau déco sur-mesure 100x210 Finition Lisse » ou « Format fini : 100.0 x 255.0 cm ». Le texte libre de la commande donne le reste :</p>
+<div class="eg">ARCHE BEIGE CENTRE 86.9 X 201.5 MAT → décor ARCHE BEIGE, orientation CENTRE, cote client 86,9 × 201,5 cm, vernis MAT</div>
+<ul>
+  <li>Le <b>format</b> retenu est le format fini du panneau (125x210), pas la cote client.</li>
+  <li>La <b>cote client</b> est conservée en commentaire : « Cote client : 86,9 × 201,5 cm ». Elle ne pilote ni la plaque ni la découpe.</li>
+  <li>Si le nom est une teinte masse, la ligne suit la règle teinte masse. Sinon, l'opérateur choisit le fichier, qui doit contenir une référence connue.</li>
+  <li>Le badge « SUR-MESURE » et un filtre permettent de repérer ces lignes.</li>
+</ul>
+<h3>Teinte masse</h3>
+<p>Huit modèles : NOIR ZERO, BLANC ZERO, GRANIT 3, ALU BROSSE, BRONZE BROSSE, CUIVRE BROSSE, NOIR BROSSE, OR BROSSE. Rien n'est imprimé : pas de fichier source, pas de PDF, seulement une image JPG et les étiquettes. Le nom du JPG porte le format du panneau et non celui de la plaque.</p>
+<h3>Autres cas</h3>
+<table class="keep">
+  <tr><th style="width:21%">Cas</th><th>Règle</th></tr>
+  <tr><td>Prod blanc</td><td>Le PDF va dans le dossier « Prod avec BLANC » au lieu du dossier de la plaque.</td></tr>
+  <tr><td>Prise en stock</td><td>Si la référence est en stock, l'opérateur peut l'utiliser. Rien n'est imprimé, le JPG porte « EN STOCK » et le stock diminue. Si le stock couvre une partie de la commande, le job est coupé en deux : une part stock, une part à produire. Un stock à zéro disparaît de la liste.</td></tr>
+  <tr><td>Profils et kits</td><td>Reconnus par leur libellé et enregistrés une fois par commande. Une commande sans panneau passe à « pk à coliser » sans aucune impression.</td></tr>
+  <tr><td>Même visuel ajouté 2 fois</td><td>Les quantités s'additionnent dans le job existant.</td></tr>
+  <tr><td>Relance, SAV, réimpression</td><td>Un panneau relancé avant sa mise en production met à jour la ligne existante. Après la mise en production, ou si le mot SAV figure dans le magasin ou le décor, une nouvelle ligne est créée.</td></tr>
+</table>
+
+<h2>7. Traitement d'une commande</h2>
+<figure>
+<svg viewBox="0 0 720 118" role="img" aria-label="Les six étapes du traitement d'une commande">
+  <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#5b6876"/></marker></defs>
+  <g>
+    <rect class="box" x="4" y="14" width="104" height="88" rx="4"/><text class="t" x="56" y="36" text-anchor="middle">1. Recherche</text><text class="s" x="56" y="55" text-anchor="middle">N° de dossier</text><text class="s" x="56" y="70" text-anchor="middle">lu dans Gamesys</text>
+    <rect class="box" x="124" y="14" width="104" height="88" rx="4"/><text class="t" x="176" y="36" text-anchor="middle">2. Pré-remplissage</text><text class="s" x="176" y="55" text-anchor="middle">fichier, plaque,</text><text class="s" x="176" y="70" text-anchor="middle">crédences associées</text>
+    <rect class="box" x="244" y="14" width="104" height="88" rx="4"/><text class="t" x="296" y="36" text-anchor="middle">3. Contrôles</text><text class="s" x="296" y="55" text-anchor="middle">refus ou ajout</text><text class="s" x="296" y="70" text-anchor="middle">à la file d'attente</text>
+    <rect class="box" x="364" y="14" width="104" height="88" rx="4"/><text class="t" x="416" y="36" text-anchor="middle">4. Lancement</text><text class="s" x="416" y="55" text-anchor="middle">3 jobs en parallèle</text><text class="s" x="416" y="70" text-anchor="middle">par défaut</text>
+    <rect class="box" x="484" y="14" width="104" height="88" rx="4"/><text class="t" x="536" y="36" text-anchor="middle">5. Production</text><text class="s" x="536" y="55" text-anchor="middle">PDF, JPG, contrôle,</text><text class="s" x="536" y="70" text-anchor="middle">dépôt, historique</text>
+    <rect class="box" x="604" y="14" width="112" height="88" rx="4"/><text class="t" x="660" y="36" text-anchor="middle">6. Étiquettes</text><text class="s" x="660" y="55" text-anchor="middle">une fois tous</text><text class="s" x="660" y="70" text-anchor="middle">les jobs terminés</text>
+  </g>
+  <path d="M108 58H122M228 58H242M348 58H362M468 58H482M588 58H602" stroke="#5b6876" stroke-width="1.2" fill="none"/>
+</svg>
+</figure>
+<h3>Étape 2 : état de chaque ligne</h3>
+<p>Le fichier est choisi uniquement sur la référence Gamesys, jamais sur le libellé. Chaque ligne affiche : <b>Prêt</b>, <b>Choix requis</b> (plusieurs fichiers possibles), <b>Aucune référence trouvée</b> (choix manuel), <b>Aucun fichier local trouvé</b> ou <b>Format Tauro requis</b>. Si le format Gamesys n'existe pas en plaque, la plus petite plaque qui le contient est proposée.</p>
+<h3>Étape 3 : motifs de refus</h3>
+<table>
+  <tr><th style="width:50%">La commande est refusée si…</th><th>Que faire</th></tr>
+  <tr><td>Client, visuel, format ou plaque manque</td><td>Compléter le formulaire</td></tr>
+  <tr><td>La quantité est inférieure à 1</td><td>Corriger la quantité</td></tr>
+  <tr><td>Le fichier n'est plus sur le disque</td><td>Vérifier le NAS et le dossier</td></tr>
+  <tr><td>Aucune référence dans le nom, ou format de référence incorrect</td><td>Renommer le fichier (section 5)</td></tr>
+  <tr><td>La référence n'existe dans aucun référentiel</td><td>L'ajouter dans l'écran Références</td></tr>
+  <tr><td>Le format choisi diffère de celui du référentiel</td><td>Corriger le format ou le référentiel</td></tr>
+  <tr><td>Règle crédence non respectée</td><td>Voir section 6</td></tr>
+</table>
+<h3>Étapes 4 et 5 : production</h3>
+<ul>
+  <li>L'opérateur lance toute la file ou une sélection, peut changer l'ordre, mettre en pause et annuler ce qui n'a pas démarré. Le nombre de jobs en parallèle se règle de 1 à 8.</li>
+  <li>Le PDF est préparé dans un dossier temporaire. Il n'est déposé dans le hot folder qu'une fois PDF et JPG contrôlés : un job incomplet ne part pas à l'impression.</li>
+  <li>En cas d'échec, le job est retenté jusqu'à 3 fois. S'il échoue encore, il reste dans la file pour être relancé.</li>
+  <li>Si seul l'enregistrement de l'historique échoue, le job reste terminé et un avertissement s'affiche.</li>
+</ul>
+<div class="note">La file d'attente est gardée en mémoire : un redémarrage du serveur la vide. Il faut alors ajouter les commandes à nouveau.</div>
+<h3>Statuts d'une commande</h3>
+<table class="keep">
+  <tr><th style="width:22%">Statut</th><th style="width:30%">Posé par</th><th>Signification</th></tr>
+  <tr><td>A lancer</td><td>decoGestion-API</td><td>Reçue de Gamesys, pas encore traitée</td></tr>
+  <tr><td>A imprimer</td><td>decoGestion</td><td>Fichiers produits</td></tr>
+  <tr><td>ref_invalide</td><td>decoGestion</td><td>Job traité sans référence, à contrôler</td></tr>
+  <tr><td>pk à coliser</td><td>decoGestion</td><td>Commande de profils ou kits seuls</td></tr>
+  <tr><td>A vernir, A découper, A expédier, Expédié</td><td>decoGestion-API (atelier)</td><td>Avancement en production</td></tr>
+  <tr><td>Annulé</td><td>decoGestion-API</td><td>Annulation constatée dans Gamesys ou saisie</td></tr>
+</table>
+
+<h2>8. Ce que l'application produit</h2>
+<table>
+  <tr><th style="width:14%">Sortie</th><th style="width:27%">Quand</th><th style="width:30%">Où</th><th>Contenu</th></tr>
+  <tr><td><b>PDF</b></td><td>Tout job imprimé. Jamais pour teinte masse ou prise en stock.</td><td>Hot folder : <code>Deco_Std_&lt;plaque&gt;</code> ou <code>Prod avec BLANC</code></td><td>Page au format de plaque, nom du fichier imprimé, repères sur option</td></tr>
+  <tr><td><b>JPG</b></td><td>Tous les jobs</td><td>Dossier du jour : <code>PRINTSA#5 NOV 2026</code></td><td>Page A4 portrait (réglable), nom en en-tête, visuel centré</td></tr>
+  <tr><td><b>Étiquettes</b></td><td>Fin de traitement, ou depuis l'écran étiquettes</td><td>Dossier du jour, sous-dossier <code>Etiquettes</code></td><td>Une étiquette par panneau et une planche A4 de 4 étiquettes</td></tr>
+  <tr><td><b>Découpe</b></td><td>LM et ECOM, sur option</td><td>Dossier du jour, sous-dossier <code>Cut</code></td><td>Fichiers <code>.cut</code>, <code>.dxf</code> et <code>.svg</code></td></tr>
+  <tr><td><b>Export CSV</b></td><td>À la demande</td><td>Téléchargement depuis l'historique</td><td>Historique filtré</td></tr>
+</table>
+<h3>Nom des fichiers produits</h3>
+<div class="eg">Exemple :  167648 - LM CHOLET - 126x260 - JASPE GAUCHE 100x210 94953676 MAT 2_EX.pdf<br>Crédences : nom du panneau 1 + nom du panneau 2, sans « CRED », « cm », EAN ni format de plaque</div>
+<h3>Origine du JPG</h3>
+<ul>
+  <li><b>Visuel standard</b> : copie de l'aperçu, tournée en portrait. Sans aperçu, il est calculé depuis le PDF.</li>
+  <li><b>Deux crédences</b> : toujours calculé depuis le PDF de la plaque, car certains aperçus sont mal nommés.</li>
+  <li><b>Teinte masse et stock</b> : tiré de l'aperçu, avec la mention « EN STOCK » pour le stock.</li>
+</ul>
+<h3>Étiquettes</h3>
+<ul>
+  <li><b>Contenu</b> : numéro de commande et numérotation, magasin, décor, orientation, référence, format et miniature.</li>
+  <li><b>Numérotation</b> : par panneau et par commande. Deux panneaux d'une même commande sur une plaque donnent 01/02 et 02/02.</li>
+  <li><b>Stock</b> : un panneau destiné au stock porte « STOCK » et n'entre pas dans le total.</li>
+  <li><b>Planche</b> : une nouvelle page par commande et par vernis. Les plus grands formats passent en premier.</li>
+</ul>
+
+<h2>9. Données MongoDB</h2>
+<p class="small">Bases : <code>DecoKin</code> (production) et <code>Test</code> (développement). Schémas Mongoose dans <code>server/src/models/</code>.</p>
+<table>
+  <tr><th style="width:24%">Collection (modèle)</th><th style="width:27%">Rôle</th><th>Champs principaux</th></tr>
+  <tr><td><code>lm_commandes</code> (Deco)</td><td>Une ligne par panneau traité, tous clients</td><td><code>numCmd</code>, <code>sousDossier</code>, <code>sousDossiers</code>, <code>client</code>, <code>mag</code>, <code>deco</code>, <code>ref</code>, <code>format</code>, <code>finition</code>, <code>dibond</code>, <code>ex</code>, <code>temps</code>, <code>perte</code>, <code>status</code>, <code>statusDates</code>, <code>prix</code>, <code>prixTotal</code>, <code>comment</code>, <code>prodBlanc</code>, <code>pkOnly</code>, <code>gamesysStub</code>, <code>surMesure</code>, <code>surMesureKind</code>, <code>orientation</code>, <code>dateCommande</code>, <code>dateLivraisonSouhaitee</code>, <code>codeClient</code>, <code>refClient</code>, <code>nombreProfil</code>, <code>nombreKitPose</code>, <code>formatPlaqueGamesys</code>, <code>app_version</code>, <code>app_commit</code>, <code>ip</code></td></tr>
+  <tr><td><code>consommations_commandes</code></td><td>Profils et kits, une ligne par commande</td><td><code>numCmd</code> (unique), <code>client</code>, <code>mag</code>, <code>dateCommande</code>, <code>dateDepartUsine</code>, <code>dateLivraisonSouhaitee</code>, <code>codeClient</code>, <code>refClient</code>, <code>articles[]</code> (<code>ref</code>, <code>type</code>, <code>libelle</code>, <code>quantite</code>, <code>prix</code>)</td></tr>
+  <tr><td><code>lm_ref_deco</code>, <code>casto_ref_deco</code>, <code>brico_ref_deco</code>, <code>ecom_ref_deco</code></td><td>Référentiels, un par client</td><td><code>ref</code> (unique), <code>model</code>, <code>finition</code>, <code>format</code>, et <code>blanc</code> pour ECOM. Index texte sur <code>model</code> et <code>finition</code>.</td></tr>
+  <tr><td><code>stocks</code></td><td>Panneaux en stock</td><td><code>ref</code>, <code>visuel</code>, <code>format</code>, <code>finition</code>, <code>ex</code>. Le document est supprimé quand <code>ex</code> atteint 0.</td></tr>
+  <tr><td><code>stock_profiles</code></td><td>Stock de profils et kits</td><td><code>ref</code> (unique), <code>modele</code>, <code>libelle</code>, <code>type</code>, <code>codeArticle</code>, <code>famille</code>, <code>sousFamille</code>, <code>stockDisponible</code>, <code>aliases</code></td></tr>
+  <tr><td><code>logs</code></td><td>Journal, purge après 90 jours</td><td><code>ts</code>, <code>level</code>, <code>message</code>, <code>cmd</code>, <code>client</code>, <code>meta</code>, <code>stack</code>, <code>host</code>, <code>env</code>, <code>version</code></td></tr>
+</table>
+<ul>
+  <li><b>Ordre de recherche d'une référence</b> : celui du client, puis les autres. LM : LM, CASTO, BRICO, ECOM. CASTO : CASTO, LM, BRICO, ECOM. BRICO : BRICO, LM, CASTO, ECOM. ECOM : ECOM, LM, CASTO, BRICO.</li>
+  <li><b>Hooks de <code>Deco</code></b> : quand <code>ref</code> change et existe au référentiel, <code>deco</code>, <code>format</code> et <code>finition</code> sont repris du référentiel. Une référence inconnue vide <code>finition</code>.</li>
+  <li><b>Reprise</b> : <code>claimStubOrCreate</code> cherche la commande pré-créée par <code>sousDossier</code>, puis par <code>ref</code>, puis une ligne non lancée, et crée un document en dernier recours.</li>
+  <li><b>Statuts</b> : la source de vérité est <code>statusDates</code>. decoGestion-API recalcule <code>status</code> à chaque enregistrement. Clés d'atelier : <code>print</code>, <code>vernis</code>, <code>decoupe</code>, <code>expe</code>, <code>annule</code>. Tout statut posé ici doit l'être avec sa date.</li>
+</ul>
+
+<h2>10. Données Gamesys</h2>
+<p class="small">Base PostgreSQL <code>printsa</code>, en lecture seule, via ODBC. Les numéros suivent la forme <code>167648/07</code> (dossier/sous-dossier).</p>
+<table>
+  <tr><th style="width:17%">Table</th><th style="width:42%">Champs utilisés</th><th>Sert à</th></tr>
+  <tr><td><code>fd_dossier</code></td><td><code>dos_no_cmde</code>, <code>dos_seq</code>, <code>dos_codeuniq</code>, <code>dos_client</code>, <code>dos_date</code>, <code>dos_forme_et_format</code>, <code>dos_supp_1_ft</code>, <code>dos_imp_1_fac_p_1</code></td><td>Client, date, format fini, plaque en mm (<code>formatPlaqueGamesys</code>, <code>dibond</code>), vernis Mat ou Brillant</td></tr>
+  <tr><td><code>fd_entete_devi</code></td><td><code>endv_no_commande</code>, <code>endv_no_dossier</code>, <code>endv_no_cmde_globale</code>, <code>endv_identif</code>, <code>endv_ref_client</code>, <code>endv_no_modele</code>, <code>endv_code_complet_modele</code>, <code>endv_quant</code>, <code>endv_px_total</code>, <code>endv_cclient</code>, <code>endv_no_commande_client</code>, <code>endv_date_cmde</code>, <code>endv_date_annul</code>, <code>endv_orderline_seq_article</code></td><td>Lignes de commande : libellé, texte libre, quantité (<code>ex</code>), prix, <code>codeClient</code>, <code>refClient</code>, annulation, lien vers l'article</td></tr>
+  <tr><td><code>fs_stock</code></td><td><code>st_seq_compt</code>, <code>st_art_ref_client</code>, <code>st_modele</code>, <code>st_art_gencod</code>, <code>st_lib_1_conso</code>, <code>st_lib_2_conso</code>, <code>st_art_famille</code>, <code>st_art_sfamille</code>, <code>st_code_tarif</code></td><td>Article : référence, EAN, famille, sur-mesure (<code>SMES</code>), finition du gabarit</td></tr>
+  <tr><td><code>ff_livraison</code></td><td><code>bo_no_dossier</code>, <code>bo_devis</code>, <code>bo_date_depart_usine</code>, <code>bo_date_souhaitee</code>, <code>bo_ville</code>, <code>bo_adlivr_nom_1</code></td><td>Dates et <code>mag</code> : ville pour les magasins, destinataire pour ECOM</td></tr>
+  <tr><td><code>fc_references</code></td><td><code>fo_reference</code>, <code>fo_nom_1</code>, <code>fo_ville</code></td><td>Nom et ville du client, en repli de la livraison</td></tr>
+</table>
+<p>Le détail d'un dossier lit aussi, sans règle métier : <code>fd_dossier_ext</code>, <code>fd_dossier_version</code>, <code>fd_dossier_remarques</code>, <code>fd_elem_devis_*</code>, <code>fd_docum_devi</code>, <code>fd_elem_doc_ope</code>, <code>fd_fichier_forme</code>, <code>fd_liste_marges</code>, <code>fdescriptif</code>, <code>fi_sol_signature</code>, <code>fi_sol_imposition</code>, <code>fp_agenda_prod</code>, <code>fp_lien_etat_dossier</code>, <code>fp_opera_suivi</code>, <code>fp_pages</code>.</p>
+<ul>
+  <li><b>Lien article</b> : <code>endv_orderline_seq_article</code> = <code>st_seq_compt</code> en priorité, puis une recherche de repli. <code>endv_seq</code> et <code>dos_seq</code> ne sont pas liés.</li>
+  <li><b>Annulation</b> : <code>endv_date_annul</code> postérieure ou égale à <code>endv_date_cmde</code>. La date <code>1900-01-01</code> signifie « pas d'annulation ».</li>
+  <li><b>Plaque</b> : Gamesys donne des mm (<code>1260 x 2600</code>), l'application stocke des cm (<code>126x260</code>).</li>
+  <li><b>Répartition</b> : depuis le 07/10/2026, la synchro Gamesys vers Mongo tourne dans decoGestion-API, sur SRV-APP, toutes les 15 minutes par défaut. decoGestion ne lit Gamesys que pour le pré-remplissage et l'enregistrement d'un job.</li>
+  <li><b>Limite</b> : les données Gamesys sont peu exploitables avant 2025 (0 % de réussite en 2023-2024, 90 % en 2026, mesuré le 24/08/2026).</li>
+</ul>
+
+<h2>Annexe A. Points à vérifier</h2>
+<p>Écarts constatés à la rédaction, non corrigés. Chacun demande une décision : corriger l'application ou confirmer son comportement.</p>
+<table class="where">
+  <tr><th style="width:4%">N°</th><th style="width:44%">Constat</th><th style="width:29%">Conséquence pratique</th><th style="width:23%">Où</th></tr>
+  <tr><td>1</td><td>Un job teinte masse ou stock sans aperçu se termine sans JPG et sans erreur.</td><td>Job affiché terminé alors que le JPG manque</td><td><code>generateImages.js:15</code></td></tr>
+  <tr><td>2</td><td>Pour ces mêmes jobs, l'aperçu est cherché par simple présence de la référence, sans les protections des autres jobs.</td><td>Mauvaise image possible sur une référence partagée ou <code>00000000</code></td><td><code>generateImages.js:14</code></td></tr>
+  <tr><td>3</td><td>La référence d'une teinte masse est cherchée uniquement dans le référentiel LM, quel que soit le client.</td><td>Référence LM ou statut <code>ref_invalide</code> sur une commande CASTO, BRICO ou ECOM</td><td><code>jobsController.js:395</code></td></tr>
+  <tr><td>4</td><td>Un sur-mesure imprimé exige une référence connue, alors que la spécification du 28/08 le prévoit hors catalogue.</td><td>Blocage si aucun fichier référencé ne correspond</td><td><code>jobsController.js:433</code></td></tr>
+  <tr><td>5</td><td>La finition d'un sur-mesure imprimé est reprise du référentiel. La spécification prévoyait de garder celle de Gamesys.</td><td>Finition différente de la commande possible</td><td><code>models/Deco.js:102</code></td></tr>
+  <tr><td>6</td><td>L'option de tri par vernis crée un dossier, mais aucun fichier n'y est rangé.</td><td>Dossiers vides, tri inactif</td><td><code>jobsController.js:659</code></td></tr>
+  <tr><td>7</td><td>Les repères sont toujours posés sur les crédences, même option décochée.</td><td>Option sans effet sur ces plaques</td><td><code>jobsController.js:693</code></td></tr>
+  <tr><td>8</td><td>Tout format crédence passe par l'amalgame, quel que soit le client, alors que les contrôles ne visent que BRICO et CASTO.</td><td>Comportement à confirmer pour LM et ECOM</td><td><code>jobsController.js:601</code></td></tr>
+  <tr><td>9</td><td>La case « Générer découpe » n'est visible que pour LM, alors que le serveur accepte aussi ECOM.</td><td>Découpe ECOM difficile à demander</td><td><code>App.jsx:2199</code></td></tr>
+  <tr><td>10</td><td>La plaque 125x260 de Gamesys n'existe pas dans la liste des plaques. Un repli propose la plus petite plaque qui convient.</td><td>Vérifier que la production dispose bien du repli</td><td><code>formatsTauro.conf</code></td></tr>
+  <tr><td>11</td><td>Les modèles <code>notice_casto.pdf</code> et <code>notice_brico.pdf</code> ne sont pas dans git, et la règle <code>*.pdf</code> exclut aussi ce document.</td><td>Installation incomplète sans copie manuelle</td><td><code>.gitignore:45</code></td></tr>
+  <tr><td>12</td><td><code>docs/SCHEMA_DONNEES.md</code> n'est plus à jour, et les variables <code>LINK_DECO*</code> de <code>.env.example</code> ne sont lues nulle part.</td><td>Documentation trompeuse</td><td><code>docs/</code>, <code>.env.example</code></td></tr>
+</table>
+
+<h2>Annexe B. Repères techniques</h2>
+<table class="keep">
+  <tr><th style="width:32%">Règle</th><th>Détail</th></tr>
+  <tr><td>Référence LM, CASTO</td><td><code>(?&lt;!\d)\d{8}(?!\d)</code>, <code>(?&lt;!\d)\d{13}(?!\d)</code></td></tr>
+  <tr><td>Référence BRICO, ECOM</td><td>Extraction <code>[A-Z]+\d*-\d+</code>, validation <code>^[A-Z]+\d*-\d{4,}$</code></td></tr>
+  <tr><td>Crédence</td><td><code>addJob</code> : <code>\d{3}x\d{2}(?!\d)</code>. <code>processJob</code> : <code>^\d{3}x\d{2}$</code></td></tr>
+  <tr><td>Prod blanc</td><td><code>\+\s*blanc\b</code> (insensible à la casse)</td></tr>
+  <tr><td>File BullMQ <code>deco-jobs</code></td><td>Concurrence 3 (de 1 à 8), 3 tentatives, délai exponentiel de 5 s, verrou de 15 min, attente maximale de 2 h</td></tr>
+  <tr><td>Fichiers clés</td><td><code>jobsController.js</code> (<code>addJob</code>, <code>processJob</code>, <code>runJobs</code>), <code>app.js</code>, <code>amalgameCredences.js</code>, <code>generateStickers.js</code>, <code>composeJpgPage.js</code>, <code>gamesys/services/dossierService.js</code>, <code>gamesys/utils/surMesure.js</code>, <code>services/decoStubService.js</code></td></tr>
+  <tr><td>Tests de référence</td><td><code>test/integration/credences.test.js</code>, <code>test/unit/surMesure.test.js</code>, <code>test/unit/credencePlaque.test.js</code></td></tr>
+  <tr><td>Régénérer ce PDF</td><td>Voir la section « Cahier des charges » de <code>CLAUDE.md</code></td></tr>
+</table>
+</body>
+</html>

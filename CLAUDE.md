@@ -105,7 +105,7 @@ Les crédences sont des panneaux de format `300x60` (CASTO) ou `255x60` (BRICO),
 
 `visuPath2`, `visuel2` (nom nettoyé) et `format2` sont initialisées **avant** le bloc crédences → elles sont déclarées `let` et réassignées dans le bloc de duplication. Ne pas les déclarer `const`.
 
-### Extraction du nom `deco` dans `runJobs`
+### Extraction du nom `deco` dans `processJob`
 
 - **CASTO** : partie du nom du fichier **après** le format (ex : `"CRED 300x60cm MOSAIQUE 3664711694254 MAT.pdf"` → `"MOSAIQUE"`).
 - **BRICO** : partie **avant** le format (ex : `"VELTIS BRILLANT 255x60 VELTIS-25560"` → `"VELTIS BRILLANT"`).
@@ -121,3 +121,29 @@ Cette logique s'applique à `deco` ET `deco2` (le 2e panneau). `deco2` utilise `
 
 - `test/integration/credences.test.js` — couvre toutes les combinaisons : rejet 400, amalgame 2 visuels différents (CASTO + BRICO), duplication automatique `ex=2`.
 - Endpoint `GET /history?limit=N` disponible pour vérifier les entrées MongoDB après `run_jobs`.
+
+## Règles métier — Sur-mesure et teinte masse
+
+- **Sur-mesure** : article Gamesys `st_art_sfamille = 'SMES'`, ou libellé `isSurMesureLabel` (`server/src/gamesys/utils/surMesure.js`). `format` = format fini du gabarit ; la cote client va dans `comment` via `buildCoteClientComment` et ne pilote ni la plaque ni la découpe.
+- **Teinte masse** : 8 modèles. Liste serveur `TEINTE_MASSE_MODELS` (`gamesys/utils/reference.js`), à garder alignée avec `TeinteMasseDropdown.jsx` et `TEINTE_MASSE_OPTIONS` (`DossierAutocomplete.jsx`). Ni fichier source ni PDF : JPG et étiquettes seulement.
+
+## Règles de sortie
+
+- **PDF** : produit dans un dossier temporaire et déposé en dernier dans le hot folder (`deliverToHotFolder`), après contrôle du PDF et du JPG. Le RIP consomme le fichier à l'arrivée : ne jamais le relire ni le vérifier sur place.
+- **Étiquettes** : une par panneau, numérotées par commande (`planEtiquettes`) ; les panneaux stock sont hors total.
+- **Découpe** (`.cut`, `.dxf`, `.svg`) : LM et ECOM uniquement.
+
+## Frontière avec decoGestion-API
+
+La synchro Gamesys → Mongo (stubs « A lancer », annulations, compléments) et les statuts d'atelier sont dans `../decoGestion-API`. decoGestion lit Gamesys seulement pour le pré-remplissage et l'enregistrement d'un job. Tout statut posé ici l'est avec sa date dans `statusDates`, sinon il est recalculé là-bas. Les utilitaires `reference`, `surMesure`, `clientCatalogue` et `coteClient` y sont copiés : garder les deux versions alignées.
+
+## Cahier des charges
+
+`docs/cahier-des-charges/cahier-des-charges.html` est la source du PDF de référence. Tout changement de règle métier, de sortie, de schéma Mongo ou de lecture Gamesys le met à jour, puis régénère le PDF (`*.pdf` est ignoré par git) :
+
+```bash
+cd docs/cahier-des-charges
+"/c/Program Files/Google/Chrome/Application/chrome.exe" --headless=new --disable-gpu --no-pdf-header-footer --print-to-pdf="$(pwd -W)/Cahier-des-charges-decoGestion.pdf" "file:///$(pwd -W)/cahier-des-charges.html"
+```
+
+Rédiger en termes simples, pour des lecteurs non développeurs : effet pour l'utilisateur d'abord, exemples de noms de fichiers plutôt que regex. Le détail technique reste dans les sections 9 et 10 et les annexes.
