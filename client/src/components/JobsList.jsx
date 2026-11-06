@@ -417,7 +417,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
         ...baseEntry,
         visuel: value.visuel,
         jpgName: value.jpgName,
-        format_visu: value.format_visu,
+        format_visu: value.smFormat || value.format_visu,
         ref: value.ref,
       },
     ];

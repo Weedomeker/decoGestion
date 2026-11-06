@@ -6,6 +6,7 @@ import { API_BASE } from "../utils/api";
 import { isDefinitelyWrongClient } from "../utils/referenceValidation";
 import { formatPrix } from "../utils/prix";
 import { findFormatTauro } from "../utils/formatTauro";
+import { estSurMesureVisuel, lignesVersPanneaux, remplacerLignes, requeteLignes } from "../utils/surMesure";
 
 const CLIENTS = ["LM", "CASTO", "ECOM", "BRICO"];
 const CLIENT_ALIASES = {
@@ -209,6 +210,26 @@ function buildRows(payload, pathData, formatTauro) {
   });
 }
 
+// Une ligne par panneau du PDF des créa. Sans réponse du serveur, les lignes restent à traiter à la main.
+async function appliquerSurMesure(rows, numero, warnings) {
+  const lignes = rows.filter(estSurMesureVisuel);
+  if (lignes.length === 0) return rows;
+  try {
+    const response = await fetch(`${API_BASE}/sur-mesure/panneaux`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ numero, lignes: requeteLignes(lignes) }),
+    });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error || `Erreur ${response.status}`);
+    if (!body.pdf) warnings.push(`${numero} : aucun PDF sur-mesure trouvé dans le dossier des créa.`);
+    return remplacerLignes(rows, estSurMesureVisuel, lignesVersPanneaux(lignes, body));
+  } catch (error) {
+    warnings.push(`${numero} : sur-mesure non lu (${error.message}).`);
+    return remplacerLignes(rows, estSurMesureVisuel, lignesVersPanneaux(lignes, { pdf: null }));
+  }
+}
+
 function parseNumbers(value) {
   const tokens = value
     .split(/[\s,;\n]+/)
@@ -380,7 +401,9 @@ function DossierAutocomplete({ pathData, formatTauro, onAutoFill, gamesysOk, con
       }
 
       const clientKey = findKnownClient(body.client) || "";
-      const rows = buildRows(body, pathData, formatTauro);
+      setIsLoading(true);
+      const rows = await appliquerSurMesure(buildRows(body, pathData, formatTauro), numero, warnings);
+      setIsLoading(false);
       const pkRows = buildProfilsKitsRows(body, clientKey);
       // On garde toute ligne dont le dossier de format a été résolu (ou teinte masse),
       // même sans fichier présélectionné, pour permettre un choix manuel dans le tableau

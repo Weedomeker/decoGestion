@@ -73,6 +73,10 @@ function createJob(
     surMesureKind: surMesureData?.surMesureKind || undefined,
     orientation: surMesureData?.orientation || undefined,
     printFormat: surMesureData?.printFormat || undefined,
+    smPage: surMesureData?.smPage,
+    smNom: surMesureData?.smNom || undefined,
+    smBase: surMesureData?.smBase || undefined,
+    smFormat: surMesureData?.smFormat || undefined,
   };
 
   return newJob;

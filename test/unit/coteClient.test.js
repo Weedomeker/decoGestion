@@ -5,6 +5,9 @@ describe("coteClient.buildCoteClientComment()", () => {
   it("compose la cote client (décimale FR)", () => {
     expect(buildCoteClientComment("86.9x201.5", "")).to.equal("Cote client : 86,9 × 201,5 cm");
   });
+  it("accepte un autre libellé, pour la taille réelle d'un PDF sur-mesure", () => {
+    expect(buildCoteClientComment("80x210", "", "Cote PDF")).to.equal("Cote PDF : 80 × 210 cm");
+  });
   it("entiers", () => {
     expect(buildCoteClientComment("90x210", "")).to.equal("Cote client : 90 × 210 cm");
   });

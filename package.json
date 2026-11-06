@@ -47,6 +47,7 @@
     "pdf2pic": "^3.1.4",
     "pdftopic": "^0.2.0",
     "piscina": "^5.2.0",
+    "qrcode": "^1.5.4",
     "serve-index": "^1.9.1",
     "winston": "^3.18.3",
     "winston-daily-rotate-file": "^5.0.0",

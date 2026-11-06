@@ -30,10 +30,16 @@ const { castoName } = require("../utils/jobNames");
 const { buildCoteClientComment } = require("../utils/coteClient");
 const { plaqueTropPetite } = require("../utils/credencePlaque");
 const { extractRefFromFilename, validateRefFormat, REF_FORMAT_HINT } = require("../services/referencesCheckService");
-const { setConcurrency } = require("../services/queueService");
+const { setConcurrency, getConcurrency } = require("../services/queueService");
+const { controlerEspaceDisque, basculerSortieSecours } = require("../utils/espaceDisque");
 const queueControl = require("../services/queueControlService");
 const { saveJobsConcurrency, getConfig } = require("../services/configService");
 const { composeJpgPage } = require("../composeJpgPage");
+const { imposerPanneau } = require("../surMesure/impositionPool");
+const { refusJobSurMesure } = require("../surMesure/controleJob");
+const { plaqueMm } = require("../surMesure/apparierPanneaux");
+const { baseFichierSurMesure, cheminApercuSurMesure, formatReel } = require("../surMesure/nomFichier");
+const { hauteurGabarit } = require("./surMesureController");
 
 // Met le JPG du job au format de page configuré, avec son nom en en-tête.
 // En cas d'échec, le JPG brut reste livré : la mise en page ne doit pas bloquer la production.
@@ -218,6 +224,7 @@ async function addJob(req, res) {
     surMesureKind: req.body.surMesureKind,
     orientation: req.body.orientation,
     printFormat: req.body.printFormat,
+    smPanneau: req.body.smPanneau,
   };
   // Les refus n'apparaissaient que dans le navigateur : un dossier bloqué ne laissait aucune trace côté serveur.
   const reject = (status, body) => {
@@ -255,6 +262,19 @@ async function addJob(req, res) {
   const nbEx = parseInt(data.ex);
   if (!nbEx || nbEx < 1) {
     return reject(400, { error: "Le nombre d'exemplaires doit être un entier positif (≥ 1)." });
+  }
+
+  // Sur-mesure imposé depuis le PDF des créa : un job par panneau, sans référence catalogue.
+  const smPanneau = data.surMesure && data.surMesureKind === "visuel" ? data.smPanneau : null;
+  if (smPanneau) {
+    const refus = refusJobSurMesure({
+      panneau: smPanneau,
+      formatTauro,
+      decoupeSM: state.paths.sortieDecoupeSM,
+      jobs: state.jobs.jobs,
+    });
+    if (refus) return reject(400, refus);
+    data.printFormat = `${smPanneau.largeur / 10}x${smPanneau.hauteur / 10}`;
   }
 
   // Crédences BRICO/CASTO : règle selon le nombre d'exemplaires
@@ -382,6 +402,18 @@ async function addJob(req, res) {
     return reject(500, { error: `Impossible de créer le dossier de sortie : ${err.message}` });
   }
 
+  const smBase = smPanneau
+    ? baseFichierSurMesure({
+        cmd: data.numCmd,
+        client,
+        ville: data.ville,
+        panneau: smPanneau,
+        orientation: data.orientation,
+        jobs: state.jobs.jobs,
+      })
+    : undefined;
+  if (smBase) state.process.fileName = `${smBase} ${data.ex}_EX`;
+
   state.process.jpgName = `${state.paths.jpgPath}/${state.paths.sessionPRINTSA}/${state.process.fileName}`;
   state.process.jpgName2 = `${state.paths.jpgPath}/${state.paths.sessionPRINTSA}/${state.process.fileName2}`;
 
@@ -402,11 +434,15 @@ async function addJob(req, res) {
     }
   }
 
-  const matchRef = data.teinteMasse ? findRefTeinteMasse?.[0]?.ref : extractRefFromFilename(visuel, client);
+  const matchRef = smPanneau
+    ? smPanneau.deco || smPanneau.nom
+    : data.teinteMasse
+      ? findRefTeinteMasse?.[0]?.ref
+      : extractRefFromFilename(visuel, client);
   const matchRef2 = visuel2 ? extractRefFromFilename(visuel2, client2) : null;
 
   // Validation du format de la référence extraite (avant toute requête MongoDB)
-  if (matchRef && !teinteMasse && !validateRefFormat(matchRef, client)) {
+  if (matchRef && !teinteMasse && !smPanneau && !validateRefFormat(matchRef, client)) {
     return reject(400, {
       error: `Format de référence non conforme pour le client ${client} : "${matchRef}" extrait de "${visuel}". Attendu : ${REF_FORMAT_HINT[client] || "format inconnu"}.`,
       code: "REF_FORMAT_INVALID",
@@ -437,7 +473,7 @@ async function addJob(req, res) {
     });
   }
 
-  if (matchRef && RefModelClient) {
+  if (matchRef && RefModelClient && !smPanneau) {
     try {
       const allModels = [RefModelClient, ...otherRefModels.filter((m) => m !== RefModelClient)];
       const { doc, index: resultIndex } = await findFirstRef(allModels, matchRef);
@@ -545,6 +581,10 @@ async function addJob(req, res) {
       surMesureKind: data.surMesureKind || undefined,
       orientation: data.orientation || undefined,
       printFormat: data.printFormat || undefined,
+      smPage: smPanneau?.page,
+      smNom: smPanneau?.nom,
+      smBase,
+      smFormat: smPanneau ? formatReel(smPanneau) : undefined,
     },
   );
   if (complementStock) newJob.complementStock = true;
@@ -556,6 +596,7 @@ async function addJob(req, res) {
       item.ref === newJob.ref &&
       item.visuel === newJob.visuel &&
       item.visuel2 === newJob.visuel2 &&
+      item.smPage === newJob.smPage &&
       !!item.complementStock === !!newJob.complementStock,
   );
 
@@ -607,6 +648,8 @@ async function processJob(job, req) {
   // Crédence dupliquée en nombre impair : le panneau en trop de la dernière plaque part en stock.
   const panneauxEnTrop = isCredences && !isStock && job?.panneaux ? job.ex * 2 - job.panneaux : 0;
 
+  const rendreJpg = (rendu) => usePdfWorker({ ...rendu, tempDir: job.dossierTemporaire });
+
   let pdfTime = 0;
   let jpgTime = 0;
 
@@ -637,9 +680,11 @@ async function processJob(job, req) {
     }
   }
 
-  const fileName = `${job.cmd} - ${job.client} ${job.ville.toUpperCase()} - ${
-    job.teinteMasse ? job.format_visu.split("_").pop() : job.format_Plaque.split("_").pop()
-  } - ${job.visuel.replace(/\.[^/.]+$/, "")} ${job.ex}_EX`;
+  const fileName = job.smBase
+    ? `${job.smBase} ${job.ex}_EX`
+    : `${job.cmd} - ${job.client} ${job.ville.toUpperCase()} - ${
+        job.teinteMasse ? job.format_visu.split("_").pop() : job.format_Plaque.split("_").pop()
+      } - ${job.visuel.replace(/\.[^/.]+$/, "")} ${job.ex}_EX`;
 
   const fileName2 = isCredences
     ? `${job.cmd2 === 0 ? "" : `${job.cmd2  } - `}${job.client} ${job.ville.toUpperCase()} - ${
@@ -680,12 +725,28 @@ async function processJob(job, req) {
       : `${fileName}.pdf`;
     let stagingDir = null;
     let stagedPdfPath = null;
+    let cutSurMesure = null;
+    let zoneSurMesure = null;
 
     try {
-      stagingDir = await createStagingDir();
+      stagingDir = await createStagingDir(job.dossierTemporaire);
       stagedPdfPath = path.join(stagingDir, pdfBaseName);
       const startPdf = performance.now();
-      if (isCredences) {
+      if (job.smNom) {
+        const impose = await imposerPanneau({
+          chemin: job.visuPath,
+          nomFichier: path.parse(job.visuPath).name,
+          page: job.smPage,
+          plaque: plaqueMm(job.format_Plaque),
+          hauteurAttendue: hauteurGabarit(job.format_visu),
+          sortie: stagedPdfPath,
+          libelle: fileName,
+        });
+        if (impose.nom !== job.smNom) throw new Error(`Panneau ${impose.nom} différent du job ${job.smNom}`);
+        cutSurMesure = impose.cut;
+        zoneSurMesure = impose.zone;
+        pdfTime = performance.now() - startPdf;
+      } else if (isCredences) {
         const visuals = [{ file: job.visuPath, name: fileName }];
         if (job.visuPath2) {
           visuals.push({ file: job.visuPath2, name: fileName2 });
@@ -731,25 +792,29 @@ async function processJob(job, req) {
     } else {
       try {
         const startJpg = performance.now();
-        if (job.ref) {
+        if (job.smNom) {
+          // Jamais l'aperçu catalogue : il montrerait le décor pleine largeur, pas le panneau coupé.
+          // La plaque est en paysage, haut du panneau à gauche : un quart de tour le remet debout.
+          await rendreJpg({ pdf: stagedPdfPath, jpg: outJpgPath, rotate: 90 });
+        } else if (job.ref) {
           if (isCredences && job.visuPath2) {
             // Rendu depuis le PDF amalgamé plutôt que depuis les aperçus des panneaux : certains
             // aperçus sont mal nommés (ex. "MARBRE BLANC CARRÉ 3664714023259" pour le marbre uni).
             // Le PDF de plaque est en paysage (/Rotate 90) ; le JPG crédence reste en portrait, dans
             // le même sens que les aperçus.
-            await usePdfWorker({ pdf: stagedPdfPath, jpg: outJpgPath, rotate: -90 });
+            await rendreJpg({ pdf: stagedPdfPath, jpg: outJpgPath, rotate: -90 });
           } else {
             const previewFound = await getPreview(job.ref, jpgName, isStock, job.visuel);
             if (!previewFound) {
               log.warn(`Aucun aperçu pour la ref ${job.ref}, JPG rendu depuis le PDF`);
-              await usePdfWorker({ pdf: stagedPdfPath, jpg: outJpgPath });
+              await rendreJpg({ pdf: stagedPdfPath, jpg: outJpgPath });
             }
           }
         } else {
           const visuelNoExt = job.visuel?.replace(/\.[^.]+$/, "") || "";
           const previewFound = visuelNoExt ? await getPreview(visuelNoExt, jpgName, isStock) : false;
           if (!previewFound) {
-            await usePdfWorker({ pdf: stagedPdfPath, jpg: outJpgPath });
+            await rendreJpg({ pdf: stagedPdfPath, jpg: outJpgPath });
           }
         }
         const endJpg = performance.now();
@@ -772,6 +837,32 @@ async function processJob(job, req) {
     } catch (err) {
       log.error("Vérification du JPG impossible :", err);
       deliverableError = deliverableError || `Vérification du JPG impossible : ${err.message}`;
+    }
+
+    // Miniature des étiquettes. Sans elle, l'étiquette sort sans image, jamais avec celle du catalogue.
+    if (!deliverableError && zoneSurMesure) {
+      try {
+        const apercu = cheminApercuSurMesure(`${state.paths.jpgPath}/${state.paths.sessionPRINTSA}`, job.smBase);
+        await fs.promises.mkdir(path.dirname(apercu), { recursive: true });
+        await rendreJpg({ pdf: stagedPdfPath, jpg: apercu, rotate: 90, zone: zoneSurMesure });
+      } catch (err) {
+        log.warn(`Miniature d'étiquette non générée : ${err.message}`);
+      }
+    }
+
+    // Le .cut part avant le PDF : le RIP consomme le PDF à l'arrivée, la table doit déjà avoir sa découpe.
+    if (!deliverableError && cutSurMesure) {
+      try {
+        const dossierCut = state.paths.sortieDecoupeSM;
+        // Le dossier configuré n'est jamais créé : absent, il signale un partage réseau coupé.
+        if (dossierCut !== state.paths.decoupeSM) await fs.promises.mkdir(dossierCut, { recursive: true });
+        const cheminCut = path.join(dossierCut, `${job.smNom.toUpperCase()}.cut`);
+        await fs.promises.writeFile(cheminCut, cutSurMesure);
+        log.info(`Découpe écrite : ${cheminCut}`);
+      } catch (err) {
+        log.error("Écriture du .cut impossible :", err);
+        deliverableError = `Écriture du .cut impossible : ${err.message}`;
+      }
     }
 
     if (!deliverableError) {
@@ -803,8 +894,9 @@ async function processJob(job, req) {
     matchRef1 = job.visuel.match(/[A-Z]+\d*-\d+/i) || job.ref;
   }
 
-  const deco =
-    matchName1 && job.visuel.includes(matchName1[0])
+  const deco = job.smNom
+    ? job.ref
+    : matchName1 && job.visuel.includes(matchName1[0])
       ? job.client === "CASTO"
         ? job.visuel
             .split(matchName1[0])[1]
@@ -933,6 +1025,7 @@ async function processJob(job, req) {
             : panneauxEnTrop > 0
               ? `+${panneauxEnTrop} panneau(x) mis en stock le ${new Date().toLocaleString()}`
               : "",
+        job.smNom ? "Cote PDF" : undefined,
       ),
       prodBlanc: !!job.prodBlanc,
       surMesure: !!job.surMesure,
@@ -1040,7 +1133,7 @@ async function processJob(job, req) {
     log.warn(`Complément stock ignoré : pas de référence valide (${job.visuel})`);
   }
 
-  if (job.cut) {
+  if (job.cut && !job.smNom) {
     const pathCutFiles = `./server/public/${state.paths.sessionPRINTSA}/Cut/`;
     if (!fs.existsSync(pathCutFiles)) {
       fs.mkdirSync(pathCutFiles, { recursive: true });
@@ -1091,6 +1184,17 @@ async function runJobs(req, res) {
 
     if (jobsToRun.length === 0) {
       return res.status(400).json({ error: "Aucun job à traiter" });
+    }
+
+    let refusDisque = controlerEspaceDisque(jobsToRun, os.tmpdir(), getConcurrency());
+    if (refusDisque && process.env.NODE_ENV === "development" && state.paths.sortieDevSecours) {
+      logger.warn(`${refusDisque.error} Sortie déplacée sur ${state.paths.sortieDevSecours}.`);
+      const dossierTemporaire = basculerSortieSecours(jobsToRun, state.paths.sortieDevSecours);
+      refusDisque = controlerEspaceDisque(jobsToRun, dossierTemporaire, getConcurrency());
+    }
+    if (refusDisque) {
+      logger.warn(`File non lancée : ${refusDisque.error}`);
+      return res.status(507).json(refusDisque);
     }
 
     state.jobs.completed = [];

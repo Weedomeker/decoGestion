@@ -6,8 +6,9 @@ const path = require("path");
 // du RIP : un PDF y est consommé (déplacé) quelques secondes après son arrivée. On ne peut donc ni
 // le vérifier ni le relire sur place — il est produit dans un dossier local puis déposé en dernier.
 
-function createStagingDir() {
-  return fs.promises.mkdtemp(path.join(os.tmpdir(), "decoGestion-pdf-"));
+async function createStagingDir(racine = os.tmpdir()) {
+  await fs.promises.mkdir(racine, { recursive: true });
+  return fs.promises.mkdtemp(path.join(racine, "decoGestion-pdf-"));
 }
 
 // Le RIP pouvant consommer le fichier immédiatement, aucune vérification n'est faite après la

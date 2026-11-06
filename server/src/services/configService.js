@@ -6,6 +6,10 @@ const { state, updateSourcePath } = require("./appState");
 
 const configPath = path.join("./config.json");
 
+// Lus tels quels depuis config.json : créer un lien symbolique demande des droits Windows qu'un
+// poste n'a pas forcément, et le mode sur-mesure resterait alors muet.
+const CHEMINS_DIRECTS = { SM: "sourceSM", decoupeSM: "decoupeSM", sortieDevSecours: "sortieDevSecours" };
+
 async function linkFolders(pathUpdate) {
   let config = {};
 
@@ -19,10 +23,15 @@ async function linkFolders(pathUpdate) {
     }
   }
 
+  for (const [cle, chemin] of Object.entries(CHEMINS_DIRECTS)) {
+    state.paths[chemin] = typeof config[cle] === "string" ? config[cle].trim() : "";
+  }
+
   const success = [];
   const failed = [];
 
   for (const key in config) {
+    if (key in CHEMINS_DIRECTS) continue;
     // Seuls les chemins (strings) sont des dossiers à lier — `vernis` (tableau) et
     // `jobsConcurrency` (nombre) sont des réglages.
     if (typeof config[key] === "string") {

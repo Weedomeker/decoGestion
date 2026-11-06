@@ -132,6 +132,9 @@ function normalizeDossierApiPayload(payload) {
         finition: visualRef?.finition || null,
         orientation: visualRef?.orientation || null,
         printFormat: visualRef?.printFormat || null,
+        finishHint: visualRef?.finishHint || null,
+        refClient: visualRef?.refClient || null,
+        matiere: sousDossier?.dossier?.dos_supp_1_lib_1 || null,
       };
     });
   });

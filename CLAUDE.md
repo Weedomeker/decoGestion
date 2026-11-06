@@ -124,14 +124,18 @@ Cette logique s'applique à `deco` ET `deco2` (le 2e panneau). `deco2` utilise `
 
 ## Règles métier — Sur-mesure et teinte masse
 
-- **Sur-mesure** : article Gamesys `st_art_sfamille = 'SMES'`, ou libellé `isSurMesureLabel` (`server/src/gamesys/utils/surMesure.js`). `format` = format fini du gabarit ; la cote client va dans `comment` via `buildCoteClientComment` et ne pilote ni la plaque ni la découpe.
+- **Sur-mesure** : article Gamesys `st_art_sfamille = 'SMES'`, ou libellé `isSurMesureLabel` (`server/src/gamesys/utils/surMesure.js`). `format` = format fini du gabarit.
+- **Sur-mesure imprimé** (`server/src/surMesure/`) : le PDF des créa (clé `SM` de `config.json`, dossier du mois, nom commençant par le numéro de commande) pilote les dimensions et la découpe ; Gamesys identifie et contrôle. Une page = un panneau = un job (`smPage`, `smNom`), appariés par GAUCHE/CENTRE/DROIT, ou par la cote sans orientation (`attribuerPlaces`), car l'ordre des sous-dossiers ne suit pas celui des pages. Un écart doit être confirmé (`refusJobSurMesure`). Vernis : nom du PDF puis `endv_ref_client`, jamais `dos_imp_1_fac_p_1`, souvent faux. Le JPG et la miniature d'étiquette (`Apercus/`, sous le dossier du jour) viennent de la plaque, jamais du catalogue. Taille réelle dans `comment` (« Cote PDF »).
+- **Noms sur-mesure** : PDF et JPG suivent les autres jobs avec le format fini réel (`baseFichierSurMesure` : `169580 - LM AMIENS - 80x210 - JARDIN SECRET GAUCHE MAT 1_EX`) ; un rang s'ajoute si deux panneaux auraient le même nom, sinon le second écraserait le premier. Ce même nom est imprimé sur la plaque : sous le panneau, ou le long du petit côté gauche pour un panneau pleine largeur (`positionLibelle`). Le `.cut` et le QR gardent `smNom` (`169580-1 LM AMIENS ...`), car le QR ne garde que 24 caractères et doit rester unique.
+- **`SM` et `decoupeSM`** sont lus directement dans `config.json`, sans symlink : `linkFolders` échoue sans droits Windows. Un `.cut` et son PDF viennent du même `lirePanneau`, sinon les repères imprimés ne tombent pas sur ceux de la découpe.
 - **Teinte masse** : 8 modèles. Liste serveur `TEINTE_MASSE_MODELS` (`gamesys/utils/reference.js`), à garder alignée avec `TeinteMasseDropdown.jsx` et `TEINTE_MASSE_OPTIONS` (`DossierAutocomplete.jsx`). Ni fichier source ni PDF : JPG et étiquettes seulement.
 
 ## Règles de sortie
 
 - **PDF** : produit dans un dossier temporaire et déposé en dernier dans le hot folder (`deliverToHotFolder`), après contrôle du PDF et du JPG. Le RIP consomme le fichier à l'arrivée : ne jamais le relire ni le vérifier sur place.
-- **Étiquettes** : une par panneau, numérotées par commande (`planEtiquettes`) ; les panneaux stock sont hors total.
-- **Découpe** (`.cut`, `.dxf`, `.svg`) : LM et ECOM uniquement.
+- **Espace disque** : `runJobs` refuse en **507** (`DISQUE_PLEIN`) une file dont les PDF ne tiendraient pas (`controlerEspaceDisque`). Un PDF de sortie pèse autant que sa source ; le temporaire compte deux fois les plus gros PDF traités en parallèle (ImageMagick copie le PDF entier pour le JPG, `MAGICK_TEMPORARY_PATH` le déplace), la sortie tous les PDF, cumulés s'ils sont sur le même disque, plus 512 Mo de marge. Un partage injoignable n'est pas bloqué ici. En dev seulement, si `sortieDevSecours` est renseigné dans `config.json` (propre au poste, jamais en production), temporaires et sortie basculent sur ce dossier au lieu d'un refus.
+- **Étiquettes** : une par panneau, numérotées par commande (`planEtiquettes`) ; les panneaux stock sont hors total. Sur-mesure : numéro = rang dans le PDF (`smPage`), jamais l'ordre de fin des jobs, qui tournent en parallèle.
+- **Découpe** (`.cut`, `.dxf`, `.svg`) : LM et ECOM uniquement. Exception : un sur-mesure imprimé, toutes enseignes, a un `.cut` nommé comme le panneau dans `decoupeSM` (en dev : `PRINTSA#<date>/Cut` en local, via `state.paths.sortieDecoupeSM`), écrit avant le dépôt du PDF ; son échec bloque le dépôt.
 
 ## Frontière avec decoGestion-API
 

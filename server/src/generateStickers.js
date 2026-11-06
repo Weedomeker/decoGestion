@@ -8,6 +8,8 @@ const fs = require("fs");
 const path = require("path");
 const logger = require("./logger/logger");
 const { findPreviewFile } = require("./getPreview");
+const { state } = require("./services/appState");
+const { cheminApercuSurMesure } = require("./surMesure/nomFichier");
 
 function getVisuelsForCmd(cmdInfo) {
   const visuels = [
@@ -47,12 +49,20 @@ async function generateStickers(commande, outPath, showDataCmd = false) {
   );
 }
 
+// Les jobs finissent dans n'importe quel ordre : un sur-mesure reprend son rang dans le PDF, pour que
+// l'étiquette 02 soit bien le panneau 2 du PDF et du .cut. Les autres jobs gardent leur place.
+function ordonnerPanneaux(commande) {
+  const estPanneau = (cmdInfo) => Number.isInteger(cmdInfo.smPage);
+  const panneaux = commande.filter(estPanneau).sort((a, b) => a.cmd - b.cmd || a.smPage - b.smPage);
+  return commande.map((cmdInfo) => (estPanneau(cmdInfo) ? panneaux.shift() : cmdInfo));
+}
+
 // Une étiquette par panneau, numérotée par commande (NN/TT). Un amalgame de 2 panneaux de la même
 // commande donne 01/02 et 02/02 : numérotées par plaque, les 2 étiquettes sortaient en 01/01.
 // Les panneaux stock ne sont pas comptés ; leur numéro ne sert qu'au nom de fichier (après TT, unique).
 function planEtiquettes(commande) {
   const panneaux = [];
-  commande.forEach((cmdInfo) => {
+  ordonnerPanneaux(commande).forEach((cmdInfo) => {
     let panneauxRestants = cmdInfo.panneaux;
     for (let i = 0; i < cmdInfo.ex; i++) {
       getVisuelsForCmd(cmdInfo).forEach(({ commandId, visuelIndex, isStock }) => {
@@ -123,15 +133,20 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
   // retiré (a26cfc0) car un même décor existe en plusieurs formats. Sans ref (étiquette saisie à la
   // main), l'absence de miniature est donc normale — seule une ref sans aperçu mérite un warn.
   // Même sélection que les JPG des jobs : départage des refs partagées, ref 00000000 ignorée.
-  const previewFile = refStr ? findPreviewFile(refStr, visuel, files) : undefined;
+  // Sur-mesure : sa propre miniature. Le catalogue montrerait le même décor sur tous les panneaux.
+  const previewFile = refStr && !cmd.smBase ? findPreviewFile(refStr, visuel, files) : undefined;
   const images = previewFile ? [previewFile] : [];
-  if (!refStr) {
+  if (cmd.smBase) {
+    logger.debug(`generateStickers: miniature sur-mesure pour "${cmd.smBase}"`);
+  } else if (!refStr) {
     logger.info(`generateStickers: pas de référence pour "${visuel}", étiquette sans miniature`);
   } else if (images.length === 0) {
     logger.warn(`generateStickers: aucun JPG trouvé par référence "${refStr}" pour "${visuel}"`);
   }
 
-  const match = (useSecond ? cmd.visuel2 : cmd.visuel)?.match(/(gauche|droit|centre)/i);
+  const match = cmd.smBase
+    ? cmd.orientation && [cmd.orientation]
+    : (useSecond ? cmd.visuel2 : cmd.visuel)?.match(/(gauche|droit|centre)/i);
 
   try {
     // Lire le modèle de PDF
@@ -218,13 +233,15 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
 
       const matchGD = currentVisuelRAW?.match(/(gauche|droit|centre)/i);
 
-      const infoCommande = [
-        cmd.ville || "",
-        currentVisuelName || "",
-        matchGD ? matchGD[0] : "",
-        currentRef?.toString() || "",
-        currentFormat?.split("_").pop().replace("/", "").trim() || "Format inconnu",
-      ];
+      const infoCommande = cmd.smBase
+        ? [cmd.ville || "", cmd.ref || "", cmd.orientation || "", cmd.smFormat]
+        : [
+            cmd.ville || "",
+            currentVisuelName || "",
+            matchGD ? matchGD[0] : "",
+            currentRef?.toString() || "",
+            currentFormat?.split("_").pop().replace("/", "").trim() || "Format inconnu",
+          ];
 
       // Construction de la ligne affichée
       const textData = infoCommande.join(" ").toUpperCase();
@@ -254,9 +271,11 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
       });
 
       // Preview image
-      const jpgPath = path.join(pathPreview, miniaturePreview);
+      const jpgPath = cmd.smBase
+        ? cheminApercuSurMesure(`${state.paths.jpgPath}/${state.paths.sessionPRINTSA}`, cmd.smBase)
+        : path.join(pathPreview, miniaturePreview);
 
-      if (miniaturePreview && fs.existsSync(jpgPath)) {
+      if ((miniaturePreview || cmd.smBase) && fs.existsSync(jpgPath)) {
         const imageBuffer = fs.readFileSync(jpgPath);
         const img = await pdfDoc.embedJpg(imageBuffer);
 
@@ -296,9 +315,11 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
       visuelTag = "";
     }
     const formatTag =
+      cmd.smFormat ||
       (useSecond ? cmd.format2_visu : cmd.format_visu)
         ?.split("_").pop()?.trim() || "unknown";
-    const fileName = `${commandId}${visuelTag}${vernisTag}_${formatTag}_${ex.split("/")[0]}.pdf`;
+    const smTag = cmd.smBase ? "_SM" : "";
+    const fileName = `${commandId}${smTag}${visuelTag}${vernisTag}_${formatTag}_${ex.split("/")[0]}.pdf`;
     await fs.promises.writeFile(`${outPath}/${fileName}`, pdfBytes);
   }
  catch (error) {
@@ -316,22 +337,7 @@ async function createStickersPage(directory, outputPath, pageSize = "A4") {
   const files = fs.readdirSync(directory).filter((file) => file.endsWith(".pdf"));
   //.filter((file) => /^[\d]/.test(file));
 
-  function extractFormat(fileName) {
-    const match = fileName.match(/_([^_]+)_\d{2}\.pdf$/);
-    return match ? match[1] : "unknown";
-  }
-
-  function formatArea(fmtStr) {
-    const match = fmtStr.match(/(\d+)x(\d+)/i);
-    return match ? parseInt(match[1]) * parseInt(match[2]) : 0;
-  }
-
-  files.sort((a, b) => {
-    const idA = extractCommandId(a);
-    const idB = extractCommandId(b);
-    if (idA !== idB) return idA.localeCompare(idB);
-    return formatArea(extractFormat(b)) - formatArea(extractFormat(a));
-  });
+  files.sort(comparerEtiquettes);
 
   if (files.length === 0) {
     logger.error("Aucun fichier PDF trouvé dans le répertoire.");
@@ -453,6 +459,27 @@ async function createStickersPage(directory, outputPath, pageSize = "A4") {
   }
 }
 
+function extractFormat(fileName) {
+  const match = fileName.match(/_([^_]+)_\d{2}\.pdf$/);
+  return match ? match[1] : "unknown";
+}
+
+function formatArea(fmtStr) {
+  const match = fmtStr.replace(/,/g, ".").match(/(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)/i);
+  return match ? parseFloat(match[1]) * parseFloat(match[2]) : 0;
+}
+
+const numeroEtiquette = (fileName) => parseInt(fileName.match(/_(\d{2})\.pdf$/)?.[1] || "0", 10);
+
+// Planche : par commande, puis du plus grand format au plus petit. Un sur-mesure suit ses numéros.
+function comparerEtiquettes(a, b) {
+  const idA = extractCommandId(a);
+  const idB = extractCommandId(b);
+  if (idA !== idB) return idA.localeCompare(idB);
+  if (a.includes("_SM_") && b.includes("_SM_")) return numeroEtiquette(a) - numeroEtiquette(b);
+  return formatArea(extractFormat(b)) - formatArea(extractFormat(a));
+}
+
 // Fonction pour extraire l'ID de la commande à partir du nom du fichier
 function extractCommandId(fileName) {
   // Exemple : 54542_2_M_01.pdf ou 54542_M_01.pdf
@@ -471,4 +498,4 @@ function extractVernis(cmd) {
   if (/mat/i.test(visuelToCheck)) return false;
 }
 
-module.exports = { generateStickers, createStickersPage, planEtiquettes };
+module.exports = { generateStickers, createStickersPage, planEtiquettes, comparerEtiquettes };

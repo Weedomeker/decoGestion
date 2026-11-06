@@ -488,6 +488,7 @@ function buildVisualReferences(enteteDevis, stockVisualReferences, printFinish) 
             format: gab.format || undefined,
             orientation: rc.orientation || undefined,
             printFormat: rc.printFormat || undefined,
+            finishHint: rc.finishHint || undefined,
           };
         }
 
@@ -496,6 +497,7 @@ function buildVisualReferences(enteteDevis, stockVisualReferences, printFinish) 
           libelle: entete.endv_identif || stockReference?.libelle || reference,
           endv_px_total: entete.endv_px_total,
           endv_quant: entete.endv_quant,
+          refClient: entete.endv_ref_client || undefined,
           articleReference: stockReference?.reference,
           modele: stockReference?.modele,
           gencod: stockReference?.gencod,

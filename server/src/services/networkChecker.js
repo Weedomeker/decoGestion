@@ -8,6 +8,8 @@ const KEY_TO_PATH = {
   BRICO: () => state.paths.decoBRICO,
   ECOM: () => state.paths.decoECOM,
   PREVIEW: () => state.paths.previewDeco,
+  SM: () => state.paths.sourceSM,
+  DECOUPESM: () => state.paths.decoupeSM,
 };
 
 // Au tout premier contrôle (démarrage), tous les chemins partent de "false" dans state.networkStatus :

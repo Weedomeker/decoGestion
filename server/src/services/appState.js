@@ -25,9 +25,18 @@ const state = {
     decoCASTO: "",
     decoBRICO: "",
     previewDeco: "",
+    sourceSM: "",
+    decoupeSM: "",
+    sortieDevSecours: "",
     jpgPath: "./server/public",
     get sessionPRINTSA() {
       return `PRINTSA#${dayDate()}`;
+    },
+    // En dev, comme le hot folder, la découpe reste en local : rien ne part vers la table.
+    get sortieDecoupeSM() {
+      return process.env.NODE_ENV === "development"
+        ? path.join(serverRoot, "public", this.sessionPRINTSA, "Cut")
+        : this.decoupeSM;
     },
     saveFolder:
       process.env.NODE_ENV === "development"
@@ -52,7 +61,7 @@ const state = {
   // Version de l'appli : build-info.json (écrit au build, seule source en prod) sinon package.json + git.
   app: { version: undefined, commit: null, buildDate: null },
   appVersion: undefined, // alias de app.version (usages historiques)
-  networkStatus: { LM: false, CASTO: false, BRICO: false, ECOM: false, PREVIEW: false },
+  networkStatus: { LM: false, CASTO: false, BRICO: false, ECOM: false, PREVIEW: false, SM: false, DECOUPESM: false },
 };
 
 function readJson(filePath) {

@@ -177,6 +177,20 @@ function Config() {
               />
               <Input
                 fluid
+                label="Sur-mesure (PDF créa):"
+                value={data.SM || ""}
+                onChange={(e, v) => setData((prev) => ({ ...prev, SM: v.value }))}
+                action={browseBtn("SM")}
+              />
+              <Input
+                fluid
+                label="Sur-mesure (découpe):"
+                value={data.decoupeSM || ""}
+                onChange={(e, v) => setData((prev) => ({ ...prev, decoupeSM: v.value }))}
+                action={browseBtn("decoupeSM")}
+              />
+              <Input
+                fluid
                 label="LM:"
                 value={data.LM || ""}
                 onChange={(e, v) => setData((prev) => ({ ...prev, LM: v.value }))}

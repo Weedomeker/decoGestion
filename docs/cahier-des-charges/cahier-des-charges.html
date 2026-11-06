@@ -134,7 +134,7 @@
 <table>
   <tr><th style="width:27%">Fichier</th><th>Contenu</th></tr>
   <tr><td><code>.env</code> et <code>client/.env</code></td><td>Port, accès MongoDB, Gamesys, Redis, clé Google Maps. Jamais dans git.</td></tr>
-  <tr><td><code>config.json</code></td><td>Dossiers réseau LM, CASTO, BRICO, ECOM, aperçus et Tauro, finitions, format de page des JPG, nombre de jobs en parallèle. Modifiable depuis la fenêtre Config.</td></tr>
+  <tr><td><code>config.json</code></td><td>Dossiers réseau LM, CASTO, BRICO, ECOM, aperçus et Tauro, dossier des PDF sur-mesure (<code>SM</code>) et dossier de découpe sur-mesure (<code>decoupeSM</code>), finitions, format de page des JPG, nombre de jobs en parallèle. Modifiable depuis la fenêtre Config.</td></tr>
   <tr><td><code>server/formatsTauro.conf</code></td><td>Plaques proposées : 101x215, 126x260, 150x305, 151x260. Une plaque absente de cette liste peut bloquer une commande.</td></tr>
 </table>
 <h3>Fichiers sources</h3>
@@ -194,11 +194,35 @@
 <p>Gamesys signale le sur-mesure par la sous-famille d'article SMES ou par un libellé comme « Panneau déco sur-mesure 100x210 Finition Lisse » ou « Format fini : 100.0 x 255.0 cm ». Le texte libre de la commande donne le reste :</p>
 <div class="eg">ARCHE BEIGE CENTRE 86.9 X 201.5 MAT → décor ARCHE BEIGE, orientation CENTRE, cote client 86,9 × 201,5 cm, vernis MAT</div>
 <ul>
-  <li>Le <b>format</b> retenu est le format fini du panneau (125x210), pas la cote client.</li>
-  <li>La <b>cote client</b> est conservée en commentaire : « Cote client : 86,9 × 201,5 cm ». Elle ne pilote ni la plaque ni la découpe.</li>
-  <li>Si le nom est une teinte masse, la ligne suit la règle teinte masse. Sinon, l'opérateur choisit le fichier, qui doit contenir une référence connue.</li>
+  <li>Le <b>format</b> enregistré dans l'historique est le format fini du panneau (125x210).</li>
+  <li>Si le nom est une teinte masse, la ligne suit la règle teinte masse.</li>
   <li>Le badge « SUR-MESURE » et un filtre permettent de repérer ces lignes.</li>
 </ul>
+<h4>Sur-mesure imprimé : imposition et découpe automatiques</h4>
+<p>Les créa déposent le PDF dans le dossier du mois, par exemple <code>2026-11 NOVEMBRE</code>. Le nom commence par le numéro de commande :</p>
+<div class="eg">169580 LM AMIENS JardinSecret H210cm(3)MAT.pdf → 3 panneaux, vernis MAT</div>
+<p>Quand l'opérateur charge la commande, l'application cherche ce PDF dans le mois en cours et le mois précédent, puis crée une ligne par panneau. Chaque page du PDF est un panneau, de gauche à droite, et son numéro est le même partout : PDF, fichier de découpe, QR et étiquette.</p>
+<p>Chaque page est rattachée à sa ligne de commande Gamesys :</p>
+<ul>
+  <li><b>Avec GAUCHE, CENTRE, DROIT</b> : dans cet ordre. L'ordre des lignes dans Gamesys n'est pas celui des pages.</li>
+  <li><b>Sans orientation</b> : par les dimensions. Une page de 88,2 x 210 cm va sur la ligne « 88.2 x 210 ». Une page sans ligne de même taille prend une ligne restante, et l'écart est signalé.</li>
+</ul>
+<ul>
+  <li><b>Le PDF fait foi</b> pour les dimensions : c'est lui qui pilote la découpe. Gamesys sert à identifier le panneau et à contrôler.</li>
+  <li><b>Écarts à confirmer</b> : dimensions, nombre de panneaux ou vernis différents de Gamesys. L'opérateur coche « Écart vérifié », sinon la ligne ne part pas. Exemple : un panneau de 80 cm dans le PDF pour 100 cm dans Gamesys.</li>
+  <li><b>Blocages</b> : panneau plus large que haut, matière autre que le Dibond, échelle du PDF impossible à déduire. Ces panneaux restent à traiter à la main.</li>
+  <li><b>Plaque</b> : celle de Gamesys. Si le panneau n'y entre pas, l'opérateur en choisit une autre.</li>
+  <li><b>Toutes les enseignes</b> sont découpées en sur-mesure, BRICO et CASTO compris.</li>
+  <li><b>Sur-mesure non détecté</b> : si une ligne catalogue porte une cote différente (« Panneau expo 60.5 x 200 cm »), le bouton « Traiter comme sur-mesure » va chercher le PDF.</li>
+  <li><b>Sans PDF</b> dans le dossier des créa, la ligne reste à traiter à la main.</li>
+</ul>
+<p>Le PDF et le JPG se nomment comme les autres jobs, avec la taille réelle du panneau :</p>
+<div class="eg">169580 - LM AMIENS - 80x210 - JARDIN SECRET GAUCHE MAT 1_EX.pdf</div>
+<p>Ce nom est aussi imprimé sur la plaque : sous le panneau, ou le long du petit côté pour un panneau pleine largeur. Si deux panneaux d'une commande auraient le même nom, le numéro de panneau s'ajoute. Le fichier de découpe et le QR portent le numéro de panneau juste après la commande, car la table ne lit que le début du nom :</p>
+<div class="eg">169580-2 LM AMIENS JardinSecret H210cm MAT</div>
+<p>Chaque étiquette montre le panneau réel, avec la ville, le décor, l'orientation et la taille réelle. Elle porte le numéro du panneau, quel que soit l'ordre dans lequel les jobs se terminent, et la planche suit ces numéros :</p>
+<div class="eg">169580 01/03 — AMIENS JARDIN SECRET GAUCHE 80X210</div>
+<div class="note">Non encore validé en production : la lecture du QR et le calage sur la table de découpe, ainsi que le passage au RIP, n'ont pas été essayés. Tant que le dossier de découpe n'est pas renseigné, un sur-mesure imprimé est refusé.</div>
 <h3>Teinte masse</h3>
 <p>Huit modèles : NOIR ZERO, BLANC ZERO, GRANIT 3, ALU BROSSE, BRONZE BROSSE, CUIVRE BROSSE, NOIR BROSSE, OR BROSSE. Rien n'est imprimé : pas de fichier source, pas de PDF, seulement une image JPG et les étiquettes. Le nom du JPG porte le format du panneau et non celui de la plaque.</p>
 <h3>Autres cas</h3>
@@ -261,10 +285,11 @@
 <h2>8. Ce que l'application produit</h2>
 <table>
   <tr><th style="width:14%">Sortie</th><th style="width:27%">Quand</th><th style="width:30%">Où</th><th>Contenu</th></tr>
-  <tr><td><b>PDF</b></td><td>Tout job imprimé. Jamais pour teinte masse ou prise en stock.</td><td>Hot folder : <code>Deco_Std_&lt;plaque&gt;</code> ou <code>Prod avec BLANC</code></td><td>Page au format de plaque, nom du fichier imprimé, repères sur option</td></tr>
-  <tr><td><b>JPG</b></td><td>Tous les jobs</td><td>Dossier du jour : <code>PRINTSA#5 NOV 2026</code></td><td>Page A4 portrait (réglable), nom en en-tête, visuel centré</td></tr>
+  <tr><td><b>PDF</b></td><td>Tout job imprimé. Jamais pour teinte masse ou prise en stock.</td><td>Hot folder : <code>Deco_Std_&lt;plaque&gt;</code> ou <code>Prod avec BLANC</code></td><td>Page au format de plaque, nom du fichier imprimé, repères sur option. Sur-mesure : un PDF par panneau, avec repères, QR et nom</td></tr>
+  <tr><td><b>JPG</b></td><td>Tous les jobs</td><td>Dossier du jour : <code>PRINTSA#5 NOV 2026</code></td><td>Page A4 portrait (réglable), nom en en-tête, visuel centré. Sur-mesure : la plaque réelle</td></tr>
   <tr><td><b>Étiquettes</b></td><td>Fin de traitement, ou depuis l'écran étiquettes</td><td>Dossier du jour, sous-dossier <code>Etiquettes</code></td><td>Une étiquette par panneau et une planche A4 de 4 étiquettes</td></tr>
   <tr><td><b>Découpe</b></td><td>LM et ECOM, sur option</td><td>Dossier du jour, sous-dossier <code>Cut</code></td><td>Fichiers <code>.cut</code>, <code>.dxf</code> et <code>.svg</code></td></tr>
+  <tr><td><b>Découpe sur-mesure</b></td><td>Tout sur-mesure imprimé, toutes enseignes</td><td>Dossier réseau de la table (<code>decoupeSM</code> dans <code>config.json</code>)</td><td>Un <code>.cut</code> par panneau, écrit avant le dépôt du PDF. S'il ne peut pas être écrit, le PDF ne part pas</td></tr>
   <tr><td><b>Export CSV</b></td><td>À la demande</td><td>Téléchargement depuis l'historique</td><td>Historique filtré</td></tr>
 </table>
 <h3>Nom des fichiers produits</h3>
@@ -283,6 +308,7 @@
   <li><b>Planche</b> : une nouvelle page par commande et par vernis. Les plus grands formats passent en premier.</li>
 </ul>
 
+<div class="note">Avant de lancer la file, l'application vérifie qu'il y a assez de place pour sortir tous les PDF, temporaires compris, avec une marge de 512 Mo. Chaque PDF en cours compte double : le PDF lui-même et la copie faite pour produire le JPG. Sinon rien ne démarre et un message indique la place manquante, par exemple : « Espace disque insuffisant sur C:\ : 5,7 Go nécessaires, 0,6 Go libres ».</div>
 <h2>9. Données MongoDB</h2>
 <p class="small">Bases : <code>DecoKin</code> (production) et <code>Test</code> (développement). Schémas Mongoose dans <code>server/src/models/</code>.</p>
 <table>
@@ -327,7 +353,7 @@
   <tr><td>1</td><td>Un job teinte masse ou stock sans aperçu se termine sans JPG et sans erreur.</td><td>Job affiché terminé alors que le JPG manque</td><td><code>generateImages.js:15</code></td></tr>
   <tr><td>2</td><td>Pour ces mêmes jobs, l'aperçu est cherché par simple présence de la référence, sans les protections des autres jobs.</td><td>Mauvaise image possible sur une référence partagée ou <code>00000000</code></td><td><code>generateImages.js:14</code></td></tr>
   <tr><td>3</td><td>La référence d'une teinte masse est cherchée uniquement dans le référentiel LM, quel que soit le client.</td><td>Référence LM ou statut <code>ref_invalide</code> sur une commande CASTO, BRICO ou ECOM</td><td><code>jobsController.js:395</code></td></tr>
-  <tr><td>4</td><td>Un sur-mesure imprimé exige une référence connue, alors que la spécification du 28/08 le prévoit hors catalogue.</td><td>Blocage si aucun fichier référencé ne correspond</td><td><code>jobsController.js:433</code></td></tr>
+  <tr><td>4</td><td>Un sur-mesure imprimé sans PDF dans le dossier des créa exige encore une référence connue.</td><td>Blocage si aucun fichier référencé ne correspond</td><td><code>jobsController.js</code></td></tr>
   <tr><td>5</td><td>La finition d'un sur-mesure imprimé est reprise du référentiel. La spécification prévoyait de garder celle de Gamesys.</td><td>Finition différente de la commande possible</td><td><code>models/Deco.js:102</code></td></tr>
   <tr><td>6</td><td>L'option de tri par vernis crée un dossier, mais aucun fichier n'y est rangé.</td><td>Dossiers vides, tri inactif</td><td><code>jobsController.js:659</code></td></tr>
   <tr><td>7</td><td>Les repères sont toujours posés sur les crédences, même option décochée.</td><td>Option sans effet sur ces plaques</td><td><code>jobsController.js:693</code></td></tr>
@@ -345,6 +371,8 @@
   <tr><td>Référence BRICO, ECOM</td><td>Extraction <code>[A-Z]+\d*-\d+</code>, validation <code>^[A-Z]+\d*-\d{4,}$</code></td></tr>
   <tr><td>Crédence</td><td><code>addJob</code> : <code>\d{3}x\d{2}(?!\d)</code>. <code>processJob</code> : <code>^\d{3}x\d{2}$</code></td></tr>
   <tr><td>Prod blanc</td><td><code>\+\s*blanc\b</code> (insensible à la casse)</td></tr>
+  <tr><td>Sur-mesure imprimé</td><td>Code dans <code>server/src/surMesure/</code>, route <code>POST /sur-mesure/panneaux</code>. Dimensions lues dans le <code>TrimBox</code> de chaque page, échelle 1 ou 1/10. QR : 24 premiers caractères du nom, suivis de <code>T</code>. Une seule imposition à la fois, dans un thread à part : environ 3,3 Go de mémoire pour un PDF de 1,6 Go. <code>SM</code> et <code>decoupeSM</code> sont lus directement, sans lien symbolique. En développement, les <code>.cut</code> restent dans le dossier du jour, sous-dossier <code>Cut</code>. Pages sans orientation appariées par la cote (<code>attribuerPlaces</code>), numéro d'étiquette tiré de <code>smPage</code></td></tr>
+  <tr><td>Espace disque</td><td><code>controlerEspaceDisque</code> avant <code>runJobs</code>, refus 507 <code>DISQUE_PLEIN</code>. ImageMagick copie le PDF entier pour le JPG (fichiers <code>magick-*</code> du dossier temporaire ; <code>MAGICK_TEMPORARY_PATH</code> les déplace). En développement uniquement, la clé <code>sortieDevSecours</code> de <code>config.json</code>, propre au poste, envoie temporaires et sortie sur ce dossier au lieu de refuser</td></tr>
   <tr><td>File BullMQ <code>deco-jobs</code></td><td>Concurrence 3 (de 1 à 8), 3 tentatives, délai exponentiel de 5 s, verrou de 15 min, attente maximale de 2 h</td></tr>
   <tr><td>Fichiers clés</td><td><code>jobsController.js</code> (<code>addJob</code>, <code>processJob</code>, <code>runJobs</code>), <code>app.js</code>, <code>amalgameCredences.js</code>, <code>generateStickers.js</code>, <code>composeJpgPage.js</code>, <code>gamesys/services/dossierService.js</code>, <code>gamesys/utils/surMesure.js</code>, <code>services/decoStubService.js</code></td></tr>
   <tr><td>Tests de référence</td><td><code>test/integration/credences.test.js</code>, <code>test/unit/surMesure.test.js</code>, <code>test/unit/credencePlaque.test.js</code></td></tr>

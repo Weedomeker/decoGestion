@@ -2,6 +2,7 @@ const jobsRoutes = require("./jobsRoutes");
 const configRoutes = require("./configRoutes");
 const browseRoutes = require("./browseRoutes");
 const dossierApiRoutes = require("./dossierApiRoutes");
+const surMesureRoutes = require("./surMesureRoutes");
 const stockRoutes = require("./stockRoutes");
 const systemRoutes = require("./systemRoutes");
 const healthRoutes = require("./healthRoutes");
@@ -15,6 +16,7 @@ function registerRoutes(app) {
   app.use(configRoutes);
   app.use(browseRoutes);
   app.use(dossierApiRoutes);
+  app.use(surMesureRoutes);
   app.use(stockRoutes);
   app.use(systemRoutes);
   app.use(referencesRoutes);

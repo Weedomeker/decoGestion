@@ -37,6 +37,14 @@ import {
   plaqueCredences,
 } from "./utils/credence";
 import { formatPrix } from "./utils/prix";
+import SurMesurePanneau from "./components/SurMesurePanneau";
+import {
+  coteDifferente,
+  ecartsAConfirmer,
+  lignesVersPanneaux,
+  remplacerLignes,
+  requeteLignes,
+} from "./utils/surMesure";
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -186,6 +194,7 @@ function App() {
         visuelName,
         j.surMesure ? (j.orientation || "") : "",
         j.surMesure ? (j.printFormat || "") : "",
+        j.smPanneau?.page ?? "",
       ].join("|");
       if (seen.has(key)) {
         const primaryIdx = seen.get(key);
@@ -382,11 +391,40 @@ function App() {
     const issues = [];
     if (!job.formatTauroValue) issues.push("Format plaque à choisir");
     if (!job.selectedFileObject) issues.push("Visuel manquant");
+    if (job.smPanneau?.ecarts.some((e) => e.bloquant && e.type !== "plaque")) issues.push("Sur-mesure bloqué");
+    if (ecartsAConfirmer(job.smPanneau)) issues.push("Écart sur-mesure à confirmer");
     if (needsCredencePartner(job) && !job.credence2) issues.push("2e panneau requis (appairer, autre visuel ou +1 stock)");
     if (job.credence2 && !finitionsCompatibles(job.selectedFileObject?.name, job.credence2.selectedFileObject?.name)) {
       issues.push("Finitions incompatibles entre les 2 panneaux");
     }
     return issues;
+  }
+
+  // Recharge les panneaux d'une commande depuis un PDF donné, ou force une ligne en sur-mesure.
+  async function chargerSurMesure(lignes, pdf) {
+    const numero = lignes[0].dossierNumero || lignes[0].numCmd;
+    const ids = new Set(lignes.map((l) => l.id));
+    try {
+      const response = await fetch(`${API_BASE}/sur-mesure/panneaux`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ numero, pdf, lignes: requeteLignes(lignes) }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || `Erreur ${response.status}`);
+      if (!body.pdf) throw new Error(`aucun PDF trouvé pour la commande ${numero}`);
+      const nouvelles = lignesVersPanneaux(lignes, body).map((r) => ({ ...r, dossierNumero: numero }));
+      setDossierJobs((prev) => remplacerLignes(prev, (j) => ids.has(j.smLigne?.id ?? j.id), nouvelles));
+    } catch (error) {
+      showToast(`Sur-mesure : ${error.message}`, "error");
+    }
+  }
+
+  function lignesSurMesure(job) {
+    const lignes = dossierJobs
+      .filter((j) => j.smLigne && j.dossierNumero === job.dossierNumero)
+      .map((j) => j.smLigne);
+    return [...new Map(lignes.map((l) => [l.id, l])).values()];
   }
 
   function scrollToJobRow(jobId) {
@@ -640,6 +678,7 @@ function App() {
             surMesureKind: job.surMesureKind ?? null,
             orientation: job.orientation ?? "",
             printFormat: job.printFormat ?? "",
+            smPanneau: job.smPanneau ?? null,
             stock: false,
           };
           const response = await fetch(`${API_BASE}/add_job`, {
@@ -1317,6 +1356,7 @@ function App() {
                                       <Table.Cell>
                                         <Dropdown
                                           compact selection search
+                                          disabled={!!job.smPanneau}
                                           options={folders.map((f) => ({ key: f.path, text: f.name.match(/\d{3}x\d{2,3}/i)?.[0] || f.name, value: f.path }))}
                                           value={job.formatPath || ""}
                                           onChange={(_, d) => {
@@ -1330,7 +1370,15 @@ function App() {
                                         />
                                       </Table.Cell>
                                       <Table.Cell>
-                                        {job.teinteMasse ? (
+                                        {job.smPanneau ? (
+                                          <SurMesurePanneau
+                                            job={job}
+                                            onConfirm={(ecartsConfirmes) =>
+                                              updateDossierJob(job._idx, { smPanneau: { ...job.smPanneau, ecartsConfirmes } })
+                                            }
+                                            onChoisirPdf={(pdf) => chargerSurMesure(lignesSurMesure(job), pdf)}
+                                          />
+                                        ) : job.teinteMasse ? (
                                           <TeinteMasseDropdown
                                             selectedFile={job.selectedFileObject?.name || ""}
                                             onSelectedFile={(value) =>
@@ -1352,6 +1400,25 @@ function App() {
                                               setDossierPreview(sel?.name || null);
                                             }}
                                           />
+                                        )}
+                                        {!job.smPanneau && !job.teinteMasse && (job.status !== "Prêt" || coteDifferente(job)) && (
+                                          <button
+                                            type="button"
+                                            className="toggle-chip"
+                                            title={`Chercher le PDF des créa pour cette ligne${job.refClient ? ` (${job.refClient})` : ""}`}
+                                            onClick={() =>
+                                              chargerSurMesure([{ ...job, surMesure: true, surMesureKind: "visuel" }])
+                                            }
+                                          >
+                                            Traiter comme sur-mesure
+                                          </button>
+                                        )}
+                                        {job.surMesure && (
+                                          <div>
+                                            <span className="badge badge--surmesure badge--ligne" title="Panneau sur-mesure">
+                                              SUR-MESURE{job.printFormat && !job.smPanneau ? ` · ${job.printFormat.replace("x", " × ").replace(/\./g, ",")}` : ""}
+                                            </span>
+                                          </div>
                                         )}
                                         {job.prix !== undefined && (
                                           <div style={{ fontSize: "0.75em", opacity: 0.6, marginTop: 2 }}>
@@ -1398,11 +1465,6 @@ function App() {
                                         >
                                           TM
                                         </button>
-                                        {job.surMesure && (
-                                          <span className="badge badge--surmesure" title="Panneau sur-mesure">
-                                            SUR-MESURE{job.printFormat ? ` · ${job.printFormat.replace("x", " × ").replace(/\./g, ",")}` : ""}
-                                          </span>
-                                        )}
                                       </Table.Cell>
                                       {hasCredences && (
                                         <Table.Cell>

@@ -1804,6 +1804,25 @@ img.ui.image:not(.header-logo) {
   color: var(--accent);
 }
 
+.badge--ligne {
+  margin: 4px 0 0;
+}
+
+.sm-panneau {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 340px;
+}
+
+.sm-panneau__pdf {
+  font-size: 0.8em;
+  opacity: 0.7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .badge--pro {
   background: var(--bg-hover);
   color: var(--text-secondary);
