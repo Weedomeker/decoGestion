@@ -157,3 +157,73 @@ describe("tauro/planTauro", () => {
     );
   });
 });
+
+describe("tauro/planTauro — calculerPlan (journal du jour)", () => {
+  const Module = require("module");
+  const faux = { find: null };
+  let requetes;
+
+  function charger() {
+    const original = Module._load;
+    Module._load = function (request, ...args) {
+      if (request === "../models/LancementTauro") return faux;
+      return original.call(this, request, ...args);
+    };
+    const cheminJournal = require.resolve("../../../server/src/tauro/journalTauro");
+    const cheminPlan = require.resolve("../../../server/src/tauro/planTauro");
+    delete require.cache[cheminJournal];
+    delete require.cache[cheminPlan];
+    try {
+      return require(cheminPlan);
+    } finally {
+      delete require.cache[cheminJournal];
+      delete require.cache[cheminPlan];
+      Module._load = original;
+    }
+  }
+
+  // Journal : une entrée du jour, d'une commande sans rapport, renvoyée seulement si la requête vise ce jour.
+  const entreeDuJour = {
+    date: new Date("2026-11-17T09:00:00"),
+    jour: "2026-11-17",
+    job: "003_S1711A_151x260_MAT_999999_AUTRE-150x210_1",
+    hf: "Deco_Std_151x260",
+    cle: "999999/00",
+    cmd: "999999",
+    ex: 1,
+  };
+
+  beforeEach(() => {
+    requetes = [];
+    faux.find = (q) => {
+      requetes.push(q);
+      const duJour = q.$or.some((c) => c.jour === "2026-11-17");
+      return { lean: async () => (duJour ? [entreeDuJour] : []) };
+    };
+  });
+
+  let n = 0;
+  const dg = (o = {}) => ({
+    _id: `cp${++n}`,
+    client: "LM",
+    ville: "Paris",
+    cmd: 180000 + n,
+    sousDossier: "00",
+    visuel: "ONYX 150x210 DROIT 94963991 MAT.pdf",
+    visuPath: "C:/v/x.pdf",
+    format_visu: "150x210",
+    format_Plaque: "Deco_Std_151x260",
+    ex: 1,
+    ...o,
+  });
+
+  it("interroge le journal sur le jour AAAA-MM-JJ et poursuit la lettre et la numérotation du jour", async () => {
+    const { calculerPlan } = charger();
+    const jobs = Array.from({ length: 50 }, () => dg());
+    const plan = await calculerPlan(jobs, { date: "2026-11-17" });
+    assert.ok(requetes[0].$or.some((c) => c.jour === "2026-11-17"), JSON.stringify(requetes[0]));
+    assert.equal(plan.sessions.length, 1);
+    assert.equal(plan.sessions[0].code, "S1711B");
+    assert.equal(plan.sessions[0].depart, 4);
+  });
+});

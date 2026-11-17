@@ -74,10 +74,25 @@ describe("tauro/journalTauro", () => {
     assert.deepEqual(faux.find.firstCall.args[0], {
       $or: [{ cle: { $in: ["169180/01"] } }, { cmd: { $in: ["169180"] } }, { jour: "2026-11-13" }],
     });
-    assert.equal(entrees[0].date, date.toISOString());
+    assert.equal(entrees[0].date.slice(0, 10), date.toLocaleDateString("sv-SE"));
     assert.equal(entrees[0].cle, "169180/01");
     const plan = L.preparerLancement([ligne], { date: "2026-11-13", journal: entrees });
     assert.equal(plan.bloques.length, 1);
+  });
+
+  it("entreesPourLancement : date au jour local (près de minuit UTC), « déjà lancé le » du jour local", async () => {
+    // 23:30 UTC le 16 = 00:30 le 17 à Paris : l'opérateur doit lire le 17/11/2026.
+    const date = new Date("2026-11-16T23:30:00Z");
+    faux.find.returns({
+      lean: async () => [
+        { date, jour: "2026-11-17", job: "001_S1711A_x", hf: "h", cle: "1/00", cmd: "1" },
+        { date, job: "002_S1711A_y", hf: "h", cle: "2/00", cmd: "2" },
+      ],
+    });
+    const [avecJour, sansJour] = await journal.entreesPourLancement([], "2026-11-17");
+    assert.match(avecJour.date, /^2026-11-17T\d{2}:\d{2}:\d{2}$/);
+    assert.equal(sansJour.date.slice(0, 10), date.toLocaleDateString("sv-SE"));
+    assert.match(sansJour.date, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/);
   });
 
   it("dejaInscrit : exige cle, nom et jobId", async () => {

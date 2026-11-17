@@ -134,8 +134,8 @@ function construirePlan(jobs, journal, o = {}) {
 async function calculerPlan(jobs, opts = {}) {
   const date = opts.date || new Date().toLocaleDateString("sv-SE");
   const lignes = jobs.map(ligneDepuisJob);
-  const jour = regles.codeSession(date, "A").slice(0, 5);
-  const journal = await entreesPourLancement(lignes, jour);
+  // Le journal range le jour en AAAA-MM-JJ local (inscrire), pas en code de session « S1711 ».
+  const journal = await entreesPourLancement(lignes, date);
   return construirePlan(jobs, journal, { ...opts, date });
 }
 

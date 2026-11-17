@@ -132,6 +132,32 @@ describe("processJob — dépôt Tauro (deposerPdf)", () => {
     assert.ok(log.info.calledWithMatch(/déjà déposé \(journal\), rien n'est recopié/));
   });
 
+  it("deux dépôts simultanés du même job Tauro : un seul PDF déposé", async () => {
+    const finirs = [];
+    deps.deliverToHotFolder = sinon.stub().callsFake(() => new Promise((r) => finirs.push(r)));
+    const job = jobSession();
+    const premier = deposerPdf(job, { stagedPdfPath, pdfBaseName, log, deps });
+    // Le premier est en pleine copie (lente) quand le doublon arrive.
+    await new Promise((r) => setTimeout(r, 20));
+    const doublon = deposerPdf(job, { stagedPdfPath, pdfBaseName, log, deps });
+    await new Promise((r) => setTimeout(r, 20));
+    finirs.forEach((f) => f());
+    await Promise.all([premier, doublon]);
+    sinon.assert.calledOnce(deps.deliverToHotFolder);
+    sinon.assert.calledOnce(deps.inscrire);
+  });
+
+  it("copie en échec : la garde est levée, une vraie retentative redépose", async () => {
+    deps.deliverToHotFolder = sinon.stub();
+    deps.deliverToHotFolder.onFirstCall().rejects(new Error("réseau coupé"));
+    deps.deliverToHotFolder.onSecondCall().resolves();
+    const job = jobSession();
+    await assert.rejects(() => deposerPdf(job, { stagedPdfPath, pdfBaseName, log, deps }), /réseau coupé/);
+    await deposerPdf(job, { stagedPdfPath, pdfBaseName, log, deps });
+    sinon.assert.calledTwice(deps.deliverToHotFolder);
+    sinon.assert.calledOnce(deps.inscrire);
+  });
+
   it("job sans Tauro : le module journal n'est pas chargé", async () => {
     const original = Module._load;
     Module._load = function (request, ...args) {

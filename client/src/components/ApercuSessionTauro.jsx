@@ -76,9 +76,11 @@ function ApercuSessionTauro({ open, mode, ids, message, finitionInitiale, relanc
   const aLancer = sessions.length + horsSession.length + sansPdf.length > 0;
   const autreFinition = finition === "MAT" ? "Brillant" : "Mat";
 
-  const libelleLancer = enSession
-    ? `Lancer ${sessions.length} session${sessions.length > 1 ? "s" : ""}`
-    : `Lancer ${horsSession.length} PDF hors session`;
+  const libelleLancer = !enSession
+    ? `Lancer ${horsSession.length} PDF hors session`
+    : sessions.length === 0 && sansPdf.length > 0
+      ? `Lancer ${sansPdf.length} job${sansPdf.length > 1 ? "s" : ""} sans PDF`
+      : `Lancer ${sessions.length} session${sessions.length > 1 ? "s" : ""}`;
 
   return (
     <Modal open={open} onClose={onClose} size="large" closeOnDimmerClick={false}>
@@ -215,11 +217,16 @@ function ApercuSessionTauro({ open, mode, ids, message, finitionInitiale, relanc
                 <ul style={{ listStyle: "none", paddingLeft: 0 }}>
                   {bloques.map((r) => (
                     <li key={r.id} style={{ marginBottom: "0.3em" }}>
-                      <Checkbox
-                        label={`Relancer ${r.cmd} : ${r.raison}`}
-                        checked={relancer.includes(r.cle)}
-                        onChange={(e, { checked }) => toggleRelancer(r.cle, checked)}
-                      />
+                      {/* Seul un « déjà lancé » se confirme ; les autres blocages ne se relancent pas. */}
+                      {String(r.raison || "").startsWith("déjà lancé") ? (
+                        <Checkbox
+                          label={`Relancer ${r.cmd} : ${r.raison}`}
+                          checked={relancer.includes(r.cle)}
+                          onChange={(e, { checked }) => toggleRelancer(r.cle, checked)}
+                        />
+                      ) : (
+                        `${r.cmd} : ${r.raison}`
+                      )}
                     </li>
                   ))}
                 </ul>

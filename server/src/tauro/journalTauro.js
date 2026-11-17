@@ -9,13 +9,21 @@ const regles = require("./regles-tauro");
 const cmdDeCle = (cle) => (/^(\d+)\//.exec(String(cle || "")) || [])[1] || "";
 const nomDuJob = (j) => j.nomTauro || j.nomOrigine || "";
 
+// Date lue par l'opérateur (« déjà lancé le … », 10 premiers caractères) : jour et heure LOCAUX,
+// « AAAA-MM-JJTHH:MM:SS ». Le jour stocké (inscrire) prime : c'est celui du lancement.
+function dateLocale(d) {
+  if (!d.date) return "";
+  const [jourLocal, heure] = new Date(d.date).toLocaleString("sv-SE").split(" ");
+  return `${d.jour || jourLocal}T${heure}`;
+}
+
 /** Entrées déjà lancées qui concernent la sélection (clés, commandes) ou le jour. */
 async function entreesPourLancement(lignes, jour) {
   const cles = [...new Set(lignes.flatMap((l) => l.clesJournal || [l.cle]).filter(Boolean))];
   const cmds = [...new Set(cles.map(cmdDeCle).filter(Boolean))];
   const docs = await LancementTauro.find({ $or: [{ cle: { $in: cles } }, { cmd: { $in: cmds } }, { jour }] }).lean();
   return docs.map((d) => ({
-    date: d.date ? new Date(d.date).toISOString() : "",
+    date: dateLocale(d),
     job: d.job,
     hf: d.hf,
     source: d.source || "",

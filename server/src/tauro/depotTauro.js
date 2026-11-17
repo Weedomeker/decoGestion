@@ -17,8 +17,9 @@ const CHARGEURS = {
 };
 const dep = (deps, nom) => deps[nom] || CHARGEURS[nom]();
 
-// Garde en mémoire : PDF déjà déposés par ce processus (`${_id}|${nom}`). Couvre la retentative
-// BullMQ quand le journal n'a pas pu être écrit après un dépôt réussi.
+// Garde en mémoire : PDF déposés ou en cours de dépôt par ce processus (`${_id}|${nom}`). Couvre la
+// retentative BullMQ quand le journal n'a pas pu être écrit après un dépôt réussi, et le doublon
+// (job bloqué relancé) qui arrive pendant la copie. Levée si la copie échoue.
 const deposes = new Set();
 
 const estJobTauro = (job) => !!(job.nomTauro || job.horsSession);
@@ -38,10 +39,22 @@ async function deposerPdf(job, { stagedPdfPath, pdfBaseName, log, deps = {} }) {
   const nom = job.nomTauro ? `${job.nomTauro}.pdf` : pdfBaseName;
   const cle = `${job._id}|${nom}`;
 
-  // Retentative BullMQ après un dépôt réussi : le RIP a déjà consommé le PDF, ne pas le renvoyer.
-  if (deposes.has(cle) || (await dep(deps, "dejaInscrit")(job))) {
+  // Retentative BullMQ après un dépôt réussi, ou doublon pendant la copie : le RIP a déjà (ou va)
+  // consommer le PDF, ne pas le renvoyer. La clé est réservée AVANT toute attente.
+  if (deposes.has(cle)) {
     log.info("PDF déjà déposé (journal), rien n'est recopié");
     return;
+  }
+  deposes.add(cle);
+
+  try {
+    if (await dep(deps, "dejaInscrit")(job)) {
+      log.info("PDF déjà déposé (journal), rien n'est recopié");
+      return;
+    }
+  } catch (err) {
+    deposes.delete(cle);
+    throw err;
   }
 
   const hotFolder = path.basename(job.writePath);
@@ -49,10 +62,16 @@ async function deposerPdf(job, { stagedPdfPath, pdfBaseName, log, deps = {} }) {
     log.warn(`Hot folder ${hotFolder} différent de celui prévu par Tauro (${job.hfTauro})`);
   }
 
-  const { size: octets } = await fs.promises.stat(stagedPdfPath);
-  // Une UnrecoverableError (fichier déjà présent) remonte telle quelle jusqu'à BullMQ.
-  await dep(deps, "deliverToHotFolder")(stagedPdfPath, path.join(job.writePath, nom), { exclusif: true });
-  deposes.add(cle);
+  let octets;
+  try {
+    ({ size: octets } = await fs.promises.stat(stagedPdfPath));
+    // Une UnrecoverableError (fichier déjà présent) remonte telle quelle jusqu'à BullMQ.
+    await dep(deps, "deliverToHotFolder")(stagedPdfPath, path.join(job.writePath, nom), { exclusif: true });
+  } catch (err) {
+    // Copie non faite : une vraie retentative doit pouvoir déposer.
+    deposes.delete(cle);
+    throw err;
+  }
   log.info(`PDF déposé dans le hot folder : ${nom}`);
 
   try {
