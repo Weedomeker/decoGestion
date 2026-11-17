@@ -27,6 +27,7 @@ const usePdfWorker = require("../utils/pdfWorker");
 const { createStagingDir, deliverToHotFolder, removeStagingDir } = require("../utils/hotFolderDelivery");
 const { withMongoRetry } = require("../utils/retryMongo");
 const { castoName } = require("../utils/jobNames");
+const { nomsJob } = require("../utils/nomsJob");
 const { buildCoteClientComment } = require("../utils/coteClient");
 const { plaqueTropPetite } = require("../utils/credencePlaque");
 const { extractRefFromFilename, validateRefFormat, REF_FORMAT_HINT } = require("../services/referencesCheckService");
@@ -615,6 +616,10 @@ async function addJob(req, res) {
   }
 
   if (jobExist) {
+    // Conserve tous les sous-dossiers fusionnés (clés du journal Tauro)
+    jobExist.sousDossiers = [
+      ...new Set([...(jobExist.sousDossiers || [jobExist.sousDossier]), newJob.sousDossier].filter(Boolean)),
+    ];
     if (newJob.panneaux) {
       jobExist.panneaux = (jobExist.panneaux || parseInt(jobExist.ex) * 2) + newJob.panneaux;
       jobExist.ex = Math.ceil(jobExist.panneaux / 2);
@@ -680,17 +685,7 @@ async function processJob(job, req) {
     }
   }
 
-  const fileName = job.smBase
-    ? `${job.smBase} ${job.ex}_EX`
-    : `${job.cmd} - ${job.client} ${job.ville.toUpperCase()} - ${
-        job.teinteMasse ? job.format_visu.split("_").pop() : job.format_Plaque.split("_").pop()
-      } - ${job.visuel.replace(/\.[^/.]+$/, "")} ${job.ex}_EX`;
-
-  const fileName2 = isCredences
-    ? `${job.cmd2 === 0 ? "" : `${job.cmd2  } - `}${job.client} ${job.ville.toUpperCase()} - ${
-        job.teinteMasse ? job.format2_visu.split("_").pop() : job.format_Plaque.split("_").pop()
-      } - ${job.visuel2.replace(/\.[^/.]+$/, "")} ${job.ex}_EX` || ""
-    : "";
+  const { fileName, fileName2, pdfBaseName } = nomsJob(job);
 
   const sortFolder = req.body.sortFolder;
 
@@ -720,9 +715,6 @@ async function processJob(job, req) {
     // donc produit et vérifié dans un dossier local, le JPG en est tiré, et le PDF n'est déposé
     // dans le hot folder qu'en dernier, une fois tout le livrable validé — sinon la vérification
     // échouait (ENOENT) et chaque retry BullMQ renvoyait le PDF à l'impression.
-    const pdfBaseName = isCredences
-      ? `${castoName(fileName)}${job.visuPath2 ? ` + ${castoName(fileName2)}` : ""}.pdf`
-      : `${fileName}.pdf`;
     let stagingDir = null;
     let stagedPdfPath = null;
     let cutSurMesure = null;
