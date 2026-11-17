@@ -135,10 +135,13 @@ async function enqueueRun(jobsToRun, extraData = {}, { dejaReserve = false } = {
       cancelled: results.filter((r) => r.status === "fulfilled" && r.value === "cancelled").length,
     };
   } finally {
-    if (!dejaReserve) run.running = false;
     run.bullJobIds = new Map();
     run.cancelWaiters = new Map();
-    broadcastQueueStatus();
+    // Avec réservation, liberer() diffuse l'état : un `queue` running:true ici arriverait après `end`.
+    if (!dejaReserve) {
+      run.running = false;
+      broadcastQueueStatus();
+    }
   }
 }
 

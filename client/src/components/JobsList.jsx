@@ -131,6 +131,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
       if (message.type === "queue") {
         setQueueStatus({ running: message.running, paused: message.paused, concurrency: message.concurrency });
         if (message.running) setOnLoading(true);
+        else setOnLoading(false);
       }
 
       if (message.completedJob) {

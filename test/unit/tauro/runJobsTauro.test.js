@@ -155,6 +155,25 @@ describe("run_jobs en mode Tauro (lancerTauro)", () => {
     );
   });
 
+  it("étiquettes hors session dans l'ordre de la file, pas dans l'ordre de fin", async () => {
+    const hors = [
+      { _id: 10, cmd: 1000, horsSession: true },
+      { _id: 11, cmd: 1100, horsSession: true },
+      { _id: 12, cmd: 1200 },
+    ];
+    deps.calculerPlan.resolves(plan([{ _id: 1, ordreTauro: 1 }, ...hors]));
+    deps.queueControl.enqueueRun = sinon.stub().callsFake(async (aLancer) => {
+      // Les workers finissent dans le désordre.
+      state.jobs.completed.push(aLancer[3], aLancer[2], aLancer[0], aLancer[1]);
+      return { total: 4, failed: 0, cancelled: 0 };
+    });
+    await lancerTauro(req(), fauxRes(), deps);
+    assert.deepEqual(
+      deps.generateStickersForJobs.firstCall.args[0].map((j) => j._id),
+      [1, 10, 11, 12],
+    );
+  });
+
   it("aucun job à lancer : 400 et verrou libéré", async () => {
     deps.calculerPlan.resolves(plan([]));
     const res = fauxRes();

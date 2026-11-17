@@ -20,14 +20,19 @@ function validerOptionsTauro({ finition, relancer } = {}) {
 }
 
 // Étiquettes dans l'ordre d'impression : ordreTauro croissant, puis les jobs sans ordre (hors session,
-// sans PDF, lancement classique) dans leur ordre d'entrée. Le tri de JavaScript est stable.
-function trierPourEtiquettes(jobs) {
+// sans PDF, lancement classique) au rang qu'ils ont dans `ordreFile` (les jobs enfilés), car `jobs`
+// (state.jobs.completed) suit l'ordre de fin des workers. Sans rang : ordre d'entrée (tri stable).
+function trierPourEtiquettes(jobs, ordreFile = []) {
+  const rangs = new Map(ordreFile.map((job, i) => [String(job._id), i]));
+  const rang = (job) => rangs.get(String(job?._id)) ?? Infinity;
   const aOrdre = (job) => Number.isFinite(job?.ordreTauro);
   return [...jobs].sort((a, b) => {
     if (aOrdre(a) && aOrdre(b)) return a.ordreTauro - b.ordreTauro;
     if (aOrdre(a)) return -1;
     if (aOrdre(b)) return 1;
-    return 0;
+    const ra = rang(a);
+    const rb = rang(b);
+    return ra === rb ? 0 : ra < rb ? -1 : 1;
   });
 }
 
@@ -116,7 +121,7 @@ async function lancerTauro(req, res, deps) {
     broadcastWS({ type: "end", endTime: performance.now() });
 
     try {
-      await deps.generateStickersForJobs(trierPourEtiquettes(state.jobs.completed));
+      await deps.generateStickersForJobs(trierPourEtiquettes(state.jobs.completed, aLancer));
     } catch (error) {
       logger.error("Génération des étiquettes échouée :", error);
     }

@@ -12,12 +12,16 @@ const fakeQueue = {
   isPaused: sinon.stub().resolves(false),
 };
 
+// Diffusions WebSocket observées (ordre des messages `queue`).
+const broadcastWS = sinon.spy();
+
 function loadQueueControl() {
   const originalLoad = Module._load;
   Module._load = function (request, ...args) {
     if (request === "./queueService") {
       return { decoQueue: fakeQueue, queueEvents: {}, getConcurrency: () => 3 };
     }
+    if (request === "./websocketService") return { broadcastWS };
     return originalLoad.call(this, request, ...args);
   };
   const modulePath = require.resolve("../../server/src/services/queueControlService");
@@ -165,6 +169,24 @@ describe("queueControlService", () => {
       expect(queueControl.isRunning(), "le demandeur libère lui-même").to.equal(true);
       queueControl.liberer();
       expect(queueControl.isRunning()).to.equal(false);
+    });
+
+    it("enqueueRun avec dejaReserve ne diffuse pas d'état en fin de run : seul liberer() le fait", async () => {
+      expect(queueControl.reserver()).to.equal(true);
+      const bullJob = fakeBullJob("1-x");
+      fakeQueue.addBulk.resolves([bullJob]);
+      const runPromise = queueControl.enqueueRun([{ _id: 1 }], {}, { dejaReserve: true });
+      await new Promise((resolve) => setImmediate(resolve));
+      broadcastWS.resetHistory();
+      bullJob.settle.resolve();
+      await runPromise;
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(broadcastWS.called, "un `queue` running:true arriverait après `end`").to.equal(false);
+
+      queueControl.liberer();
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(broadcastWS.callCount).to.equal(1);
+      expect(broadcastWS.firstCall.args[0]).to.include({ type: "queue", running: false });
     });
 
     it("applyPriorities ne fait rien pendant un lancement Tauro", async () => {

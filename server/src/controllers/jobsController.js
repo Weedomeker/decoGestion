@@ -1254,7 +1254,7 @@ async function runJobs(req, res) {
     broadcastWS({ type: "end", endTime });
 
     try {
-      await generateStickersForJobs(trierPourEtiquettes(state.jobs.completed));
+      await generateStickersForJobs(trierPourEtiquettes(state.jobs.completed, jobsToRun));
     } catch (error) {
       logger.error("Génération des étiquettes échouée :", error);
     }
