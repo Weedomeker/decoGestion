@@ -327,17 +327,17 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
   }
 }
 
-async function createStickersPage(directory, outputPath, pageSize = "A4") {
+async function createStickersPage(directory, outputPath, pageSize = "A4", ordreCommandes = []) {
   const format =
     pageSize === "A5"
       ? { width: 420, height: 595 } // Dimensions pour A5
       : { width: 595, height: 842 }; // Dimensions pour A4
 
   const outputPdf = await PDFDocument.create();
-  const files = fs.readdirSync(directory).filter((file) => file.endsWith(".pdf"));
-  //.filter((file) => /^[\d]/.test(file));
-
-  files.sort(comparerEtiquettes);
+  const files = trierFichiersEtiquettes(
+    fs.readdirSync(directory).filter((file) => file.endsWith(".pdf")),
+    ordreCommandes,
+  );
 
   if (files.length === 0) {
     logger.error("Aucun fichier PDF trouvé dans le répertoire.");
@@ -472,6 +472,18 @@ function formatArea(fmtStr) {
 const numeroEtiquette = (fileName) => parseInt(fileName.match(/_(\d{2})\.pdf$/)?.[1] || "0", 10);
 
 // Planche : par commande, puis du plus grand format au plus petit. Un sur-mesure suit ses numéros.
+// Sessions Tauro : les pages (une par commande) suivent l'ordre d'impression donné par ordreCommandes ;
+// une commande se place à sa première plaque imprimée, une commande absente de la liste passe à la fin.
+// Sans ordre, tri habituel (comparerEtiquettes).
+function trierFichiersEtiquettes(files, ordreCommandes = []) {
+  const rang = new Map();
+  ordreCommandes.forEach((cmd, i) => {
+    if (!rang.has(String(cmd))) rang.set(String(cmd), i);
+  });
+  const rangDe = (f) => rang.get((f.match(/^(\d+)/) || [])[1]) ?? Number.MAX_SAFE_INTEGER;
+  return [...files].sort((a, b) => rangDe(a) - rangDe(b) || comparerEtiquettes(a, b));
+}
+
 function comparerEtiquettes(a, b) {
   const idA = extractCommandId(a);
   const idB = extractCommandId(b);
@@ -498,4 +510,4 @@ function extractVernis(cmd) {
   if (/mat/i.test(visuelToCheck)) return false;
 }
 
-module.exports = { generateStickers, createStickersPage, planEtiquettes, comparerEtiquettes };
+module.exports = { generateStickers, createStickersPage, planEtiquettes, comparerEtiquettes, trierFichiersEtiquettes };

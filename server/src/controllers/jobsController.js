@@ -1412,7 +1412,13 @@ async function generateStickersForJobs(jobs) {
   await generateStickers(jobs, tempFolder, true);
 
   const pdfPath = path.join(etiquettesFolder, `${state.paths.sessionPRINTSA}.pdf`);
-  await createStickersPage(tempFolder, pdfPath, "A4");
+  // Lancement Tauro : jobs déjà triés dans l'ordre d'impression (trierPourEtiquettes) ; les pages suivent
+  // cet ordre. Lancement classique : tri habituel par n° de commande, inchangé.
+  const lancementTauro = jobs.some((job) => job.ordreTauro || job.horsSession);
+  const ordreCommandes = lancementTauro
+    ? jobs.flatMap((job) => [job.cmd, job.cmd2].filter((c) => c && Number(c) !== 0).map(String))
+    : [];
+  await createStickersPage(tempFolder, pdfPath, "A4", ordreCommandes);
 
   const files = await fs.promises.readdir(tempFolder);
   await Promise.all(
