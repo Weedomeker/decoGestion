@@ -286,20 +286,19 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
   };
 
   // Lance le traitement après l'aperçu ; l'aperçu est fermé, la progression passe par le WebSocket.
-  const runJobsList = async (tauro) => {
+  const runJobsList = async (tauro, ids) => {
     if (nbJobs === 0) return;
-    const ids = selectionPayload.ids;
     setApercuTauro(null);
     setActionError(null);
     try {
       const response = await fetch(`${API_BASE}/run_jobs`, {
         method: "POST",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
-        body: JSON.stringify({ run: true, formatTauro: formatTauro, ...selectionPayload, tauro }),
+        body: JSON.stringify({ run: true, formatTauro: formatTauro, ...(ids ? { ids } : {}), tauro }),
       });
       const result = await response.json().catch(() => ({}));
       if (response.status === 409 && result.code === "PLAN_CHANGE") {
-        setApercuTauro({ mode: tauro.mode, ids, message: "La file a changé, aperçu mis à jour" });
+        setApercuTauro({ mode: tauro.mode, ids, finition: tauro.finition, relancer: tauro.relancer, message: "La file a changé, aperçu mis à jour" });
         return;
       }
       if (response.status === 409) {
@@ -856,6 +855,8 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
           mode={apercuTauro.mode}
           ids={apercuTauro.ids}
           message={apercuTauro.message}
+          finitionInitiale={apercuTauro.finition}
+          relancerInitial={apercuTauro.relancer}
           onClose={() => setApercuTauro(null)}
           onLance={runJobsList}
         />

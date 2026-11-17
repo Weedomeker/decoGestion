@@ -1,5 +1,5 @@
 import PropTypes from "prop-types";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Checkbox, Loader, Message, Modal, Table } from "semantic-ui-react";
 import { API_BASE } from "../utils/api";
 
@@ -14,9 +14,9 @@ function Section({ titre, children }) {
 
 Section.propTypes = { titre: PropTypes.string.isRequired, children: PropTypes.node };
 
-function ApercuSessionTauro({ open, mode, ids, message, onClose, onLance }) {
-  const [finition, setFinition] = useState("MAT");
-  const [relancer, setRelancer] = useState([]);
+function ApercuSessionTauro({ open, mode, ids, message, finitionInitiale, relancerInitial, onClose, onLance }) {
+  const [finition, setFinition] = useState(finitionInitiale || "MAT");
+  const [relancer, setRelancer] = useState(relancerInitial || []);
   const [plan, setPlan] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -24,7 +24,10 @@ function ApercuSessionTauro({ open, mode, ids, message, onClose, onLance }) {
   const idsKey = JSON.stringify(ids ?? null);
   const enSession = mode === "session";
 
+  const derniereRequete = useRef(0);
+
   const charger = useCallback(async () => {
+    const numero = ++derniereRequete.current;
     setLoading(true);
     setError(null);
     try {
@@ -37,6 +40,7 @@ function ApercuSessionTauro({ open, mode, ids, message, onClose, onLance }) {
         body: JSON.stringify(body),
       });
       const result = await response.json().catch(() => ({}));
+      if (numero !== derniereRequete.current) return;
       if (!response.ok) {
         setPlan(null);
         setError(result.error || `Erreur aperçu (${response.status})`);
@@ -44,11 +48,12 @@ function ApercuSessionTauro({ open, mode, ids, message, onClose, onLance }) {
         setPlan(result);
       }
     } catch (e) {
+      if (numero !== derniereRequete.current) return;
       console.error("Erreur aperçu Tauro:", e);
       setPlan(null);
       setError("Impossible de contacter le serveur.");
     } finally {
-      setLoading(false);
+      if (numero === derniereRequete.current) setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, idsKey, finition, relancer]);
@@ -240,9 +245,9 @@ function ApercuSessionTauro({ open, mode, ids, message, onClose, onLance }) {
           primary
           icon="send"
           content={libelleLancer}
-          disabled={loading || !plan || !!error || !aLancer}
+          disabled={loading || !plan || !!error || !aLancer || (enSession && plan.finition !== finition)}
           onClick={() =>
-            onLance({ mode, finition: enSession ? finition : undefined, relancer, empreinte: plan.empreinte })
+            onLance({ mode, finition: enSession ? finition : undefined, relancer, empreinte: plan.empreinte }, ids)
           }
         />
       </Modal.Actions>
@@ -255,6 +260,8 @@ ApercuSessionTauro.propTypes = {
   mode: PropTypes.oneOf(["session", "hors-session"]).isRequired,
   ids: PropTypes.array,
   message: PropTypes.string,
+  finitionInitiale: PropTypes.string,
+  relancerInitial: PropTypes.array,
   onClose: PropTypes.func.isRequired,
   onLance: PropTypes.func.isRequired,
 };
