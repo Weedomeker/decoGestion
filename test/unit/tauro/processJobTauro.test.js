@@ -5,7 +5,8 @@ const os = require("os");
 const path = require("path");
 const sinon = require("sinon");
 const { UnrecoverableError } = require("bullmq");
-const { deposerPdf } = require("../../../server/src/tauro/depotTauro");
+const Module = require("module");
+const { deposerPdf, _reinitialiserDepots } = require("../../../server/src/tauro/depotTauro");
 
 // Étape de dépôt de processJob (jobsController ne se charge pas sans Redis) : dépendances injectées.
 describe("processJob — dépôt Tauro (deposerPdf)", () => {
@@ -41,6 +42,7 @@ describe("processJob — dépôt Tauro (deposerPdf)", () => {
       broadcastWS: sinon.stub(),
     };
     log = { info: sinon.stub(), warn: sinon.stub(), error: sinon.stub() };
+    _reinitialiserDepots();
   });
 
   afterEach(() => fs.rmSync(dossier, { recursive: true, force: true }));
@@ -116,5 +118,32 @@ describe("processJob — dépôt Tauro (deposerPdf)", () => {
     assert.deepEqual(deps.deliverToHotFolder.firstCall.args, [stagedPdfPath, path.join(hf, pdfBaseName)]);
     sinon.assert.notCalled(deps.dejaInscrit);
     sinon.assert.notCalled(deps.inscrire);
+  });
+
+  it("journal en échec puis retentative : le PDF n'est pas redéposé (garde en mémoire)", async () => {
+    deps.inscrire.rejects(new Error("Mongo HS"));
+    const job = jobSession();
+    await deposerPdf(job, { stagedPdfPath, pdfBaseName, log, deps });
+    sinon.assert.calledOnce(deps.deliverToHotFolder);
+
+    await deposerPdf(job, { stagedPdfPath, pdfBaseName, log, deps });
+    sinon.assert.calledOnce(deps.deliverToHotFolder);
+    sinon.assert.calledOnce(deps.inscrire);
+    assert.ok(log.info.calledWithMatch(/déjà déposé \(journal\), rien n'est recopié/));
+  });
+
+  it("job sans Tauro : le module journal n'est pas chargé", async () => {
+    const original = Module._load;
+    Module._load = function (request, ...args) {
+      if (/journalTauro|websocketService/.test(request)) throw new Error(`chargé à tort : ${request}`);
+      return original.call(this, request, ...args);
+    };
+    try {
+      const deliverToHotFolder = sinon.stub().resolves();
+      await deposerPdf({ cmd: 1, writePath: hf }, { stagedPdfPath, pdfBaseName, log, deps: { deliverToHotFolder } });
+      sinon.assert.calledOnce(deliverToHotFolder);
+    } finally {
+      Module._load = original;
+    }
   });
 });
