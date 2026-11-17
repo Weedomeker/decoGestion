@@ -5,6 +5,8 @@ const {
   listeDossiers,
   blocageCourt,
   resumeFormats,
+  erreurTaille,
+  TAILLE_DEFAUT,
 } = require("../../client/src/utils/apercuTauro.js");
 
 describe("aperçu sessions Tauro : textes courts", () => {
@@ -73,6 +75,15 @@ describe("aperçu sessions Tauro : textes courts", () => {
       blocageCourt("en double dans l'export (1/01) — supprimer l'un des deux"),
       "en double dans l'export (1/01) — supprimer l'un des deux",
     );
+  });
+
+  it("erreurTaille : entiers de 1 à 100, min ≤ max (mêmes règles que le serveur)", () => {
+    assert.equal(erreurTaille(TAILLE_DEFAUT), null);
+    assert.deepEqual(TAILLE_DEFAUT, { exMat: 50, minBrillant: 20, maxBrillant: 60 });
+    assert.match(erreurTaille({ ...TAILLE_DEFAUT, exMat: "" }), /nombre entier de 1 à 100/);
+    assert.match(erreurTaille({ ...TAILLE_DEFAUT, exMat: 0 }), /nombre entier de 1 à 100/);
+    assert.match(erreurTaille({ ...TAILLE_DEFAUT, maxBrillant: 101 }), /nombre entier de 1 à 100/);
+    assert.match(erreurTaille({ ...TAILLE_DEFAUT, minBrillant: 40, maxBrillant: 30 }), /minimum.*maximum/);
   });
 
   it("resumeFormats : formats dans l'ordre d'impression (n° du nom), PDF avec blanc", () => {

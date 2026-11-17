@@ -267,7 +267,8 @@ function remplir(unites, { cible, min, max }, { tout = false, exact = false } = 
  *   exclus  : de la finition lancée, mais pas lancés (pas de quoi faire une session de 50 ex.) ;
  *   ignores : de l'autre finition.
  */
-function decouperSessions(lignes, { date, lettre = "A", depart = 1, exSession = EX_SESSION, bornes = null, finition = "MAT" }) {
+// exMinBrillant : minimum d'une session Brillant, réglable dans l'aperçu decoGestion (défaut EX_MIN_BRILLANT)
+function decouperSessions(lignes, { date, lettre = "A", depart = 1, exSession = EX_SESSION, bornes = null, finition = "MAT", exMinBrillant = EX_MIN_BRILLANT }) {
   const b = bornes || bornesSession(exSession);
   const fin = String(finition).toUpperCase();
   if (fin !== "MAT" && fin !== "BRI") throw new Error(`Finition de lancement invalide : ${finition} (MAT ou BRI)`);
@@ -293,7 +294,7 @@ function decouperSessions(lignes, { date, lettre = "A", depart = 1, exSession = 
       .map(([cmd, xs]) => ({ cmd, items: xs, ex: xs.reduce((t, x) => t + x.j.ex, 0) }))
       .flatMap((u) => (u.ex > limite ? u.items.map((x) => ({ cmd: u.cmd, items: [x], ex: x.j.ex })) : [u]));
     const total = exDe(unites);
-    const bf = exact ? b : { ...b, min: Math.min(EX_MIN_BRILLANT, b.cible) };          // Brillant : minimum plus bas
+    const bf = exact ? b : { ...b, min: Math.min(exMinBrillant, b.cible) };          // Brillant : minimum plus bas
     const { paquets, reste } = remplir(unites, bf, { exact });
     const exReste = exDe(reste);
     for (const u of reste)

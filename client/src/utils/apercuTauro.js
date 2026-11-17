@@ -67,3 +67,16 @@ export function resumeFormats(jobs) {
   const blancs = jobs.filter((j) => j.blanc === "W").length;
   return `${formats.join(" → ")} · ${blancs ? `${blancs} avec blanc` : "sans blanc"}`;
 }
+
+/** Taille des sessions par défaut (serveur : regles-tauro.js) : Mat exactement 50, Brillant de 20 à 60 */
+export const TAILLE_DEFAUT = Object.freeze({ exMat: 50, minBrillant: 20, maxBrillant: 60 });
+
+/** Contrôle de la saisie, mêmes règles que le serveur (validerOptionsTauro). Renvoie le message ou null. */
+export function erreurTaille(taille) {
+  for (const cle of ["exMat", "minBrillant", "maxBrillant"]) {
+    const v = taille[cle];
+    if (!(Number.isInteger(v) && v >= 1 && v <= 100)) return "Ex. par session : nombre entier de 1 à 100";
+  }
+  if (taille.minBrillant > taille.maxBrillant) return "Brillant : le minimum dépasse le maximum";
+  return null;
+}

@@ -16,6 +16,24 @@ function elementBloque(x) {
   return { id: idDe(x.ligne), cle: x.cle, cmd: x.cmd, ex: x.ex, decor: x.decor, raison: x.raison };
 }
 
+/**
+ * Taille des sessions choisie dans l'aperçu (défauts : Mat 50 exactement, Brillant 20 à 60).
+ * Renvoie la taille effective et les options du moteur (lancement-tauro / regles-tauro) :
+ *  - Mat : exactement exMat ex. (exSession) ;
+ *  - Brillant : entre minBrillant et maxBrillant, au plus près de 50 ramené dans l'intervalle.
+ */
+function tailleSessions(taille = {}) {
+  const exMat = taille.exMat ?? regles.EX_SESSION;
+  const minBrillant = taille.minBrillant ?? regles.EX_MIN_BRILLANT;
+  const maxBrillant = taille.maxBrillant ?? regles.bornesSession().max;
+  const cible = Math.min(Math.max(regles.EX_SESSION, minBrillant), maxBrillant);
+  return {
+    taille: { exMat, minBrillant, maxBrillant },
+    mat: { exSession: exMat },
+    bri: { bornes: { cible, min: minBrillant, max: maxBrillant }, exMinBrillant: minBrillant },
+  };
+}
+
 function construirePlan(jobs, journal, o = {}) {
   const mode = o.mode || "session";
   const finition = o.finition ? String(o.finition).toUpperCase() : "MAT";
@@ -28,7 +46,15 @@ function construirePlan(jobs, journal, o = {}) {
     .filter((l) => l.sansPdf)
     .map((l) => ({ id: idDe(l), cmd: l.source.cmd, ex: l.source.ex, visuel: l.source.visuel }));
 
-  const prep = lancement.preparerLancement(lignes, { date, journal, mode, finition, relancer });
+  const tailles = tailleSessions(o.taille);
+  const prep = lancement.preparerLancement(lignes, {
+    date,
+    journal,
+    mode,
+    finition,
+    relancer,
+    ...(finition === "BRI" ? tailles.bri : tailles.mat),
+  });
   const alertes = [...prep.alertes];
   const bloques = prep.bloques.map(elementBloque);
 
@@ -109,6 +135,7 @@ function construirePlan(jobs, journal, o = {}) {
       JSON.stringify([
         mode,
         finition,
+        tailles.taille,
         [...relancer].sort(),
         aLancer.map((j) => [j._id, j.nomTauro || j.nomOrigine || "", j.ex]),
       ]),
@@ -118,6 +145,7 @@ function construirePlan(jobs, journal, o = {}) {
   return {
     mode,
     finition,
+    taille: tailles.taille,
     date,
     sessions,
     horsSession,

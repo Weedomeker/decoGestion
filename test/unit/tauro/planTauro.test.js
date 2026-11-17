@@ -38,6 +38,39 @@ describe("tauro/planTauro", () => {
     );
   });
 
+  it("taille réglable : Mat exactement N ex. par session ; défaut 50 renvoyé dans le plan", () => {
+    const jobs = cinquante();
+    const defaut = construirePlan(jobs, [], { date: DATE });
+    assert.deepEqual(defaut.taille, { exMat: 50, minBrillant: 20, maxBrillant: 60 });
+    const plan = construirePlan(jobs, [], { date: DATE, taille: { exMat: 40 } });
+    assert.deepEqual(
+      plan.sessions.map((s) => s.ex),
+      [40],
+    );
+    assert.equal(plan.taille.exMat, 40);
+    assert.notEqual(plan.empreinte, defaut.empreinte);
+  });
+
+  it("taille réglable : Brillant entre min et max (cible 50 ramenée dans l'intervalle)", () => {
+    const bri = (ex) => dg({ visuel: "ONYX 150x210 DROIT 94963991 BRILLANT.pdf", ex });
+    const quatorze = [bri(4), bri(5), bri(5)];
+    assert.equal(construirePlan(quatorze, [], { date: DATE, finition: "BRI" }).sessions.length, 0);
+    const permis = construirePlan(quatorze, [], { date: DATE, finition: "BRI", taille: { minBrillant: 10 } });
+    assert.deepEqual(
+      permis.sessions.map((s) => s.ex),
+      [14],
+    );
+    const petitRack = construirePlan(
+      Array.from({ length: 50 }, () => bri(1)),
+      [],
+      { date: DATE, finition: "BRI", taille: { minBrillant: 10, maxBrillant: 30 } },
+    );
+    assert.deepEqual(
+      petitRack.sessions.map((s) => s.ex),
+      [30, 20],
+    );
+  });
+
   it("teinte masse et stock : sansPdf, aLancer sans nomTauro, hors total", () => {
     const jobs = [
       ...cinquante(),
@@ -221,7 +254,10 @@ describe("tauro/planTauro — calculerPlan (journal du jour)", () => {
     const { calculerPlan } = charger();
     const jobs = Array.from({ length: 50 }, () => dg());
     const plan = await calculerPlan(jobs, { date: "2026-11-17" });
-    assert.ok(requetes[0].$or.some((c) => c.jour === "2026-11-17"), JSON.stringify(requetes[0]));
+    assert.ok(
+      requetes[0].$or.some((c) => c.jour === "2026-11-17"),
+      JSON.stringify(requetes[0]),
+    );
     assert.equal(plan.sessions.length, 1);
     assert.equal(plan.sessions[0].code, "S1711B");
     assert.equal(plan.sessions[0].depart, 4);

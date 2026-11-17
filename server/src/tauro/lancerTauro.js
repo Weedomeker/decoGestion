@@ -9,12 +9,24 @@ const { performance } = require("perf_hooks");
 const FINITIONS = ["MAT", "BRI"];
 
 // Mêmes contrôles que l'aperçu (POST /tauro/plan). Renvoie le message d'erreur, ou null.
-function validerOptionsTauro({ finition, relancer } = {}) {
+function validerOptionsTauro({ finition, relancer, taille } = {}) {
   if (finition !== undefined && !FINITIONS.includes(String(finition).toUpperCase())) {
     return `Finition invalide : ${finition} (MAT ou BRI)`;
   }
   if (relancer !== undefined && !(Array.isArray(relancer) && relancer.every((r) => typeof r === "string"))) {
     return "relancer doit être une liste";
+  }
+  if (taille !== undefined) {
+    if (typeof taille !== "object" || taille === null || Array.isArray(taille)) return "taille invalide";
+    for (const cle of ["exMat", "minBrillant", "maxBrillant"]) {
+      const v = taille[cle];
+      if (v !== undefined && !(Number.isInteger(v) && v >= 1 && v <= 100)) {
+        return `Ex. par session invalide (${cle} : ${v}) : nombre entier de 1 à 100`;
+      }
+    }
+    const min = taille.minBrillant ?? 20;
+    const max = taille.maxBrillant ?? 60;
+    if (min > max) return `Brillant : le minimum (${min}) dépasse le maximum (${max})`;
   }
   return null;
 }
@@ -68,7 +80,12 @@ async function lancerTauro(req, res, deps) {
 
     let plan;
     try {
-      plan = await calculerPlan(jobs, { mode: tauro.mode, finition: tauro.finition, relancer: tauro.relancer || [] });
+      plan = await calculerPlan(jobs, {
+        mode: tauro.mode,
+        finition: tauro.finition,
+        relancer: tauro.relancer || [],
+        taille: tauro.taille,
+      });
     } catch (error) {
       if (/Mode de lancement invalide/.test(error.message)) return res.status(400).json({ error: error.message });
       throw error;

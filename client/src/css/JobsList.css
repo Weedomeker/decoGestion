@@ -268,3 +268,10 @@
 .apercu-tauro-bloques, .apercu-tauro-infos { list-style: none; margin: 0; padding: 0; }
 .apercu-tauro-bloques li + li { margin-top: 4px; }
 .apercu-tauro-infos { margin-top: 6px; color: var(--text-secondary); font-size: 12px; }
+.apercu-tauro-taille { display: inline-flex; align-items: center; gap: 6px; margin-left: 12px; color: var(--text-secondary); }
+.apercu-tauro-champ { display: inline-flex; align-items: center; gap: 4px; }
+.apercu-tauro-champ input {
+  width: 56px; padding: 4px 6px; border: 1px solid var(--border-default); border-radius: var(--radius);
+  background: var(--bg-elevated); color: var(--text-primary); font-variant-numeric: tabular-nums;
+}
+.apercu-tauro-defaut { background: none; border: none; padding: 0; color: var(--text-muted); text-decoration: underline; cursor: pointer; font-size: 12px; }

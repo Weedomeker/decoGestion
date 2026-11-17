@@ -298,7 +298,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
       });
       const result = await response.json().catch(() => ({}));
       if (response.status === 409 && result.code === "PLAN_CHANGE") {
-        setApercuTauro({ mode: tauro.mode, ids, finition: tauro.finition, relancer: tauro.relancer, message: "La file a changé, aperçu mis à jour" });
+        setApercuTauro({ mode: tauro.mode, ids, finition: tauro.finition, relancer: tauro.relancer, taille: tauro.taille, message: "La file a changé, aperçu mis à jour" });
         return;
       }
       if (response.status === 409) {
@@ -857,6 +857,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
           message={apercuTauro.message}
           finitionInitiale={apercuTauro.finition}
           relancerInitial={apercuTauro.relancer}
+          tailleInitiale={apercuTauro.taille}
           onClose={() => setApercuTauro(null)}
           onLance={runJobsList}
         />

@@ -2,7 +2,38 @@ import PropTypes from "prop-types";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Checkbox, Loader, Message, Modal } from "semantic-ui-react";
 import { API_BASE } from "../utils/api";
-import { blocageCourt, dansOrdreImpression, listeDossiers, regrouperParMotif, resumeFormats } from "../utils/apercuTauro";
+import {
+  TAILLE_DEFAUT,
+  blocageCourt,
+  dansOrdreImpression,
+  erreurTaille,
+  listeDossiers,
+  regrouperParMotif,
+  resumeFormats,
+} from "../utils/apercuTauro";
+
+/** Champ « nombre d'ex. » compact ; vide -> "" (refusé par erreurTaille) */
+function ChampEx({ libelle, valeur, onChange }) {
+  return (
+    <label className="apercu-tauro-champ">
+      {libelle}
+      <input
+        type="number"
+        min={1}
+        max={100}
+        step={1}
+        value={valeur}
+        onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))}
+      />
+    </label>
+  );
+}
+
+ChampEx.propTypes = {
+  libelle: PropTypes.string,
+  valeur: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired,
+  onChange: PropTypes.func.isRequired,
+};
 
 const n3 = (n) => String(n).padStart(3, "0");
 // « PDF » est invariable
@@ -41,9 +72,23 @@ function NomsPdf({ noms }) {
 
 NomsPdf.propTypes = { noms: PropTypes.arrayOf(PropTypes.string).isRequired };
 
-function ApercuSessionTauro({ open, mode, ids, message, finitionInitiale, relancerInitial, onClose, onLance }) {
+function ApercuSessionTauro({
+  open,
+  mode,
+  ids,
+  message,
+  finitionInitiale,
+  relancerInitial,
+  tailleInitiale,
+  onClose,
+  onLance,
+}) {
   const [finition, setFinition] = useState(finitionInitiale || "MAT");
   const [relancer, setRelancer] = useState(relancerInitial || []);
+  const [taille, setTaille] = useState({ ...TAILLE_DEFAUT, ...tailleInitiale });
+  const tailleInvalide = erreurTaille(taille);
+  const tailleKey = JSON.stringify(taille);
+  const changerTaille = (cle) => (valeur) => setTaille((t) => ({ ...t, [cle]: valeur }));
   const [plan, setPlan] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -55,12 +100,21 @@ function ApercuSessionTauro({ open, mode, ids, message, finitionInitiale, relanc
 
   const charger = useCallback(async () => {
     const numero = ++derniereRequete.current;
+    // Saisie incomplète (champ vide, hors limites) : pas d'aperçu tant qu'elle n'est pas corrigée
+    if (enSession && tailleInvalide) {
+      setPlan(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       const body = { mode, relancer };
       if (ids) body.ids = ids;
-      if (enSession) body.finition = finition;
+      if (enSession) {
+        body.finition = finition;
+        body.taille = taille;
+      }
       const response = await fetch(`${API_BASE}/tauro/plan`, {
         method: "POST",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
@@ -83,7 +137,7 @@ function ApercuSessionTauro({ open, mode, ids, message, finitionInitiale, relanc
       if (numero === derniereRequete.current) setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, idsKey, finition, relancer]);
+  }, [mode, idsKey, finition, relancer, tailleKey]);
 
   // Le parent démonte la fenêtre à la fermeture : l'état repart à zéro à chaque ouverture.
   useEffect(() => {
@@ -135,8 +189,28 @@ function ApercuSessionTauro({ open, mode, ids, message, finitionInitiale, relanc
                 </Button>
               ))}
             </Button.Group>
+            <span className="apercu-tauro-taille">
+              Ex. par session :
+              {finition === "MAT" ? (
+                <>
+                  <ChampEx valeur={taille.exMat} onChange={changerTaille("exMat")} />
+                  exactement
+                </>
+              ) : (
+                <>
+                  <ChampEx libelle="min" valeur={taille.minBrillant} onChange={changerTaille("minBrillant")} />
+                  <ChampEx libelle="max" valeur={taille.maxBrillant} onChange={changerTaille("maxBrillant")} />
+                </>
+              )}
+              {JSON.stringify(taille) !== JSON.stringify(TAILLE_DEFAUT) && (
+                <button type="button" className="apercu-tauro-defaut" onClick={() => setTaille({ ...TAILLE_DEFAUT })}>
+                  valeurs par défaut
+                </button>
+              )}
+            </span>
           </div>
         )}
+        {enSession && tailleInvalide && <Message warning size="small" content={tailleInvalide} />}
 
         {loading && <Loader active inline="centered" content="Chargement de l'aperçu…" />}
         {error && <Message negative content={error} />}
@@ -256,9 +330,24 @@ function ApercuSessionTauro({ open, mode, ids, message, finitionInitiale, relanc
           primary
           icon="send"
           content={libelleLancer}
-          disabled={loading || !plan || !!error || !aLancer || (enSession && plan.finition !== finition)}
+          disabled={
+            loading ||
+            !plan ||
+            !!error ||
+            !aLancer ||
+            (enSession && (!!tailleInvalide || plan.finition !== finition || JSON.stringify(plan.taille) !== tailleKey))
+          }
           onClick={() =>
-            onLance({ mode, finition: enSession ? finition : undefined, relancer, empreinte: plan.empreinte }, ids)
+            onLance(
+              {
+                mode,
+                finition: enSession ? finition : undefined,
+                taille: enSession ? taille : undefined,
+                relancer,
+                empreinte: plan.empreinte,
+              },
+              ids,
+            )
           }
         />
       </Modal.Actions>
@@ -273,6 +362,7 @@ ApercuSessionTauro.propTypes = {
   message: PropTypes.string,
   finitionInitiale: PropTypes.string,
   relancerInitial: PropTypes.array,
+  tailleInitiale: PropTypes.object,
   onClose: PropTypes.func.isRequired,
   onLance: PropTypes.func.isRequired,
 };

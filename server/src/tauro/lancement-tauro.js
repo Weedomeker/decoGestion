@@ -168,7 +168,7 @@ const triFifo = (a, b) =>
 /**
  * lignes : la sélection de l'utilisateur (depuisDecoGestion, ou lignes de l'export CSV), dans SON ordre :
  *   c'est l'utilisateur qui décide des dossiers à lancer ; les sessions de 50 ex. sont formées dans cet ordre.
- * o = { date "AAAA-MM-JJ", journal (lireJournal), exSession, finition "MAT" | "BRI" (ou brillants: true = "BRI"),
+ * o = { date "AAAA-MM-JJ", journal (lireJournal), exSession, bornes { cible, min, max }, exMinBrillant (aperçu decoGestion), finition "MAT" | "BRI" (ou brillants: true = "BRI"),
  *       relancer [clés ou n° de commande], lettre, depart (forcer) }
  * Renvoie { date, finition, premiereLettre, sessions, restants, ignores, bloques, alertes, bornes, lettreSuivante, suivant }
  *   restants : de la finition lancée, non lancés (reste trop petit, racks pleins) — PAS gardés, l'opérateur relancera ;
@@ -246,11 +246,11 @@ function preparerLancement(lignes, o = {}) {
     const horsSession = aLancer.map((l) => ({ ...regles.job(l, ""), job: nomOrigine(l), session: null, ordre: null, horsSession: true, ligne: l }));
     return {
       date: o.date, mode, finition, premiereLettre: lettre, sessions: [], horsSession, restants: [], ignores: [], bloques,
-      alertes: [...new Set(alertes)], bornes: regles.bornesSession(o.exSession), lettreSuivante: suite.lettre, suivant: suite.depart,
+      alertes: [...new Set(alertes)], bornes: o.bornes || regles.bornesSession(o.exSession), lettreSuivante: suite.lettre, suivant: suite.depart,
     };
   }
 
-  const r = regles.decouperSessions(aLancer, { date: o.date, lettre, depart, exSession: o.exSession, finition });
+  const r = regles.decouperSessions(aLancer, { date: o.date, lettre, depart, exSession: o.exSession, bornes: o.bornes, exMinBrillant: o.exMinBrillant, finition });
   return {
     date: o.date, mode, finition, premiereLettre: lettre, sessions: r.sessions, horsSession: [], restants: r.exclus, ignores, bloques,
     alertes: [...new Set(alertes)], bornes: r.bornes, lettreSuivante: r.lettreSuivante, suivant: r.suivant,

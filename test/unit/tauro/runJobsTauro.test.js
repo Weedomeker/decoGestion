@@ -125,7 +125,19 @@ describe("run_jobs en mode Tauro (lancerTauro)", () => {
       ["001_S1711A", "002_S1711A"],
     );
     assert.deepEqual(opts, { dejaReserve: true });
-    assert.deepEqual(deps.calculerPlan.firstCall.args[1], { mode: "session", finition: "MAT", relancer: [] });
+    assert.deepEqual(deps.calculerPlan.firstCall.args[1], {
+      mode: "session",
+      finition: "MAT",
+      relancer: [],
+      taille: undefined,
+    });
+  });
+
+  it("transmet au plan la taille de session choisie dans l'aperçu", async () => {
+    const r = req();
+    r.body.tauro.taille = { exMat: 40 };
+    await lancerTauro(r, fauxRes(), deps);
+    assert.deepEqual(deps.calculerPlan.firstCall.args[1].taille, { exMat: 40 });
   });
 
   it("un job en échec (absent de completed) reste dans la file sans nomTauro", async () => {
@@ -254,5 +266,15 @@ describe("resumeSessions() / validerOptionsTauro()", () => {
     assert.equal(validerOptionsTauro({ finition: "bri", relancer: ["169034"] }), null);
     assert.match(validerOptionsTauro({ finition: "SATIN" }), /Finition invalide/);
     assert.match(validerOptionsTauro({ relancer: "169034" }), /relancer doit être une liste/);
+  });
+
+  it("valide la taille de session : entiers de 1 à 100, min ≤ max", () => {
+    assert.equal(validerOptionsTauro({ taille: { exMat: 40, minBrillant: 10, maxBrillant: 30 } }), null);
+    assert.equal(validerOptionsTauro({ taille: {} }), null);
+    assert.match(validerOptionsTauro({ taille: { exMat: 0 } }), /Ex\. par session/);
+    assert.match(validerOptionsTauro({ taille: { exMat: 12.5 } }), /Ex\. par session/);
+    assert.match(validerOptionsTauro({ taille: { maxBrillant: 101 } }), /Ex\. par session/);
+    assert.match(validerOptionsTauro({ taille: { minBrillant: 40, maxBrillant: 30 } }), /minimum.*maximum/);
+    assert.match(validerOptionsTauro({ taille: "50" }), /taille/);
   });
 });
