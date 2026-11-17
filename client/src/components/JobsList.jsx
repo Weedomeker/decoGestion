@@ -32,6 +32,7 @@ import {
   TableHeaderCell,
   TableRow,
 } from "semantic-ui-react";
+import ApercuSessionTauro from "./ApercuSessionTauro";
 import "../css/JobsList.css";
 import { API_BASE, WS_BASE } from "../utils/api";
 
@@ -83,7 +84,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
   const [actionError, setActionError] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [confirmClearCompleted, setConfirmClearCompleted] = useState(false);
-  const [confirmRunJobs, setConfirmRunJobs] = useState(false);
+  const [apercuTauro, setApercuTauro] = useState(null); // { mode, ids, message } ou null
   const [confirmCancelRun, setConfirmCancelRun] = useState(false);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [queueStatus, setQueueStatus] = useState({ running: false, paused: false, concurrency: null });
@@ -239,7 +240,6 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
   const nbJobs = pendingJobs.length;
   const nbCompleted = data?.[0]?.completed?.length ?? 0;
   const nbSelected = selectedIds.size;
-  const nbToRun = nbSelected > 0 ? nbSelected : nbJobs;
   // Sans sélection, le serveur traite toute la file.
   const selectionPayload = nbSelected > 0 ? { ids: pendingJobs.filter((j) => selectedIds.has(String(j._id))).map((j) => j._id) } : {};
 
@@ -285,17 +285,36 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
     }
   };
 
-  const runJobsList = async () => {
+  // Lance le traitement après l'aperçu ; l'aperçu est fermé, la progression passe par le WebSocket.
+  const runJobsList = async (tauro) => {
     if (nbJobs === 0) return;
-    const result = await queueAction(
-      "/run_jobs",
-      "POST",
-      { run: true, formatTauro: formatTauro, ...selectionPayload },
-      "Erreur traitement des jobs",
-    );
-    if (result) {
+    const ids = selectionPayload.ids;
+    setApercuTauro(null);
+    setActionError(null);
+    try {
+      const response = await fetch(`${API_BASE}/run_jobs`, {
+        method: "POST",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({ run: true, formatTauro: formatTauro, ...selectionPayload, tauro }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (response.status === 409 && result.code === "PLAN_CHANGE") {
+        setApercuTauro({ mode: tauro.mode, ids, message: "La file a changé, aperçu mis à jour" });
+        return;
+      }
+      if (response.status === 409) {
+        setActionError("Un traitement est déjà en cours");
+        return;
+      }
+      if (!response.ok) {
+        setActionError(result.error || `Erreur traitement des jobs (${response.status})`);
+        return;
+      }
       setSelectedIds(new Set());
       setRefreshFlag((prev) => prev + 1);
+    } catch (error) {
+      console.error("Erreur traitement des jobs:", error);
+      setActionError("Impossible de contacter le serveur.");
     }
   };
 
@@ -630,16 +649,26 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
                             disabled={onLoading}
                           />
                         ) : (
-                          <Button
-                            type="button"
-                            color="red"
-                            size="small"
-                            compact
-                            icon="send"
-                            content={nbSelected > 0 ? `Traiter la sélection (${nbSelected})` : "Traiter la file"}
-                            onClick={() => setConfirmRunJobs(true)}
-                            disabled={onLoading || nbJobs === 0}
-                          />
+                          <>
+                            <Button
+                              type="button"
+                              primary
+                              size="small"
+                              compact
+                              icon="send"
+                              content={nbSelected > 0 ? `Lancer en session (${nbSelected})` : "Lancer en session"}
+                              onClick={() => setApercuTauro({ mode: "session", ids: selectionPayload.ids })}
+                              disabled={onLoading || nbJobs === 0}
+                            />
+                            <Button
+                              type="button"
+                              size="small"
+                              compact
+                              content={nbSelected > 0 ? `Lancer hors session (${nbSelected})` : "Lancer hors session"}
+                              onClick={() => setApercuTauro({ mode: "hors-session", ids: selectionPayload.ids })}
+                              disabled={onLoading || nbJobs === 0}
+                            />
+                          </>
                         ))}
 
                       {!onLoading && (
@@ -821,18 +850,16 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
         }}
       />
 
-      <Confirm
-        open={confirmRunJobs}
-        header={nbSelected > 0 ? "Traiter la sélection ?" : "Traiter la file ?"}
-        content={`${nbToRun} job${nbToRun > 1 ? "s" : ""} ${nbSelected > 0 ? "sélectionné" + (nbToRun > 1 ? "s" : "") : "en attente"} vont être traités (génération PDF/découpe) dans l'ordre de la file. Cette opération peut prendre du temps.`}
-        confirmButton="Traiter"
-        cancelButton="Annuler"
-        onCancel={() => setConfirmRunJobs(false)}
-        onConfirm={() => {
-          runJobsList();
-          setConfirmRunJobs(false);
-        }}
-      />
+      {apercuTauro && (
+        <ApercuSessionTauro
+          open
+          mode={apercuTauro.mode}
+          ids={apercuTauro.ids}
+          message={apercuTauro.message}
+          onClose={() => setApercuTauro(null)}
+          onLance={runJobsList}
+        />
+      )}
 
       <Confirm
         open={confirmCancelRun}
