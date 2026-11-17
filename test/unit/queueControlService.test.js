@@ -136,6 +136,51 @@ describe("queueControlService", () => {
     });
   });
 
+  describe("reserver() / liberer()", () => {
+    afterEach(() => queueControl.liberer());
+
+    it("réserve une seule fois, de façon synchrone, et libère pour réserver à nouveau", () => {
+      expect(queueControl.reserver()).to.equal(true);
+      expect(queueControl.isRunning()).to.equal(true);
+      expect(queueControl.reserver()).to.equal(false);
+      queueControl.liberer();
+      expect(queueControl.isRunning()).to.equal(false);
+      expect(queueControl.reserver()).to.equal(true);
+    });
+
+    it("signale un lancement Tauro tant que la réservation tient", () => {
+      expect(queueControl.reserver({ tauro: true })).to.equal(true);
+      expect(queueControl.estLancementTauro()).to.equal(true);
+      queueControl.liberer();
+      expect(queueControl.estLancementTauro()).to.equal(false);
+    });
+
+    it("enqueueRun avec dejaReserve accepte la réservation existante et la laisse au demandeur", async () => {
+      expect(queueControl.reserver()).to.equal(true);
+      const bullJob = fakeBullJob("1-x");
+      fakeQueue.addBulk.resolves([bullJob]);
+      const runPromise = queueControl.enqueueRun([{ _id: 1 }], {}, { dejaReserve: true });
+      bullJob.settle.resolve();
+      expect(await runPromise).to.deep.equal({ total: 1, failed: 0, cancelled: 0 });
+      expect(queueControl.isRunning(), "le demandeur libère lui-même").to.equal(true);
+      queueControl.liberer();
+      expect(queueControl.isRunning()).to.equal(false);
+    });
+
+    it("applyPriorities ne fait rien pendant un lancement Tauro", async () => {
+      expect(queueControl.reserver({ tauro: true })).to.equal(true);
+      const bullJob = fakeBullJob("1-x", "waiting");
+      fakeQueue.addBulk.resolves([bullJob]);
+      fakeQueue.getJob.resolves(bullJob);
+      const runPromise = queueControl.enqueueRun([{ _id: 1 }], {}, { dejaReserve: true });
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(await queueControl.applyPriorities([{ _id: 1 }])).to.equal(0);
+      expect(bullJob.changePriority.called).to.equal(false);
+      bullJob.settle.resolve();
+      await runPromise;
+    });
+  });
+
   describe("applyPriorities()", () => {
     it("ne change la priorité que des jobs du run pas encore démarrés", async () => {
       const jobs = [{ _id: 1 }, { _id: 2 }, { _id: 3 }];

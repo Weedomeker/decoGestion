@@ -9,9 +9,11 @@ const REPRIORITIZABLE_STATES = ["waiting", "prioritized"];
 
 // État du traitement en cours (un seul run à la fois).
 // bullJobIds : _id du job de la liste → jobId BullMQ ; cancelWaiters : jobId BullMQ → résolution forcée de son attente.
+// tauro : lancement en session Tauro, dont l'ordre d'impression est figé (pas de repriorisation).
 const run = {
   running: false,
   paused: false,
+  tauro: false,
   bullJobIds: new Map(),
   cancelWaiters: new Map(),
 };
@@ -47,6 +49,25 @@ function isRunning() {
   return run.running;
 }
 
+// Prend le verrou du traitement de façon synchrone : à appeler avant tout `await`, pour que deux
+// demandes simultanées ne passent pas toutes les deux. Faux si un traitement est déjà en cours.
+function reserver({ tauro = false } = {}) {
+  if (run.running) return false;
+  run.running = true;
+  run.tauro = Boolean(tauro);
+  return true;
+}
+
+function liberer() {
+  run.running = false;
+  run.tauro = false;
+  broadcastQueueStatus();
+}
+
+function estLancementTauro() {
+  return run.running && run.tauro;
+}
+
 async function getStatus() {
   let counts = {};
   try {
@@ -65,10 +86,12 @@ function broadcastQueueStatus() {
 
 // Enfile les jobs avec une priorité égale à leur position (1 = premier) et attend qu'ils soient tous
 // terminés, en échec définitif ou annulés. Ne rejette jamais à cause d'un job : renvoie un bilan.
-async function enqueueRun(jobsToRun, extraData = {}) {
-  if (run.running) throw new Error("Un traitement est déjà en cours");
-
-  run.running = true;
+// `dejaReserve` : le demandeur a pris le verrou (reserver) et le libère lui-même (liberer).
+async function enqueueRun(jobsToRun, extraData = {}, { dejaReserve = false } = {}) {
+  if (!dejaReserve) {
+    if (run.running) throw new Error("Un traitement est déjà en cours");
+    run.running = true;
+  }
   run.bullJobIds = new Map();
   run.cancelWaiters = new Map();
   // Un jobId unique par run : BullMQ ignore silencieusement un jobId déjà connu (job échoué relancé).
@@ -112,7 +135,7 @@ async function enqueueRun(jobsToRun, extraData = {}) {
       cancelled: results.filter((r) => r.status === "fulfilled" && r.value === "cancelled").length,
     };
   } finally {
-    run.running = false;
+    if (!dejaReserve) run.running = false;
     run.bullJobIds = new Map();
     run.cancelWaiters = new Map();
     broadcastQueueStatus();
@@ -120,8 +143,9 @@ async function enqueueRun(jobsToRun, extraData = {}) {
 }
 
 // Répercute l'ordre de la liste sur les priorités des jobs du run pas encore démarrés.
+// Lancement Tauro : l'ordre d'impression est celui des noms déposés, il ne bouge pas.
 async function applyPriorities(orderedJobs) {
-  if (!run.running) return 0;
+  if (!run.running || run.tauro) return 0;
 
   let changed = 0;
   await Promise.all(
@@ -195,6 +219,9 @@ module.exports = {
   reorderByIds,
   selectJobs,
   isRunning,
+  reserver,
+  liberer,
+  estLancementTauro,
   getStatus,
   broadcastQueueStatus,
   enqueueRun,

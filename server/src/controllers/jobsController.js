@@ -26,6 +26,8 @@ const { broadcastWS, broadcastCompletedJob } = require("../services/websocketSer
 const usePdfWorker = require("../utils/pdfWorker");
 const { createStagingDir, removeStagingDir } = require("../utils/hotFolderDelivery");
 const { deposerPdf } = require("../tauro/depotTauro");
+const { calculerPlan } = require("../tauro/planTauro");
+const { lancerTauro, trierPourEtiquettes } = require("../tauro/lancerTauro");
 const { UnrecoverableError } = require("bullmq");
 const { withMongoRetry } = require("../utils/retryMongo");
 const { castoName } = require("../utils/jobNames");
@@ -1186,7 +1188,24 @@ async function runJobs(req, res) {
     return res.status(400).json({ error: "Jobs not run" });
   }
 
-  if (queueControl.isRunning()) {
+  // Lancement Tauro : plan recalculé et vérifié contre l'aperçu, étiquettes dans l'ordre d'impression.
+  if (req.body.tauro) {
+    return lancerTauro(req, res, {
+      state,
+      queueControl,
+      calculerPlan,
+      controlerEspaceDisque,
+      basculerSortieSecours,
+      getConcurrency,
+      generateStickersForJobs,
+      broadcastWS,
+      logger,
+      tmpdir: os.tmpdir,
+    });
+  }
+
+  // Verrou pris avant tout await, libéré dans le finally quel que soit le chemin de sortie.
+  if (!queueControl.reserver()) {
     return res.status(409).json({ error: "Un traitement est déjà en cours" });
   }
 
@@ -1213,10 +1232,11 @@ async function runJobs(req, res) {
     const startTime = performance.now();
     broadcastWS({ type: "start", startTime });
 
-    const { failed, cancelled } = await queueControl.enqueueRun(jobsToRun, {
-      sortFolder: req.body.sortFolder,
-      ip: req.ip,
-    });
+    const { failed, cancelled } = await queueControl.enqueueRun(
+      jobsToRun,
+      { sortFolder: req.body.sortFolder, ip: req.ip },
+      { dejaReserve: true },
+    );
 
     const traitees = state.jobs.completed.map(({ cmd, cmd2 }) => (cmd2 > 0 ? `${cmd}+${cmd2}` : cmd));
     const duree = ((performance.now() - startTime) / 1000).toFixed(0);
@@ -1234,7 +1254,7 @@ async function runJobs(req, res) {
     broadcastWS({ type: "end", endTime });
 
     try {
-      await generateStickersForJobs(state.jobs.completed);
+      await generateStickersForJobs(trierPourEtiquettes(state.jobs.completed));
     } catch (error) {
       logger.error("Génération des étiquettes échouée :", error);
     }
@@ -1243,6 +1263,8 @@ async function runJobs(req, res) {
   } catch (error) {
     logger.error("Traitement des jobs échoué :", error);
     res.status(500).json({ error: "Internal server error" });
+  } finally {
+    queueControl.liberer();
   }
 }
 
@@ -1266,7 +1288,7 @@ function deleteJob(req, res) {
 }
 
 // Réordonne la file d'attente ; pendant un traitement, l'ordre est répercuté sur les priorités
-// BullMQ des jobs pas encore démarrés.
+// BullMQ des jobs pas encore démarrés, sauf en lancement Tauro (ordre d'impression figé par les noms).
 async function reorderJobs(req, res) {
   const { ids } = req.body;
   if (!Array.isArray(ids)) {
@@ -1274,7 +1296,7 @@ async function reorderJobs(req, res) {
   }
 
   state.jobs.jobs = queueControl.reorderByIds(state.jobs.jobs, ids);
-  const reprioritized = await queueControl.applyPriorities(state.jobs.jobs);
+  const reprioritized = queueControl.estLancementTauro() ? 0 : await queueControl.applyPriorities(state.jobs.jobs);
   broadcastWS({ type: "update" });
 
   return res.status(200).json({ reprioritized });
