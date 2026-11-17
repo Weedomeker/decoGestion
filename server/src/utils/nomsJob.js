@@ -30,4 +30,13 @@ function nomsJob(job) {
   return { fileName, fileName2, pdfBaseName };
 }
 
-module.exports = { nomsJob };
+/**
+ * Préfixe des JPG d'un job de session Tauro (« S1711A-011 ») : les JPG du dossier du jour se
+ * trient dans l'ordre d'impression. Vide pour les autres jobs (hors session, classiques).
+ */
+function prefixeJpg(job) {
+  if (!job.sessionTauro) return "";
+  return `${job.sessionTauro}-${String(job.ordreTauro ?? 0).padStart(3, "0")} `;
+}
+
+module.exports = { nomsJob, prefixeJpg };

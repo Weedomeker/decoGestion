@@ -3,6 +3,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const Jimp = require("jimp");
+const sinon = require("sinon");
 const { composeJpgPage, resolvePageOptions, PAGE_FORMATS } = require("../../server/src/composeJpgPage");
 
 describe("composeJpgPage — mise en page des JPG des jobs", () => {
@@ -56,6 +57,29 @@ describe("composeJpgPage — mise en page des JPG des jobs", () => {
     expect(corner.g).to.be.above(240);
     expect(center.r).to.be.above(200);
     expect(center.g).to.be.below(60);
+  });
+
+  it("titre fourni : c'est lui qui est imprimé, pas le nom du fichier", async () => {
+    const file = await writeVisuel("S1711A-011 169034 - LM AMIENS 4_EX.jpg", 300, 900);
+    const print = sinon.spy(Jimp.prototype, "print");
+    try {
+      await composeJpgPage(file, { format: "A4" }, "169034 - LM AMIENS 4_EX");
+    } finally {
+      print.restore();
+    }
+    expect(print.calledOnce).to.equal(true);
+    expect(print.firstCall.args[3].text).to.equal("169034 - LM AMIENS 4_EX");
+  });
+
+  it("sans titre : le nom du fichier est imprimé", async () => {
+    const file = await writeVisuel("169034 - LM AMIENS 4_EX.jpg", 300, 900);
+    const print = sinon.spy(Jimp.prototype, "print");
+    try {
+      await composeJpgPage(file, { format: "A4" });
+    } finally {
+      print.restore();
+    }
+    expect(print.firstCall.args[3].text).to.equal("169034 - LM AMIENS 4_EX");
   });
 
   it("rejette un JPG manquant", async () => {

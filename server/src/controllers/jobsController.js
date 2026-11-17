@@ -24,10 +24,12 @@ const dossierService = require("../gamesys/services/dossierService");
 const { saveFormatsTauroIfNeeded } = require("../services/formatsService");
 const { broadcastWS, broadcastCompletedJob } = require("../services/websocketService");
 const usePdfWorker = require("../utils/pdfWorker");
-const { createStagingDir, deliverToHotFolder, removeStagingDir } = require("../utils/hotFolderDelivery");
+const { createStagingDir, removeStagingDir } = require("../utils/hotFolderDelivery");
+const { deposerPdf } = require("../tauro/depotTauro");
+const { UnrecoverableError } = require("bullmq");
 const { withMongoRetry } = require("../utils/retryMongo");
 const { castoName } = require("../utils/jobNames");
-const { nomsJob } = require("../utils/nomsJob");
+const { nomsJob, prefixeJpg } = require("../utils/nomsJob");
 const { buildCoteClientComment } = require("../utils/coteClient");
 const { plaqueTropPetite } = require("../utils/credencePlaque");
 const { extractRefFromFilename, validateRefFormat, REF_FORMAT_HINT } = require("../services/referencesCheckService");
@@ -46,12 +48,13 @@ const { hauteurGabarit } = require("./surMesureController");
 // En cas d'échec, le JPG brut reste livré : la mise en page ne doit pas bloquer la production.
 // Un JPG fraîchement écrit peut rester verrouillé un instant sous Windows (antivirus, indexation) :
 // l'ouverture échoue alors en UNKNOWN/EBUSY/EPERM, d'où quelques nouvelles tentatives espacées.
-async function applyJpgPage(jpgPath, cmd) {
+// `titre` absent : le nom du fichier est imprimé (comportement de composeJpgPage).
+async function applyJpgPage(jpgPath, cmd, titre) {
   if (!fs.existsSync(jpgPath) || fs.statSync(jpgPath).size === 0) return;
   const transientCodes = ["UNKNOWN", "EBUSY", "EPERM"];
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      await composeJpgPage(jpgPath, getConfig()?.jpgPage);
+      await composeJpgPage(jpgPath, getConfig()?.jpgPage, titre);
       return;
     } catch (error) {
       if (attempt < 3 && transientCodes.includes(error.code)) {
@@ -707,8 +710,16 @@ async function processJob(job, req) {
     return;
   }
 
-  const jpgName = `${state.paths.jpgPath}/${state.paths.sessionPRINTSA}/${fileName}`;
-  const jpgName2 = isCredences ? `${state.paths.jpgPath}/${state.paths.sessionPRINTSA}/${fileName2}` || "" : "";
+  // Session Tauro : le JPG est préfixé (« S1711A-011 ») pour se trier dans l'ordre d'impression.
+  // Le préfixe n'est ni imprimé dans l'en-tête du JPG, ni passé à castoName. Vide pour les autres jobs.
+  const prefixe = prefixeJpg(job);
+  const dossierJour = `${state.paths.jpgPath}/${state.paths.sessionPRINTSA}`;
+  const jpgName = `${dossierJour}/${prefixe}${fileName}`;
+  const jpgName2 = isCredences ? `${dossierJour}/${fileName2}` || "" : "";
+  // Chemin du JPG livré, pour le jpgName du job terminé (crédence : nom amalgamé).
+  let jpgLivre = `${jpgName}.jpg`;
+  // Dépôt exclusif refusé (PDF déjà dans le hot folder) : pas de nouvelle tentative BullMQ.
+  let depotIrrecuperable = null;
 
   if (!job.teinteMasse && !isStock) {
     // job.writePath est le hot folder du RIP Tauro : il consomme le PDF dès son arrivée. Le PDF est
@@ -773,9 +784,12 @@ async function processJob(job, req) {
     const outJpgPath =
       isCredences && job.visuPath2
         ? path.join(
-            `${state.paths.jpgPath}/${state.paths.sessionPRINTSA}/${castoName(jpgName.split("/").pop())} + ${castoName(jpgName2.split("/").pop())}.jpg`,
+            `${dossierJour}/${prefixe}${castoName(fileName.split("/").pop())} + ${castoName(jpgName2.split("/").pop())}.jpg`,
           )
         : `${jpgName}.jpg`;
+    // path.join a mis des antislashs sous Windows : seul le nom du fichier crédence est repris.
+    jpgLivre = isCredences && job.visuPath2 ? `${dossierJour}/${path.basename(outJpgPath)}` : outJpgPath;
+    const titreJpg = prefixe ? path.basename(outJpgPath, ".jpg").slice(prefixe.length) : undefined;
 
     const jpgDejaPresent = fs.existsSync(outJpgPath) && fs.statSync(outJpgPath).size > 0;
 
@@ -816,7 +830,7 @@ async function processJob(job, req) {
       }
 
       // Uniquement sur un JPG fraîchement généré : un JPG déjà présent a déjà reçu sa mise en page.
-      await applyJpgPage(outJpgPath, job.cmd);
+      await applyJpgPage(outJpgPath, job.cmd, titreJpg);
     }
 
     try {
@@ -859,18 +873,22 @@ async function processJob(job, req) {
 
     if (!deliverableError) {
       try {
-        await deliverToHotFolder(stagedPdfPath, path.join(job.writePath, pdfBaseName));
-        log.info(`PDF déposé dans le hot folder : ${pdfBaseName}`);
+        await deposerPdf(job, { stagedPdfPath, pdfBaseName, log });
       } catch (err) {
         log.error("Dépôt du PDF dans le hot folder impossible :", err);
-        deliverableError = `Dépôt du PDF dans le hot folder impossible : ${err.message}`;
+        if (err instanceof UnrecoverableError) depotIrrecuperable = err;
+        else deliverableError = `Dépôt du PDF dans le hot folder impossible : ${err.message}`;
       }
     }
     await removeStagingDir(stagingDir);
+    if (depotIrrecuperable) {
+      broadcastWS({ type: "jobError", job, reason: depotIrrecuperable.message });
+      throw depotIrrecuperable;
+    }
   } else {
     try {
       await generateImages(job, state.paths.previewDeco, `${jpgName}.jpg`, isStock);
-      await applyJpgPage(`${jpgName}.jpg`, job.cmd);
+      await applyJpgPage(`${jpgName}.jpg`, job.cmd, prefixe ? fileName : undefined);
     } catch (error) {
       log.error("Génération de l'image échouée :", error);
       deliverableError = deliverableError || `Échec de génération de l'image : ${error.message || error}`;
@@ -1154,6 +1172,8 @@ async function processJob(job, req) {
     log.warn("Job déjà terminé dans ce traitement, non recompté");
     return;
   }
+  // Même forme que createJob (public/PRINTSA#…/x.jpg) : le JPG préfixé reste affichable.
+  if (prefixe) job.jpgName = jpgLivre.split("/").slice(2).join("/");
   state.jobs.completed.push(job);
   broadcastCompletedJob(job);
 }

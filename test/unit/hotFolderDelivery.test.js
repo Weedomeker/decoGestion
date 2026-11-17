@@ -46,6 +46,38 @@ describe('hotFolderDelivery', () => {
     await assert.rejects(() => deliverToHotFolder(path.join(stagingDir, 'absent.pdf'), path.join(hotFolder, 'x.pdf')), /ENOENT/);
   });
 
+  it('exclusif : un fichier déjà présent rejette en UnrecoverableError et reste intact', async () => {
+    const { UnrecoverableError } = require('bullmq');
+    const staged = path.join(stagingDir, 'nouveau.pdf');
+    fs.writeFileSync(staged, '%PDF-1.7 nouveau');
+    const dest = path.join(hotFolder, 'Deco_Std_151x260', '011_S1711A_x_4.pdf');
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.writeFileSync(dest, '%PDF-1.7 ancien');
+
+    await assert.rejects(
+      () => deliverToHotFolder(staged, dest, { exclusif: true }),
+      (err) => err instanceof UnrecoverableError && /Déjà présent dans .*Deco_Std_151x260 : 011_S1711A_x_4\.pdf/.test(err.message),
+    );
+    assert.strictEqual(fs.readFileSync(dest, 'utf8'), '%PDF-1.7 ancien');
+  });
+
+  it('exclusif : dépôt normal quand la destination est libre', async () => {
+    const staged = path.join(stagingDir, 'libre.pdf');
+    fs.writeFileSync(staged, '%PDF-1.7 libre');
+    const dest = path.join(hotFolder, 'libre.pdf');
+    await deliverToHotFolder(staged, dest, { exclusif: true });
+    assert.strictEqual(fs.readFileSync(dest, 'utf8'), '%PDF-1.7 libre');
+  });
+
+  it("sans option : un fichier déjà présent est écrasé comme aujourd'hui", async () => {
+    const staged = path.join(stagingDir, 'ecrase.pdf');
+    fs.writeFileSync(staged, '%PDF-1.7 nouveau');
+    const dest = path.join(hotFolder, 'ecrase.pdf');
+    fs.writeFileSync(dest, '%PDF-1.7 ancien');
+    await deliverToHotFolder(staged, dest);
+    assert.strictEqual(fs.readFileSync(dest, 'utf8'), '%PDF-1.7 nouveau');
+  });
+
   it('removeStagingDir supprime le dossier et tolère null', async () => {
     fs.writeFileSync(path.join(stagingDir, 'a.pdf'), 'x');
     await removeStagingDir(stagingDir);

@@ -30,16 +30,17 @@ function toAscii(text) {
     .replace(/[^\x20-\x7e]/g, "?");
 }
 
-// Remplace `jpgPath` par une page blanche au format configuré : nom du fichier en en-tête,
-// visuel réduit pour tenir dans l'espace restant et centré.
-async function composeJpgPage(jpgPath, jpgPage) {
+// Remplace `jpgPath` par une page blanche au format configuré : `titre` (par défaut le nom du
+// fichier) en en-tête, visuel réduit pour tenir dans l'espace restant et centré.
+// Un JPG de session Tauro porte un préfixe de tri (« S1711A-011 ») qui n'est pas imprimé.
+async function composeJpgPage(jpgPath, jpgPage, titre = path.basename(jpgPath, path.extname(jpgPath))) {
   const page = resolvePageOptions(jpgPage);
   if (!page) return false;
   if (!fs.existsSync(jpgPath) || fs.statSync(jpgPath).size === 0) {
     throw new Error(`JPG introuvable pour la mise en page : ${jpgPath}`);
   }
 
-  const title = toAscii(path.basename(jpgPath, path.extname(jpgPath)));
+  const title = toAscii(titre);
   const font = await Jimp.loadFont(Jimp.FONT_SANS_32_BLACK);
   const textWidth = page.width - 2 * MARGIN;
   const headerHeight = Jimp.measureTextHeight(font, title, textWidth);

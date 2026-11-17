@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { nomsJob } = require("../../server/src/utils/nomsJob");
+const { nomsJob, prefixeJpg } = require("../../server/src/utils/nomsJob");
 const { castoName } = require("../../server/src/utils/jobNames");
 
 const base = {
@@ -60,5 +60,16 @@ describe("nomsJob", () => {
     assert.equal(t.fileName, "169034 - LM AMIENS - 150x255 - BETON CLAIR 150x255 MAT 4_EX");
     assert.equal(t.pdfBaseName, "");
     assert.equal(nomsJob({ ...base, useStock: true }).pdfBaseName, "");
+  });
+});
+
+describe("prefixeJpg", () => {
+  it("job de session : code session et ordre sur 3 chiffres", () => {
+    assert.equal(prefixeJpg({ sessionTauro: "S1711A", ordreTauro: 11 }), "S1711A-011 ");
+  });
+
+  it("job hors session ou classique : aucun préfixe", () => {
+    assert.equal(prefixeJpg({}), "");
+    assert.equal(prefixeJpg({ horsSession: true, nomOrigine: "x" }), "");
   });
 });
