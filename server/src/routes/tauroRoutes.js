@@ -9,6 +9,12 @@ const router = express.Router();
 router.post("/tauro/plan", async (req, res) => {
   try {
     const { ids, mode, finition, relancer } = req.body || {};
+    if (finition !== undefined && !["MAT", "BRI"].includes(String(finition).toUpperCase())) {
+      return res.status(400).json({ error: `Finition invalide : ${finition} (MAT ou BRI)` });
+    }
+    if (relancer !== undefined && !(Array.isArray(relancer) && relancer.every((r) => typeof r === "string"))) {
+      return res.status(400).json({ error: "relancer doit être une liste" });
+    }
     const jobs = selectJobs(state.jobs.jobs, ids);
     if (!jobs.length) return res.status(400).json({ error: "Aucun job sélectionné." });
     const plan = await calculerPlan(jobs, { mode, finition, relancer: relancer || [] });

@@ -36,7 +36,7 @@ function construirePlan(jobs, journal, o = {}) {
   for (const l of lignes) {
     const ref = l.source.refDbData?.finition;
     if (!ref) continue;
-    const dunom = finitionNom(l.source.visuel);
+    const dunom = finitionNom(l.finition);
     const deref = finitionNom(ref);
     if (dunom !== deref) alertes.push(`${l.cmd} : finition du nom (${dunom}) ≠ référence (${deref})`);
   }
@@ -105,7 +105,14 @@ function construirePlan(jobs, journal, o = {}) {
   const aLancer = [...deSession, ...deHors, ...deSansPdf];
   const empreinte = crypto
     .createHash("sha1")
-    .update(JSON.stringify([mode, finition, [...relancer].sort(), aLancer.map((j) => [j._id, j.nomTauro || "", j.ex])]))
+    .update(
+      JSON.stringify([
+        mode,
+        finition,
+        [...relancer].sort(),
+        aLancer.map((j) => [j._id, j.nomTauro || j.nomOrigine || "", j.ex]),
+      ]),
+    )
     .digest("hex");
 
   return {

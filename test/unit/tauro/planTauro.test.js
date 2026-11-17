@@ -135,4 +135,25 @@ describe("tauro/planTauro", () => {
     assert.equal(s.aLancer, undefined);
     assert.ok(s.empreinte);
   });
+
+  it("empreinte hors session : change avec le nom du PDF", () => {
+    const a = construirePlan([dg({ _id: "h1", cmd: 1, ville: "Paris" })], [], { date: DATE, mode: "hors-session" });
+    const b = construirePlan([dg({ _id: "h1", cmd: 1, ville: "Lyon" })], [], { date: DATE, mode: "hors-session" });
+    assert.notEqual(a.empreinte, b.empreinte);
+  });
+
+  it("alerte de finition : sur-mesure compare la finition du smBase", () => {
+    const sm = dg({
+      visuel: "x.pdf",
+      smBase: "169034 - LM AMIENS - 80x210 - JARDIN SECRET GAUCHE BRILLANT",
+      smFormat: "80x210",
+      smPage: 1,
+      refDbData: { finition: "Mat" },
+    });
+    const plan = construirePlan([sm], [], { date: DATE, mode: "hors-session" });
+    assert.ok(
+      plan.alertes.some((a) => /finition du nom \(BRI\) ≠ référence \(MAT\)/.test(a)),
+      plan.alertes.join("|"),
+    );
+  });
 });
