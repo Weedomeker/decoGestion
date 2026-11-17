@@ -235,7 +235,9 @@ function preparerLancement(lignes, o = {}) {
     const cmds = [...new Set(cles.map((c) => (/^(\d+)\//.exec(c) || [])[1] || (c.startsWith("nom:") ? j.cmd : null)).filter(Boolean))];
     for (const cmd of cmds) {
       const autres = (parCmd.get(cmd) || []).filter((x) => x !== e);
-      if (autres.length) alertes.push(`${cmd} : commande déjà en partie lancée (${autres.map((x) => x.job.slice(0, 11)).join(", ")})`);
+      // Session : « 001_S1711A » ; hors session (nom d'origine, sans code) : « hors session 169034/01 »
+      const quoi = (x) => (/^\d{3}_S\d{4}[A-Z]/.test(x.job) ? x.job.slice(0, 10) : `hors session ${x.cle.replace(/^nom:/, "")}`);
+      if (autres.length) alertes.push(`${cmd} : commande déjà en partie lancée (${autres.map(quoi).join(", ")})`);
     }
     aLancer.push(l);
   }

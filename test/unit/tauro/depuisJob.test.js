@@ -44,6 +44,30 @@ describe("tauro/depuisJob", () => {
     assert.deepEqual(l.clesJournal, ["169034/01", "169380/02"]);
   });
 
+  it("crédence : décor sans CRED, format en cm, EAN ni référence (nom Tauro lisible)", () => {
+    const casto = {
+      ...base,
+      client: "CASTO",
+      format_visu: "300x60",
+      format_Plaque: "Deco_Std_150x305",
+      ex: 1,
+      visuel: "CRED 300x60cm TERRAZZO GRIS 3664712481068 MAT.pdf",
+    };
+    const deux = ligneDepuisJob({ ...casto, visuel2: "CRED 300x60cm MARBRE BLANC 3664714023259 MAT.pdf", visuPath2: "x" });
+    assert.match(regles.job(deux, "S1711A").job, /_169034_TERRAZZO-GRIS-ET-MARBRE-BLANC-300x60_1$/);
+    const duplique = ligneDepuisJob({ ...casto, visuel2: casto.visuel, visuPath2: "x", ex: 2 });
+    assert.match(regles.job(duplique, "S1711A").job, /_169034_TERRAZZO-GRIS-300x60_2$/);
+    const brico = ligneDepuisJob({
+      ...base,
+      client: "BRICO",
+      format_visu: "255x60",
+      format_Plaque: "Deco_Std_150x305",
+      ex: 1,
+      visuel: "VELTIS BRILLANT 255x60 VELTIS-25560.pdf",
+    });
+    assert.match(regles.job(brico, "S1711A").job, /_BRI_169034_VELTIS-255x60_1$/);
+  });
+
   it("sur-mesure : une clé par page", () => {
     const sm = {
       ...base,

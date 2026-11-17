@@ -220,3 +220,18 @@
 .concurrency-control .ui.selection.dropdown > .dropdown.icon {
   padding: 5px 8px;
 }
+
+/* Aperçu sessions Tauro : bascule Mat / Brillant. Le thème force le fond de tous les boutons
+   (.ui.button !important) : sans ces règles, le bouton actif ne se distingue pas. */
+.finition-tauro .ui.button.active.mat {
+  color: var(--color-lm) !important;
+  border-color: var(--color-lm) !important;
+  background: rgba(45, 110, 70, 0.15) !important;
+  font-weight: 700 !important;
+}
+.finition-tauro .ui.button.active.bri {
+  color: var(--color-brico) !important;
+  border-color: var(--color-brico) !important;
+  background: rgba(160, 85, 35, 0.15) !important;
+  font-weight: 700 !important;
+}

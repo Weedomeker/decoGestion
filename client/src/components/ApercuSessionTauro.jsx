@@ -89,24 +89,26 @@ function ApercuSessionTauro({ open, mode, ids, message, finitionInitiale, relanc
         {message && <Message info content={message} />}
 
         {enSession && (
-          <Button.Group size="small" style={{ marginBottom: "0.5em" }}>
-            <Button
-              type="button"
-              active={finition === "MAT"}
-              primary={finition === "MAT"}
-              onClick={() => setFinition("MAT")}
-            >
-              Mat
-            </Button>
-            <Button
-              type="button"
-              active={finition === "BRI"}
-              primary={finition === "BRI"}
-              onClick={() => setFinition("BRI")}
-            >
-              Brillant
-            </Button>
-          </Button.Group>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75em", marginBottom: "0.5em" }}>
+            <span>Finition du lancement :</span>
+            <Button.Group size="small" className="finition-tauro">
+              {[
+                ["MAT", "Mat", "mat"],
+                ["BRI", "Brillant", "bri"],
+              ].map(([valeur, libelle, classe]) => (
+                <Button
+                  key={valeur}
+                  type="button"
+                  className={classe}
+                  active={finition === valeur}
+                  aria-pressed={finition === valeur}
+                  onClick={() => setFinition(valeur)}
+                >
+                  {libelle}
+                </Button>
+              ))}
+            </Button.Group>
+          </div>
         )}
 
         {loading && <Loader active inline="centered" content="Chargement de l'aperçu…" />}
@@ -137,7 +139,7 @@ function ApercuSessionTauro({ open, mode, ids, message, finitionInitiale, relanc
                           <Table.Cell>{s.ex}</Table.Cell>
                           <Table.Cell>{s.jobs?.length ?? 0}</Table.Cell>
                           <Table.Cell>
-                            {s.depart} → {s.dernier}
+                            {String(s.depart).padStart(3, "0")} → {String(s.dernier).padStart(3, "0")}
                           </Table.Cell>
                         </Table.Row>
                       ))}

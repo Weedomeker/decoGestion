@@ -270,6 +270,17 @@ it("commande dont une autre plaque est déjà lancée : lancée, avec une inform
   assert.match(plan.alertes[0], /171111 : commande déjà en partie lancée/);
 });
 
+it("info « en partie lancée » lisible : code de session, ou « hors session » + clé", () => {
+  const deja = dg({ cmd: 171200, sousDossier: "01", visuPath: "C:\\v\\ONYX.pdf" });
+  const horsSession = L.preparerLancement(lignesDG([deja]), { date: "2026-11-17", mode: "hors-session" });
+  const autre = dg({ cmd: 171200, sousDossier: "02" });
+  const plan = L.preparerLancement(lignesDG([autre]), { date: "2026-11-17", mode: "hors-session", journal: journalDe(horsSession.horsSession) });
+  assert.match(plan.alertes[0], /171200 : commande déjà en partie lancée \(hors session 171200\/01\)/);
+  const session = L.preparerLancement(lignesDG([dg({ cmd: 171300, sousDossier: "01", ex: 50 })]), { date: "2026-11-17" });
+  const plan2 = L.preparerLancement(lignesDG([dg({ cmd: 171300, sousDossier: "02" })]), { date: "2026-11-17", mode: "hors-session", journal: journalDe(tousJobs(session)) });
+  assert.match(plan2.alertes[0], /\(001_S1711A\)/);
+});
+
 it("deux sous-dossiers d'une commande avec le même visuel : l'un lancé ne bloque pas l'autre", () => {
   const p1 = dg({ cmd: 172222, sousDossier: "00", ex: 50 });
   const journal = journalDe(tousJobs(L.preparerLancement(lignesDG([p1]), { date: "2026-11-13" })));
