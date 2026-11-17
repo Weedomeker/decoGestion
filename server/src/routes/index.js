@@ -7,6 +7,7 @@ const stockRoutes = require("./stockRoutes");
 const systemRoutes = require("./systemRoutes");
 const healthRoutes = require("./healthRoutes");
 const referencesRoutes = require("./referencesRoutes");
+const tauroRoutes = require("./tauroRoutes");
 const gamesysDossierRoutes = require("../gamesys/routes/dossierRoutes");
 const gamesysOrderRoutes = require("../gamesys/routes/orderRoutes");
 
@@ -20,6 +21,7 @@ function registerRoutes(app) {
   app.use(stockRoutes);
   app.use(systemRoutes);
   app.use(referencesRoutes);
+  app.use(tauroRoutes);
   app.use("/api/dossiers", gamesysDossierRoutes);
   app.use("/api/orders", gamesysOrderRoutes);
 }
