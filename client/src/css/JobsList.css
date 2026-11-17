@@ -235,3 +235,36 @@
   background: rgba(160, 85, 35, 0.15) !important;
   font-weight: 700 !important;
 }
+
+/* Aperçu sessions Tauro : trois blocs (part / reste / à vérifier), lisibles d'un coup d'œil */
+.apercu-tauro-bloc {
+  border: 1px solid var(--border-default);
+  border-left: 4px solid var(--border-default);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  margin-top: 12px;
+}
+.apercu-tauro-bloc h4 {
+  margin: 0 0 6px !important;
+  font-size: 12px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary) !important;
+}
+.apercu-tauro-bloc--part { border-left-color: var(--color-lm); }
+.apercu-tauro-bloc--reste { border-left-color: var(--text-muted); }
+.apercu-tauro-bloc--verif { border-left-color: var(--color-brico); }
+.apercu-tauro-session + .apercu-tauro-session { margin-top: 8px; }
+.apercu-tauro-ligne { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; color: var(--text-primary); }
+.apercu-tauro-ligne > b:first-child { font-family: Consolas, monospace; }
+.apercu-tauro-detail { color: var(--text-secondary); font-size: 12px; margin-top: 2px; }
+.apercu-tauro-vide { color: var(--text-secondary); margin: 0; }
+.apercu-tauro-fin { font-size: 11px; font-weight: 700; padding: 0 7px; border-radius: 9px; border: 1px solid; }
+.apercu-tauro-fin--mat { color: var(--color-lm); }
+.apercu-tauro-fin--bri { color: var(--color-brico); }
+.apercu-tauro-noms { margin-top: 4px; font-size: 12px; color: var(--text-secondary); }
+.apercu-tauro-noms summary { cursor: pointer; }
+.apercu-tauro-noms ol { margin: 4px 0 0; padding-left: 28px; font-family: Consolas, monospace; font-size: 11.5px; }
+.apercu-tauro-bloques, .apercu-tauro-infos { list-style: none; margin: 0; padding: 0; }
+.apercu-tauro-bloques li + li { margin-top: 4px; }
+.apercu-tauro-infos { margin-top: 6px; color: var(--text-secondary); font-size: 12px; }

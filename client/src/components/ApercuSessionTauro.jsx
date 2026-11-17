@@ -1,18 +1,45 @@
 import PropTypes from "prop-types";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, Checkbox, Loader, Message, Modal, Table } from "semantic-ui-react";
+import { Button, Checkbox, Loader, Message, Modal } from "semantic-ui-react";
 import { API_BASE } from "../utils/api";
+import { blocageCourt, dansOrdreImpression, listeDossiers, regrouperParMotif, resumeFormats } from "../utils/apercuTauro";
 
-function Section({ titre, children }) {
+const n3 = (n) => String(n).padStart(3, "0");
+// « PDF » est invariable
+const pluriel = (n, mot) => `${n} ${mot}${n > 1 && mot !== "PDF" ? "s" : ""}`;
+
+/** Bloc de l'aperçu : « part » (vert), « reste » (neutre) ou « verif » (orange) */
+function Bloc({ type, titre, children }) {
   return (
-    <div style={{ marginTop: "1em" }}>
-      <h4 style={{ marginBottom: "0.4em" }}>{titre}</h4>
+    <section className={`apercu-tauro-bloc apercu-tauro-bloc--${type}`}>
+      <h4>{titre}</h4>
       {children}
-    </div>
+    </section>
   );
 }
 
-Section.propTypes = { titre: PropTypes.string.isRequired, children: PropTypes.node };
+Bloc.propTypes = {
+  type: PropTypes.oneOf(["part", "reste", "verif"]).isRequired,
+  titre: PropTypes.string.isRequired,
+  children: PropTypes.node,
+};
+
+/** Liste repliable des noms de PDF */
+function NomsPdf({ noms }) {
+  if (!noms.length) return null;
+  return (
+    <details className="apercu-tauro-noms">
+      <summary>Voir les {pluriel(noms.length, "PDF")}</summary>
+      <ol>
+        {noms.map((nom) => (
+          <li key={nom}>{nom}</li>
+        ))}
+      </ol>
+    </details>
+  );
+}
+
+NomsPdf.propTypes = { noms: PropTypes.arrayOf(PropTypes.string).isRequired };
 
 function ApercuSessionTauro({ open, mode, ids, message, finitionInitiale, relancerInitial, onClose, onLance }) {
   const [finition, setFinition] = useState(finitionInitiale || "MAT");
@@ -115,132 +142,107 @@ function ApercuSessionTauro({ open, mode, ids, message, finitionInitiale, relanc
         {error && <Message negative content={error} />}
 
         {plan && !error && (
-          <div style={loading ? { opacity: 0.5 } : undefined}>
-            {enSession && (
-              <Section titre="Sessions">
-                {sessions.length === 0 ? (
-                  <p>Aucune session.</p>
-                ) : (
-                  <Table size="small" compact>
-                    <Table.Header>
-                      <Table.Row>
-                        <Table.HeaderCell>Code</Table.HeaderCell>
-                        <Table.HeaderCell>Finition</Table.HeaderCell>
-                        <Table.HeaderCell>Ex.</Table.HeaderCell>
-                        <Table.HeaderCell>Jobs</Table.HeaderCell>
-                        <Table.HeaderCell>N° début → fin</Table.HeaderCell>
-                      </Table.Row>
-                    </Table.Header>
-                    <Table.Body>
-                      {sessions.map((s) => (
-                        <Table.Row key={s.code}>
-                          <Table.Cell>{s.code}</Table.Cell>
-                          <Table.Cell>{s.fin}</Table.Cell>
-                          <Table.Cell>{s.ex}</Table.Cell>
-                          <Table.Cell>{s.jobs?.length ?? 0}</Table.Cell>
-                          <Table.Cell>
-                            {String(s.depart).padStart(3, "0")} → {String(s.dernier).padStart(3, "0")}
-                          </Table.Cell>
-                        </Table.Row>
-                      ))}
-                    </Table.Body>
-                  </Table>
-                )}
-              </Section>
-            )}
+          <div className="apercu-tauro" style={loading ? { opacity: 0.5 } : undefined}>
+            {/* 1. Ce qui part */}
+            <Bloc type="part" titre="Part à l'impression">
+              {enSession && sessions.length === 0 && horsSession.length === 0 && (
+                <p className="apercu-tauro-vide">Aucune session : pas assez d&apos;exemplaires (voir ci-dessous).</p>
+              )}
+              {sessions.map((s) => (
+                <div key={s.code} className="apercu-tauro-session">
+                  <div className="apercu-tauro-ligne">
+                    <b>{s.code}</b>
+                    <span className={`apercu-tauro-fin apercu-tauro-fin--${s.fin === "BRI" ? "bri" : "mat"}`}>
+                      {s.fin === "BRI" ? "Brillant" : "Mat"}
+                    </span>
+                    <span>
+                      <b>{s.ex} ex.</b> · {pluriel(s.jobs?.length ?? 0, "PDF")} · n° {n3(s.depart)} → {n3(s.dernier)}
+                    </span>
+                  </div>
+                  <div className="apercu-tauro-detail">{resumeFormats(s.jobs ?? [])}</div>
+                  <NomsPdf noms={dansOrdreImpression(s.jobs ?? []).map((j) => j.nom)} />
+                </div>
+              ))}
+              {!enSession && horsSession.length > 0 && (
+                <div className="apercu-tauro-session">
+                  <div className="apercu-tauro-ligne">
+                    <b>{pluriel(horsSession.length, "PDF")}</b>
+                    <span>
+                      sous leur nom d&apos;origine · {horsSession.reduce((t, h) => t + (Number(h.ex) || 0), 0)} ex.
+                    </span>
+                  </div>
+                  <NomsPdf noms={horsSession.map((h) => h.nom)} />
+                </div>
+              )}
+              {!enSession && horsSession.length === 0 && <p className="apercu-tauro-vide">Aucun PDF à lancer.</p>}
+              {sansPdf.length > 0 && (
+                <div className="apercu-tauro-detail">
+                  + {pluriel(sansPdf.length, "job")} sans PDF (teinte masse, stock), hors comptage : {listeDossiers(sansPdf)}
+                </div>
+              )}
+            </Bloc>
 
-            {!enSession && (
-              <Section titre="PDF hors session">
-                {horsSession.length === 0 ? (
-                  <p>Aucun PDF.</p>
-                ) : (
-                  <Table size="small" compact>
-                    <Table.Header>
-                      <Table.Row>
-                        <Table.HeaderCell>Nom</Table.HeaderCell>
-                        <Table.HeaderCell>Ex.</Table.HeaderCell>
-                        <Table.HeaderCell>Finition</Table.HeaderCell>
-                      </Table.Row>
-                    </Table.Header>
-                    <Table.Body>
-                      {horsSession.map((h) => (
-                        <Table.Row key={h.id}>
-                          <Table.Cell>{h.nom}</Table.Cell>
-                          <Table.Cell>{h.ex}</Table.Cell>
-                          <Table.Cell>{h.fin}</Table.Cell>
-                        </Table.Row>
-                      ))}
-                    </Table.Body>
-                  </Table>
-                )}
-              </Section>
-            )}
-
-            {restants.length > 0 && (
-              <Section titre="Restent dans la file">
-                <ul>
-                  {restants.map((r) => (
-                    <li key={r.id}>
-                      {r.cmd} : {r.raison}
-                    </li>
-                  ))}
-                </ul>
-              </Section>
-            )}
-
-            {ignores.length > 0 && (
-              <Section titre={`${autreFinition} ignoré`}>
-                <ul>
-                  {ignores.map((r) => (
-                    <li key={r.id}>
-                      {r.cmd} ({r.ex} ex.)
-                    </li>
-                  ))}
-                </ul>
-              </Section>
-            )}
-
-            {sansPdf.length > 0 && (
-              <Section titre="Sans PDF">
-                <p>Teinte masse et stock : partent avec, hors comptage.</p>
-                <ul>
-                  {sansPdf.map((r) => (
-                    <li key={r.id}>
-                      {r.cmd}
-                      {r.visuel ? ` : ${r.visuel}` : ""}
-                    </li>
-                  ))}
-                </ul>
-              </Section>
-            )}
-
-            {bloques.length > 0 && (
-              <Section titre="Bloqués">
-                <ul style={{ listStyle: "none", paddingLeft: 0 }}>
-                  {bloques.map((r) => (
-                    <li key={r.id} style={{ marginBottom: "0.3em" }}>
-                      {/* Seul un « déjà lancé » se confirme ; les autres blocages ne se relancent pas. */}
-                      {String(r.raison || "").startsWith("déjà lancé") ? (
-                        <Checkbox
-                          label={`Relancer ${r.cmd} : ${r.raison}`}
-                          checked={relancer.includes(r.cle)}
-                          onChange={(e, { checked }) => toggleRelancer(r.cle, checked)}
-                        />
-                      ) : (
-                        `${r.cmd} : ${r.raison}`
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </Section>
-            )}
-
-            {alertes.length > 0 && (
-              <Section titre="Infos">
-                {alertes.map((a, i) => (
-                  <Message key={i} warning size="small" content={a} />
+            {/* 2. Ce qui reste dans la file */}
+            {(restants.length > 0 || ignores.length > 0) && (
+              <Bloc type="reste" titre="Reste dans la file">
+                {regrouperParMotif(restants).map((g) => (
+                  <div key={g.motif} className="apercu-tauro-session">
+                    <div className="apercu-tauro-ligne">
+                      <b>{g.ex} ex.</b>
+                      <span>
+                        {pluriel(g.jobs, "job")} · {g.motif}
+                      </span>
+                    </div>
+                    <div className="apercu-tauro-detail">Dossiers : {g.dossiers}</div>
+                  </div>
                 ))}
-              </Section>
+                {ignores.length > 0 && (
+                  <div className="apercu-tauro-session">
+                    <div className="apercu-tauro-ligne">
+                      <b>{ignores.reduce((t, r) => t + (Number(r.ex) || 0), 0)} ex.</b>
+                      <span>
+                        {autreFinition} ({pluriel(ignores.length, "job")}) · un lancement ne porte qu&apos;une finition :
+                        choisir « {autreFinition} » pour les lancer
+                      </span>
+                    </div>
+                    <div className="apercu-tauro-detail">Dossiers : {listeDossiers(ignores)}</div>
+                  </div>
+                )}
+              </Bloc>
+            )}
+
+            {/* 3. À vérifier */}
+            {(bloques.length > 0 || alertes.length > 0) && (
+              <Bloc type="verif" titre="À vérifier">
+                {bloques.length > 0 && (
+                  <ul className="apercu-tauro-bloques">
+                    {bloques.map((r) => {
+                      const texte = `${r.cle?.startsWith("id:") ? r.cmd : r.cle} — ${blocageCourt(r.raison)}`;
+                      return (
+                        <li key={r.id}>
+                          {/* Seul un « déjà lancé » se confirme ; les autres blocages ne se relancent pas. */}
+                          {String(r.raison || "").startsWith("déjà lancé") ? (
+                            <Checkbox
+                              label={`Relancer ${texte}`}
+                              checked={relancer.includes(r.cle)}
+                              onChange={(e, { checked }) => toggleRelancer(r.cle, checked)}
+                            />
+                          ) : (
+                            texte
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                {alertes.length > 0 && (
+                  <ul className="apercu-tauro-infos">
+                    {alertes.map((a) => (
+                      <li key={a}>{a}</li>
+                    ))}
+                  </ul>
+                )}
+              </Bloc>
             )}
           </div>
         )}
