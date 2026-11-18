@@ -681,23 +681,19 @@ img.ui.image:not(.header-logo) {
 
 .jobs-section-label {
   font-family: 'Figtree', -apple-system, sans-serif;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--text-muted);
-  padding: 6px 8px 4px;
-  border-top: 1px solid var(--border-dim);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-primary);
+  padding: var(--s-12) 0 var(--s-sm);
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
 .jobs-section-label--completed {
-  border-top: 1px solid var(--border-default);
-  margin-top: 4px;
-  padding-top: 8px;
-  color: var(--color-ecom);
+  color: var(--text-secondary);
 }
 
 .format-tauro     { display: flex; flex-direction: column; }

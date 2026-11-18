@@ -551,8 +551,9 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
               <Button
                 compact
                 size="mini"
-                negative
-                className="row-delete-btn"
+                basic
+                icon
+                className="row-delete-btn job-delete"
                 onClick={() => setConfirmDeleteId(entry.jobId)}
                 disabled={onLoading}
                 title="Supprimer ce job de la file"
@@ -592,22 +593,22 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
       );
 
     const newTable = !isLoading && (
-      <div className="jobs-table-wrapper">
+      <div className={`jobs-table-wrapper jobs-table-wrapper--${status === "jobs" ? "attente" : "traites"}`}>
         <div className="jobs-table-container">
         <Table size="small" compact columns={"12"} className="jobs-table" striped>
           <colgroup>
-            <col style={{ width: "28px" }} />
-            <col style={{ width: "32px" }} />
-            <col style={{ width: "56px" }} />
-            <col style={{ width: "120px" }} />
-            <col style={{ width: "80px" }} />
-            <col style={{ width: "100px" }} />
+            <col style={{ width: "36px" }} />
+            <col style={{ width: "36px" }} />
+            <col style={{ width: "84px" }} />
+            <col style={{ width: "160px" }} />
+            <col style={{ width: "84px" }} />
+            <col style={{ width: "170px" }} />
             <col style={{ width: "auto" }} />
             <col style={{ width: "64px" }} />
-            <col style={{ width: "70px" }} />
-            <col style={{ width: "70px" }} />
+            <col style={{ width: "84px" }} />
+            <col style={{ width: "84px" }} />
             <col style={{ width: "48px" }} />
-            <col style={{ width: "60px" }} />
+            <col style={{ width: "44px" }} />
           </colgroup>
           <TableHeader className="sticky-header">
             <TableRow className="table-row">

@@ -6,6 +6,19 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: var(--ctl-r);
+}
+
+/* La file en attente prend la place ; les traités restent en bas, limités */
+.jobs-table-wrapper--attente {
+  flex: 1 1 auto;
+  min-height: 160px;
+}
+
+.jobs-table-wrapper--traites {
+  flex: 0 1 auto;
+  max-height: 28vh;
 }
 
 .jobs-table-container {
@@ -20,6 +33,13 @@
   display: table;
   table-layout: fixed;
   border-collapse: collapse;
+}
+
+/* Pas d'overflow:hidden sur la table : sinon thead/tfoot ne restent pas collés */
+.ui.table.jobs-table {
+  overflow: visible !important;
+  border: 0 !important;
+  margin: 0 !important;
 }
 
 /* Sticky header & footer */
@@ -40,12 +60,13 @@
   background: var(--table-header-bg) !important;
   color: var(--table-header-color) !important;
   font-family: 'Figtree', -apple-system, sans-serif !important;
-  font-size: 9px !important;
+  font-size: 12px !important;
   font-weight: 600 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 1.8px !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
   border-bottom: 1px solid var(--border-default) !important;
   padding: 8px !important;
+  white-space: nowrap;
 }
 
 .sticky-footer {
@@ -54,10 +75,18 @@
   background: var(--bg-elevated) !important;
 }
 
+/* Barres d'actions (Lancer…, Vider l'historique) : même style que le bandeau « Ajouter » */
+.ui.table.jobs-table tfoot.sticky-footer th,
 .sticky-footer th {
-  background: var(--bg-elevated) !important;
-  border-top: 1px solid var(--border-default) !important;
-  padding: 6px 8px !important;
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-elevated)) !important;
+  border-top: 2px solid var(--accent) !important;
+  padding: 8px 8px 8px 12px !important;
+  box-shadow: 0 -2px 6px rgba(16, 19, 26, 0.10), 0 -16px 36px -8px rgba(16, 19, 26, 0.38);
+}
+
+[data-theme="dark"] .ui.table.jobs-table tfoot.sticky-footer th,
+[data-theme="dark"] .sticky-footer th {
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.4), 0 -16px 36px -8px rgba(0, 0, 0, 0.7);
 }
 
 .sticky-footer-content {
@@ -102,11 +131,11 @@
 .table-row[data-client="BRICO"] > td:first-child { border-left: 3px solid var(--color-brico) !important; }
 [data-theme="dark"] .table-row[data-client="BRICO"] > td:first-child { border-left-color: color-mix(in srgb, var(--color-brico) 75%, #fff) !important; }
 
-/* Table cells */
+/* Table cells : police d'interface, une ligne par job */
 .table-cell {
   height: var(--table-row-height, 34px) !important;
-  font-family: 'Geist Mono', ui-monospace, monospace !important;
-  font-size: 12px !important;
+  font-family: 'Figtree', -apple-system, sans-serif !important;
+  font-size: 13px !important;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -134,9 +163,55 @@
 
 /* Bouton de suppression par ligne : marge de respiration avec le bord
    droit du tableau (la colonne fait 60px, le bouton mini-compact ~28px) */
-.jobs-table td:last-child {
-  padding-right: 16px !important;
-  text-align: right;
+.jobs-table tbody td {
+  white-space: nowrap !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle !important;
+  font-family: 'Figtree', -apple-system, sans-serif !important;
+  font-size: 13px !important;
+}
+
+/* Données : commande, formats, plaques, ex */
+.jobs-table tbody td:nth-child(5),
+.jobs-table tbody td:nth-child(9),
+.jobs-table tbody td:nth-child(10),
+.jobs-table tbody td:nth-child(11) {
+  font-family: 'Geist Mono', ui-monospace, monospace !important;
+  font-size: 12.5px !important;
+}
+
+.jobs-table tbody td:nth-child(4) {
+  color: var(--text-secondary) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Colonnes de contrôle (poignée, case, action) : centrées, sans marge ni « … » */
+.ui.table.jobs-table tbody td:nth-child(1),
+.ui.table.jobs-table tbody td:nth-child(2),
+.ui.table.jobs-table thead th:nth-child(1),
+.ui.table.jobs-table thead th:nth-child(2),
+.ui.table.jobs-table tbody td:last-child {
+  padding: 0 !important;
+  text-align: center !important;
+  text-overflow: clip;
+  overflow: visible;
+}
+
+/* Suppression d'une ligne : discrète, rouge au survol */
+.ui.table.jobs-table .ui.button.job-delete {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  color: var(--text-muted) !important;
+}
+
+.jobs-table tbody tr:hover .ui.table.jobs-table .ui.button.job-delete {
+  color: var(--danger) !important;
+}
+
+.ui.table.jobs-table tbody tr .ui.button.job-delete:hover {
+  background: var(--danger-soft) !important;
+  border-color: var(--danger) !important;
 }
 
 .row-delete-btn.ui.button {
