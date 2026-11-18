@@ -5,6 +5,7 @@ import { isCredenceFormat } from "../utils/credence";
 import { API_BASE } from "../utils/api";
 import { isDefinitelyWrongClient } from "../utils/referenceValidation";
 import { formatPrix } from "../utils/prix";
+import { resumeDossiers } from "../utils/resumeDossiers";
 import { findFormatTauro } from "../utils/formatTauro";
 import { estSurMesureVisuel, lignesVersPanneaux, remplacerLignes, requeteLignes } from "../utils/surMesure";
 
@@ -261,6 +262,7 @@ function DossierAutocomplete({ pathData, formatTauro, onAutoFill, gamesysOk, con
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [loadedDossiers, setLoadedDossiers] = useState([]);
+  const [listeOuverte, setListeOuverte] = useState(false);
   const [message, setMessage] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
   const [suggestionIndex, setSuggestionIndex] = useState(-1);
@@ -462,6 +464,7 @@ function DossierAutocomplete({ pathData, formatTauro, onAutoFill, gamesysOk, con
           Gamesys indisponible — la recherche par dossier n'est pas accessible.
         </Message>
       )}
+      <div className="dossier-ligne">
       <div className="dossier-autocomplete-search">
         <div className="dossier-input-wrapper">
           <Input
@@ -516,30 +519,38 @@ function DossierAutocomplete({ pathData, formatTauro, onAutoFill, gamesysOk, con
         <Button type="button" size="small" compact primary loading={isLoading} disabled={isLoading || gamesysOffline} onClick={handleSearch}>
           Rechercher
         </Button>
-        {loadedDossiers.length > 0 && (
-          <Button
-            type="button"
-            size="mini"
-            basic
-            negative
-            icon="trash alternate"
-            onClick={handleClearAll}
-            title="Vider tous les dossiers"
-          />
-        )}
       </div>
 
-      {loadedDossiers.length > 0 && (
+      {loadedDossiers.length > 0 && (() => {
+        const resume = resumeDossiers(loadedDossiers);
+        return (
+          <div className="dossier-resume">
+            <span>
+              <b>{resume.nbDossiers}</b> dossier{resume.nbDossiers > 1 ? "s" : ""} chargé{resume.nbDossiers > 1 ? "s" : ""}
+            </span>
+            <span className="dossier-resume__sep" />
+            <span>
+              <b>{resume.nbJobs}</b> job{resume.nbJobs > 1 ? "s" : ""}
+            </span>
+            <span className="dossier-resume__sep" />
+            <span className="dossier-resume__montant">{formatPrix(resume.montant)}</span>
+            <button type="button" className="dossier-resume__lien" onClick={() => setListeOuverte((o) => !o)}>
+              {listeOuverte ? "Masquer la liste ▴" : "Voir les dossiers ▾"}
+            </button>
+            <button type="button" className="dossier-resume__lien dossier-resume__vider" onClick={handleClearAll} title="Vider tous les dossiers">
+              Tout vider
+            </button>
+          </div>
+        );
+      })()}
+      </div>
+
+      {loadedDossiers.length > 0 && listeOuverte && (
         <div className="dossier-chips">
           {loadedDossiers.map((d) => (
-            <Label key={d.numero} color="green" size="small">
-              <Icon name="check circle" />
+            <Label key={d.numero} size="small" className="dossier-chip">
               {d.numero}
-              <span style={{ opacity: 0.7, marginLeft: 3 }}>({d.jobs.length})</span>
-              {d.prixTotal !== undefined && (
-                <span style={{ opacity: 0.7, marginLeft: 4 }}>· {formatPrix(d.prixTotal)}</span>
-              )}
-              <Icon name="delete" link style={{ marginLeft: 4 }} onClick={() => handleClearDossier(d.numero)} />
+              <Icon name="delete" link onClick={() => handleClearDossier(d.numero)} title="Retirer ce dossier" />
             </Label>
           ))}
         </div>
