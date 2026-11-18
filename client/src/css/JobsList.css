@@ -168,7 +168,7 @@
   background: transparent !important;
 }
 .ui.striped.table.jobs-table tbody.job-group:nth-of-type(2n) > tr {
-  background: rgba(42, 37, 32, 0.02) !important;
+  background: rgba(16, 19, 26, 0.02) !important;
 }
 .ui.table.jobs-table tbody.job-group.dragging > tr > td {
   background: var(--bg-elevated) !important;
@@ -226,13 +226,13 @@
 .finition-tauro .ui.button.active.mat {
   color: var(--color-lm) !important;
   border-color: var(--color-lm) !important;
-  background: rgba(45, 110, 70, 0.15) !important;
+  background: color-mix(in srgb, var(--color-lm) 15%, transparent) !important;
   font-weight: 700 !important;
 }
 .finition-tauro .ui.button.active.bri {
   color: var(--color-brico) !important;
   border-color: var(--color-brico) !important;
-  background: rgba(160, 85, 35, 0.15) !important;
+  background: color-mix(in srgb, var(--color-brico) 15%, transparent) !important;
   font-weight: 700 !important;
 }
 

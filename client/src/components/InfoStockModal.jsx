@@ -80,7 +80,7 @@ const InfoStockModal = ({ items, open, onClose, onValidate }) => {
         </Button>
         <Button
           onClick={() => onValidate(items.filter((_, i) => checked.has(i)))}
-          color="green"
+          positive
           disabled={checked.size === 0}
         >
           <Icon name="checkmark" /> Utiliser le stock ({checked.size})

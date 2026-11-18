@@ -513,7 +513,7 @@ function DossierAutocomplete({ pathData, formatTauro, onAutoFill, gamesysOk, con
             </div>
           )}
         </div>
-        <Button type="button" size="small" compact color="vk" loading={isLoading} disabled={isLoading || gamesysOffline} onClick={handleSearch}>
+        <Button type="button" size="small" compact primary loading={isLoading} disabled={isLoading || gamesysOffline} onClick={handleSearch}>
           Rechercher
         </Button>
         {loadedDossiers.length > 0 && (
@@ -521,7 +521,7 @@ function DossierAutocomplete({ pathData, formatTauro, onAutoFill, gamesysOk, con
             type="button"
             size="mini"
             basic
-            color="red"
+            negative
             icon="trash alternate"
             onClick={handleClearAll}
             title="Vider tous les dossiers"

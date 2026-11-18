@@ -1,0 +1,367 @@
+/* ============================================================
+   Contrôles unifiés : boutons, champs, menus, cases, interrupteurs.
+   Chargé après index.css. Valeurs : spec 2026-11-18 §3.
+   4 rôles de bouton : primary (principal), positive (validation),
+   negative (danger), sans couleur (secondaire).
+   ============================================================ */
+
+/* ---------- Boutons ---------- */
+
+.ui.button {
+  font-family: 'Figtree', -apple-system, sans-serif !important;
+  font-weight: 500 !important;
+  border-radius: var(--ctl-r) !important;
+  min-height: var(--ctl-h);
+  padding: 0 var(--ctl-px) !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: none !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  transition: background 0.15s, border-color 0.15s, color 0.15s !important;
+}
+
+.ui.mini.button,
+.ui.compact.button {
+  min-height: var(--ctl-h-sm);
+  padding: 0 calc(var(--ctl-px) - 4px) !important;
+  font-size: 12px !important;
+}
+
+.ui.icon.button:not(.labeled) {
+  padding: 0 !important;
+  width: var(--ctl-h);
+}
+
+.ui.mini.icon.button:not(.labeled),
+.ui.compact.icon.button:not(.labeled) {
+  width: var(--ctl-h-sm);
+}
+
+.ui.button > .icon {
+  margin: 0 !important;
+  opacity: 0.85;
+}
+
+/* Secondaire : tout bouton sans rôle */
+.ui.button:not(.primary):not(.positive):not(.negative) {
+  background: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-default) !important;
+}
+
+.ui.button:not(.primary):not(.positive):not(.negative):hover {
+  background: var(--bg-surface) !important;
+  border-color: var(--border-bright) !important;
+}
+
+/* Principal */
+.ui.primary.button {
+  background: var(--accent) !important;
+  color: var(--on-accent) !important;
+  border: 1px solid transparent !important;
+}
+
+.ui.primary.button:hover,
+.ui.primary.button:focus {
+  background: var(--accent) !important;
+  color: var(--on-accent) !important;
+  filter: brightness(1.08);
+}
+
+/* Validation */
+.ui.positive.button {
+  background: var(--success) !important;
+  color: #fff !important;
+  border: 1px solid transparent !important;
+}
+
+[data-theme="dark"] .ui.positive.button {
+  color: var(--on-accent) !important;
+}
+
+.ui.positive.button:hover {
+  filter: brightness(1.08);
+}
+
+/* Danger : contour, plein au survol */
+.ui.negative.button {
+  background: transparent !important;
+  color: var(--danger) !important;
+  border: 1px solid var(--danger) !important;
+}
+
+.ui.negative.button:hover {
+  background: var(--danger) !important;
+  color: #fff !important;
+}
+
+.ui.basic.button:not(.primary):not(.positive):not(.negative) {
+  background: transparent !important;
+}
+
+.ui.button:focus-visible {
+  outline: 2px solid var(--accent2) !important;
+  outline-offset: 2px;
+}
+
+.ui.disabled.button,
+.ui.button:disabled {
+  opacity: 0.45 !important;
+}
+
+/* ---------- Champs ---------- */
+
+.ui.input > input,
+.ui.form input:not([type="checkbox"]):not([type="radio"]):not(.search),
+.ui.form textarea,
+.ui.selection.dropdown {
+  border-radius: var(--ctl-r) !important;
+  border: 1px solid var(--border-default) !important;
+  background: var(--bg-input) !important;
+  color: var(--text-primary) !important;
+  box-shadow: none !important;
+  font-family: 'Figtree', -apple-system, sans-serif;
+  transition: border-color 0.15s, box-shadow 0.15s !important;
+}
+
+.ui.input > input,
+.ui.form input:not([type="checkbox"]):not([type="radio"]):not(.search) {
+  height: var(--ctl-h);
+  min-height: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.ui.input > input:hover,
+.ui.selection.dropdown:hover {
+  border-color: var(--border-bright) !important;
+}
+
+.ui.input > input:focus,
+.ui.form input:not(.search):focus,
+.ui.form textarea:focus,
+.ui.selection.active.dropdown {
+  border-color: var(--accent2) !important;
+  box-shadow: 0 0 0 3px var(--accent2-soft) !important;
+}
+
+/* ---------- Menus déroulants fermés ---------- */
+
+.ui.selection.dropdown {
+  min-height: var(--ctl-h) !important;
+  height: var(--ctl-h);
+  padding-top: calc((var(--ctl-h) - 2px - 1.2em) / 2) !important;
+  padding-bottom: calc((var(--ctl-h) - 2px - 1.2em) / 2) !important;
+  line-height: 1.2em !important;
+  display: inline-flex !important;
+  align-items: center;
+}
+
+.ui.selection.dropdown > .text {
+  line-height: 1.2em;
+}
+
+.ui.selection.dropdown > .dropdown.icon {
+  top: 50% !important;
+  transform: translateY(-50%);
+  padding: 0 !important;
+  margin: 0 !important;
+  height: auto !important;
+}
+
+/* Champ de recherche intérieur : jamais de bordure propre (sinon double contour) */
+.ui.search.selection.dropdown > input.search {
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: 1.2em !important;
+}
+
+.ui.selection.dropdown .menu {
+  border: 1px solid var(--border-default) !important;
+  border-radius: var(--ctl-r) !important;
+  background: var(--bg-elevated) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14) !important;
+}
+
+/* ---------- Cases à cocher (hors interrupteurs) ---------- */
+
+.ui.checkbox:not(.toggle):not(.slider) label:before {
+  width: 15px !important;
+  height: 15px !important;
+  top: 1px !important;
+  border: 1px solid var(--border-bright) !important;
+  border-radius: 2px !important;
+  background: var(--bg-input) !important;
+  box-shadow: none !important;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.ui.checkbox:not(.toggle):not(.slider):hover label:before {
+  border-color: var(--accent) !important;
+}
+
+.ui.checkbox:not(.toggle):not(.slider) input:focus-visible ~ label:before {
+  border-color: var(--accent2) !important;
+  box-shadow: 0 0 0 3px var(--accent2-soft) !important;
+}
+
+.ui.checkbox:not(.toggle):not(.slider) input:checked ~ label:before,
+.ui.checkbox:not(.toggle):not(.slider) input:indeterminate ~ label:before {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+
+.ui.checkbox:not(.toggle):not(.slider) label:after {
+  content: '' !important;
+  width: 15px !important;
+  height: 15px !important;
+  top: 1px !important;
+  font-size: 0 !important;
+  background-color: var(--on-accent);
+  -webkit-mask: center / 13px no-repeat;
+  mask: center / 13px no-repeat;
+}
+
+.ui.checkbox:not(.toggle):not(.slider) input:checked ~ label:after {
+  opacity: 1 !important;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.4l2.9 2.8 6-6.4' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.4l2.9 2.8 6-6.4' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.ui.checkbox:not(.toggle):not(.slider) input:indeterminate ~ label:after {
+  opacity: 1 !important;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8h8' stroke='%23000' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8h8' stroke='%23000' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+.ui.checkbox:not(.toggle):not(.slider):not(:has(input:checked)):not(:has(input:indeterminate)) label:after {
+  background-color: transparent;
+}
+
+.ui.fitted.checkbox:not(.toggle):not(.slider) label {
+  padding-left: 15px !important;
+}
+
+/* ---------- Interrupteurs ---------- */
+
+.ui.toggle.checkbox {
+  min-height: 16px !important;
+  height: 16px !important;
+  display: inline-flex !important;
+  align-items: center;
+  vertical-align: middle;
+}
+
+.ui.toggle.checkbox input {
+  width: 28px !important;
+  height: 16px !important;
+}
+
+.ui.toggle.checkbox label {
+  min-height: 16px !important;
+  padding-left: 36px !important;
+  padding-top: 0 !important;
+  line-height: 16px !important;
+  font-size: 13px !important;
+}
+
+.ui.toggle.checkbox label:before,
+.ui.toggle.checkbox input:focus ~ label:before {
+  width: 28px !important;
+  height: 16px !important;
+  top: 0 !important;
+  border-radius: 8px !important;
+  background: var(--border-bright) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  transition: background 0.15s !important;
+}
+
+.ui.toggle.checkbox label:after {
+  width: 12px !important;
+  height: 12px !important;
+  top: 2px !important;
+  left: 2px !important;
+  border-radius: 50% !important;
+  background: #fff !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25) !important;
+  border: 0 !important;
+  transition: left 0.15s !important;
+}
+
+.ui.toggle.checkbox input:checked ~ label:before,
+.ui.toggle.checkbox input:focus:checked ~ label:before {
+  background: var(--accent) !important;
+}
+
+.ui.toggle.checkbox input:checked ~ label:after {
+  left: 14px !important;
+}
+
+.ui.toggle.checkbox input:focus-visible ~ label:before {
+  box-shadow: 0 0 0 3px var(--accent2-soft) !important;
+}
+
+/* ---------- Étiquettes ---------- */
+
+.ui.label {
+  border-radius: var(--ctl-r) !important;
+  font-weight: 600 !important;
+}
+
+.ui.green.label {
+  background: color-mix(in srgb, var(--success) 14%, transparent) !important;
+  color: var(--success) !important;
+  border-color: transparent !important;
+}
+
+.ui.red.label {
+  background: var(--danger-soft) !important;
+  color: var(--danger) !important;
+  border-color: transparent !important;
+}
+
+.ui.orange.label,
+.ui.yellow.label {
+  background: var(--warning-soft) !important;
+  color: var(--warning) !important;
+  border-color: transparent !important;
+}
+
+/* Pastille « N profils/kits » */
+.pk-toggle-badge {
+  background: var(--accent-soft) !important;
+  color: var(--accent) !important;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  height: 22px !important;
+  line-height: 20px !important;
+  padding: 0 8px 0 6px !important;
+  border-radius: var(--ctl-r) !important;
+  display: inline-flex !important;
+  align-items: center;
+  gap: 2px;
+  box-shadow: none !important;
+}
+
+.pk-toggle-badge:hover {
+  background: color-mix(in srgb, var(--accent) 16%, transparent) !important;
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent) !important;
+}
+
+.pk-toggle-badge .icon {
+  margin: 0 !important;
+  font-size: 10px !important;
+  opacity: 0.8;
+}

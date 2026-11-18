@@ -549,7 +549,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
               <Button
                 compact
                 size="mini"
-                color="red"
+                negative
                 className="row-delete-btn"
                 onClick={() => setConfirmDeleteId(entry.jobId)}
                 disabled={onLoading}
@@ -649,7 +649,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
                         (stickersOnly ? (
                           <Button
                             type="button"
-                            color="green"
+                            positive
                             size="small"
                             compact
                             icon="file text"
@@ -723,7 +723,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
                           size="small"
                           compact
                           basic
-                          color="red"
+                          negative
                           icon="stop"
                           content="Annuler"
                           onClick={() => setConfirmCancelRun(true)}
@@ -764,7 +764,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
                 <TableHeaderCell colSpan="12" collapsing>
                   <div className="sticky-footer-content">
                     <Button
-                      color="red"
+                      negative
                       size="small"
                       compact
                       icon="warning circle"

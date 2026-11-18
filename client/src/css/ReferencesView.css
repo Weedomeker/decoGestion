@@ -10,7 +10,7 @@
 
 .references-count {
   font-size: 0.85em;
-  color: var(--text-muted, #666);
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
@@ -33,7 +33,7 @@
 }
 
 .references-error {
-  color: #c0392b;
+  color: var(--danger);
   margin: 0;
 }
 
@@ -71,7 +71,7 @@
 .references-check-client {
   margin-bottom: var(--s-md, 12px);
   padding-bottom: var(--s-md, 12px);
-  border-bottom: 1px solid var(--border-color, #e0e0e6);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .references-check-client h4 {
@@ -83,11 +83,11 @@
 }
 
 .references-check-warning {
-  color: #c0392b;
+  color: var(--danger);
 }
 
 .references-cell-aliases {
-  color: #888;
+  color: var(--text-muted);
   font-size: 0.85em;
   font-style: italic;
   max-width: 220px;

@@ -377,7 +377,7 @@ function ReferencesView({ previewList = [] }) {
                   )}
                   <Table.Cell>
                     <Button compact size="mini" icon="pencil" onClick={() => openEditForm(item)} title="Modifier" />
-                    <Button compact size="mini" color="red" icon="trash" onClick={() => setConfirmDeleteId(item._id)} title="Supprimer" />
+                    <Button compact size="mini" negative icon="trash" onClick={() => setConfirmDeleteId(item._id)} title="Supprimer" />
                   </Table.Cell>
                 </Table.Row>
               ))}
@@ -428,7 +428,7 @@ function ReferencesView({ previewList = [] }) {
                   <Table.Cell />
                   <Table.Cell>{pkFormData.stockDisponible ?? 0}</Table.Cell>
                   <Table.Cell>
-                    <Button compact size="mini" color="green" icon="check" onClick={submitPkForm} title="Enregistrer" />
+                    <Button compact size="mini" positive icon="check" onClick={submitPkForm} title="Enregistrer" />
                     <Button compact size="mini" icon="cancel" onClick={closePkForm} title="Annuler" />
                   </Table.Cell>
                 </Table.Row>
@@ -465,13 +465,13 @@ function ReferencesView({ previewList = [] }) {
                     <Table.Cell>
                       {isEditing ? (
                         <>
-                          <Button compact size="mini" color="green" icon="check" onClick={submitPkForm} title="Enregistrer" />
+                          <Button compact size="mini" positive icon="check" onClick={submitPkForm} title="Enregistrer" />
                           <Button compact size="mini" icon="cancel" onClick={closePkForm} title="Annuler" />
                         </>
                       ) : (
                         <>
                           <Button compact size="mini" icon="pencil" onClick={() => openPkEditForm(item)} title="Modifier" />
-                          <Button compact size="mini" color="red" icon="trash" onClick={() => setPkConfirmDeleteId(item._id)} title="Supprimer" />
+                          <Button compact size="mini" negative icon="trash" onClick={() => setPkConfirmDeleteId(item._id)} title="Supprimer" />
                         </>
                       )}
                     </Table.Cell>

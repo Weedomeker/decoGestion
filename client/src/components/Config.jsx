@@ -144,7 +144,7 @@ function Config() {
         size="small"
         trigger={
           <div className="config-button">
-            <Button animated="fade" color="black" type="button">
+            <Button animated="fade" primary type="button">
               <ButtonContent visible>
                 <Icon name="cogs" />
               </ButtonContent>
@@ -241,11 +241,11 @@ function Config() {
           </ModalContent>
         </div>
         <ModalActions>
-          <Button basic color="red" inverted onClick={() => setOpen(false)}>
+          <Button basic negative inverted onClick={() => setOpen(false)}>
             <Icon name="remove" /> Annuler
           </Button>
           <Button
-            color="green"
+            positive
             inverted
             onClick={async () => {
               const ok = await fetchDataAndCompare(data);
@@ -352,7 +352,7 @@ function Config() {
           <Button onClick={() => setBrowser((b) => ({ ...b, open: false }))}>
             <Icon name="remove" /> Annuler
           </Button>
-          <Button color="green" onClick={selectCurrentDir} disabled={!browser.current}>
+          <Button positive onClick={selectCurrentDir} disabled={!browser.current}>
             <Icon name="checkmark" /> Sélectionner ce dossier
           </Button>
         </ModalActions>

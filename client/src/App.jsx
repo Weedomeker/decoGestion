@@ -1169,7 +1169,6 @@ function App() {
                             type="button"
                             size="mini"
                             compact
-                            color="teal"
                             onClick={() => toggleCredenceStock(unpairedCredences.map((j) => j.id), true)}
                           >
                             Tout compléter en stock
@@ -1549,7 +1548,6 @@ function App() {
                                                               size="mini"
                                                               compact
                                                               basic={!!c2?._stock}
-                                                              color="teal"
                                                               onClick={() => toggleCredenceStock([job.id], !c2?._stock)}
                                                             >
                                                               {c2?._stock ? "Retirer stock" : "+1 stock"}
@@ -1563,7 +1561,6 @@ function App() {
                                                           size="mini"
                                                           compact
                                                           basic={credenceEditId === job.id}
-                                                          color="orange"
                                                           onClick={() => openCredenceForm(job)}
                                                         >
                                                           {credenceEditId === job.id ? "Annuler" : c2?._manual ? "Modifier ▾" : "Autre visuel ▾"}
@@ -1689,7 +1686,7 @@ function App() {
                                                 <Button
                                                   type="button"
                                                   size="mini"
-                                                  color="green"
+                                                  positive
                                                   disabled={!credence2File || !credence2NumCmd || !credence2Format}
                                                   onClick={() => applyManualCredence2(job.id)}
                                                   icon="check"
@@ -1825,7 +1822,6 @@ function App() {
                     className="add-button"
                     type="button"
                     icon="add"
-                    color="grey"
                     size="mini"
                     title="Ajouter un format de plaque Tauro"
                     aria-label="Ajouter un format de plaque Tauro"
@@ -2301,7 +2297,7 @@ function App() {
               })()}
               <Button
                 type="submit"
-                color="vk"
+                primary
                 size="small"
                 className="submit-button"
                 loading={!!submitProgress && submitProgress.total <= 1}
