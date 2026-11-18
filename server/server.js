@@ -23,6 +23,7 @@ const { createBullBoard } = require("@bull-board/api");
 const { BullMQAdapter } = require("@bull-board/api/bullMQAdapter");
 const { ExpressAdapter } = require("@bull-board/express");
 const { decoQueue, initWorker } = require("./src/services/queueService");
+const { retirerJobsOrphelins } = require("./src/services/jobsOrphelins");
 const { processJob } = require("./src/controllers/jobsController");
 const { syncPausedState } = require("./src/services/queueControlService");
 
@@ -109,12 +110,15 @@ app.use("/admin/queues", (req, res, next) => {
   next();
 }, serverAdapter.getRouter());
 
-// Worker BullMQ — traite les jobs process-job avec processJob
-initWorker(async (bullJob) => {
-  const { job, sortFolder, ip } = bullJob.data;
-  const fakeReq = { body: { sortFolder }, ip };
-  await processJob(job, fakeReq);
-}, { concurrency: getConfig()?.jobsConcurrency });
+// Worker BullMQ — traite les jobs process-job avec processJob. Démarré après le retrait des jobs
+// restés dans Redis d'un traitement interrompu (arrêt du serveur), qu'il traiterait sinon à l'aveugle.
+retirerJobsOrphelins(decoQueue, logger).finally(() => {
+  initWorker(async (bullJob) => {
+    const { job, sortFolder, ip } = bullJob.data;
+    const fakeReq = { body: { sortFolder }, ip };
+    await processJob(job, fakeReq);
+  }, { concurrency: getConfig()?.jobsConcurrency });
+});
 
 // La pause BullMQ persiste dans Redis : l'UI doit refléter l'état réel dès le démarrage.
 syncPausedState();

@@ -102,4 +102,46 @@ describe("tauro/journalTauro", () => {
     faux.exists.resolves(null);
     assert.equal(await journal.dejaInscrit(jobTauro), false);
   });
+
+  describe("coupure MongoDB : nouvelles tentatives", () => {
+    let horloge;
+    const coupure = () => Object.assign(new Error("connect ETIMEDOUT"), { name: "MongoNetworkError" });
+    beforeEach(() => {
+      horloge = sinon.useFakeTimers();
+    });
+    afterEach(() => horloge.restore());
+
+    it("dejaInscrit : réessaie après une coupure au lieu de faire échouer le dépôt", async () => {
+      faux.exists.onFirstCall().rejects(coupure()).onSecondCall().resolves({ _id: 1 });
+      const p = journal.dejaInscrit(jobTauro);
+      await horloge.tickAsync(5000);
+      assert.equal(await p, true);
+      assert.equal(faux.exists.callCount, 2);
+    });
+
+    it("inscrire : réessaie après une coupure (PDF déposé, journal finalement écrit)", async () => {
+      faux.insertMany.onFirstCall().rejects(coupure());
+      const p = journal.inscrire(jobTauro, {});
+      await horloge.tickAsync(5000);
+      await p;
+      assert.equal(faux.insertMany.callCount, 2);
+      faux.insertMany.reset();
+      faux.insertMany.resolves();
+    });
+
+    it("entreesPourLancement : attente courte (aperçu), puis l'erreur remonte", async () => {
+      faux.find.returns({ lean: () => Promise.reject(coupure()) });
+      const p = journal.entreesPourLancement([], "2026-11-17");
+      const verdict = assert.rejects(p, /ETIMEDOUT/);
+      await horloge.tickAsync(4000);
+      await verdict;
+      assert.equal(faux.find.callCount, 3);
+    });
+
+    it("erreur non réseau : pas de nouvelle tentative", async () => {
+      faux.exists.rejects(new Error("validation"));
+      await assert.rejects(journal.dejaInscrit(jobTauro), /validation/);
+      assert.equal(faux.exists.callCount, 1);
+    });
+  });
 });
