@@ -1,5 +1,6 @@
 import PropTypes from "prop-types";
-import { Checkbox, Dropdown, Label } from "semantic-ui-react";
+import { Checkbox, Label } from "semantic-ui-react";
+import Dropdown from "./AutoDropdown";
 
 const cm = (mm) => String(mm / 10).replace(".", ",");
 

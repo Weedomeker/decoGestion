@@ -7,7 +7,8 @@
  * @param {{top:number,bottom:number,left:number,right:number,width:number}} p.declencheur rectangle du menu fermé
  * @param {{largeur:number,hauteur:number}} p.fenetre taille de la fenêtre
  * @param {number} p.hauteurContenu hauteur naturelle de la liste
- * @returns {{versLeHaut:boolean,top:number,left:number,minLargeur:number,maxLargeur:number,hauteurMax:number}}
+ * @returns {{versLeHaut:boolean,top:number,bottom:number|null,left:number,minLargeur:number,maxLargeur:number,hauteurMax:number}}
+ * Vers le haut, `bottom` ancre le menu sur le haut du champ : il reste collé quand la liste filtrée rétrécit.
  */
 export function placerMenu({ declencheur, fenetre, hauteurContenu, marge = 8, hauteurMin = 120, hauteurMax = 300, largeurLisible = 480 }) {
   const utile = Math.min(hauteurContenu, hauteurMax);
@@ -22,6 +23,7 @@ export function placerMenu({ declencheur, fenetre, hauteurContenu, marge = 8, ha
   return {
     versLeHaut,
     top: versLeHaut ? declencheur.top - hauteur : declencheur.bottom,
+    bottom: versLeHaut ? fenetre.hauteur - declencheur.top : null,
     left,
     minLargeur,
     // libellés longs : ni débordement à droite, ni menu étiré sur toute la largeur

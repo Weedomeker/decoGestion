@@ -205,7 +205,7 @@
   color: var(--text-muted) !important;
 }
 
-.jobs-table tbody tr:hover .ui.table.jobs-table .ui.button.job-delete {
+.ui.table.jobs-table tbody tr:hover .ui.button.job-delete {
   color: var(--danger) !important;
 }
 

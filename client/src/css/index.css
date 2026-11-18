@@ -1273,8 +1273,6 @@ img.ui.image:not(.header-logo) {
 
 .ui.dropdown.auto-dropdown--fixe > .menu {
   position: fixed !important;
-  bottom: auto !important;
-  right: auto !important;
   overflow-y: auto !important;
   z-index: 1200 !important;
 }

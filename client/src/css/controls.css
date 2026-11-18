@@ -45,14 +45,15 @@
   opacity: 0.85;
 }
 
-/* Secondaire : tout bouton sans rôle */
-.ui.button:not(.primary):not(.positive):not(.negative) {
+/* Secondaire : tout bouton sans rôle. :where() garde une priorité basse, pour que
+   les états actifs existants (onglets de mode, enseigne, Mat/Brillant) restent visibles. */
+.ui.button:where(:not(.primary):not(.positive):not(.negative)) {
   background: var(--bg-elevated) !important;
   color: var(--text-primary) !important;
   border: 1px solid var(--border-default) !important;
 }
 
-.ui.button:not(.primary):not(.positive):not(.negative):hover {
+.ui.button:where(:not(.primary):not(.positive):not(.negative):not(.active)):hover {
   background: var(--bg-surface) !important;
   border-color: var(--border-bright) !important;
 }
@@ -98,7 +99,7 @@
   color: #fff !important;
 }
 
-.ui.basic.button:not(.primary):not(.positive):not(.negative) {
+.ui.basic.button:where(:not(.primary):not(.positive):not(.negative):not(.active)) {
   background: transparent !important;
 }
 

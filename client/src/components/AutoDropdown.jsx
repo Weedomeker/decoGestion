@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import { Dropdown } from "semantic-ui-react";
 import { placerMenu } from "../utils/placementMenu";
 
-const STYLES_POSES = ["top", "left", "minWidth", "maxWidth", "maxHeight"];
+const STYLES_POSES = ["top", "bottom", "right", "left", "minWidth", "maxWidth", "maxHeight"];
 
 // Un ancêtre avec transform, filter, perspective, contain ou will-change devient le repère
 // de la position fixe (ex. la modale Semantic) : on retranche sa position.
@@ -14,14 +14,15 @@ function origineFixe(el) {
       c.transform !== "none" ||
       c.filter !== "none" ||
       c.perspective !== "none" ||
+      (c.backdropFilter && c.backdropFilter !== "none") ||
       /paint|layout|strict|content/.test(c.contain) ||
       /transform|filter|perspective/.test(c.willChange)
     ) {
       const r = p.getBoundingClientRect();
-      return { x: r.left + p.clientLeft, y: r.top + p.clientTop };
+      return { x: r.left + p.clientLeft, y: r.top + p.clientTop, h: p.clientHeight };
     }
   }
-  return { x: 0, y: 0 };
+  return { x: 0, y: 0, h: 0 };
 }
 
 /**
@@ -51,14 +52,21 @@ function AutoDropdown({ onOpen, onClose, upward, className, ...props }) {
       });
       // upward explicite de l'appelant : il gagne sur le calcul
       const force = upwardRef.current;
-      const top = force === true ? r.top - p.hauteurMax : force === false ? r.bottom : p.top;
+      const versLeHaut = force === true || (force !== false && p.versLeHaut);
       const o = origineFixe(etat.el);
+      const hauteurRepere = o.h || window.innerHeight;
+      // jamais hors de l'écran : la hauteur ne dépasse pas la place du côté choisi (upward forcé compris)
+      const place = versLeHaut ? r.top - 8 : window.innerHeight - r.bottom - 8;
+      const hauteurMax = Math.max(0, Math.min(p.hauteurMax, place));
       Object.assign(menu.style, {
-        top: `${top - o.y}px`,
+        // vers le haut : ancré par le bas sur le haut du champ, il reste collé quand la liste filtrée rétrécit
+        top: versLeHaut ? "auto" : `${r.bottom - o.y}px`,
+        bottom: versLeHaut ? `${hauteurRepere - (r.top - o.y)}px` : "auto",
+        right: "auto",
         left: `${p.left - o.x}px`,
         minWidth: `${p.minLargeur}px`,
         maxWidth: `${p.maxLargeur}px`,
-        maxHeight: `${p.hauteurMax}px`,
+        maxHeight: `${hauteurMax}px`,
       });
     };
 
@@ -91,8 +99,12 @@ function AutoDropdown({ onOpen, onClose, upward, className, ...props }) {
 
   useEffect(() => ctl.current.arreter, []);
 
+  // Semantic ouvre aussi le menu sans événement (focus clavier, saisie dans une recherche) :
+  // l'élément vient de la ref interne du Dropdown, pas de e.target.
+  const dropdownRef = useRef(null);
+
   const handleOpen = (e, data) => {
-    const el = e?.target?.closest?.(".ui.dropdown");
+    const el = dropdownRef.current?.ref?.current ?? e?.target?.closest?.(".ui.dropdown");
     if (el) ctl.current.demarrer(el);
     onOpen?.(e, data);
   };
@@ -105,6 +117,7 @@ function AutoDropdown({ onOpen, onClose, upward, className, ...props }) {
   return (
     <Dropdown
       {...props}
+      ref={dropdownRef}
       onOpen={handleOpen}
       onClose={handleClose}
       className={[className, "auto-dropdown--fixe"].filter(Boolean).join(" ")}

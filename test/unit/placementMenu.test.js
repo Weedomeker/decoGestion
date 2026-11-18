@@ -19,6 +19,15 @@ describe("placerMenu : menu déroulant posé au-dessus de la page", () => {
     assert.equal(p.hauteurMax, 250);
   });
 
+  it("vers le haut, s'ancre par le bas sur le haut du champ (reste collé si la liste rétrécit)", () => {
+    const p = placerMenu({ declencheur: decl(520), fenetre, hauteurContenu: 250 });
+    assert.equal(p.bottom, 600 - 520);
+  });
+
+  it("vers le bas, pas d'ancrage par le bas", () => {
+    assert.equal(placerMenu({ declencheur: decl(100), fenetre, hauteurContenu: 250 }).bottom, null);
+  });
+
   it("plafonne la hauteur à la place disponible, sans descendre sous hauteurMin", () => {
     const p = placerMenu({ declencheur: decl(300), fenetre: { largeur: 1280, hauteur: 420 }, hauteurContenu: 300 });
     assert.ok(p.hauteurMax <= 300 - 8 && p.hauteurMax >= 120, `hauteurMax = ${p.hauteurMax}`);
