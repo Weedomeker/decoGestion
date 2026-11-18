@@ -1191,6 +1191,7 @@ function App() {
                             <Table.HeaderCell>Format Tauro</Table.HeaderCell>
                             <Table.HeaderCell>Format</Table.HeaderCell>
                             <Table.HeaderCell>Visuel</Table.HeaderCell>
+                            <Table.HeaderCell className="col-prix">Prix</Table.HeaderCell>
                             <Table.HeaderCell>N° Cmd</Table.HeaderCell>
                             <Table.HeaderCell>Ville</Table.HeaderCell>
                             <Table.HeaderCell>Ex</Table.HeaderCell>
@@ -1242,7 +1243,7 @@ function App() {
                                       onChange={() => toggleGroupSelection(dossierNumero)}
                                     />
                                   </Table.Cell>
-                                  <Table.Cell colSpan={hasCredences ? 9 : 8} className="dossier-group-label" data-client={group.client}>
+                                  <Table.Cell colSpan={hasCredences ? 10 : 9} className="dossier-group-label" data-client={group.client}>
                                     <span className={`client-badge client-badge--${group.client?.toLowerCase()}`}>
                                       {group.client}
                                     </span>
@@ -1298,12 +1299,8 @@ function App() {
                                           <span style={{ marginLeft: 8, fontSize: "0.85em", opacity: 0.75 }}>
                                             {job.libelle || job.ref}
                                           </span>
-                                          {job.prix !== undefined && (
-                                            <span style={{ marginLeft: 8, fontSize: "0.75em", opacity: 0.6 }}>
-                                              {formatPrix(job.prix)}
-                                            </span>
-                                          )}
                                         </Table.Cell>
+                                        <Table.Cell className="col-prix">{job.prix !== undefined ? formatPrix(job.prix) : ""}</Table.Cell>
                                         <Table.Cell>
                                           <Input
                                             size="small"
@@ -1421,12 +1418,8 @@ function App() {
                                             </span>
                                           </div>
                                         )}
-                                        {job.prix !== undefined && (
-                                          <div style={{ fontSize: "0.75em", opacity: 0.6, marginTop: 2 }}>
-                                            {formatPrix(job.prix)}
-                                          </div>
-                                        )}
                                       </Table.Cell>
+                                      <Table.Cell className="col-prix">{job.prix !== undefined ? formatPrix(job.prix) : ""}</Table.Cell>
                                       <Table.Cell>
                                         <Input size="small" type="number"
                                           value={job.numCmd || ""}
@@ -1597,7 +1590,7 @@ function App() {
                                         : [];
                                       return (
                                         <Table.Row className="credence-inline-form">
-                                          <Table.Cell colSpan={hasCredences ? 10 : 9} style={{ padding: "0.75rem 1.25rem" }}>
+                                          <Table.Cell colSpan={hasCredences ? 11 : 10} style={{ padding: "0.75rem 1.25rem" }}>
                                             <div
                                               className="ui form"
                                               style={{ display: "flex", gap: "0.75rem", alignItems: "flex-end", flexWrap: "wrap" }}

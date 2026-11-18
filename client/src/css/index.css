@@ -436,7 +436,7 @@ img.ui.image:not(.header-logo) {
   display: flex;
   flex-direction: column;
   padding: var(--s-sm) var(--s-lg) var(--s-md);
-  gap: 10px;
+  gap: var(--s-12);
   transition: max-width 0.25s var(--ease);
 }
 
@@ -449,10 +449,8 @@ img.ui.image:not(.header-logo) {
   max-width: none;
 }
 
-.form-panel--wide .dossier-autocomplete,
 .form-panel--wide .form-section,
-.form-panel--wide .warning-message,
-.form-panel--wide > .mode-tabs {
+.form-panel--wide .warning-message {
   width: 100%;
   max-width: var(--form-panel-width);
   margin-left: auto;
@@ -572,7 +570,7 @@ img.ui.image:not(.header-logo) {
   display: flex;
   gap: 0;
   border-bottom: 1px solid var(--border-default);
-  margin-bottom: var(--s-md);
+  margin-bottom: 0;
 }
 
 .mode-tabs .ui.button.toggle {
@@ -827,82 +825,96 @@ img.ui.image:not(.header-logo) {
   table-layout: fixed !important;
 }
 
-/* Largeurs de colonnes — col 1 = checkbox, 9 colonnes au total */
+/* Largeurs de colonnes — 1 case, puis Format Tauro, Format, Visuel, Prix, N° Cmd, Ville, Ex, PB, TM */
 .dossier-table th:nth-child(1),
-.dossier-table td:nth-child(1) { width: 3% !important; text-align: center !important; padding: 4px 4px !important; }
-
+.dossier-table td:nth-child(1) { width: 3% !important; text-align: center !important; padding-left: 0 !important; padding-right: 0 !important; }
 .dossier-table th:nth-child(2),
-.dossier-table td:nth-child(2) { width: 16% !important; }
-
+.dossier-table td:nth-child(2) { width: 15% !important; }
 .dossier-table th:nth-child(3),
-.dossier-table td:nth-child(3) { width: 11% !important; }
-
+.dossier-table td:nth-child(3) { width: 10% !important; }
 .dossier-table th:nth-child(4),
-.dossier-table td:nth-child(4) { width: 31% !important; }
-
+.dossier-table td:nth-child(4) { width: 28% !important; }
 .dossier-table th:nth-child(5),
-.dossier-table td:nth-child(5) { width: 10% !important; }
-
+.dossier-table td:nth-child(5) { width: 7% !important; }
 .dossier-table th:nth-child(6),
-.dossier-table td:nth-child(6) { width: 15% !important; }
-
+.dossier-table td:nth-child(6) { width: 10% !important; }
 .dossier-table th:nth-child(7),
-.dossier-table td:nth-child(7) { width: 6% !important; }
-
+.dossier-table td:nth-child(7) { width: 15% !important; }
 .dossier-table th:nth-child(8),
-.dossier-table td:nth-child(8) { width: 4% !important; text-align: center !important; padding: 4px 2px !important; }
-
+.dossier-table td:nth-child(8) { width: 6% !important; }
 .dossier-table th:nth-child(9),
-.dossier-table td:nth-child(9) { width: 4% !important; text-align: center !important; padding: 4px 2px !important; }
+.dossier-table td:nth-child(9) { width: 3% !important; text-align: center !important; padding-left: 0 !important; padding-right: 0 !important; }
+.dossier-table th:nth-child(10),
+.dossier-table td:nth-child(10) { width: 3% !important; text-align: center !important; padding-left: 0 !important; padding-right: 0 !important; }
 
-/* Largeurs rebalancées quand la colonne "2e panneau" est présente (10 colonnes) */
+/* Avec la colonne « 2e panneau » (11 colonnes) */
+.dossier-table--credences th:nth-child(1),
+.dossier-table--credences td:nth-child(1) { width: 3% !important; }
 .dossier-table--credences th:nth-child(2),
-.dossier-table--credences td:nth-child(2) { width: 13% !important; }
-
+.dossier-table--credences td:nth-child(2) { width: 12% !important; }
 .dossier-table--credences th:nth-child(3),
-.dossier-table--credences td:nth-child(3) { width: 9% !important; }
-
+.dossier-table--credences td:nth-child(3) { width: 8% !important; }
 .dossier-table--credences th:nth-child(4),
-.dossier-table--credences td:nth-child(4) { width: 22% !important; }
-
+.dossier-table--credences td:nth-child(4) { width: 20% !important; }
 .dossier-table--credences th:nth-child(5),
-.dossier-table--credences td:nth-child(5) { width: 9% !important; }
-
+.dossier-table--credences td:nth-child(5) { width: 6% !important; }
 .dossier-table--credences th:nth-child(6),
-.dossier-table--credences td:nth-child(6) { width: 12% !important; }
-
+.dossier-table--credences td:nth-child(6) { width: 8% !important; }
 .dossier-table--credences th:nth-child(7),
-.dossier-table--credences td:nth-child(7) { width: 5% !important; }
-
+.dossier-table--credences td:nth-child(7) { width: 11% !important; }
 .dossier-table--credences th:nth-child(8),
-.dossier-table--credences td:nth-child(8) { width: 3% !important; }
-
+.dossier-table--credences td:nth-child(8) { width: 5% !important; }
 .dossier-table--credences th:nth-child(9),
 .dossier-table--credences td:nth-child(9) { width: 3% !important; }
-
 .dossier-table--credences th:nth-child(10),
-.dossier-table--credences td:nth-child(10) { width: 21% !important; }
+.dossier-table--credences td:nth-child(10) { width: 3% !important; }
+.dossier-table--credences th:nth-child(11),
+.dossier-table--credences td:nth-child(11) { width: 21% !important; }
 
-/* Ligne de groupe : séparateur entre dossiers */
-.dossier-table .dossier-group-header td {
-  background: var(--bg-base) !important;
-  border-top: 1px solid var(--border-default) !important;
-  border-bottom: 1px solid var(--border-default) !important;
-  padding: 6px 8px !important;
+/* Lignes de groupe et pleine largeur : colSpan, pas de largeur de colonne */
+.dossier-table td[colspan] { width: auto !important; text-align: left !important; }
+
+/* Colonne Prix : sur la ligne, alignée à droite */
+.dossier-table .col-prix {
+  text-align: right !important;
+  font-family: 'Geist Mono', ui-monospace, monospace !important;
+  font-size: 12px !important;
+  color: var(--text-secondary) !important;
+  white-space: nowrap;
 }
 
+/* Ligne de groupe : séparateur entre dossiers (même hauteur que les lignes de job) */
+.dossier-table .dossier-group-header td {
+  background: var(--bg-surface) !important;
+  border-top: 1px solid var(--border-default) !important;
+  border-bottom: 1px solid var(--border-default) !important;
+  padding: 8px !important;
+  height: 41px;
+  vertical-align: middle !important;
+}
+
+.dossier-table .dossier-group-header td:first-child {
+  padding-left: 0 !important;
+}
+
+/* Cellule en colSpan : ne pas la passer en flex */
 .dossier-group-label {
   font-family: 'Figtree', -apple-system, sans-serif !important;
-  font-size: 10px !important;
+  font-size: 12px !important;
   font-weight: 600 !important;
   text-transform: none !important;
   letter-spacing: 0 !important;
   color: var(--text-secondary) !important;
   vertical-align: middle !important;
+  white-space: nowrap;
+}
+
+.dossier-group-label > * {
+  vertical-align: middle;
 }
 
 .dossier-group-label .client-badge {
-  margin-right: 6px;
+  margin-right: 8px;
 }
 
 /* Nom d'enseigne en texte coloré (Formulaire, File, Historique, Stats) — sans badge */
@@ -976,10 +988,10 @@ img.ui.image:not(.header-logo) {
   background: var(--table-header-bg) !important;
   color: var(--table-header-color) !important;
   font-family: 'Figtree', -apple-system, sans-serif !important;
-  font-size: 9px !important;
+  font-size: 12px !important;
   font-weight: 600 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 1.8px !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
   white-space: nowrap !important;
   border-bottom: 1px solid var(--border-default) !important;
 }
@@ -1046,23 +1058,46 @@ img.ui.image:not(.header-logo) {
 }
 
 .dossier-table .ui.input > input {
-  background: var(--bg-input) !important;
-  border: 1px solid var(--border-dim) !important;
-  color: var(--text-primary) !important;
-  padding: 4px 6px !important;
-  height: 35px; /* même hauteur que les dropdowns selection */
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+  font-size: 13px !important;
 }
 
-/* Lignes de jobs alignées en haut : le prix sous le visuel ne décale plus les autres champs */
+/* Lignes de jobs : tout centré sur le même axe (case, menus, champs, pastilles) */
 .dossier-table.ui.table tbody tr:not(.dossier-group-header):not(.credence-inline-form) > td {
-  vertical-align: top !important;
+  vertical-align: middle !important;
+  padding: 6px 8px !important;
 }
 
-.dossier-table.ui.table tbody tr:not(.dossier-group-header):not(.credence-inline-form) > td:first-child {
-  padding-top: 13px !important; /* centre la checkbox (17px) sur la ligne des champs (35px) */
+.dossier-table.ui.table tbody tr:not(.dossier-group-header):not(.credence-inline-form) > td:first-child,
+.dossier-table.ui.table tbody tr:not(.dossier-group-header):not(.credence-inline-form) > td:nth-child(9),
+.dossier-table.ui.table tbody tr:not(.dossier-group-header):not(.credence-inline-form) > td:nth-child(10) {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 
-.dossier-table tbody .toggle-chip { margin-top: 9px; }
+.dossier-table .ui.fitted.checkbox {
+  display: inline-block !important;
+  height: 15px !important;
+  min-height: 15px !important;
+  line-height: 15px !important;
+  vertical-align: middle !important;
+}
+
+.dossier-table .ui.fitted.checkbox label {
+  height: 15px;
+}
+
+.dossier-table .ui.fitted.checkbox label:before,
+.dossier-table .ui.fitted.checkbox label:after {
+  top: 0 !important;
+}
+
+.dossier-table thead th {
+  padding: 8px !important;
+  font-size: 12px !important;
+  vertical-align: middle !important;
+}
 
 .content .header { padding: 0; }
 
@@ -1192,12 +1227,12 @@ img.ui.image:not(.header-logo) {
 /* --- Form labels --- */
 .ui.form .field > label,
 .ui.form label {
-  color: var(--text-muted) !important;
+  color: var(--text-secondary) !important;
   font-family: 'Figtree', -apple-system, sans-serif !important;
-  font-size: 9px !important;
+  font-size: 12px !important;
   font-weight: 600 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 2px !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
 }
 
 /* --- Inputs --- */
@@ -1559,10 +1594,10 @@ img.ui.image:not(.header-logo) {
   color: var(--table-header-color) !important;
   border-bottom: 1px solid var(--border-default) !important;
   font-family: 'Figtree', -apple-system, sans-serif !important;
-  font-size: 9px !important;
+  font-size: 12px !important;
   font-weight: 600 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 1.8px !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
 }
 
 .ui.table td {
@@ -1763,9 +1798,15 @@ img.ui.image:not(.header-logo) {
 
 /* ===================== TOGGLE CHIPS ===================== */
 .toggle-chip {
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  min-width: 30px;
+  padding: 0 6px;
+  border-radius: var(--ctl-r);
+  font-size: 11px;
+  vertical-align: middle;
   font-weight: 700;
   border: none;
   cursor: pointer;
@@ -1839,11 +1880,15 @@ img.ui.image:not(.header-logo) {
   align-items: flex-start;
 }
 
-.filter-toggle {
+.ui.form label.filter-toggle.filter-toggle,
+label.filter-toggle.filter-toggle {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 8px;
+  margin: 0 0 var(--s-sm);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
   font-family: 'Figtree', -apple-system, sans-serif;
   font-size: 12px;
   color: var(--text-secondary);
@@ -2505,3 +2550,13 @@ img.ui.image:not(.header-logo) {
 
 /* Onglet File : serveur arrêté pendant un traitement (AlerteRepriseArret) */
 .tab-badge-alerte { background: var(--warning); color: #fff; margin-left: 4px; }
+
+/* Cadre de la zone de recherche : 1 px sur les 4 côtés (Semantic pose 2 px gris en haut) */
+.ui.grey.segment.dossier-autocomplete:not(.inverted) {
+  border: 1px solid var(--border-default) !important;
+  border-radius: var(--ctl-r) !important;
+  background: var(--bg-surface) !important;
+  box-shadow: none !important;
+  padding: 8px 12px !important;
+  margin: 0 !important;
+}
