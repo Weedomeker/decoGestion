@@ -4,6 +4,7 @@ const jobsController = require("../controllers/jobsController");
 const router = express.Router();
 
 router.get("/jobs", jobsController.getJobs);
+router.delete("/reprise_arret", jobsController.effacerRepriseArret);
 router.get("/history/export", jobsController.exportHistory);
 router.get("/history", jobsController.getHistory);
 router.get("/stats", jobsController.getStats);

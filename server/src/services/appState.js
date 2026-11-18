@@ -58,6 +58,9 @@ const state = {
     jobs: [],
     completed: [],
   },
+  // Jobs retirés de Redis au démarrage après un arrêt pendant un traitement (retirerJobsOrphelins) :
+  // { date, attente: [libellés], enCours: [libellés] }, affiché dans la file jusqu'à « Vu ».
+  repriseArret: null,
   // Version de l'appli : build-info.json (écrit au build, seule source en prod) sinon package.json + git.
   app: { version: undefined, commit: null, buildDate: null },
   appVersion: undefined, // alias de app.version (usages historiques)

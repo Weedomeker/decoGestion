@@ -2516,3 +2516,6 @@ img.ui.image:not(.header-logo) {
   cursor: default;
   opacity: 0.6;
 }
+
+/* Onglet File : serveur arrêté pendant un traitement (AlerteRepriseArret) */
+.tab-badge-alerte { background: var(--warning); color: #fff; margin-left: 4px; }

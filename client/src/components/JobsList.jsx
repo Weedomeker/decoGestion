@@ -33,6 +33,7 @@ import {
   TableRow,
 } from "semantic-ui-react";
 import ApercuSessionTauro from "./ApercuSessionTauro";
+import AlerteRepriseArret from "./AlerteRepriseArret";
 import "../css/JobsList.css";
 import { API_BASE, WS_BASE } from "../utils/api";
 
@@ -68,7 +69,7 @@ SortableJobGroup.propTypes = {
   children: PropTypes.func.isRequired,
 };
 
-function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
+function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteChange }) {
   const [data, setData] = useState([]);
   const [isLoading, setLoading] = useState(true);
   const [refreshFlag, setRefreshFlag] = useState(0);
@@ -88,6 +89,12 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
   const [confirmCancelRun, setConfirmCancelRun] = useState(false);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [queueStatus, setQueueStatus] = useState({ running: false, paused: false, concurrency: null });
+  const [repriseArret, setRepriseArret] = useState(null);
+
+  // Signal sur l'onglet File : l'opérateur peut être sur un autre onglet au redémarrage.
+  useEffect(() => {
+    onAlerteChange?.(Boolean(repriseArret));
+  }, [repriseArret, onAlerteChange]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -163,6 +170,8 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
     function connect() {
       ws = new WebSocket(WS_BASE);
       ws.onopen = () => {
+        // Reconnexion (serveur redémarré ?) : la file a pu changer, et un avertissement d'arrêt apparaître.
+        if (attempt > 0) setRefreshFlag((prev) => prev + 1);
         attempt = 0;
         setWsConnected(true);
       };
@@ -197,6 +206,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const res = await response.json();
         setData([{ jobs: res.jobs, completed: res.completed }]);
+        setRepriseArret(res.repriseArret || null);
         setLoading(false);
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -816,6 +826,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange }) {
           ✕ {actionError}
         </div>
       )}
+      {repriseArret && <AlerteRepriseArret reprise={repriseArret} onVu={() => setRepriseArret(null)} />}
       <div className="jobs-section-label">File en attente ({nbJobs})</div>
       {jobs}
       {nbCompleted > 0 && (
@@ -883,6 +894,7 @@ JobsList.propTypes = {
   formatTauro: PropTypes.array,
   refreshToken: PropTypes.number,
   onPendingCountChange: PropTypes.func,
+  onAlerteChange: PropTypes.func,
 };
 
 // App.jsx porte tout l'état du formulaire : sans memo, chaque frappe re-rendait toute la file.

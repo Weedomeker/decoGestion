@@ -105,7 +105,14 @@ function findFirstRef(models, ref) {
 }
 
 function getJobs(req, res) {
-  res.json(state.jobs);
+  res.json({ ...state.jobs, repriseArret: state.repriseArret });
+}
+
+// « Vu » sur l'avertissement d'arrêt pendant un traitement : retiré pour tous les postes.
+function effacerRepriseArret(req, res) {
+  state.repriseArret = null;
+  broadcastWS({ type: "update" });
+  res.status(204).end();
 }
 
 async function editJob(req, res) {
@@ -1790,6 +1797,7 @@ async function getStats(req, res) {
 
 module.exports = {
   getJobs,
+  effacerRepriseArret,
   editJob,
   addJob,
   runJobs,

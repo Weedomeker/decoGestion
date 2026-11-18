@@ -15,7 +15,7 @@ const { processAllPDFs } = require("./src/generatePreview");
 const registerRoutes = require("./src/routes");
 const { state, loadAppVersion } = require("./src/services/appState");
 const { linkFolders, getConfig } = require("./src/services/configService");
-const { initWebSocket, broadcastHealth } = require("./src/services/websocketService");
+const { initWebSocket, broadcastHealth, broadcastWS } = require("./src/services/websocketService");
 const { checkOdbcConnection, getOdbcStatus } = require("./src/gamesys/config/db");
 const { checkNetworkPaths } = require("./src/services/networkChecker");
 const mongooseLib = require("mongoose");
@@ -112,13 +112,20 @@ app.use("/admin/queues", (req, res, next) => {
 
 // Worker BullMQ — traite les jobs process-job avec processJob. Démarré après le retrait des jobs
 // restés dans Redis d'un traitement interrompu (arrêt du serveur), qu'il traiterait sinon à l'aveugle.
-retirerJobsOrphelins(decoQueue, logger).finally(() => {
-  initWorker(async (bullJob) => {
-    const { job, sortFolder, ip } = bullJob.data;
-    const fakeReq = { body: { sortFolder }, ip };
-    await processJob(job, fakeReq);
-  }, { concurrency: getConfig()?.jobsConcurrency });
-});
+retirerJobsOrphelins(decoQueue, logger)
+  .then(({ attente, enCours }) => {
+    if (attente.length || enCours.length) {
+      state.repriseArret = { date: new Date().toISOString(), attente, enCours };
+      broadcastWS({ type: "update" });
+    }
+  })
+  .finally(() => {
+    initWorker(async (bullJob) => {
+      const { job, sortFolder, ip } = bullJob.data;
+      const fakeReq = { body: { sortFolder }, ip };
+      await processJob(job, fakeReq);
+    }, { concurrency: getConfig()?.jobsConcurrency });
+  });
 
 // La pause BullMQ persiste dans Redis : l'UI doit refléter l'état réel dès le démarrage.
 syncPausedState();

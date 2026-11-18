@@ -2,7 +2,7 @@ import PropTypes from "prop-types";
 import { Image } from "semantic-ui-react";
 import logo from "../images/logo_deco_noir.svg";
 
-const Header = ({ appInfo, onVersionClick, onFichiers, configNode, statusNode, activeView, onViewChange, pendingCount, theme, onThemeToggle }) => {
+const Header = ({ appInfo, onVersionClick, onFichiers, configNode, statusNode, activeView, onViewChange, pendingCount, alerteFile, theme, onThemeToggle }) => {
   const version = appInfo?.version;
   const buildDetails = [
     appInfo?.commit && `commit ${appInfo.commit}`,
@@ -45,6 +45,11 @@ const Header = ({ appInfo, onVersionClick, onFichiers, configNode, statusNode, a
         <button className={`header-tab${activeView === "jobs" ? " active" : ""}`} onClick={() => onViewChange("jobs")} title="Alt+2">
           File
           {pendingCount > 0 && <span className="tab-badge">{pendingCount}</span>}
+          {alerteFile && (
+            <span className="tab-badge tab-badge-alerte" title="Serveur arrêté pendant un traitement : jobs à vérifier">
+              ⚠
+            </span>
+          )}
         </button>
         <button className={`header-tab${activeView === "references" ? " active" : ""}`} onClick={() => onViewChange("references")} title="Alt+3">
           Références
@@ -114,6 +119,7 @@ Header.propTypes = {
   activeView: PropTypes.string,
   onViewChange: PropTypes.func,
   pendingCount: PropTypes.number,
+  alerteFile: PropTypes.bool,
   theme: PropTypes.string,
   onThemeToggle: PropTypes.func,
 };

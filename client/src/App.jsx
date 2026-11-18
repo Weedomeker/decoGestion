@@ -83,6 +83,7 @@ function App() {
   const [activeTab, setActiveTab] = useState("dossier");
   const [activeView, setActiveView] = useState("form");
   const [pendingCount, setPendingCount] = useState(0);
+  const [alerteFile, setAlerteFile] = useState(false);
   const [isLouisOpen, setIsLouisOpen] = useState(false);
   const [preview, setPreview] = useState(null);
   const [preview2, setPreview2] = useState(null);
@@ -1018,6 +1019,7 @@ function App() {
         activeView={activeView}
         onViewChange={setActiveView}
         pendingCount={pendingCount}
+        alerteFile={alerteFile}
         theme={theme}
         onThemeToggle={toggleTheme}
       />
@@ -2334,6 +2336,7 @@ function App() {
           formatTauro={formatTauro}
           refreshToken={jobsRefresh}
           onPendingCountChange={setPendingCount}
+          onAlerteChange={setAlerteFile}
         />
       </div>
 
