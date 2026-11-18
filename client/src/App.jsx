@@ -37,6 +37,7 @@ import {
   plaqueCredences,
 } from "./utils/credence";
 import { formatPrix } from "./utils/prix";
+import { resumeSelection } from "./utils/resumeSelection";
 import SurMesurePanneau from "./components/SurMesurePanneau";
 import {
   coteDifferente,
@@ -974,6 +975,8 @@ function App() {
     !!ville;
 
   const selectedVisibleCount = dossierJobs.filter((j) => selectedJobIds.has(j.id) && isJobVisible(j)).length;
+  // Affichage seulement : le bouton reste actif pour un dossier profils/kits seul (selectedVisibleCount)
+  const resumeAjout = resumeSelection(dossierJobs, selectedJobIds, isJobVisible);
 
   // Confirmation avant de quitter uniquement s'il y a une saisie à perdre
   useEffect(() => {
@@ -2273,6 +2276,20 @@ function App() {
                 icon={warnMsg.icon}
                 color={warnMsg.color}
               />
+              <div className="submit-bar__ligne">
+              {activeTab === "dossier" && dossierJobs.length > 0 && (
+                <div className="submit-resume">
+                  <span>
+                    <b className="submit-resume__nb">{resumeAjout.selectionnes}</b> / {resumeAjout.total} job{resumeAjout.total > 1 ? "s" : ""} sélectionné{resumeAjout.selectionnes > 1 ? "s" : ""}
+                  </span>
+                  <span className="submit-resume__sep" />
+                  <span>
+                    {resumeAjout.dossiers} dossier{resumeAjout.dossiers > 1 ? "s" : ""}
+                  </span>
+                  <span className="submit-resume__sep" />
+                  <span className="submit-resume__montant">{formatPrix(resumeAjout.montant)}</span>
+                </div>
+              )}
               {activeTab === "dossier" && (() => {
                 const issueJobs = dossierJobs.filter((j) => selectedJobIds.has(j.id) && isJobVisible(j) && getDossierJobIssues(j).length > 0);
                 if (issueJobs.length === 0) return null;
@@ -2288,6 +2305,17 @@ function App() {
                   </button>
                 );
               })()}
+              {activeTab === "dossier" && dossierJobs.length > 0 && (
+                <Button
+                  type="button"
+                  size="small"
+                  className="submit-deselect"
+                  disabled={!!submitProgress || selectedVisibleCount === 0}
+                  onClick={() => setSelectedJobIds(new Set())}
+                >
+                  Tout désélectionner
+                </Button>
+              )}
               <Button
                 type="submit"
                 primary
@@ -2300,10 +2328,11 @@ function App() {
                   submitProgress && submitProgress.total > 1
                     ? `Ajout ${submitProgress.done}/${submitProgress.total}…`
                     : dossierJobs.length > 0
-                      ? `Ajouter (${selectedVisibleCount} sélectionné${selectedVisibleCount > 1 ? "s" : ""})`
+                      ? "Ajouter à la file"
                       : "Ajouter"
                 }
               />
+              </div>
             </div>
           </Form>
         </div>
