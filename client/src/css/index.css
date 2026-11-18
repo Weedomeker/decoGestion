@@ -1020,9 +1020,6 @@ img.ui.image:not(.header-logo) {
   background: var(--bg-input) !important;
   border: 1px solid var(--border-default) !important;
   box-shadow: 0 4px 16px rgba(16, 19, 26, 0.1) !important;
-  min-width: 300px !important;
-  max-width: 420px !important;
-  z-index: 1100 !important;
 }
 
 .dossier-table .ui.dropdown .menu > .item {
@@ -1247,11 +1244,19 @@ img.ui.image:not(.header-logo) {
   box-shadow: 0 4px 16px rgba(16, 19, 26, 0.1) !important;
 }
 
-/* AutoDropdown : menu limité à la place disponible (sinon rogné par
-   .form-panel / .view-area et caché au niveau du footer) */
-.ui.dropdown.auto-dropdown--capped .menu {
-  max-height: var(--auto-dropdown-max-h) !important;
+/* AutoDropdown : menu ouvert posé au-dessus de la page (position fixe calculée
+   par placerMenu), jamais rogné par un tableau, un panneau ou le footer */
+/* Un transform (même neutre) sur le déclencheur ferait de lui le repère de la position fixe */
+.ui.dropdown.auto-dropdown--fixe {
+  transform: none !important;
+}
+
+.ui.dropdown.auto-dropdown--fixe > .menu {
+  position: fixed !important;
+  bottom: auto !important;
+  right: auto !important;
   overflow-y: auto !important;
+  z-index: 1200 !important;
 }
 
 .ui.dropdown .menu > .item {

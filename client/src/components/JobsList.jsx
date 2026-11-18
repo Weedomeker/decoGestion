@@ -20,7 +20,6 @@ import {
   Button,
   Checkbox,
   Confirm,
-  Dropdown,
   Icon,
   Label,
   Progress,
@@ -32,6 +31,7 @@ import {
   TableHeaderCell,
   TableRow,
 } from "semantic-ui-react";
+import Dropdown from "./AutoDropdown";
 import ApercuSessionTauro from "./ApercuSessionTauro";
 import AlerteRepriseArret from "./AlerteRepriseArret";
 import "../css/JobsList.css";

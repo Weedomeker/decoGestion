@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import {
   Button,
   ButtonContent,
-  Dropdown,
   Header,
   Icon,
   Input,
@@ -11,6 +10,7 @@ import {
   ModalActions,
   ModalContent,
 } from "semantic-ui-react";
+import Dropdown from "./AutoDropdown";
 import { API_BASE } from "../utils/api";
 
 // Mise en page des JPG des jobs (nom du fichier en en-tête). Défaut serveur : A4 portrait.
