@@ -168,7 +168,9 @@ async function calculerPlan(jobs, opts = {}) {
 }
 
 function serialiser(plan) {
-  const { aLancer, ...reste } = plan;
+  // aLancer (copies complètes des jobs) reste côté serveur
+  const reste = { ...plan };
+  delete reste.aLancer;
   return reste;
 }
 
