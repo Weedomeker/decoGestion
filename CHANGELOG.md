@@ -9,6 +9,7 @@
 - **Dossier API** : recherche et résumé sur une ligne (liste des dossiers repliable), prix sur la ligne du job, bandeau « Ajouter à la file » avec le nombre de jobs, de dossiers et le montant
 - **File** : une ligne par job, colonnes alignées entre en attente et traités, boutons « Lancer » toujours visibles, suppression plus discrète
 - **enseignes** : nom en couleur (LM, CASTO, ECOM, BRICO) au lieu des étiquettes, couleurs plus douces
+- **barre d'état en bas de page** (remplace l'adresse) : espace libre sur la sortie et le temporaire (orange sous 20 Go, rouge sous 5 Go), partages LM, CASTO, BRICO, ECOM, TAURO et SM (✕ rouge et heure de coupure au survol), processeur et mémoire de l'appli (charge du poste au survol), Gamesys, base Mongo utilisée, badge DEV hors production, raccourcis clavier
 
 ## [2.5.7] - 2026-10-30
 

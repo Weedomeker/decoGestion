@@ -161,7 +161,7 @@ ul { margin: 0; text-align: left; }
 .container {
   display: grid;
   grid-template-columns: 1fr;
-  grid-template-rows: 60px 1fr 48px;
+  grid-template-rows: 60px 1fr 28px;
   height: 100vh;
 }
 
@@ -402,26 +402,88 @@ img.ui.image:not(.header-logo) {
 
 /* ===================== FOOTER ===================== */
 
-.footer {
+.statusbar {
   grid-column: 1;
   grid-row: 3;
   display: flex;
-  flex-direction: column;
   align-items: center;
+  justify-content: space-between;
+  gap: var(--s-12);
+  min-width: 0;
+  padding: 0 var(--s-12);
   background: var(--bg-elevated);
   border-top: 1px solid var(--border-default);
   color: var(--text-muted);
-  text-align: center;
-  justify-content: center;
   font-family: 'Figtree', -apple-system, sans-serif;
   font-size: 11px;
-  line-height: 1.25;
-  min-height: 48px;
-  max-height: 48px;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
 }
-
-.footer h4 { margin: 0 0 2px; font-size: 11px; font-weight: 600; }
-.footer p  { margin: 0; }
+.statusbar-etat,
+.statusbar-groupe,
+.statusbar-raccourcis {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.statusbar-etat { gap: var(--s-12); overflow: hidden; }
+.statusbar-groupe { gap: 8px; }
+.statusbar-groupe + .statusbar-groupe {
+  padding-left: var(--s-12);
+  border-left: 1px solid var(--border-default);
+}
+.statusbar-label { color: var(--text-muted); }
+.statusbar-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary);
+  cursor: default;
+}
+.statusbar-item strong {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.statusbar-item--alerte,
+.statusbar-item--alerte strong { color: var(--warning); }
+.statusbar-item--ko,
+.statusbar-item--ko strong { color: var(--danger); }
+.statusbar-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--text-muted);
+}
+.statusbar-dot--ok { background: var(--success); }
+.statusbar-dot--alerte { background: var(--warning); }
+.statusbar-dot--ko { background: var(--danger); }
+.statusbar-cross { font-size: 10px; font-weight: 700; }
+.statusbar-env {
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-weight: 700;
+}
+.statusbar-raccourcis {
+  gap: var(--s-12);
+  flex-shrink: 0;
+}
+.statusbar-raccourcis kbd {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 10px;
+  padding: 1px 4px;
+  border: 1px solid var(--border-default);
+  border-radius: 3px;
+  color: var(--text-secondary);
+}
+/* Fenêtre étroite : l'état passe avant les raccourcis. */
+@media (max-width: 1100px) {
+  .statusbar-raccourcis { display: none; }
+}
 
 /* ===================== PANELS ===================== */
 

@@ -64,7 +64,9 @@ const state = {
   // Version de l'appli : build-info.json (écrit au build, seule source en prod) sinon package.json + git.
   app: { version: undefined, commit: null, buildDate: null },
   appVersion: undefined, // alias de app.version (usages historiques)
-  networkStatus: { LM: false, CASTO: false, BRICO: false, ECOM: false, PREVIEW: false, SM: false, DECOUPESM: false },
+  networkStatus: { LM: false, CASTO: false, BRICO: false, ECOM: false, PREVIEW: false, SM: false, DECOUPESM: false, TAURO: false },
+  networkDepuis: {}, // { LM: ISO, ... } : date du dernier changement d'état de chaque chemin
+  disque: { sortie: null, temp: null }, // { dossier, libre } mesurés par checkNetworkPaths
 };
 
 function readJson(filePath) {

@@ -79,7 +79,6 @@ function App() {
   const [credenceStock, setCredenceStock] = useState(false);
   const [ville, setVille] = useState("");
   const [ex, setEx] = useState(1);
-  const [isFooter, setIsFooter] = useState(false);
   const [jobsRefresh, setJobsRefresh] = useState(0);
   const [activeTab, setActiveTab] = useState("dossier");
   const [activeView, setActiveView] = useState("form");
@@ -537,7 +536,6 @@ function App() {
           });
         }
         setIsLoading(false);
-        setIsFooter(false);
       })
       .catch((err) => {
         console.error(err);
@@ -1868,7 +1866,6 @@ function App() {
                         setFiles(selected.files);
                         setIsFile(true);
                         setSelectedFile(null);
-                        setIsFooter(false);
                         setEnabled({ ...enabled, visu: false });
 
                         setError({ ...error, format: !selected?.name });
@@ -2052,7 +2049,6 @@ function App() {
                           setFiles2(selected.files);
                           setIsFile2(true);
                           setSelectedFile2(null);
-                          setIsFooter(false);
                           setEnabled({ ...enabled, visu: false });
 
                           setError({ ...error, format: !selected?.name });
@@ -2375,7 +2371,7 @@ function App() {
       </div>
       </div>
 
-      <Footer active={!isFooter} />
+      <Footer health={healthData} />
 
       <LouisPreview open={isLouisOpen} onClose={() => setIsLouisOpen(false)} />
 
