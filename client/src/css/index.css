@@ -1,5 +1,6 @@
 /* ============================================================
-   Zinc (clair) + Ardoise (sombre)
+   Acier G1 (clair) + Acier sombre — bleu acier pour la structure,
+   orange discret (--accent2) pour ce qui est actif.
    Polices : Figtree (UI) · Geist Mono (données)
    ============================================================ */
 
@@ -8,29 +9,36 @@
 
   --s-xs: 4px;
   --s-sm: 8px;
+  --s-12: 12px;
   --s-md: 16px;
   --s-lg: 24px;
   --s-xl: 32px;
-  --radius: 4px;
+  --radius: 3px;
 
-  /* Backgrounds — Zinc */
-  --bg-base:     #f4f4f6;
-  --bg-surface:  #eaeaed;
+  /* Contrôles (boutons, champs, menus) */
+  --ctl-h: 28px;
+  --ctl-h-sm: 24px;
+  --ctl-px: 12px;
+  --ctl-r: 3px;
+
+  /* Fonds */
+  --bg-base:     #f3f5f7;
+  --bg-surface:  #e8ecf0;
   --bg-elevated: #ffffff;
-  --bg-hover:    rgba(9, 9, 18, 0.04);
-  --bg-input:    #fafafb;
+  --bg-hover:    rgba(0, 0, 0, 0.035);
+  --bg-input:    #ffffff;
 
-  /* Borders */
-  --border-dim:     #e8e8ec;
-  --border-default: #e0e0e6;
-  --border-bright:  #c4c4ce;
-  --border-color:   #e0e0e6;
+  /* Bordures */
+  --border-dim:     #e6e8ec;
+  --border-default: #dadde3;
+  --border-bright:  #bfc4cc;
+  --border-color:   #dadde3;
 
-  /* Text */
-  --text-primary:   #09090e;
-  --text-secondary: #52525e;
-  --text-muted:     #9898a8;
-  --surface-bg:     #eaeaed;
+  /* Texte */
+  --text-primary:   #10131a;
+  --text-secondary: #4b5260;
+  --text-muted:     #8a909c;
+  --surface-bg:     #e8ecf0;
 
   /* Client accents */
   --color-lm:    #1e6640;
@@ -45,17 +53,23 @@
   --dot-brico: #c97040;
 
   /* Système sémantique */
-  --accent:       #1c4a8a;
-  --accent-soft:  rgba(28, 74, 138, 0.1);
-  --danger:       #b33030;
-  --danger-soft:  rgba(179, 48, 48, 0.08);
-  --success:      #1e6640;
-  --warning:      #8a6018;
-  --warning-soft: rgba(138, 96, 24, 0.08);
+  --accent:        #2c5a85;
+  --accent-soft:   rgba(44, 90, 133, 0.09);
+  --on-accent:     #ffffff;
+  --accent2:       #d9682a;
+  --accent2-soft:  rgba(217, 104, 42, 0.18);
+  --danger:        #b42318;
+  --danger-soft:   rgba(200, 40, 30, 0.08);
+  --success:       #15803d;
+  --warning:       #9a6a00;
+  --warning-soft:  rgba(180, 110, 10, 0.09);
+
+  /* En-tête foncé */
+  --header-bg: color-mix(in srgb, var(--accent) 30%, #0b0d12);
 
   /* Table */
-  --table-header-bg:    #f0f0f4;
-  --table-header-color: #9898a8;
+  --table-header-bg:    #f9fafb;
+  --table-header-color: #6b7280;
   --table-row-height:   34px;
 
   /* Layout */
@@ -66,27 +80,27 @@
 }
 
 /* ============================================================
-   Ardoise — activé par data-theme="dark" sur <html>
+   Acier sombre — activé par data-theme="dark" sur <html>
    ============================================================ */
 
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --bg-base:     #161618;
-  --bg-surface:  #1e1e21;
-  --bg-elevated: #232326;
+  --bg-base:     #0e1318;
+  --bg-surface:  #151b22;
+  --bg-elevated: #1a222b;
   --bg-hover:    rgba(255, 255, 255, 0.04);
-  --bg-input:    #1a1a1d;
+  --bg-input:    #0e1318;
 
-  --border-dim:     #2a2a2e;
-  --border-default: #2e2e32;
-  --border-bright:  #424248;
-  --border-color:   #2e2e32;
+  --border-dim:     #22252c;
+  --border-default: #2b2f37;
+  --border-bright:  #40454f;
+  --border-color:   #2b2f37;
 
-  --text-primary:   #e8e8ea;
-  --text-secondary: #8e8e96;
-  --text-muted:     #555558;
-  --surface-bg:     #1e1e21;
+  --text-primary:   #eceef2;
+  --text-secondary: #a2a8b3;
+  --text-muted:     #666c78;
+  --surface-bg:     #151b22;
 
   --color-lm:    #4aad6a;
   --color-casto: #4a7ec9;
@@ -98,16 +112,21 @@
   --dot-ecom:  #3aada0;
   --dot-brico: #c97040;
 
-  --accent:       #4a7ec9;
-  --accent-soft:  rgba(74, 126, 201, 0.12);
-  --danger:       #d44040;
-  --danger-soft:  rgba(212, 64, 64, 0.08);
-  --success:      #4aad6a;
-  --warning:      #c9902a;
-  --warning-soft: rgba(201, 144, 42, 0.08);
+  --accent:        #7fa8d1;
+  --accent-soft:   rgba(127, 168, 209, 0.13);
+  --on-accent:     #0e1318;
+  --accent2:       #f0954f;
+  --accent2-soft:  rgba(240, 149, 79, 0.2);
+  --danger:        #f0645a;
+  --danger-soft:   rgba(200, 40, 30, 0.08);
+  --success:       #45b97c;
+  --warning:       #e6c04a;
+  --warning-soft:  rgba(180, 110, 10, 0.09);
 
-  --table-header-bg:    #1e1e21;
-  --table-header-color: #555558;
+  --header-bg: var(--bg-elevated);
+
+  --table-header-bg:    #151b22;
+  --table-header-color: #666c78;
 }
 
 /* ===================== BASE ===================== */
@@ -120,9 +139,6 @@ html, body {
   height: 100vh;
   max-height: 100vh;
   background-color: var(--bg-base);
-  background-image: radial-gradient(circle at 1px 1px, var(--border-dim) 1px, transparent 0);
-  background-size: 32px 32px;
-  background-attachment: fixed;
   color: var(--text-primary);
   font-family: 'Figtree', -apple-system, sans-serif;
   font-size: 14px;
@@ -196,9 +212,8 @@ ul { margin: 0; text-align: left; }
 .header {
   grid-column: 1;
   grid-row: 1;
-  background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border-default);
-  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
+  background: var(--header-bg);
+  border-bottom: 1px solid transparent;
   width: 100%;
   padding: 0 var(--s-lg);
   display: grid;
@@ -209,7 +224,7 @@ ul { margin: 0; text-align: left; }
 }
 
 [data-theme="dark"] .header {
-  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
+  border-bottom-color: var(--border-default);
 }
 
 .header-brand {
@@ -221,7 +236,7 @@ ul { margin: 0; text-align: left; }
 
 img.ui.image.header-logo,
 .header-logo img {
-  filter: none !important;
+  filter: invert(1) !important; /* logo noir → blanc sur l'en-tête foncé */
   vertical-align: middle;
   max-width: 150px;
   max-height: 28px;
@@ -244,7 +259,7 @@ img.ui.image:not(.header-logo) {
 .header-version {
   font-family: 'Geist Mono', ui-monospace, monospace;
   font-size: 9px;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.55);
   letter-spacing: 0.5px;
   line-height: 1;
   padding: 0 0 2px;
@@ -255,7 +270,7 @@ img.ui.image:not(.header-logo) {
 
 .header-version:hover,
 .header-version:focus-visible {
-  color: var(--text-primary);
+  color: #fff;
   text-decoration: underline;
 }
 
@@ -311,20 +326,31 @@ img.ui.image:not(.header-logo) {
   align-items: center;
   gap: 5px;
   padding: 5px 10px;
-  background: transparent;
-  border: 1px solid var(--border-default);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: var(--radius);
-  color: var(--text-secondary);
+  color: #fff;
   font-family: 'Figtree', -apple-system, sans-serif;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: border-color 0.18s var(--ease), color 0.18s var(--ease), background 0.18s var(--ease);
 }
+/* Bouton Config (Semantic) aligné sur les boutons d'action de l'en-tête */
+.header .ui.button {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+.header .ui.button:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+}
+
 .header-action-btn:hover {
-  border-color: var(--border-bright);
-  color: var(--text-primary);
-  background: var(--bg-hover);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .header-tabs {
@@ -339,12 +365,12 @@ img.ui.image:not(.header-logo) {
   padding: 8px 20px;
   border: none;
   background: transparent;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.62);
   font-family: 'Figtree', -apple-system, sans-serif;
   font-weight: 500;
   font-size: 12px;
   cursor: pointer;
-  border-bottom: 2px solid transparent;
+  border-bottom: 3px solid transparent;
   letter-spacing: 0.3px;
   display: flex;
   align-items: center;
@@ -355,13 +381,13 @@ img.ui.image:not(.header-logo) {
 }
 
 .header-tab.active {
-  color: var(--text-primary);
-  border-bottom: 2px solid var(--text-primary);
+  color: #fff;
+  border-bottom: 3px solid var(--accent2);
 }
 
 .header-tab:hover:not(.active) {
-  color: var(--text-secondary);
-  background: var(--bg-hover);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .tab-badge {
@@ -370,10 +396,10 @@ img.ui.image:not(.header-logo) {
   justify-content: center;
   min-width: 18px;
   height: 18px;
-  background: var(--text-primary);
-  color: var(--bg-base);
+  background: var(--accent2);
+  color: #1a1206; /* texte foncé : le blanc sur orange tombe sous 4,5:1 */
   border-radius: 9px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   padding: 0 4px;
 }
