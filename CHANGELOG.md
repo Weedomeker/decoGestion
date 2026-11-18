@@ -1,5 +1,15 @@
 # Changelog
 
+## [Non publié] - 2026-11-18
+
+### Interface
+- **nouvelle palette** : bleu acier, en-tête foncé, orange discret pour l'onglet actif et le champ en cours de saisie, version sombre revue
+- **boutons et champs** : même hauteur et même arrondi partout, 4 sortes de boutons (principal, validation, danger, secondaire), cases à cocher et interrupteurs plus fins
+- **menus déroulants** : ils s'affichent toujours en entier, au-dessus du tableau, même dans une petite fenêtre ou dans la configuration
+- **Dossier API** : recherche et résumé sur une ligne (liste des dossiers repliable), prix sur la ligne du job, bandeau « Ajouter à la file » avec le nombre de jobs, de dossiers et le montant
+- **File** : une ligne par job, colonnes alignées entre en attente et traités, boutons « Lancer » toujours visibles, suppression plus discrète
+- **enseignes** : nom en couleur (LM, CASTO, ECOM, BRICO) au lieu des étiquettes, couleurs plus douces
+
 ## [2.5.7] - 2026-10-30
 
 ### Corrections
