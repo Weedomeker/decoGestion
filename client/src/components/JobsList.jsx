@@ -521,7 +521,9 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
               />
             )}
           </TableCell>
-          <TableCell>{entry.client}</TableCell>
+          <TableCell>
+            <span className={`client-name client-name--${entry.client?.toLowerCase()}`}>{entry.client}</span>
+          </TableCell>
           <TableCell>{new Date(entry.date).toLocaleString("fr-FR", { timeZone: "EUROPE/PARIS" })}</TableCell>
           <TableCell>{entry.cmd}</TableCell>
           <TableCell>{entry.ville}</TableCell>

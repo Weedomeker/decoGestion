@@ -40,11 +40,11 @@
   --text-muted:     #8a909c;
   --surface-bg:     #e8ecf0;
 
-  /* Client accents */
-  --color-lm:    #1e6640;
-  --color-casto: #1c4a8a;
-  --color-ecom:  #0c6660;
-  --color-brico: #8a3f1c;
+  /* Couleurs d'enseigne (adoucies, communes aux deux thèmes) */
+  --color-lm:    #3d7a52;
+  --color-casto: #3a5ea6;
+  --color-ecom:  #2e7770;
+  --color-brico: #a65b34;
 
   /* Dots de statut réseau */
   --dot-lm:    #4aad6a;
@@ -101,11 +101,6 @@
   --text-secondary: #a2a8b3;
   --text-muted:     #666c78;
   --surface-bg:     #151b22;
-
-  --color-lm:    #4aad6a;
-  --color-casto: #4a7ec9;
-  --color-ecom:  #3aada0;
-  --color-brico: #c97040;
 
   --dot-lm:    #4aad6a;
   --dot-casto: #4a7ec9;
@@ -910,20 +905,31 @@ img.ui.image:not(.header-logo) {
   margin-right: 6px;
 }
 
-/* Badge client coloré dans les en-têtes de groupe */
-.client-badge {
-  display: inline-block;
-  padding: 1px 6px;
-  border-radius: 2px;
-  font-size: 9px;
+/* Nom d'enseigne en texte coloré (Formulaire, File, Historique, Stats) — sans badge */
+.client-name,
+.client-badge,
+.stats-client-badge {
+  display: inline;
+  padding: 0;
+  background: none;
+  border: 0;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 1px;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
 }
-.client-badge--lm    { background: color-mix(in srgb, var(--color-lm) 10%, transparent);  color: var(--color-lm);    border: 1px solid color-mix(in srgb, var(--color-lm) 25%, transparent); }
-.client-badge--casto { background: color-mix(in srgb, var(--color-casto) 10%, transparent);  color: var(--color-casto); border: 1px solid color-mix(in srgb, var(--color-casto) 25%, transparent); }
-.client-badge--ecom  { background: color-mix(in srgb, var(--color-ecom) 10%, transparent); color: var(--color-ecom);  border: 1px solid color-mix(in srgb, var(--color-ecom) 25%, transparent); }
-.client-badge--brico { background: color-mix(in srgb, var(--color-brico) 10%, transparent);  color: var(--color-brico); border: 1px solid color-mix(in srgb, var(--color-brico) 25%, transparent); }
+.client-name--lm,    .client-badge--lm,    .stats-client-lm    { --cn: var(--color-lm); }
+.client-name--casto, .client-badge--casto, .stats-client-casto { --cn: var(--color-casto); }
+.client-name--ecom,  .client-badge--ecom,  .stats-client-ecom  { --cn: var(--color-ecom); }
+.client-name--brico, .client-badge--brico, .stats-client-brico { --cn: var(--color-brico); }
+.client-name, .client-badge, .stats-client-badge {
+  color: color-mix(in srgb, var(--cn, var(--text-primary)) 90%, #000);
+}
+[data-theme="dark"] .client-name,
+[data-theme="dark"] .client-badge,
+[data-theme="dark"] .stats-client-badge {
+  color: color-mix(in srgb, var(--cn, var(--text-primary)) 55%, #fff);
+}
 
 /* Badge toggle profils/kits dans l'en-tête de groupe */
 .pk-toggle-badge {
@@ -2096,22 +2102,6 @@ img.ui.image:not(.header-logo) {
 .stats-table tbody tr:hover td {
   background: var(--bg-hover);
 }
-
-/* Client badges */
-.stats-client-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 3px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
-}
-
-.stats-client-lm    { background: color-mix(in srgb, var(--color-lm) 12%, transparent);  color: var(--color-lm); }
-.stats-client-casto { background: color-mix(in srgb, var(--color-casto) 12%, transparent);  color: var(--color-casto); }
-.stats-client-ecom  { background: color-mix(in srgb, var(--color-ecom) 12%, transparent);  color: var(--color-ecom); }
-.stats-client-brico { background: color-mix(in srgb, var(--color-brico) 12%, transparent);  color: var(--color-brico); }
 
 /* States */
 .stats-loading,

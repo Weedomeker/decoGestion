@@ -93,10 +93,14 @@
 }
 
 /* Client color accent — left border */
-.table-row[data-client="LM"]    > td:first-child { border-left: 2px solid var(--color-lm) !important; }
-.table-row[data-client="CASTO"] > td:first-child { border-left: 2px solid var(--color-casto) !important; }
-.table-row[data-client="ECOM"]  > td:first-child { border-left: 2px solid var(--color-ecom) !important; }
-.table-row[data-client="BRICO"] > td:first-child { border-left: 2px solid var(--color-brico) !important; }
+.table-row[data-client="LM"]    > td:first-child { border-left: 3px solid var(--color-lm) !important; }
+[data-theme="dark"] .table-row[data-client="LM"] > td:first-child { border-left-color: color-mix(in srgb, var(--color-lm) 75%, #fff) !important; }
+.table-row[data-client="CASTO"] > td:first-child { border-left: 3px solid var(--color-casto) !important; }
+[data-theme="dark"] .table-row[data-client="CASTO"] > td:first-child { border-left-color: color-mix(in srgb, var(--color-casto) 75%, #fff) !important; }
+.table-row[data-client="ECOM"]  > td:first-child { border-left: 3px solid var(--color-ecom) !important; }
+[data-theme="dark"] .table-row[data-client="ECOM"] > td:first-child { border-left-color: color-mix(in srgb, var(--color-ecom) 75%, #fff) !important; }
+.table-row[data-client="BRICO"] > td:first-child { border-left: 3px solid var(--color-brico) !important; }
+[data-theme="dark"] .table-row[data-client="BRICO"] > td:first-child { border-left-color: color-mix(in srgb, var(--color-brico) 75%, #fff) !important; }
 
 /* Table cells */
 .table-cell {
