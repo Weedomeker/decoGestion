@@ -99,6 +99,10 @@
   color: #fff !important;
 }
 
+[data-theme="dark"] .ui.negative.button:hover {
+  color: var(--on-accent) !important;
+}
+
 .ui.basic.button:where(:not(.primary):not(.positive):not(.negative):not(.active)) {
   background: transparent !important;
 }

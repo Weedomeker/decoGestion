@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import { Dropdown } from "semantic-ui-react";
 import { placerMenu } from "../utils/placementMenu";
 
-const STYLES_POSES = ["top", "bottom", "right", "left", "minWidth", "maxWidth", "maxHeight"];
+const STYLES_POSES = ["top", "bottom", "right", "left", "minWidth", "maxWidth", "maxHeight", "visibility"];
 
 // Un ancêtre avec transform, filter, perspective, contain ou will-change devient le repère
 // de la position fixe (ex. la modale Semantic) : on retranche sa position.
@@ -45,6 +45,12 @@ function AutoDropdown({ onOpen, onClose, upward, className, ...props }) {
       const menu = menuDe(etat.el);
       if (!menu) return;
       const r = etat.el.getBoundingClientRect();
+      // champ sorti de la vue (tableau défilé) : le menu ne flotte pas sur l'en-tête ou le footer
+      const zone = etat.el.closest(".form-panel, .jobs-table-container, .ui.modal .content")?.getBoundingClientRect();
+      const horsVue = r.bottom < (zone?.top ?? 0) || r.top > (zone?.bottom ?? window.innerHeight);
+      // !important : Semantic force « visibility: visible !important » sur le menu ouvert
+      if (horsVue) menu.style.setProperty("visibility", "hidden", "important");
+      else menu.style.removeProperty("visibility");
       const p = placerMenu({
         declencheur: { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width },
         fenetre: { largeur: window.innerWidth, hauteur: window.innerHeight },

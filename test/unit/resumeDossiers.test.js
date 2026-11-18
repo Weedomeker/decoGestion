@@ -18,6 +18,11 @@ describe("resumeDossiers : résumé de la zone de recherche", () => {
     });
   });
 
+  it("ne compte pas les 2es panneaux absorbés (même décompte que le bandeau)", () => {
+    const r = resumeDossiers([{ numero: "4", jobs: [{ id: "a" }, { id: "b", _absorbedBy: "a" }] }]);
+    assert.equal(r.nbJobs, 1);
+  });
+
   it("liste vide", () => {
     assert.deepEqual(resumeDossiers([]), { nbDossiers: 0, nbJobs: 0, montant: 0 });
   });

@@ -2310,7 +2310,7 @@ function App() {
                   type="button"
                   size="small"
                   className="submit-deselect"
-                  disabled={!!submitProgress || selectedVisibleCount === 0}
+                  disabled={!!submitProgress || selectedJobIds.size === 0}
                   onClick={() => setSelectedJobIds(new Set())}
                 >
                   Tout désélectionner

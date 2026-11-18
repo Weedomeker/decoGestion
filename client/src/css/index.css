@@ -722,6 +722,7 @@ img.ui.image:not(.header-logo) {
 .dossier-autocomplete-search .ui.button {
   width: auto;
   max-width: none;
+  min-height: var(--ctl-h) !important;
   margin-top: 0 !important;
   margin-left: 0;
   margin-right: 0;
@@ -2605,10 +2606,6 @@ label.filter-toggle.filter-toggle {
 
 .dossier-autocomplete-search .dossier-input-wrapper .ui.input > input {
   width: 260px;
-}
-
-.dossier-autocomplete-search .ui.button {
-  min-height: var(--ctl-h) !important;
 }
 
 .dossier-resume {
