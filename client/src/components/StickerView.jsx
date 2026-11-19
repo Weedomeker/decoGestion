@@ -30,7 +30,8 @@ const INITIAL = {
   isStock: false,
 };
 
-const toOpts = (arr) => arr.map((v) => ({ key: v, value: v, text: v }));
+// Réponse d'erreur ({ error }) : liste vide, au lieu de garder les suggestions de la saisie précédente.
+const toOpts = (arr) => (Array.isArray(arr) ? arr.map((v) => ({ key: v, value: v, text: v })) : []);
 
 // ─── Sous-composants définis hors du composant principal ──────────────────────
 

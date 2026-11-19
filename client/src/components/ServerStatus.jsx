@@ -42,8 +42,11 @@ export default function ServerStatus({ onHealthChange }) {
   useEffect(() => {
     const check = async () => {
       try {
+        // Pas de res.ok : /health répond 503 avec un état valide quand le serveur est dégradé.
+        // Une autre réponse (404, { error }) n'a pas de status : le serveur est traité comme injoignable.
         const res  = await fetch(`${API_BASE}/health`);
         const data = await res.json();
+        if (typeof data?.status !== "string") throw new Error(`Réponse /health inattendue (${res.status})`);
         setHealth(data);
         onHealthChangeRef.current?.(data);
       } catch {
