@@ -13,6 +13,7 @@ const checkVersion = require("./src/checkVersion");
 const connectMongo = require("./src/mongoose");
 const { processAllPDFs } = require("./src/generatePreview");
 const registerRoutes = require("./src/routes");
+const registerPublicStatic = require("./src/routes/publicStatic");
 const { state, loadAppVersion } = require("./src/services/appState");
 const { linkFolders, getConfig } = require("./src/services/configService");
 const { initWebSocket, broadcastHealth, broadcastWS } = require("./src/services/websocketService");
@@ -64,8 +65,7 @@ app.use(morgan("combined", { stream: accessLogStream }));
 app.use(express.urlencoded({ extended: true }));
 app.use(compression());
 
-app.use("/public", express.static(__dirname));
-app.use("/public/PREVIEW", express.static(path.join(__dirname, "/public/PREVIEW")));
+registerPublicStatic(app, __dirname);
 app.use(express.static(path.join(__dirname, "../client/dist")));
 // Le dossier de session change à minuit : on résout le chemin à chaque requête.
 function sessionFolderMiddleware(subFolder) {
