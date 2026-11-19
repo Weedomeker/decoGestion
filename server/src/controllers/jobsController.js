@@ -33,6 +33,7 @@ const { calculerPlan } = require("../tauro/planTauro");
 const { lancerTauro, trierPourEtiquettes } = require("../tauro/lancerTauro");
 const { UnrecoverableError } = require("bullmq");
 const { withMongoRetry } = require("../utils/retryMongo");
+const { formatDureeMs } = require("../utils/duree");
 const { castoName } = require("../utils/jobNames");
 const { nomsJob, prefixeJpg } = require("../utils/nomsJob");
 const { buildCoteClientComment } = require("../utils/coteClient");
@@ -1177,7 +1178,7 @@ async function processJob(job, req) {
     }
   }
 
-  log.info(`Terminé en ${((performance.now() - startJob) / 1000).toFixed(1)} s`);
+  log.info(`Terminé en ${formatDureeMs(performance.now() - startJob)}`);
   // Un job relancé par BullMQ (stalled/retry) ne doit pas être compté deux fois : generateStickers
   // cumule les `ex` par cmd, un doublon transformait 1/2 en 1/4.
   if (state.jobs.completed.some((completedJob) => completedJob._id === job._id)) {
@@ -1249,9 +1250,9 @@ async function runJobs(req, res) {
     );
 
     const traitees = state.jobs.completed.map(({ cmd, cmd2 }) => (cmd2 > 0 ? `${cmd}+${cmd2}` : cmd));
-    const duree = ((performance.now() - startTime) / 1000).toFixed(0);
+    const duree = formatDureeMs(performance.now() - startTime);
     logger.info(
-      `Traitement terminé en ${duree} s : ${jobsToRun.length} job(s), ${failed} en échec, ${cancelled} annulé(s)${
+      `Traitement terminé en ${duree} : ${jobsToRun.length} job(s), ${failed} en échec, ${cancelled} annulé(s)${
         traitees.length ? ` · ${traitees.join(", ")}` : ""
       }`,
     );

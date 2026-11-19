@@ -1,3 +1,4 @@
+import PropTypes from "prop-types";
 import { useEffect, useState } from "react";
 import {
   BarChart,
@@ -10,6 +11,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { API_BASE } from "../utils/api";
+import { formatDuree } from "../utils/duree";
 
 const PERIODS = [
   { key: "week", label: "Semaine" },
@@ -25,6 +27,11 @@ function StatCard({ label, value }) {
     </div>
   );
 }
+
+StatCard.propTypes = {
+  label: PropTypes.node.isRequired,
+  value: PropTypes.node.isRequired,
+};
 
 function StatsView() {
   const [period, setPeriod] = useState("week");
@@ -89,7 +96,7 @@ function StatsView() {
             />
             <StatCard
               label="temps moyen"
-              value={`${Math.round(totals.avgTemps)}s`}
+              value={formatDuree(totals.avgTemps)}
             />
             <StatCard
               label="perte matière"
@@ -201,7 +208,7 @@ function StatsView() {
                       </span>
                     </td>
                     <td>{row.count}</td>
-                    <td>{Math.round(row.avgTemps)}s</td>
+                    <td>{formatDuree(row.avgTemps)}</td>
                     <td>{Number(row.totalPerte ?? 0).toFixed(2)} m²</td>
                   </tr>
                 ))}

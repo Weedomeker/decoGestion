@@ -5,6 +5,7 @@
   ne se charge pas sans Redis.
 */
 const { performance } = require("perf_hooks");
+const { formatDureeMs } = require("../utils/duree");
 
 const FINITIONS = ["MAT", "BRI"];
 
@@ -122,10 +123,10 @@ async function lancerTauro(req, res, deps) {
     );
 
     const traitees = state.jobs.completed.map(({ cmd, cmd2 }) => (cmd2 > 0 ? `${cmd}+${cmd2}` : cmd));
-    const duree = ((performance.now() - startTime) / 1000).toFixed(0);
+    const duree = formatDureeMs(performance.now() - startTime);
     const sessions = resumeSessions(plan);
     logger.info(
-      `Traitement terminé en ${duree} s : ${aLancer.length} job(s), ${failed} en échec, ${cancelled} annulé(s)${
+      `Traitement terminé en ${duree} : ${aLancer.length} job(s), ${failed} en échec, ${cancelled} annulé(s)${
         sessions ? ` · ${sessions}` : ""
       }${traitees.length ? ` · ${traitees.join(", ")}` : ""}`,
     );

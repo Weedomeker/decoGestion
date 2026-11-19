@@ -36,6 +36,7 @@ import ApercuSessionTauro from "./ApercuSessionTauro";
 import AlerteRepriseArret from "./AlerteRepriseArret";
 import "../css/JobsList.css";
 import { API_BASE, WS_BASE } from "../utils/api";
+import { formatDureeMs } from "../utils/duree";
 
 const CONCURRENCY_OPTIONS = Array.from({ length: 8 }, (_, i) => ({
   key: i + 1,
@@ -152,7 +153,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
         return next.size === prev.size ? prev : next;
       });
     }
-  }, [data]);
+  }, [data, onPendingCountChange]);
 
   // WebSocket : connexion avec reconnexion automatique
   useEffect(() => {
@@ -834,10 +835,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
 
                     {executionTime && (data?.[0]?.jobs?.length ?? 0) === 0 && (
                       <pre>
-                        Temps d&apos;exécution total:{" "}
-                        {executionTime / 1000 > 60
-                          ? (executionTime / 1000 / 60).toFixed(2) + " min(s)"
-                          : (executionTime / 1000).toFixed(2) + " sec(s)"}
+                        Temps d&apos;exécution total : {formatDureeMs(executionTime)}
                       </pre>
                     )}
                   </div>
@@ -991,4 +989,5 @@ JobsList.propTypes = {
 };
 
 // App.jsx porte tout l'état du formulaire : sans memo, chaque frappe re-rendait toute la file.
-export default memo(JobsList);
+const JobsListMemo = memo(JobsList);
+export default JobsListMemo;

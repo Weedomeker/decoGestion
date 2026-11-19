@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { API_BASE } from "../utils/api";
+import { formatDuree } from "../utils/duree";
 
 const PAGE_SIZE = 20;
 
@@ -30,14 +31,6 @@ function formatDate(iso) {
   const jour = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
   const heure = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   return `${jour} ${heure}`;
-}
-
-function formatDuration(s) {
-  if (s == null || s === "") return "—";
-  const n = Number(s);
-  if (isNaN(n)) return "—";
-  if (n < 60) return `${Math.round(n)}s`;
-  return `${Math.floor(n / 60)}m ${Math.round(n % 60)}s`;
 }
 
 function HistoriqueView() {
@@ -254,7 +247,7 @@ function HistoriqueView() {
                     <td className="historique-mono">{row.format ?? row.format_visu ?? "—"}</td>
                     <td>{row.finition ?? "—"}</td>
                     <td>{row.ex ?? "—"}</td>
-                    <td className="historique-mono">{formatDuration(row.temps)}</td>
+                    <td className="historique-mono">{formatDuree(row.temps)}</td>
                     <td className="historique-mono">{row.perte != null ? row.perte : "—"}</td>
                   </tr>
                 ))}
