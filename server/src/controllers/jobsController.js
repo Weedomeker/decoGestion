@@ -28,6 +28,7 @@ const { createStagingDir, removeStagingDir } = require("../utils/hotFolderDelive
 const { deposerPdf } = require("../tauro/depotTauro");
 const { buildHistoryFilter } = require("../utils/historyFilter");
 const { texte, regexLitterale } = require("../utils/rechercheTexte");
+const { ENTETE_CSV, CHAMPS_CSV, ligneCsv } = require("../utils/historyCsv");
 const { calculerPlan } = require("../tauro/planTauro");
 const { lancerTauro, trierPourEtiquettes } = require("../tauro/lancerTauro");
 const { UnrecoverableError } = require("bullmq");
@@ -1622,63 +1623,43 @@ async function getHistory(req, res) {
 }
 
 async function exportHistory(req, res) {
-  // Helper : échapper et entourer de guillemets une valeur texte
-  function csvText(val) {
-    if (val === null || val === undefined) return '""';
-    return `"${  String(val).replace(/"/g, '""')  }"`;
-  }
-
-  // Helper : formater une date en YYYY-MM-DD HH:mm (retourne chaîne vide avec guillemets pour date absente)
-  function formatDate(d) {
-    if (!d) return '""';
-    const dt = new Date(d);
-    const pad = (n) => String(n).padStart(2, "0");
-    const yyyy = dt.getFullYear();
-    const MM = pad(dt.getMonth() + 1);
-    const dd = pad(dt.getDate());
-    const HH = pad(dt.getHours());
-    const mm = pad(dt.getMinutes());
-    return `"${  yyyy  }-${  MM  }-${  dd  } ${  HH  }:${  mm  }"`;
-  }
-
-  // Nom de fichier avec la date du jour
-  const today = new Date();
   const pad = (n) => String(n).padStart(2, "0");
-  const dateStr = `${today.getFullYear()  }-${  pad(today.getMonth() + 1)  }-${  pad(today.getDate())}`;
+  const today = new Date();
+  const dateStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
 
   try {
     const filter = buildHistoryFilter(req.query);
-    const entries = await modelDeco.find(filter).sort({ date: -1 }).lean();
+    // Curseur : les documents arrivent un par un, au lieu de charger tout l'historique en mémoire.
+    const cursor = modelDeco.find(filter, CHAMPS_CSV).sort({ date: -1 }).lean().cursor();
 
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="historique-${dateStr}.csv"`);
+    res.write(ENTETE_CSV);
 
-    // En-tête CSV
-    res.write("date,client,numCmd,mag,deco,ref,format,finition,ex,temps,perte,prodBlanc,surMesure\n");
-
-    for (const entry of entries) {
-      const line = [
-        formatDate(entry.date),
-        csvText(entry.client),
-        entry.numCmd !== undefined && entry.numCmd !== null ? entry.numCmd : 0,
-        csvText(entry.mag),
-        csvText(entry.deco),
-        csvText(entry.ref),
-        csvText(entry.format),
-        csvText(entry.finition),
-        entry.ex !== undefined && entry.ex !== null ? entry.ex : 0,
-        entry.temps !== undefined && entry.temps !== null ? entry.temps : 0,
-        entry.perte !== undefined && entry.perte !== null ? entry.perte : 0,
-        entry.prodBlanc ? 1 : 0,
-        entry.surMesure ? 1 : 0,
-      ].join(",");
-      res.write(`${line  }\n`);
+    for await (const entry of cursor) {
+      if (res.destroyed) break; // téléchargement annulé
+      // Réseau plus lent que Mongo : on attend que la réponse se vide.
+      // « close » aussi : un téléchargement annulé n'émet jamais « drain ».
+      if (!res.write(ligneCsv(entry))) {
+        await new Promise((resolve) => {
+          const fin = () => {
+            res.off("drain", fin);
+            res.off("close", fin);
+            resolve();
+          };
+          res.once("drain", fin);
+          res.once("close", fin);
+        });
+      }
     }
-
+    await cursor.close();
     res.end();
   } catch (error) {
     logger.error("Erreur exportHistory:", error);
-    res.status(500).json({ error: "Erreur lors de l'export de l'historique" });
+    // Une fois le CSV commencé, plus de réponse JSON possible : la connexion est coupée,
+    // le navigateur signale un téléchargement en échec plutôt qu'un fichier tronqué.
+    if (res.headersSent) res.destroy(error);
+    else res.status(500).json({ error: "Erreur lors de l'export de l'historique" });
   }
 }
 
