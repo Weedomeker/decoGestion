@@ -113,7 +113,8 @@ async function processSinglePDF(
         throw new Error(`Generated file not found: ${generatedFile}`);
       }
     } catch (error) {
-      logger.error(`Aperçu JPG non généré pour ${pdfReference} :`, error);
+      // BRICO/ECOM n'ont pas de référence numérique : nommer le fichier, sinon le log dit « null ».
+      logger.error(`Aperçu JPG non généré pour ${pdfPath} :`, error);
       counters.failure++;
     }
   }
