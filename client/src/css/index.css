@@ -622,7 +622,31 @@ img.ui.image:not(.header-logo) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--s-sm);
+  gap: var(--s-sm) var(--s-lg);
+}
+
+/* Options de production : encart sur une ligne (libellé puis cases), avec de l'air
+   au-dessus de la barre « Ajouter ». En Dossier API, il s'aligne sur le tableau. */
+.form-section.form-section--options {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-sm) var(--s-lg);
+  padding: 10px var(--s-md);
+  margin: var(--s-12) 0 var(--s-md);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--ctl-r);
+}
+.form-section--options .form-section-label {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.form-panel--wide .form-section.form-section--options {
+  max-width: none;
 }
 
 /* ===================== MODE TABS ===================== */
@@ -2088,12 +2112,12 @@ label.filter-toggle.filter-toggle {
   border-top: 2px solid var(--accent);
   border-bottom: 0;
   border-radius: var(--ctl-r) var(--ctl-r) 0 0;
-  box-shadow: 0 -2px 6px rgba(16, 19, 26, 0.10), 0 -16px 36px -8px rgba(16, 19, 26, 0.38);
+  box-shadow: 0 -2px 6px rgba(16, 19, 26, 0.10), 0 -10px 24px -14px rgba(16, 19, 26, 0.35);
   z-index: 10;
 }
 
 [data-theme="dark"] .submit-bar--sticky {
-  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.4), 0 -16px 36px -8px rgba(0, 0, 0, 0.7);
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.4), 0 -10px 24px -14px rgba(0, 0, 0, 0.7);
 }
 
 .submit-bar--sticky .submit-bar__ligne {

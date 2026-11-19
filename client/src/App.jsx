@@ -2219,7 +2219,7 @@ function App() {
             )}
 
             {/* Options partagées */}
-            <div className="form-section">
+            <div className="form-section form-section--options">
               <span className="form-section-label">Options de production</span>
               <div className="options-grid">
                 {activeTab !== "dossier" && (
