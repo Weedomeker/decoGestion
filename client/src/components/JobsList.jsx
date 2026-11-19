@@ -46,6 +46,18 @@ const CONCURRENCY_OPTIONS = Array.from({ length: 8 }, (_, i) => ({
 const CLE_ONGLET_FILE = "decoGestion.ongletFile";
 const ONGLETS_FILE = ["attente", "traites"];
 
+const fuseauParis = { timeZone: "Europe/Paris" };
+
+// Jobs du jour : l'heure seule (« 08:12 ») ; sinon jour et heure (« 18/11 08:12 »).
+function dateFile(valeur) {
+  const date = new Date(valeur);
+  if (Number.isNaN(date.getTime())) return "";
+  const heure = date.toLocaleTimeString("fr-FR", { ...fuseauParis, hour: "2-digit", minute: "2-digit" });
+  const jour = date.toLocaleDateString("fr-FR", { ...fuseauParis, day: "2-digit", month: "2-digit" });
+  const aujourdhui = new Date().toLocaleDateString("fr-FR", { ...fuseauParis, day: "2-digit", month: "2-digit" });
+  return jour === aujourdhui ? heure : `${jour} ${heure}`;
+}
+
 function lireOngletFile() {
   try {
     const onglet = localStorage.getItem(CLE_ONGLET_FILE);
@@ -535,9 +547,8 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
       return (
         <TableRow
           key={`${i}-${idx}`}
-          className="table-row"
+          className={`table-row${isFirstRow ? "" : " job-row-second"}`}
           data-client={entry.client}
-          style={value.teinteMasse ? { color: "#fc7703", fontWeight: "bold" } : null}
         >
           <TableCell className="job-control-cell">
             {status === "jobs" && isFirstRow && (
@@ -564,7 +575,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
           <TableCell>
             <span className={`client-name client-name--${entry.client?.toLowerCase()}`}>{entry.client}</span>
           </TableCell>
-          <TableCell>{new Date(entry.date).toLocaleString("fr-FR", { timeZone: "EUROPE/PARIS" })}</TableCell>
+          <TableCell title={new Date(entry.date).toLocaleString("fr-FR", fuseauParis)}>{dateFile(entry.date)}</TableCell>
           <TableCell>{entry.cmd}</TableCell>
           <TableCell>{entry.ville}</TableCell>
 
@@ -576,14 +587,19 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
             ) : (
               visuelName
             )}
+            {value.teinteMasse && <span className="job-tag job-tag--tm">Teinte masse</span>}
           </TableCell>
 
           <TableCell>{checkVernis(entry.visuel)?.slice(0, 1)?.toUpperCase()}</TableCell>
           <TableCell>{entry.format_visu?.split("_").pop()}</TableCell>
           <TableCell>{entry.format_Plaque?.split("_").pop()}</TableCell>
-          <TableCell>
-            {entry.ex}
-            {entry.cut ? <Icon name="cut" size="tiny" fitted style={{ marginLeft: "3px", opacity: 0.55 }} /> : null}
+          <TableCell className="job-ex-cell">
+            <span className="job-ex">{entry.ex}</span>
+            {entry.cut && (
+              <span className="job-cut" title="Fichiers de découpe générés (.cut, .dxf, .svg)" aria-label="Avec découpe">
+                <Icon name="cut" fitted />
+              </span>
+            )}
           </TableCell>
 
           {status === "jobs" ? (
@@ -640,14 +656,14 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
             <col style={{ width: "36px" }} />
             <col style={{ width: "36px" }} />
             <col style={{ width: "84px" }} />
-            <col style={{ width: "160px" }} />
+            <col style={{ width: "96px" }} />
             <col style={{ width: "84px" }} />
             <col style={{ width: "170px" }} />
             <col style={{ width: "auto" }} />
             <col style={{ width: "64px" }} />
             <col style={{ width: "84px" }} />
             <col style={{ width: "84px" }} />
-            <col style={{ width: "48px" }} />
+            <col style={{ width: "64px" }} />
             <col style={{ width: "44px" }} />
           </colgroup>
           <TableHeader className="sticky-header">

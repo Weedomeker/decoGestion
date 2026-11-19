@@ -6,8 +6,10 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid var(--border-default);
+  background: var(--bg-elevated);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border-default));
   border-radius: var(--ctl-r);
+  box-shadow: 0 1px 2px rgba(16, 19, 26, 0.06), 0 4px 14px -6px rgba(16, 19, 26, 0.12);
 }
 
 /* Un seul tableau affiché à la fois (onglets) : il prend toute la hauteur */
@@ -36,6 +38,7 @@
   overflow: visible !important;
   border: 0 !important;
   margin: 0 !important;
+  background: var(--bg-elevated) !important;
 }
 
 /* Sticky header & footer */
@@ -46,23 +49,30 @@
   width: 100%;
 }
 
+/* En-tête foncé, comme le bandeau de l'application, souligné d'orange */
 .sticky-header {
   top: 0;
   display: table-header-group;
-  background: var(--table-header-bg) !important;
+  background: var(--header-bg) !important;
 }
 
-.sticky-header th {
-  background: var(--table-header-bg) !important;
-  color: var(--table-header-color) !important;
+.sticky-header th,
+.ui.table.jobs-table thead.sticky-header th {
+  background: var(--header-bg) !important;
+  color: rgba(236, 240, 245, 0.85) !important;
   font-family: 'Figtree', -apple-system, sans-serif !important;
   font-size: 12px !important;
   font-weight: 600 !important;
   text-transform: none !important;
   letter-spacing: 0 !important;
-  border-bottom: 1px solid var(--border-default) !important;
+  border-bottom: 2px solid var(--accent2) !important;
   padding: 8px !important;
   white-space: nowrap;
+}
+
+.ui.table.jobs-table .sticky-header .ui.checkbox label::before {
+  background: transparent !important;
+  border-color: rgba(236, 240, 245, 0.5) !important;
 }
 
 .sticky-footer {
@@ -72,17 +82,12 @@
 }
 
 /* Barres d'actions (Lancer…, Vider l'historique) : même style que le bandeau « Ajouter » */
+/* Barre d'actions (Lancer…, Vider l'historique) : fond neutre, séparée par un filet */
 .ui.table.jobs-table tfoot.sticky-footer th,
 .sticky-footer th {
-  background: color-mix(in srgb, var(--accent) 8%, var(--bg-elevated)) !important;
-  border-top: 2px solid var(--accent) !important;
+  background: var(--bg-surface) !important;
+  border-top: 1px solid var(--border-default) !important;
   padding: 8px 8px 8px 12px !important;
-  box-shadow: 0 -2px 6px rgba(16, 19, 26, 0.10), 0 -16px 36px -8px rgba(16, 19, 26, 0.38);
-}
-
-[data-theme="dark"] .ui.table.jobs-table tfoot.sticky-footer th,
-[data-theme="dark"] .sticky-footer th {
-  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.4), 0 -16px 36px -8px rgba(0, 0, 0, 0.7);
 }
 
 .sticky-footer-content {
@@ -177,9 +182,80 @@
   font-size: 12.5px !important;
 }
 
+.jobs-table tbody td:nth-child(5),
+.jobs-table tbody td:nth-child(9),
+.jobs-table tbody td:nth-child(10),
+.jobs-table tbody td:nth-child(11) {
+  font-weight: 500;
+  color: var(--text-primary) !important;
+}
+
+/* Hiérarchie : visuel en gras, plaque en accent, date et ville en retrait */
 .jobs-table tbody td:nth-child(4) {
   color: var(--text-secondary) !important;
+  font-size: 12.5px !important;
   font-variant-numeric: tabular-nums;
+}
+.jobs-table tbody td:nth-child(6) {
+  color: var(--text-secondary) !important;
+}
+.jobs-table tbody td:nth-child(7) {
+  color: var(--text-primary) !important;
+  font-weight: 700;
+}
+.jobs-table tbody td:nth-child(10) {
+  color: var(--accent) !important;
+}
+.jobs-table tbody td:nth-child(3) .client-name {
+  font-weight: 700;
+}
+
+/* Ex : le nombre, puis la découpe à part, pour ne pas lire « 2× » */
+.jobs-table td.job-ex-cell {
+  white-space: nowrap;
+}
+.job-ex {
+  display: inline-block;
+  min-width: 2ch;
+}
+.job-cut {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  color: var(--text-muted);
+  vertical-align: middle;
+}
+.job-cut > i.icon {
+  margin: 0 !important;
+  height: auto !important;
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* 2e panneau d'une crédence : enseigne, date et ville déjà lues sur la 1re ligne */
+.jobs-table tbody tr.job-row-second td:nth-child(4),
+.jobs-table tbody tr.job-row-second td:nth-child(6) {
+  color: var(--text-muted) !important;
+}
+.jobs-table tbody tr.job-row-second .client-name {
+  opacity: 0.45;
+}
+
+/* Teinte masse : étiquette après le visuel (avant : toute la ligne en orange gras) */
+.job-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: var(--ctl-r);
+  font-family: 'Figtree', -apple-system, sans-serif;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 16px;
+  vertical-align: 1px;
+}
+.job-tag--tm {
+  background: var(--accent2-soft);
+  color: var(--accent2);
 }
 
 /* Colonnes de contrôle (poignée, case, action) : centrées, sans marge ni « … » */
@@ -240,10 +316,16 @@
 /* Un <tbody> par job (drag & drop) : les rayures se font par job, pas par ligne,
    pour que les 2 lignes d'une crédence restent visuellement groupées. */
 .ui.striped.table.jobs-table tbody.job-group > tr {
-  background: transparent !important;
+  background: var(--bg-elevated) !important;
 }
 .ui.striped.table.jobs-table tbody.job-group:nth-of-type(2n) > tr {
-  background: rgba(16, 19, 26, 0.02) !important;
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg-elevated)) !important;
+}
+.ui.table.jobs-table tbody.job-group > tr:hover > td {
+  background: color-mix(in srgb, var(--accent) 11%, var(--bg-elevated)) !important;
+}
+.ui.table.jobs-table tbody td {
+  border-top: 0 !important;
 }
 .ui.table.jobs-table tbody.job-group.dragging > tr > td {
   background: var(--bg-elevated) !important;
