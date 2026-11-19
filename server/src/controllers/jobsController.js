@@ -26,6 +26,7 @@ const { broadcastWS, broadcastCompletedJob } = require("../services/websocketSer
 const usePdfWorker = require("../utils/pdfWorker");
 const { createStagingDir, removeStagingDir } = require("../utils/hotFolderDelivery");
 const { deposerPdf } = require("../tauro/depotTauro");
+const { buildHistoryFilter } = require("../utils/historyFilter");
 const { calculerPlan } = require("../tauro/planTauro");
 const { lancerTauro, trierPourEtiquettes } = require("../tauro/lancerTauro");
 const { UnrecoverableError } = require("bullmq");
@@ -1598,46 +1599,13 @@ async function generateStickerQuick(req, res) {
   }
 }
 
-// Fonction interne partagée pour construire le filtre MongoDB
-function buildHistoryFilter(query) {
-  const filter = {};
-
-  if (query.client) {
-    filter.client = new RegExp(`^${query.client}$`, "i");
-  }
-
-  if (query.from || query.to) {
-    filter.date = {};
-    if (query.from) filter.date.$gte = new Date(query.from);
-    if (query.to) filter.date.$lte = new Date(query.to);
-  }
-
-  if (query.q) {
-    const q = query.q.trim();
-    const numericQ = /^\d+$/.test(q) ? Number(q) : null;
-    const textRegex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "i");
-    const orClauses = [
-      { mag: textRegex },
-      { deco: textRegex },
-      { ref: textRegex },
-    ];
-    if (numericQ !== null) {
-      orClauses.push({ numCmd: numericQ });
-    }
-    filter.$or = orClauses;
-  }
-
-  return filter;
-}
-
 async function getHistory(req, res) {
   const limit = Math.min(parseInt(req.query.limit) || 20, 100);
   const skip = Math.max(parseInt(req.query.skip) || 0, 0);
 
-  // Utiliser la fonction partagée pour construire le filtre
-  const filter = buildHistoryFilter(req.query);
-
   try {
+    // Dans le try : Express 4 ne rattrape pas une erreur levée hors try dans un handler async.
+    const filter = buildHistoryFilter(req.query);
     const [entries, totalDocs] = await Promise.all([
       modelDeco.find(filter).sort({ date: -1 }).skip(skip).limit(limit).lean(),
       modelDeco.countDocuments(filter),
@@ -1650,9 +1618,6 @@ async function getHistory(req, res) {
 }
 
 async function exportHistory(req, res) {
-  // Utiliser la fonction partagée pour construire le filtre
-  const filter = buildHistoryFilter(req.query);
-
   // Helper : échapper et entourer de guillemets une valeur texte
   function csvText(val) {
     if (val === null || val === undefined) return '""';
@@ -1678,6 +1643,7 @@ async function exportHistory(req, res) {
   const dateStr = `${today.getFullYear()  }-${  pad(today.getMonth() + 1)  }-${  pad(today.getDate())}`;
 
   try {
+    const filter = buildHistoryFilter(req.query);
     const entries = await modelDeco.find(filter).sort({ date: -1 }).lean();
 
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
