@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import {
   Button,
-  ButtonContent,
   Header,
   Icon,
   Input,
@@ -143,14 +142,10 @@ function Config() {
         open={open}
         size="small"
         trigger={
-          <div className="config-button">
-            <Button animated="fade" primary type="button">
-              <ButtonContent visible>
-                <Icon name="cogs" />
-              </ButtonContent>
-              <ButtonContent hidden>Config</ButtonContent>
-            </Button>
-          </div>
+          <button type="button" className="header-action-btn" title="Configuration des dossiers réseau">
+            <Icon name="cogs" fitted />
+            Config
+          </button>
         }
       >
         <Header icon>

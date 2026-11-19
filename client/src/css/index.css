@@ -805,13 +805,6 @@ img.ui.image:not(.header-logo) {
 .config .input { width: 100%; max-width: 50%; padding: 0 0 8px 8px; }
 .ui.input.ex   { width: 100px; }
 
-.config-button .ui.button {
-  width: 60px;
-  height: max-content;
-  min-height: max-content;
-  margin-left: 50px;
-}
-
 /* Dossier autocomplete */
 .dossier-autocomplete            { max-width: 100% !important; }
 .dossier-autocomplete-search     { display: flex; gap: var(--s-sm); align-items: center; }
