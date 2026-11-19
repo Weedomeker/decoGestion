@@ -22,11 +22,14 @@ function proAccountCode(codeClient) {
   return ENSEIGNE_PREFIXES.some((p) => c.startsWith(p)) ? null : c;
 }
 
+// Date de production (champ « date », celui du tri et des filtres Du / Au), avec l'heure.
 function formatDate(iso) {
   if (!iso) return "—";
   const d = new Date(iso);
   if (isNaN(d)) return iso;
-  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const jour = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const heure = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  return `${jour} ${heure}`;
 }
 
 function formatDuration(s) {
@@ -39,6 +42,8 @@ function formatDuration(s) {
 
 function HistoriqueView() {
   const [filters, setFilters] = useState(EMPTY_FILTERS);
+  // Recherche saisie : envoyée au serveur 300 ms après la dernière frappe, pas à chaque lettre.
+  const [saisie, setSaisie] = useState("");
   const [page, setPage] = useState(0);
   const [data, setData] = useState([]);
   const [total, setTotal] = useState(0);
@@ -87,6 +92,14 @@ function HistoriqueView() {
     return () => { cancelled = true; };
   }, [buildQuery]);
 
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setFilters((prev) => (prev.q === saisie ? prev : { ...prev, q: saisie }));
+      setPage(0);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [saisie]);
+
   function handleFilterChange(key, value) {
     setFilters((prev) => ({ ...prev, [key]: value }));
     setPage(0);
@@ -94,6 +107,7 @@ function HistoriqueView() {
 
   function handleReset() {
     setFilters(EMPTY_FILTERS);
+    setSaisie("");
     setPage(0);
   }
 
@@ -156,8 +170,8 @@ function HistoriqueView() {
             type="text"
             className="historique-search-input"
             placeholder="Mag, déco, réf, N° cmd"
-            value={filters.q}
-            onChange={(e) => handleFilterChange("q", e.target.value)}
+            value={saisie}
+            onChange={(e) => setSaisie(e.target.value)}
             aria-label="Rechercher"
           />
 
@@ -165,6 +179,7 @@ function HistoriqueView() {
             type="button"
             className="historique-btn historique-btn--reset"
             onClick={handleReset}
+            disabled={!saisie && !filters.client && !filters.from && !filters.to}
           >
             Réinitialiser
           </button>
@@ -181,18 +196,19 @@ function HistoriqueView() {
 
       {/* Corps */}
       <div className="historique-body">
-        {loading && <div className="historique-status">Chargement…</div>}
+        {loading && data.length === 0 && <div className="historique-status">Chargement…</div>}
         {!loading && error && <div className="historique-status historique-status--error">{error}</div>}
         {!loading && !error && data.length === 0 && (
           <div className="historique-status">Aucun résultat</div>
         )}
 
-        {!loading && !error && data.length > 0 && (
-          <div className="historique-table-wrapper">
+        {!error && data.length > 0 && (
+          // Pendant un rechargement (page, filtre), le tableau reste en place, estompé : plus de saut.
+          <div className={`historique-table-wrapper${loading ? " historique-table-wrapper--charge" : ""}`} aria-busy={loading}>
             <table className="historique-table">
               <thead>
                 <tr>
-                  <th>Date</th>
+                  <th>Produit le</th>
                   <th>Client</th>
                   <th>N° Cmd</th>
                   <th>Mag</th>
@@ -207,7 +223,9 @@ function HistoriqueView() {
               <tbody>
                 {data.map((row, i) => (
                   <tr key={row._id ?? i}>
-                    <td>{formatDate(row.createdAt ?? row.date)}</td>
+                    <td className="historique-mono" title={row.dateCommande ? `Commande du ${new Date(row.dateCommande).toLocaleDateString("fr-FR")}` : undefined}>
+                      {formatDate(row.date ?? row.createdAt)}
+                    </td>
                     <td className="historique-client-cell">
                       <span className={`client-badge client-badge--${(row.client ?? "").toLowerCase()}`}>
                         {row.client ?? "—"}
@@ -247,23 +265,26 @@ function HistoriqueView() {
       </div>
 
       {/* Pagination */}
-      {!loading && !error && total > 0 && (
+      {!error && total > 0 && (
         <div className="historique-pagination">
           <button
             type="button"
             className="historique-btn"
-            disabled={page === 0}
+            disabled={loading || page === 0}
             onClick={() => setPage((p) => Math.max(0, p - 1))}
           >
             Précédent
           </button>
           <span className="historique-page-info">
             Page {page + 1} / {totalPages}
+            <span className="historique-total">
+              {total.toLocaleString("fr-FR")} ligne{total > 1 ? "s" : ""}
+            </span>
           </span>
           <button
             type="button"
             className="historique-btn"
-            disabled={page >= totalPages - 1}
+            disabled={loading || page >= totalPages - 1}
             onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
           >
             Suivant

@@ -43,6 +43,12 @@ describe("buildHistoryFilter", () => {
     expect(buildHistoryFilter({ q: ["a", "b"], client: ["LM"] })).to.deep.equal({});
   });
 
+  it("inclut toute la journée de fin (« Au 17/11 » garde les jobs du 17)", () => {
+    const { date } = buildHistoryFilter({ from: "2026-11-17", to: "2026-11-17" });
+    expect(date.$gte.getTime()).to.equal(new Date(2026, 10, 17, 0, 0, 0, 0).getTime());
+    expect(date.$lte.getTime()).to.equal(new Date(2026, 10, 17, 23, 59, 59, 999).getTime());
+  });
+
   it("borne les dates from / to", () => {
     const { date } = buildHistoryFilter({ from: "2026-11-01", to: "2026-11-19" });
     expect(date.$gte).to.be.instanceOf(Date);

@@ -2428,7 +2428,7 @@ label.filter-toggle.filter-toggle {
 .historique-select,
 .historique-date-input,
 .historique-search-input {
-  height: 32px;
+  height: var(--ctl-h);
   padding: 0 10px;
   border: 1px solid var(--border-default);
   border-radius: var(--radius);
@@ -2461,7 +2461,7 @@ label.filter-toggle.filter-toggle {
 
 /* Boutons */
 .historique-btn {
-  height: 32px;
+  height: var(--ctl-h);
   padding: 0 14px;
   border: 1px solid var(--border-default);
   border-radius: var(--radius);
@@ -2484,8 +2484,9 @@ label.filter-toggle.filter-toggle {
   cursor: default;
 }
 
-.historique-btn--reset {
-  color: var(--text-muted);
+/* Champs date : calendrier natif lisible en thème sombre */
+[data-theme="dark"] .historique-date-input {
+  color-scheme: dark;
 }
 
 .historique-btn--export {
@@ -2586,6 +2587,16 @@ label.filter-toggle.filter-toggle {
   gap: var(--s-md);
   flex-shrink: 0;
   padding-bottom: var(--s-sm);
+}
+
+.historique-table-wrapper--charge {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+
+.historique-total {
+  margin-left: var(--s-12);
+  color: var(--text-muted);
 }
 
 .historique-page-info {
