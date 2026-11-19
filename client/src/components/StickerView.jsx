@@ -1,8 +1,13 @@
 import PropTypes from "prop-types";
-import { useCallback, useEffect, useState } from "react";
-import { Button, Checkbox, Form, Icon, Input, Message } from "semantic-ui-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Button, Checkbox, Confirm, Form, Icon, Input, Message } from "semantic-ui-react";
 import Dropdown from "./AutoDropdown";
 import { API_BASE } from "../utils/api";
+import StickerCanvas from "./sticker/StickerCanvas";
+import StickerToolbar from "./sticker/StickerToolbar";
+import StickerProperties from "./sticker/StickerProperties";
+import StickerModeles from "./sticker/StickerModeles";
+import useStickerEditor from "./sticker/useStickerEditor";
 
 function debounce(fn, ms) {
   let timer;
@@ -19,7 +24,6 @@ const CLIENT_OPTIONS = [
   { key: "ECOM", value: "ECOM", text: "ECOM" },
 ];
 
-
 const INITIAL = {
   client: "",
   numCmd: "",
@@ -34,13 +38,17 @@ const INITIAL = {
 // Réponse d'erreur ({ error }) : liste vide, au lieu de garder les suggestions de la saisie précédente.
 const toOpts = (arr) => (Array.isArray(arr) ? arr.map((v) => ({ key: v, value: v, text: v })) : []);
 
+const lireJson = async (res) => {
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Erreur (${res.status})`);
+  return data;
+};
+
 // ─── Sous-composants définis hors du composant principal ──────────────────────
 
 function AutoField({ fieldKey, mongoField, label, placeholder, value, options, onSearch, onChange, onAddItem }) {
   const currentOpts =
-    value && !options.some((o) => o.value === value)
-      ? [{ key: value, value, text: value }, ...options]
-      : options;
+    value && !options.some((o) => o.value === value) ? [{ key: value, value, text: value }, ...options] : options;
 
   return (
     <Form.Field>
@@ -78,46 +86,29 @@ AutoField.propTypes = {
 function StickerPdfPanel({ pdfUrl, isLoading, error }) {
   if (isLoading) {
     return (
-      <div className="sticker-preview-panel">
-        <div className="sticker-preview-placeholder">
-          <Icon name="spinner" loading size="large" />
-          <span>Génération de l&apos;aperçu…</span>
-        </div>
+      <div className="sticker-preview-placeholder">
+        <Icon name="spinner" loading size="large" />
+        <span>Génération de l&apos;aperçu…</span>
       </div>
     );
   }
-
   if (error) {
     return (
-      <div className="sticker-preview-panel">
-        <div className="sticker-preview-placeholder sticker-preview-placeholder--error">
-          <Icon name="exclamation circle" size="large" />
-          <span>{error}</span>
-        </div>
+      <div className="sticker-preview-placeholder sticker-preview-placeholder--error">
+        <Icon name="exclamation circle" size="large" />
+        <span>{error}</span>
       </div>
     );
   }
-
   if (!pdfUrl) {
     return (
-      <div className="sticker-preview-panel">
-        <div className="sticker-preview-placeholder">
-          <Icon name="file pdf outline" size="large" />
-          <span>Cliquez sur « Aperçu » pour visualiser le sticker</span>
-        </div>
+      <div className="sticker-preview-placeholder">
+        <Icon name="file pdf outline" size="large" />
+        <span>Cliquez sur « Aperçu PDF » pour voir l&apos;étiquette telle qu&apos;elle sera imprimée</span>
       </div>
     );
   }
-
-  return (
-    <div className="sticker-preview-panel">
-      <iframe
-        src={pdfUrl}
-        title="Aperçu du sticker"
-        className="sticker-pdf-iframe"
-      />
-    </div>
-  );
+  return <iframe src={pdfUrl} title="Aperçu du sticker" className="sticker-pdf-iframe" />;
 }
 
 StickerPdfPanel.propTypes = {
@@ -136,6 +127,7 @@ function StickerView() {
   const [error, setError] = useState(null);
   const [previewError, setPreviewError] = useState(null);
   const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
+  const [vue, setVue] = useState("editeur");
 
   // numCmd typeahead
   const [numCmdSuggestions, setNumCmdSuggestions] = useState([]);
@@ -145,12 +137,106 @@ function StickerView() {
   const [opts, setOpts] = useState({ ville: [], ref: [], visuel: [], format_visu: [] });
   const [refFormats, setRefFormats] = useState([]);
 
+  // Éditeur d'étiquette
+  const editeur = useStickerEditor();
+  const [modeles, setModeles] = useState([]);
+  const [modeleId, setModeleId] = useState(null);
+  const [bibliotheque, setBibliotheque] = useState({ pictos: [], jetons: [] });
+  const [images, setImages] = useState([]);
+  const [donnees, setDonnees] = useState({});
+  const [modeleEnCours, setModeleEnCours] = useState(false);
+  const [importEnCours, setImportEnCours] = useState(false);
+  const [messageModele, setMessageModele] = useState(null);
+  // Image imposée pour la miniature de cette étiquette : { type: "apercu", fichier, url } | { type: "fichier", nom, url }
+  const [miniatureForcee, setMiniatureForcee] = useState(null);
+  const donneesAffichees = useMemo(
+    () => (miniatureForcee ? { ...donnees, miniatureUrl: miniatureForcee.url } : donnees),
+    [donnees, miniatureForcee],
+  );
+  const corpsMiniature = () =>
+    miniatureForcee?.type === "apercu"
+      ? { apercu: miniatureForcee.fichier }
+      : miniatureForcee?.type === "fichier"
+        ? { miniatureDataUrl: miniatureForcee.url }
+        : {};
+  const [origineNouveau, setOrigineNouveau] = useState(null); // nom du modèle copié, pour « Enregistrer sous… »
+  const [modeleEnAttente, setModeleEnAttente] = useState(null); // choix en attente de confirmation
+
+  const pictosParCle = useMemo(
+    () => Object.fromEntries(bibliotheque.pictos.map((p) => [p.cle, p])),
+    [bibliotheque.pictos],
+  );
+
   useEffect(() => {
     fetch(`${API_BASE}/ref_formats`)
       .then((r) => r.json())
       .then((data) => Array.isArray(data) && setRefFormats(data))
       .catch(() => {});
+    fetch(`${API_BASE}/sticker_pictos`)
+      .then(lireJson)
+      .then((data) => setBibliotheque({ pictos: data.pictos || [], jetons: data.jetons || [] }))
+      .catch(() => {});
+    fetch(`${API_BASE}/sticker_images`)
+      .then(lireJson)
+      .then((data) => Array.isArray(data) && setImages(data))
+      .catch(() => {});
   }, []);
+
+  const chargerModele = useCallback(
+    (modele) => {
+      setModeleId(modele?._id || null);
+      editeur.charger(modele?.elements || []);
+    },
+    [editeur.charger], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const defautPour = (liste, client) =>
+    liste.find((m) => m.client === client && m.parDefaut) || liste.find((m) => m.parDefaut) || liste[0];
+
+  const rechargerModeles = useCallback(async () => {
+    const data = await fetch(`${API_BASE}/sticker_modeles`).then(lireJson);
+    const liste = Array.isArray(data) ? data : [];
+    setModeles(liste);
+    return liste;
+  }, []);
+
+  useEffect(() => {
+    rechargerModeles()
+      .then((liste) => chargerModele(defautPour(liste, "LM")))
+      .catch(() => setMessageModele({ negatif: true, texte: "Modèles d'étiquette indisponibles (MongoDB ?)" }));
+  }, [rechargerModeles, chargerModele]);
+
+  // Changement d'enseigne : son modèle par défaut, sauf modifications en cours.
+  const clientPrecedent = useRef(fields.client);
+  useEffect(() => {
+    if (fields.client === clientPrecedent.current) return;
+    clientPrecedent.current = fields.client;
+    if (!fields.client || editeur.modifie || modeles.length === 0) return;
+    const courant = modeles.find((m) => m._id === modeleId);
+    if (courant && courant.client === fields.client) return;
+    chargerModele(defautPour(modeles, fields.client));
+  }, [fields.client, editeur.modifie, modeles, modeleId, chargerModele]);
+
+  // Valeurs des champs automatiques ({numEx}, {infos}…) et miniature, calculées par le serveur.
+  const majDonnees = useMemo(
+    () =>
+      debounce(async (f) => {
+        try {
+          const res = await fetch(`${API_BASE}/sticker_donnees`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(f),
+          });
+          setDonnees(await lireJson(res));
+        } catch {
+          /* aperçu sans données : les jetons restent affichés */
+        }
+      }, 300),
+    [],
+  );
+  useEffect(() => {
+    majDonnees(fields);
+  }, [fields, majDonnees]);
 
   const set = (key, value) => {
     setFields((prev) => ({ ...prev, [key]: value }));
@@ -173,14 +259,15 @@ function StickerView() {
     setError(null);
   };
 
-  const fetchPreview = useCallback(async (currentFields) => {
+  const fetchPreview = async () => {
     setPreviewError(null);
     setPreviewLoading(true);
+    setVue("pdf");
     try {
       const response = await fetch(`${API_BASE}/preview_sticker_quick`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(currentFields),
+        body: JSON.stringify({ ...fields, elements: editeur.elements, ...corpsMiniature() }),
       });
       if (!response.ok) {
         const result = await response.json().catch(() => ({}));
@@ -197,30 +284,33 @@ function StickerView() {
     } finally {
       setPreviewLoading(false);
     }
-  }, []);
+  };
 
-  const searchNumCmd = useCallback(
-    debounce(async (q) => {
-      if (!q || q.length < 2) {
-        setNumCmdSuggestions([]);
-        setShowNumCmdList(false);
-        return;
-      }
-      try {
-        const res = await fetch(`${API_BASE}/history?q=${encodeURIComponent(q)}&limit=6`);
-        const data = await res.json();
-        // Un panneau par entrée : deux lignes identiques (même visuel, même format) n'en font qu'une.
-        const vus = new Set();
-        const uniques = (data.data || []).filter((e) => {
-          const cle = [e.numCmd, e.deco, e.format, e.ref].join("|");
-          if (vus.has(cle)) return false;
-          vus.add(cle);
-          return true;
-        });
-        setNumCmdSuggestions(uniques);
-        setShowNumCmdList(true);
-      } catch { /* silent */ }
-    }, 280),
+  const searchNumCmd = useMemo(
+    () =>
+      debounce(async (q) => {
+        if (!q || q.length < 2) {
+          setNumCmdSuggestions([]);
+          setShowNumCmdList(false);
+          return;
+        }
+        try {
+          const res = await fetch(`${API_BASE}/history?q=${encodeURIComponent(q)}&limit=6`);
+          const data = await res.json();
+          // Un panneau par entrée : deux lignes identiques (même visuel, même format) n'en font qu'une.
+          const vus = new Set();
+          const uniques = (data.data || []).filter((e) => {
+            const cle = [e.numCmd, e.deco, e.format, e.ref].join("|");
+            if (vus.has(cle)) return false;
+            vus.add(cle);
+            return true;
+          });
+          setNumCmdSuggestions(uniques);
+          setShowNumCmdList(true);
+        } catch {
+          /* silent */
+        }
+      }, 280),
     [],
   );
 
@@ -238,38 +328,44 @@ function StickerView() {
     setNumCmdSuggestions([]);
   };
 
-  const fetchSuggestions = useCallback(
-    debounce(async (fieldKey, mongoField, q) => {
-      if (!q) {
-        setOpts((prev) => ({ ...prev, [fieldKey]: [] }));
-        return;
-      }
-      try {
-        const res = await fetch(
-          `${API_BASE}/suggestions?field=${mongoField}&q=${encodeURIComponent(q)}`,
-        );
-        const data = await res.json();
-        setOpts((prev) => ({ ...prev, [fieldKey]: toOpts(data) }));
-      } catch { /* silent */ }
-    }, 250),
+  const fetchSuggestions = useMemo(
+    () =>
+      debounce(async (fieldKey, mongoField, q) => {
+        if (!q) {
+          setOpts((prev) => ({ ...prev, [fieldKey]: [] }));
+          return;
+        }
+        try {
+          const res = await fetch(`${API_BASE}/suggestions?field=${mongoField}&q=${encodeURIComponent(q)}`);
+          const data = await res.json();
+          setOpts((prev) => ({ ...prev, [fieldKey]: toOpts(data) }));
+        } catch {
+          /* silent */
+        }
+      }, 250),
     [],
   );
 
-  const fetchRefVisuels = useCallback(
-    debounce(async (fieldKey, _mongoField, q) => {
-      if (!q || q.length < 2) {
-        setOpts((prev) => ({ ...prev, [fieldKey]: [] }));
-        return;
-      }
-      try {
-        const params = new URLSearchParams({ q });
-        if (fields.client) params.set("client", fields.client);
-        const res = await fetch(`${API_BASE}/ref_visuels?${params}`);
-        const data = await res.json();
-        setOpts((prev) => ({ ...prev, [fieldKey]: toOpts(data) }));
-      } catch { /* silent */ }
-    }, 250),
-    [fields.client],
+  const clientRef = useRef(fields.client);
+  clientRef.current = fields.client;
+  const fetchRefVisuels = useMemo(
+    () =>
+      debounce(async (fieldKey, _mongoField, q) => {
+        if (!q || q.length < 2) {
+          setOpts((prev) => ({ ...prev, [fieldKey]: [] }));
+          return;
+        }
+        try {
+          const params = new URLSearchParams({ q });
+          if (clientRef.current) params.set("client", clientRef.current);
+          const res = await fetch(`${API_BASE}/ref_visuels?${params}`);
+          const data = await res.json();
+          setOpts((prev) => ({ ...prev, [fieldKey]: toOpts(data) }));
+        } catch {
+          /* silent */
+        }
+      }, 250),
+    [],
   );
 
   const handleAddItem = (fieldKey, value) => {
@@ -293,7 +389,9 @@ function StickerView() {
         const already = prev.ref.some((o) => o.value === data.ref);
         return already ? prev : { ...prev, ref: [refOpt, ...prev.ref] };
       });
-    } catch { /* silent */ }
+    } catch {
+      /* silent */
+    }
   }, []);
 
   const handleFieldChange = (fieldKey, value) => {
@@ -315,14 +413,13 @@ function StickerView() {
       const response = await fetch(`${API_BASE}/generate_sticker_quick`, {
         method: "POST",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
-        body: JSON.stringify(fields),
+        body: JSON.stringify({ ...fields, elements: editeur.elements, ...corpsMiniature() }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
         setError(result.error || `Erreur (${response.status})`);
       } else {
         setSuccess(result.message || "Sticker généré avec succès !");
-        fetchPreview(fields);
       }
     } catch {
       setError("Impossible de contacter le serveur.");
@@ -332,11 +429,15 @@ function StickerView() {
   };
 
   const handleReset = () => {
+    setMiniatureForcee(null);
     setFields(INITIAL);
     setOpts({ ville: [], ref: [], visuel: [], format_visu: [] });
     setSuccess(null);
     setError(null);
-    setPdfBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
+    setPdfBlobUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
     setPreviewError(null);
   };
 
@@ -352,94 +453,260 @@ function StickerView() {
     }
   };
 
+  // ── Modèles ──
+
+  const executerModele = async (action, succes) => {
+    setModeleEnCours(true);
+    setMessageModele(null);
+    try {
+      const resultat = await action();
+      if (succes) setMessageModele({ texte: succes });
+      return resultat;
+    } catch (err) {
+      setMessageModele({ negatif: true, texte: err.message });
+      return null;
+    } finally {
+      setModeleEnCours(false);
+    }
+  };
+
+  // Étiquette neuve, pas encore en base : vierge, ou copie du modèle par défaut de l'enseigne.
+  // Les éléments copiés reçoivent de nouveaux id ; « Enregistrer sous… » la sauvegarde.
+  const ouvrirNouveau = (depart) => {
+    const source = depart === "vierge" ? null : defautPour(modeles, fields.client || "LM");
+    setModeleId(null);
+    setOrigineNouveau(source?.nom || null);
+    editeur.charger(
+      (source?.elements || []).map((e, i) => ({ ...e, id: `${e.id || "e"}_${Date.now().toString(36)}${i}` })),
+      true,
+    );
+    setVue("editeur");
+    setMessageModele({
+      texte: source
+        ? `Nouvelle étiquette copiée de « ${source.nom} » : « Enregistrer sous… » pour la garder`
+        : "Étiquette vierge : « Enregistrer sous… » pour la garder",
+    });
+  };
+
+  // En attente de confirmation : { id } (autre modèle) ou { nouveau: "vierge" | "enseigne" }
+  const appliquerChoix = (choix) => {
+    if (choix.nouveau) ouvrirNouveau(choix.nouveau);
+    else chargerModele(modeles.find((m) => m._id === choix.id));
+  };
+
+  const demanderChoix = (choix) => {
+    if (editeur.modifie) setModeleEnAttente(choix);
+    else appliquerChoix(choix);
+  };
+
+  const choisirModele = (id) => {
+    if (id === modeleId) return;
+    demanderChoix({ id });
+  };
+
+  const enregistrer = () =>
+    executerModele(async () => {
+      const res = await fetch(`${API_BASE}/sticker_modeles/${modeleId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ elements: editeur.elements }),
+      });
+      await lireJson(res);
+      editeur.marquerEnregistre();
+      await rechargerModeles();
+    }, "Modèle enregistré");
+
+  const enregistrerSous = (nom, client) =>
+    executerModele(async () => {
+      const res = await fetch(`${API_BASE}/sticker_modeles`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nom, client, elements: editeur.elements }),
+      });
+      const cree = await lireJson(res);
+      await rechargerModeles();
+      setModeleId(cree._id);
+      editeur.marquerEnregistre();
+      return true;
+    }, `Modèle « ${nom} » créé`);
+
+  const definirDefaut = () =>
+    executerModele(async () => {
+      const res = await fetch(`${API_BASE}/sticker_modeles/${modeleId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ parDefaut: true }),
+      });
+      await lireJson(res);
+      await rechargerModeles();
+    }, "Modèle utilisé désormais pour les étiquettes des jobs de cette enseigne");
+
+  const supprimerModele = () =>
+    executerModele(async () => {
+      const res = await fetch(`${API_BASE}/sticker_modeles/${modeleId}`, { method: "DELETE" });
+      await lireJson(res);
+      const liste = await rechargerModeles();
+      chargerModele(defautPour(liste, fields.client || "LM"));
+    }, "Modèle supprimé");
+
+  const importerImage = async (fichier) => {
+    if (fichier.size > 2 * 1024 * 1024) {
+      setMessageModele({ negatif: true, texte: "Image trop lourde (2 Mo maximum)" });
+      return null;
+    }
+    setImportEnCours(true);
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const lecteur = new FileReader();
+        lecteur.onload = () => resolve(lecteur.result);
+        lecteur.onerror = reject;
+        lecteur.readAsDataURL(fichier);
+      });
+      const res = await fetch(`${API_BASE}/sticker_images`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nom: fichier.name.replace(/\.[^.]+$/, ""), dataUrl }),
+      });
+      const img = await lireJson(res);
+      setImages((prev) => [img, ...prev]);
+      return img;
+    } catch (err) {
+      setMessageModele({ negatif: true, texte: err.message || "Import impossible" });
+      return null;
+    } finally {
+      setImportEnCours(false);
+    }
+  };
+
+  // Raccourcis clavier de l'éditeur (hors saisie dans un champ).
+  const { selection, elementSelectionne } = editeur;
+  useEffect(() => {
+    if (vue !== "editeur") return undefined;
+    const surTouche = (ev) => {
+      const cible = ev.target;
+      if (cible.closest?.("input, textarea, select, [contenteditable=true], .ui.modal")) return;
+      const ctrl = ev.ctrlKey || ev.metaKey;
+      if (ctrl && ev.key.toLowerCase() === "z") {
+        ev.preventDefault();
+        if (ev.shiftKey) editeur.retablir();
+        else editeur.annuler();
+      } else if (ctrl && ev.key.toLowerCase() === "y") {
+        ev.preventDefault();
+        editeur.retablir();
+      } else if (ctrl && ev.key.toLowerCase() === "d" && selection) {
+        ev.preventDefault();
+        editeur.dupliquer(selection);
+      } else if ((ev.key === "Delete" || ev.key === "Backspace") && selection) {
+        ev.preventDefault();
+        editeur.supprimer(selection);
+      } else if (ev.key === "Escape") {
+        editeur.selectionner(null);
+      } else if (ev.key.startsWith("Arrow") && elementSelectionne && !elementSelectionne.verrou) {
+        ev.preventDefault();
+        const pas = ev.shiftKey ? 5 : 0.5;
+        const dx = ev.key === "ArrowLeft" ? -pas : ev.key === "ArrowRight" ? pas : 0;
+        const dy = ev.key === "ArrowUp" ? -pas : ev.key === "ArrowDown" ? pas : 0;
+        editeur.modifier(elementSelectionne.id, { x: elementSelectionne.x + dx, y: elementSelectionne.y + dy });
+      }
+    };
+    window.addEventListener("keydown", surTouche);
+    return () => window.removeEventListener("keydown", surTouche);
+  }, [vue, selection, elementSelectionne, editeur]);
+
   return (
     <div className="sticker-view">
-      <div className="sticker-view-inner">
-
+      <div className="sk-layout">
         {/* ── Formulaire ── */}
-        <div className="sticker-form-wrapper">
-
+        <aside className="sk-colonne sk-colonne--form">
           <Form onSubmit={handleSubmit} className="sticker-form">
-
             {/* Toggle Stock en tête — conditionne toute la saisie */}
             <div className="sticker-stock-row">
-              <Checkbox label="Article en stock" checked={fields.isStock} toggle
-                onChange={handleStockToggle} />
-              {fields.isStock && (
-                <span className="sticker-stock-hint">Aucun numéro de dossier requis</span>
-              )}
+              <Checkbox label="Article en stock" checked={fields.isStock} toggle onChange={handleStockToggle} />
+              {fields.isStock && <span className="sticker-stock-hint">Sans n° de dossier</span>}
             </div>
 
-            {/* Ligne 1 : Client / N° Commande / Exemplaires */}
-            <Form.Group>
-              <Form.Field required width={fields.isStock ? 8 : 4}>
+            <Form.Group widths="equal">
+              <Form.Field required>
                 <label>Client</label>
                 <Dropdown
-                  selection fluid
+                  selection
+                  fluid
                   placeholder="Client"
                   options={CLIENT_OPTIONS}
                   value={fields.client}
                   onChange={(_, d) => set("client", d.value)}
                 />
               </Form.Field>
-
-              {!fields.isStock ? (
-                <Form.Field required width={8}>
-                  <label>N° Commande</label>
-                  <div className="sticker-numcmd-wrapper">
-                    <Input
-                      fluid type="text" inputMode="numeric" placeholder="Ex : 169580"
-                      value={fields.numCmd}
-                      onChange={(e) => {
-                        const v = e.target.value.replace(/\D/g, "");
-                        set("numCmd", v);
-                        searchNumCmd(v);
-                      }}
-                      onBlur={() => setTimeout(() => setShowNumCmdList(false), 180)}
-                      onFocus={() => numCmdSuggestions.length > 0 && setShowNumCmdList(true)}
-                    />
-                    {showNumCmdList && numCmdSuggestions.length > 0 && (
-                      <div className="sticker-suggestions-list">
-                        {numCmdSuggestions.map((entry) => (
-                          <div key={entry._id} className="sticker-suggestion-item" onMouseDown={() => selectNumCmd(entry)}>
-                            <span className="sticker-suggestion-cmd">{entry.numCmd}</span>
-                            <span className="sticker-suggestion-meta">
-                              {[entry.mag, entry.client, entry.deco, entry.format].filter(Boolean).join(" · ")}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </Form.Field>
-              ) : null}
-
-              <Form.Field width={fields.isStock ? 8 : 4}>
+              <Form.Field>
                 <label>Exemplaires</label>
-                <Input fluid type="number" placeholder="1" value={fields.ex} min={1}
-                  onChange={(e) => set("ex", e.target.value)} />
+                <Input fluid type="number" placeholder="1" value={fields.ex} min={1} onChange={(e) => set("ex", e.target.value)} />
               </Form.Field>
             </Form.Group>
 
-            {/* Ligne 2 : Ville + Référence */}
-            <Form.Group widths="equal">
-              <AutoField fieldKey="ville" mongoField="ville" label="Ville" placeholder="Ex : PARIS"
-                value={fields.ville} options={opts.ville}
-                onSearch={fetchSuggestions} onChange={handleFieldChange} onAddItem={handleAddItem} />
-              <AutoField fieldKey="ref" mongoField="ref" label="Référence" placeholder="Ex : 3612345678901"
-                value={fields.ref} options={opts.ref}
-                onSearch={fetchSuggestions} onChange={handleFieldChange} onAddItem={handleAddItem} />
-            </Form.Group>
+            {!fields.isStock && (
+              <Form.Field required>
+                <label>N° Commande</label>
+                <div className="sticker-numcmd-wrapper">
+                  <Input
+                    fluid
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="Ex : 169580"
+                    value={fields.numCmd}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/\D/g, "");
+                      set("numCmd", v);
+                      searchNumCmd(v);
+                    }}
+                    onBlur={() => setTimeout(() => setShowNumCmdList(false), 180)}
+                    onFocus={() => numCmdSuggestions.length > 0 && setShowNumCmdList(true)}
+                  />
+                  {showNumCmdList && numCmdSuggestions.length > 0 && (
+                    <div className="sticker-suggestions-list">
+                      {numCmdSuggestions.map((entry) => (
+                        <div key={entry._id} className="sticker-suggestion-item" onMouseDown={() => selectNumCmd(entry)}>
+                          <span className="sticker-suggestion-cmd">{entry.numCmd}</span>
+                          <span className="sticker-suggestion-meta">
+                            {[entry.mag, entry.client, entry.deco, entry.format].filter(Boolean).join(" · ")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </Form.Field>
+            )}
 
-            {/* Ligne 3 : Visuel + Format */}
+            <AutoField
+              fieldKey="ville"
+              mongoField="ville"
+              label="Ville"
+              placeholder="Ex : PARIS"
+              value={fields.ville}
+              options={opts.ville}
+              onSearch={fetchSuggestions}
+              onChange={handleFieldChange}
+              onAddItem={handleAddItem}
+            />
+            <AutoField
+              fieldKey="visuel"
+              mongoField="visuel"
+              label="Visuel"
+              placeholder="Ex : JARDIN SECRET MAT"
+              value={fields.visuel}
+              options={opts.visuel}
+              onSearch={fetchRefVisuels}
+              onChange={handleFieldChange}
+              onAddItem={handleAddItem}
+            />
             <Form.Group widths="equal">
-              <AutoField fieldKey="visuel" mongoField="visuel" label="Visuel" placeholder="Ex : JARDIN SECRET MAT"
-                value={fields.visuel} options={opts.visuel}
-                onSearch={fetchRefVisuels} onChange={handleFieldChange} onAddItem={handleAddItem} />
               <Form.Field>
                 <label>Format</label>
                 <Dropdown
-                  search selection allowAdditions fluid
+                  search
+                  selection
+                  allowAdditions
+                  fluid
                   placeholder="Ex : 150x100"
                   options={(() => {
                     const baseOpts = refFormats.map((f) => ({ key: f, value: f, text: f }));
@@ -455,28 +722,154 @@ function StickerView() {
                   additionLabel="Personnalisé : "
                 />
               </Form.Field>
+              <AutoField
+                fieldKey="ref"
+                mongoField="ref"
+                label="Référence"
+                placeholder="Ex : 3612345678901"
+                value={fields.ref}
+                options={opts.ref}
+                onSearch={fetchSuggestions}
+                onChange={handleFieldChange}
+                onAddItem={handleAddItem}
+              />
             </Form.Group>
 
-            {success && <Message positive><Icon name="check circle" /> {success}</Message>}
-            {error && <Message negative><Icon name="exclamation circle" /> {error}</Message>}
+            {success && (
+              <Message positive size="small">
+                <Icon name="check circle" /> {success}
+              </Message>
+            )}
+            {error && (
+              <Message negative size="small">
+                <Icon name="exclamation circle" /> {error}
+              </Message>
+            )}
 
             <div className="sticker-form-actions">
-              <Button type="button" icon="eye" content="Aperçu"
-                onClick={() => fetchPreview(fields)}
-                loading={previewLoading} disabled={previewLoading || !canPreview} />
-              <Button type="submit" primary icon="tag" content="Générer"
-                loading={loading} disabled={loading || !canPreview} />
-              <Button type="button" basic icon="refresh" title="Vider le formulaire" aria-label="Vider le formulaire"
-                onClick={handleReset} disabled={loading || previewLoading} />
+              <Button
+                type="button"
+                icon="file pdf outline"
+                content="Aperçu PDF"
+                onClick={fetchPreview}
+                loading={previewLoading}
+                disabled={previewLoading || !canPreview}
+              />
+              <Button type="submit" primary icon="tag" content="Générer" loading={loading} disabled={loading || !canPreview} />
+              <Button
+                type="button"
+                basic
+                icon="refresh"
+                title="Vider le formulaire"
+                aria-label="Vider le formulaire"
+                onClick={handleReset}
+                disabled={loading || previewLoading}
+              />
             </div>
           </Form>
-        </div>
+        </aside>
 
-        {/* ── Panneau aperçu PDF ── */}
-        <div className="sticker-preview-column">
-          <span className="sticker-preview-label">Aperçu</span>
-          <StickerPdfPanel pdfUrl={pdfBlobUrl} isLoading={previewLoading} error={previewError} />
-        </div>
+        {/* ── Éditeur ── */}
+        <section className="sk-colonne sk-colonne--editeur">
+          <StickerModeles
+            modeles={modeles}
+            modeleId={modeleId}
+            client={fields.client}
+            modifie={editeur.modifie}
+            enCours={modeleEnCours}
+            onChoisir={choisirModele}
+            onNouveau={(depart) => demanderChoix({ nouveau: depart })}
+            nomSuggere={origineNouveau ? `${origineNouveau} (copie)` : ""}
+            onEnregistrer={enregistrer}
+            onEnregistrerSous={enregistrerSous}
+            onDefinirDefaut={definirDefaut}
+            onSupprimer={supprimerModele}
+          />
+          {messageModele && (
+            <Message
+              size="mini"
+              negative={messageModele.negatif}
+              positive={!messageModele.negatif}
+              onDismiss={() => setMessageModele(null)}
+              content={messageModele.texte}
+            />
+          )}
+          <StickerToolbar
+            pictos={bibliotheque.pictos}
+            jetons={bibliotheque.jetons}
+            images={images}
+            onAjouter={(el) => {
+              editeur.ajouter(el);
+              setVue("editeur");
+            }}
+            onImporterImage={importerImage}
+            importEnCours={importEnCours}
+            selection={selection}
+            onDupliquer={() => editeur.dupliquer(selection)}
+            onPlan={(sens) => editeur.deplacerPlan(selection, sens)}
+            onSupprimer={() => editeur.supprimer(selection)}
+            onAnnuler={editeur.annuler}
+            onRetablir={editeur.retablir}
+            peutAnnuler={editeur.peutAnnuler}
+            peutRetablir={editeur.peutRetablir}
+          />
+          <div className="sk-onglets" role="tablist">
+            <button type="button" role="tab" aria-selected={vue === "editeur"} className={vue === "editeur" ? "is-actif" : ""} onClick={() => setVue("editeur")}>
+              <Icon name="edit outline" /> Éditeur
+            </button>
+            <button type="button" role="tab" aria-selected={vue === "pdf"} className={vue === "pdf" ? "is-actif" : ""} onClick={() => setVue("pdf")}>
+              <Icon name="file pdf outline" /> Aperçu PDF
+            </button>
+            <span className="sk-onglets__info">A6 · 105 × 148 mm</span>
+          </div>
+          <div className="sk-scene">
+            {vue === "editeur" ? (
+              <StickerCanvas
+                elements={editeur.elements}
+                selection={selection}
+                onSelect={editeur.selectionner}
+                onModifier={editeur.modifier}
+                onMemoriser={editeur.memoriser}
+                pictos={pictosParCle}
+                donnees={donneesAffichees}
+              />
+            ) : (
+              <StickerPdfPanel pdfUrl={pdfBlobUrl} isLoading={previewLoading} error={previewError} />
+            )}
+          </div>
+        </section>
+
+        <Confirm
+          open={Boolean(modeleEnAttente)}
+          size="tiny"
+          header="Modifications non enregistrées"
+          content={
+            modeleEnAttente?.nouveau
+              ? "Ouvrir une nouvelle étiquette abandonne les modifications en cours."
+              : "Changer de modèle abandonne les modifications en cours de l'étiquette."
+          }
+          cancelButton="Garder mes modifications"
+          confirmButton="Abandonner"
+          onCancel={() => setModeleEnAttente(null)}
+          onConfirm={() => {
+            appliquerChoix(modeleEnAttente);
+            setModeleEnAttente(null);
+          }}
+        />
+
+        {/* ── Propriétés ── */}
+        <aside className="sk-colonne sk-colonne--props">
+          <StickerProperties
+            element={elementSelectionne}
+            onModifier={editeur.modifier}
+            pictos={bibliotheque.pictos}
+            images={images}
+            jetons={bibliotheque.jetons}
+            miniatureForcee={miniatureForcee}
+            onMiniatureForcee={setMiniatureForcee}
+            miniatureUrlAuto={donnees.miniatureUrl || undefined}
+          />
+        </aside>
       </div>
     </div>
   );

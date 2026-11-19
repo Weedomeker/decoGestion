@@ -2,6 +2,12 @@
 
 ## [Non publié] - 2026-11-18
 
+### Étiquettes
+- **onglet Sticker = éditeur d'étiquette** : aperçu A6 en direct, ajout de textes, champs automatiques (n° et exemplaire, ville, décor, référence, format, orientation…), pictos (flèches, attention, fragile, ne pas gerber, craint l'humidité…), logos et images importées (PNG/JPG), miniature, cadres et bandes ; déplacement et redimensionnement à la souris, annuler / rétablir
+- **modèles nommés** : nouvelle étiquette vierge ou copie du modèle de l'enseigne, enregistrer, enregistrer sous, supprimer ; un modèle par défaut par enseigne, utilisé aussi par les étiquettes des jobs
+- **miniature au choix** pour une étiquette : aperçu cherché par son nom (toutes enseignes) ou fichier PNG/JPG du poste, sans toucher au modèle
+- **modèles standard** créés au premier démarrage, copies vectorielles des anciennes notices (LM, ECOM, CASTO, BRICO) ; l'ancienne notice PDF reste en secours
+
 ### Interface
 - **nouvelle palette** : bleu acier, en-tête foncé, orange discret pour l'onglet actif et le champ en cours de saisie, version sombre revue
 - **boutons et champs** : même hauteur et même arrondi partout, 4 sortes de boutons (principal, validation, danger, secondaire), cases à cocher et interrupteurs plus fins

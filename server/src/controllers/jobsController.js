@@ -13,6 +13,7 @@ const refModels = require("../services/refModels");
 const modelRefDeco = refModels.LM;
 const checkVernis = require("../checkVernis");
 const { generateStickers, createStickersPage } = require("../generateStickers");
+const { lireMiniatureForcee } = require("../stickers/miniatureForcee");
 const generateImages = require("../generateImages");
 const getPreview = require("../getPreview");
 const findStock = require("../findStock");
@@ -1550,7 +1551,15 @@ async function previewStickerQuick(req, res) {
     visuel2: null,
     format2_visu: null,
     commandId: numCmd ? String(numCmd) : "STOCK",
+    // Modèle en cours d'édition dans l'onglet Sticker ; absent → modèle par défaut de l'enseigne.
+    etiquetteElements: Array.isArray(req.body.elements) ? req.body.elements : undefined,
   };
+  // Aperçu choisi à la main ou fichier importé dans l'onglet Sticker (cette étiquette seulement)
+  try {
+    syntheticJob.miniatureForcee = lireMiniatureForcee(req.body) || undefined;
+  } catch (err) {
+    return res.status(err.status || 400).json({ error: err.message });
+  }
 
   const tmpDir = path.join(os.tmpdir(), `sticker_preview_${Date.now()}`);
   try {
@@ -1594,7 +1603,15 @@ async function generateStickerQuick(req, res) {
     visuel2: null,
     format2_visu: null,
     commandId: numCmd ? String(numCmd) : "STOCK",
+    // Modèle en cours d'édition dans l'onglet Sticker ; absent → modèle par défaut de l'enseigne.
+    etiquetteElements: Array.isArray(req.body.elements) ? req.body.elements : undefined,
   };
+  // Aperçu choisi à la main ou fichier importé dans l'onglet Sticker (cette étiquette seulement)
+  try {
+    syntheticJob.miniatureForcee = lireMiniatureForcee(req.body) || undefined;
+  } catch (err) {
+    return res.status(err.status || 400).json({ error: err.message });
+  }
 
   try {
     await generateStickersForJobs([syntheticJob]);

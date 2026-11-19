@@ -11,6 +11,7 @@ const morgan = require("morgan");
 const logger = require("./src/logger/logger");
 const checkVersion = require("./src/checkVersion");
 const connectMongo = require("./src/mongoose");
+const { amorcerModeles: amorcerModelesEtiquettes } = require("./src/stickers/modeles");
 const { processAllPDFs } = require("./src/generatePreview");
 const registerRoutes = require("./src/routes");
 const registerPublicStatic = require("./src/routes/publicStatic");
@@ -85,6 +86,10 @@ app.use(cors({
   allowedHeaders: ["Content-Type"],
   maxAge: 86400,
 }));
+// Import d'images d'étiquettes en data URL (≤ 2 Mo) : au-delà de la limite JSON par défaut (100 ko).
+app.use("/sticker_images", express.json({ limit: "4mb" }));
+// Étiquette rapide avec une miniature importée du poste (≤ 5 Mo, soit ~6,7 Mo en base64).
+app.use(["/preview_sticker_quick", "/generate_sticker_quick"], express.json({ limit: "8mb" }));
 app.use(express.json());
 app.use(cookieParser());
 app.use(morgan("combined", { stream: accessLogStream }));
@@ -195,6 +200,9 @@ server.listen(PORT, async () => {
   } else {
     logger.warn("ODBC: connexion échouée — API Gamesys indisponible (mode dégradé)");
   }
+
+  // Modèles d'étiquettes standard (reproduction des notices) pour les enseignes qui n'en ont pas encore.
+  await amorcerModelesEtiquettes().catch((err) => logger.error(`Étiquettes : amorçage des modèles échoué (${err.message})`));
 
   logger.info(`Serveur démarré sur le port ${PORT}`);
 

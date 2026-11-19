@@ -7,9 +7,10 @@ const { degrees, PDFDocument, rgb, StandardFonts } = require("pdf-lib");
 const fs = require("fs");
 const path = require("path");
 const logger = require("./logger/logger");
-const { findPreviewFile } = require("./getPreview");
 const { state } = require("./services/appState");
-const { cheminApercuSurMesure } = require("./surMesure/nomFichier");
+const { donneesEtiquette, PREVIEW_DIR } = require("./stickers/donneesEtiquette");
+const { renderSticker } = require("./stickers/renderSticker");
+const { modeleParDefaut, chargerImage } = require("./stickers/modeles");
 
 function getVisuelsForCmd(cmdInfo) {
   const visuels = [
@@ -97,208 +98,61 @@ function planEtiquettes(commande) {
 }
 
 async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
-  const notice_deco = path.join(__dirname, "../public/images/notice_deco.pdf");
-  const notice_casto = path.join(__dirname, "../public/images/notice_casto.pdf");
-  const notice_brico = path.join(__dirname, "../public/images/notice_brico.pdf");
-  const pathPreview = path.join(__dirname, "../public/PREVIEW");
-
-  // Nouveau : support deux visuels CASTO
   const useSecond = cmd.visuelIndex === 2;
-
-  const ref = useSecond ? cmd.ref2 : cmd.ref;
   const visuel = useSecond ? cmd.visuel2 : cmd.visuel;
 
-  // if (!ref || !visuel) {
-  //   logger.error("❌ Données manquantes sur la commande " + numCmd);
-  // }
-
   let files;
-  const isCasto = cmd.client === "CASTO";
-  const isBrico = cmd.client === "BRICO";
-
   try {
-    files = fs.readdirSync(pathPreview);
-  }
- catch (err) {
+    files = fs.readdirSync(PREVIEW_DIR);
+  } catch (err) {
     logger.error("Erreur dossier PREVIEW:", err);
     files = [];
   }
 
-  // Récupération de la référence ou nom
-  //const teinteMasse = ['blanc zero', 'noir zero', 'alu brosse', 'granit 3'];
-
-  const refStr = ref && ref !== 0 ? String(ref) : null;
-
   // Miniature recherchée par ref uniquement (case-insensitive) : le repli par nom de visuel a été
   // retiré (a26cfc0) car un même décor existe en plusieurs formats. Sans ref (étiquette saisie à la
   // main), l'absence de miniature est donc normale — seule une ref sans aperçu mérite un warn.
-  // Même sélection que les JPG des jobs : départage des refs partagées, ref 00000000 ignorée.
   // Sur-mesure : sa propre miniature. Le catalogue montrerait le même décor sur tous les panneaux.
-  const previewFile = refStr && !cmd.smBase ? findPreviewFile(refStr, visuel, files) : undefined;
-  const images = previewFile ? [previewFile] : [];
-  if (cmd.smBase) {
+  const donnees = donneesEtiquette(cmd, numCmd, ex, {
+    files,
+    jpgSurMesureDir: `${state.paths.jpgPath}/${state.paths.sessionPRINTSA}`,
+  });
+  if (cmd.miniatureForcee) {
+    // Onglet Sticker : aperçu choisi à la main ou fichier importé, pour cette étiquette seulement.
+    donnees.miniaturePath = cmd.miniatureForcee.chemin || null;
+    donnees.miniatureData = cmd.miniatureForcee.data || null;
+    logger.debug(`generateStickers: miniature imposée (${cmd.miniatureForcee.nom})`);
+  } else if (cmd.smBase) {
     logger.debug(`generateStickers: miniature sur-mesure pour "${cmd.smBase}"`);
-  } else if (!refStr) {
+  } else if (!donnees.ref) {
     logger.info(`generateStickers: pas de référence pour "${visuel}", étiquette sans miniature`);
-  } else if (images.length === 0) {
-    logger.warn(`generateStickers: aucun JPG trouvé par référence "${refStr}" pour "${visuel}"`);
+  } else if (!donnees.miniatureFichier) {
+    logger.warn(`generateStickers: aucun JPG trouvé par référence "${donnees.ref}" pour "${visuel}"`);
   }
 
-  const match = cmd.smBase
-    ? cmd.orientation && [cmd.orientation]
-    : (useSecond ? cmd.visuel2 : cmd.visuel)?.match(/(gauche|droit|centre)/i);
-
   try {
-    // Lire le modèle de PDF
-    let readPdf;
-    if (isCasto) {
-      readPdf = await fs.promises.readFile(notice_casto);
+    // Modèle éditable : celui transmis (onglet Sticker), sinon le modèle par défaut de l'enseigne.
+    // Sans modèle ou si le rendu échoue, l'étiquette sort sur l'ancien PDF notice.
+    let pdfBytes = null;
+    let elements = cmd.etiquetteElements;
+    if (!elements) {
+      try {
+        elements = (await modeleParDefaut(cmd.client))?.elements;
+      } catch (err) {
+        logger.warn(`generateStickers: modèle d'étiquette illisible pour ${cmd.client} (${err.message}), PDF notice utilisé`);
+      }
     }
- else if (isBrico) {
-      readPdf = await fs.promises.readFile(notice_brico);
-    }
- else {
-      readPdf = await fs.promises.readFile(notice_deco);
-    }
-    const pdfDoc = await PDFDocument.load(readPdf);
-    const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    const font2 = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const pages = pdfDoc.getPages();
-    const firstPage = pages[0];
-    const { width, height } = firstPage.getSize();
-
-
-    // Afficher la numérotation des exemplaires (par ex. : 01/03)
-    let text = "";
-    if (cmd.isStock || cmd.showStock) {
-      text = "STOCK";
+    if (elements?.length) {
+      try {
+        pdfBytes = await renderSticker(elements, donnees, { chargerImage });
+      } catch (err) {
+        logger.warn(`generateStickers: rendu du modèle échoué (${err.message}), PDF notice utilisé`);
+      }
     } else {
-      text = numCmd > 0 ? `${numCmd} ${ex}` : "";
+      logger.warn(`generateStickers: aucun modèle d'étiquette pour ${cmd.client || "?"}, PDF notice utilisé`);
     }
-    const textWidth = font.widthOfTextAtSize(text, 16);
-    const textHeight = font.heightAtSize(16);
+    if (!pdfBytes) pdfBytes = await etiquetteNotice(cmd, donnees, showDataCmd);
 
-    firstPage.drawText(text, {
-      x: width / 2 - textWidth / 2,
-      y: height - textHeight * 7.7,
-      size: 16,
-      font: font,
-      color: rgb(0, 0, 0),
-    });
-
-    // Afficher Gauche Droite
-    if (!showDataCmd) {
-      if (match) {
-        firstPage.drawText(match[0], {
-          x: width / 2 - font.widthOfTextAtSize(match[0], 16) / 2,
-          y: height - textHeight - textHeight * 1.2,
-          size: 16,
-          font: font,
-          color: rgb(0, 0, 0),
-        });
-      }
-    }
-
-    // Ajouter les informations de la commande (si demandé)
-    if (showDataCmd) {
-      const usedFont = font2; // police fine pour l’affichage
-
-      // Extraction du nom propre CASTO
-      function cleanCastoName(str) {
-        return str
-          ?.replace(/\d{2,}x\d{2,}/i, "")
-          ?.replace("cm", "")
-          ?.replace("CRED", "")
-          ?.replace(/\d{13}/, "")
-          ?.replace("MAT.pdf", "")
-          ?.replace("BRILLANT.pdf", "")
-          .trim();
-      }
-
-      // Sélection cohérente selon le sticker
-      const currentVisuelRAW = useSecond ? cmd.visuel2 : cmd.visuel;
-      const currentRef = useSecond ? cmd.ref2 : cmd.ref;
-      const currentFormat = useSecond ? cmd.format2_visu : cmd.format_visu;
-
-      let currentVisuelName;
-      if (isCasto) {
-        currentVisuelName = cleanCastoName(currentVisuelRAW);
-      }
- else if (isBrico) {
-        currentVisuelName = currentVisuelRAW?.split(/\d{2,}x\d{2,}/i)[0]?.trim();
-      }
- else {
-        currentVisuelName = currentVisuelRAW?.split(/\d{2,}x\d{2,}/i)[0]?.trim();
-      }
-
-      const matchGD = currentVisuelRAW?.match(/(gauche|droit|centre)/i);
-
-      const infoCommande = cmd.smBase
-        ? [cmd.ville || "", cmd.ref || "", cmd.orientation || "", cmd.smFormat]
-        : [
-            cmd.ville || "",
-            currentVisuelName || "",
-            matchGD ? matchGD[0] : "",
-            currentRef?.toString() || "",
-            currentFormat?.split("_").pop().replace("/", "").trim() || "Format inconnu",
-          ];
-
-      // Construction de la ligne affichée
-      const textData = infoCommande.join(" ").toUpperCase();
-
-      // Sélection correcte de l'image preview
-      const miniaturePreview = images[0] || "";
-      logger.info(`[sticker] V${cmd.visuelIndex} ref=${ref} → preview: ${miniaturePreview || "(aucun)"}`);
-
-      // Ajustement de la taille du texte
-      let fontSize = 10;
-      let textDataWidth = usedFont.widthOfTextAtSize(textData, fontSize);
-
-      const textDataHeight = usedFont.heightAtSize(fontSize);
-
-      if (textDataWidth > width) {
-        fontSize = 6;
-        textDataWidth = usedFont.widthOfTextAtSize(textData, fontSize);
-      }
-
-      // Dessin du texte
-      firstPage.drawText(textData, {
-        x: width / 2 - textDataWidth / 2,
-        y: height - textDataHeight - textHeight * 8.4,
-        size: fontSize,
-        font: usedFont,
-        color: rgb(0, 0, 0),
-      });
-
-      // Preview image
-      const jpgPath = cmd.smBase
-        ? cheminApercuSurMesure(`${state.paths.jpgPath}/${state.paths.sessionPRINTSA}`, cmd.smBase)
-        : path.join(pathPreview, miniaturePreview);
-
-      if ((miniaturePreview || cmd.smBase) && fs.existsSync(jpgPath)) {
-        const imageBuffer = fs.readFileSync(jpgPath);
-        const img = await pdfDoc.embedJpg(imageBuffer);
-
-        const origWidth = img.width;
-        const maxRenderedHeight = 90;
-        const scaleFactor = maxRenderedHeight / origWidth;
-
-        const scaledDims = img.scale(scaleFactor);
-
-        firstPage.drawImage(img, {
-          x: width / 2 - scaledDims.height / 2,
-          y: height - scaledDims.width - textHeight * 3.5,
-          width: scaledDims.width,
-          height: scaledDims.height,
-          rotate: degrees(-90),
-        });
-      }
-    }
-
-    // Enregistrer le PDF généré
-    const pdfBytes = await pdfDoc.save();
-
-    // Créer le dossier de sortie si nécessaire
     if (!fs.existsSync(outPath)) {
       fs.mkdirSync(outPath, { recursive: true });
     }
@@ -307,13 +161,7 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
     const vernis = extractVernis(cmd);
     const vernisTag = vernis === true ? "_B" : vernis === false ? "_M" : "";
     const commandId = cmd.commandId || numCmd;
-    let visuelTag;
-    if (cmd.client === "CASTO" || cmd.client === "BRICO") {
-      visuelTag = `_V${cmd.visuelIndex}`;
-    }
- else {
-      visuelTag = "";
-    }
+    const visuelTag = cmd.client === "CASTO" || cmd.client === "BRICO" ? `_V${cmd.visuelIndex}` : "";
     const formatTag =
       cmd.smFormat ||
       (useSecond ? cmd.format2_visu : cmd.format_visu)
@@ -321,10 +169,79 @@ async function createStickers(numCmd, ex, outPath, cmd, showDataCmd) {
     const smTag = cmd.smBase ? "_SM" : "";
     const fileName = `${commandId}${smTag}${visuelTag}${vernisTag}_${formatTag}_${ex.split("/")[0]}.pdf`;
     await fs.promises.writeFile(`${outPath}/${fileName}`, pdfBytes);
-  }
- catch (error) {
+  } catch (error) {
     logger.error("La génération des étiquettes a échoué : ", error);
   }
+}
+
+// Ancienne étiquette : PDF notice de l'enseigne + textes posés à coordonnées fixes. Repli seulement.
+async function etiquetteNotice(cmd, donnees, showDataCmd) {
+  const notices = { CASTO: "notice_casto.pdf", BRICO: "notice_brico.pdf" };
+  const readPdf = await fs.promises.readFile(
+    path.join(__dirname, "../public/images", notices[cmd.client] || "notice_deco.pdf"),
+  );
+  const pdfDoc = await PDFDocument.load(readPdf);
+  const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const font2 = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const firstPage = pdfDoc.getPages()[0];
+  const { width, height } = firstPage.getSize();
+
+  // Numérotation des exemplaires (par ex. : 169580 01/03) ou STOCK
+  const text = donnees.numEx;
+  const textWidth = font.widthOfTextAtSize(text, 16);
+  const textHeight = font.heightAtSize(16);
+  firstPage.drawText(text, {
+    x: width / 2 - textWidth / 2,
+    y: height - textHeight * 7.7,
+    size: 16,
+    font,
+    color: rgb(0, 0, 0),
+  });
+
+  if (!showDataCmd) {
+    if (donnees.orientation) {
+      firstPage.drawText(donnees.orientation, {
+        x: width / 2 - font.widthOfTextAtSize(donnees.orientation, 16) / 2,
+        y: height - textHeight - textHeight * 1.2,
+        size: 16,
+        font,
+        color: rgb(0, 0, 0),
+      });
+    }
+    return pdfDoc.save();
+  }
+
+  const textData = donnees.infos;
+  let fontSize = 10;
+  let textDataWidth = font2.widthOfTextAtSize(textData, fontSize);
+  const textDataHeight = font2.heightAtSize(fontSize);
+  if (textDataWidth > width) {
+    fontSize = 6;
+    textDataWidth = font2.widthOfTextAtSize(textData, fontSize);
+  }
+  firstPage.drawText(textData, {
+    x: width / 2 - textDataWidth / 2,
+    y: height - textDataHeight - textHeight * 8.4,
+    size: fontSize,
+    font: font2,
+    color: rgb(0, 0, 0),
+  });
+
+  const miniature =
+    donnees.miniatureData ||
+    (donnees.miniaturePath && fs.existsSync(donnees.miniaturePath) ? fs.readFileSync(donnees.miniaturePath) : null);
+  if (miniature) {
+    const img = miniature[0] === 0x89 ? await pdfDoc.embedPng(miniature) : await pdfDoc.embedJpg(miniature);
+    const scaledDims = img.scale(90 / img.width);
+    firstPage.drawImage(img, {
+      x: width / 2 - scaledDims.height / 2,
+      y: height - scaledDims.width - textHeight * 3.5,
+      width: scaledDims.width,
+      height: scaledDims.height,
+      rotate: degrees(-90),
+    });
+  }
+  return pdfDoc.save();
 }
 
 async function createStickersPage(directory, outputPath, pageSize = "A4", ordreCommandes = []) {
