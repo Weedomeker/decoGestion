@@ -1454,8 +1454,11 @@ img.ui.image:not(.header-logo) {
   transform: none !important;
 }
 
+/* width: auto : en position fixe, le « width: 100% » de Semantic vaut la largeur de la fenêtre
+   (plafonnée par max-width) ; la liste prend la largeur du champ, ou de son contenu si plus long. */
 .ui.dropdown.auto-dropdown--fixe > .menu {
   position: fixed !important;
+  width: auto !important;
   overflow-y: auto !important;
   z-index: 1200 !important;
 }
@@ -2618,6 +2621,15 @@ label.filter-toggle.filter-toggle {
   gap: var(--s-xl);
   max-width: 1000px;
   width: 100%;
+  margin: 0 auto;
+}
+
+/* Texte des listes sur une ligne : un visuel long ne double plus la hauteur du champ */
+.sticker-form .ui.selection.dropdown > .text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 1.5em);
 }
 
 .sticker-form-wrapper {

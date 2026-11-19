@@ -31,6 +31,13 @@ describe("buildHistoryFilter", () => {
     expect($or).to.deep.include({ numCmd: 169580 });
   });
 
+  it("cherche aussi les commandes qui commencent par un numéro partiel (suggestions Sticker)", () => {
+    const { $or } = buildHistoryFilter({ q: "1693" });
+    const prefixe = $or.find((c) => c.$expr);
+    expect(prefixe, "clause de préfixe sur numCmd").to.exist;
+    expect(prefixe.$expr.$regexMatch.regex).to.equal("^1693");
+  });
+
   it("ignore un paramètre répété (?q=a&q=b) au lieu de planter", () => {
     expect(() => buildHistoryFilter({ q: ["a", "b"], client: ["LM", "CASTO"] })).to.not.throw();
     expect(buildHistoryFilter({ q: ["a", "b"], client: ["LM"] })).to.deep.equal({});

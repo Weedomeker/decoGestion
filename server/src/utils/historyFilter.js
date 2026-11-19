@@ -20,7 +20,13 @@ function buildHistoryFilter(query = {}) {
   if (q) {
     const textRegex = regexLitterale(q);
     const orClauses = [{ mag: textRegex }, { deco: textRegex }, { ref: textRegex }];
-    if (/^\d+$/.test(q)) orClauses.push({ numCmd: Number(q) });
+    if (/^\d+$/.test(q)) {
+      orClauses.push({ numCmd: Number(q) });
+      // Numéro partiel (« 1693 » → 169397…) : les suggestions de l'onglet Sticker partent dès 2 chiffres.
+      orClauses.push({
+        $expr: { $regexMatch: { input: { $toString: { $ifNull: ["$numCmd", ""] } }, regex: `^${q}` } },
+      });
+    }
     filter.$or = orClauses;
   }
 

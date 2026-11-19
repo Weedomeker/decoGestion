@@ -1,3 +1,4 @@
+import PropTypes from "prop-types";
 import { useCallback, useEffect, useState } from "react";
 import { Button, Checkbox, Form, Icon, Input, Message } from "semantic-ui-react";
 import Dropdown from "./AutoDropdown";
@@ -62,6 +63,18 @@ function AutoField({ fieldKey, mongoField, label, placeholder, value, options, o
   );
 }
 
+AutoField.propTypes = {
+  fieldKey: PropTypes.string.isRequired,
+  mongoField: PropTypes.string.isRequired,
+  label: PropTypes.string.isRequired,
+  placeholder: PropTypes.string,
+  value: PropTypes.string,
+  options: PropTypes.arrayOf(PropTypes.object).isRequired,
+  onSearch: PropTypes.func.isRequired,
+  onChange: PropTypes.func.isRequired,
+  onAddItem: PropTypes.func.isRequired,
+};
+
 function StickerPdfPanel({ pdfUrl, isLoading, error }) {
   if (isLoading) {
     return (
@@ -106,6 +119,12 @@ function StickerPdfPanel({ pdfUrl, isLoading, error }) {
     </div>
   );
 }
+
+StickerPdfPanel.propTypes = {
+  pdfUrl: PropTypes.string,
+  isLoading: PropTypes.bool,
+  error: PropTypes.string,
+};
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
@@ -190,7 +209,15 @@ function StickerView() {
       try {
         const res = await fetch(`${API_BASE}/history?q=${encodeURIComponent(q)}&limit=6`);
         const data = await res.json();
-        setNumCmdSuggestions(data.data || []);
+        // Un panneau par entrée : deux lignes identiques (même visuel, même format) n'en font qu'une.
+        const vus = new Set();
+        const uniques = (data.data || []).filter((e) => {
+          const cle = [e.numCmd, e.deco, e.format, e.ref].join("|");
+          if (vus.has(cle)) return false;
+          vus.add(cle);
+          return true;
+        });
+        setNumCmdSuggestions(uniques);
         setShowNumCmdList(true);
       } catch { /* silent */ }
     }, 280),
@@ -361,9 +388,13 @@ function StickerView() {
                   <label>N° Commande</label>
                   <div className="sticker-numcmd-wrapper">
                     <Input
-                      fluid type="number" placeholder="Ex : 12345"
-                      value={fields.numCmd} min={1}
-                      onChange={(e) => { set("numCmd", e.target.value); searchNumCmd(e.target.value); }}
+                      fluid type="text" inputMode="numeric" placeholder="Ex : 169580"
+                      value={fields.numCmd}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/\D/g, "");
+                        set("numCmd", v);
+                        searchNumCmd(v);
+                      }}
                       onBlur={() => setTimeout(() => setShowNumCmdList(false), 180)}
                       onFocus={() => numCmdSuggestions.length > 0 && setShowNumCmdList(true)}
                     />
@@ -373,7 +404,7 @@ function StickerView() {
                           <div key={entry._id} className="sticker-suggestion-item" onMouseDown={() => selectNumCmd(entry)}>
                             <span className="sticker-suggestion-cmd">{entry.numCmd}</span>
                             <span className="sticker-suggestion-meta">
-                              {entry.mag} · {entry.client}{entry.deco ? ` · ${entry.deco}` : ""}
+                              {[entry.mag, entry.client, entry.deco, entry.format].filter(Boolean).join(" · ")}
                             </span>
                           </div>
                         ))}
@@ -402,7 +433,7 @@ function StickerView() {
 
             {/* Ligne 3 : Visuel + Format */}
             <Form.Group widths="equal">
-              <AutoField fieldKey="visuel" mongoField="visuel" label="Visuel" placeholder="Ex : MON_VISUEL BRILLANT gauche.pdf"
+              <AutoField fieldKey="visuel" mongoField="visuel" label="Visuel" placeholder="Ex : JARDIN SECRET MAT"
                 value={fields.visuel} options={opts.visuel}
                 onSearch={fetchRefVisuels} onChange={handleFieldChange} onAddItem={handleAddItem} />
               <Form.Field>
@@ -435,7 +466,7 @@ function StickerView() {
                 loading={previewLoading} disabled={previewLoading || !canPreview} />
               <Button type="submit" primary icon="tag" content="Générer"
                 loading={loading} disabled={loading || !canPreview} />
-              <Button type="button" basic icon="refresh"
+              <Button type="button" basic icon="refresh" title="Vider le formulaire" aria-label="Vider le formulaire"
                 onClick={handleReset} disabled={loading || previewLoading} />
             </div>
           </Form>
