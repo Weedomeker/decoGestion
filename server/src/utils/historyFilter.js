@@ -1,13 +1,5 @@
 // Filtre MongoDB de l'historique (GET /history et /history/export).
-
-function escapeRegExp(str) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-// Un paramètre répété (?q=a&q=b) arrive en tableau : seul le texte est retenu.
-function texte(valeur) {
-  return typeof valeur === "string" && valeur.trim() ? valeur.trim() : null;
-}
+const { escapeRegExp, texte, regexLitterale } = require("./rechercheTexte");
 
 function buildHistoryFilter(query = {}) {
   const filter = {};
@@ -26,7 +18,7 @@ function buildHistoryFilter(query = {}) {
 
   const q = texte(query.q);
   if (q) {
-    const textRegex = new RegExp(escapeRegExp(q), "i");
+    const textRegex = regexLitterale(q);
     const orClauses = [{ mag: textRegex }, { deco: textRegex }, { ref: textRegex }];
     if (/^\d+$/.test(q)) orClauses.push({ numCmd: Number(q) });
     filter.$or = orClauses;

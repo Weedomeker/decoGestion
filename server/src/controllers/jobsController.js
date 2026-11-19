@@ -27,6 +27,7 @@ const usePdfWorker = require("../utils/pdfWorker");
 const { createStagingDir, removeStagingDir } = require("../utils/hotFolderDelivery");
 const { deposerPdf } = require("../tauro/depotTauro");
 const { buildHistoryFilter } = require("../utils/historyFilter");
+const { texte, regexLitterale } = require("../utils/rechercheTexte");
 const { calculerPlan } = require("../tauro/planTauro");
 const { lancerTauro, trierPourEtiquettes } = require("../tauro/lancerTauro");
 const { UnrecoverableError } = require("bullmq");
@@ -1460,7 +1461,8 @@ async function getSuggestions(req, res) {
   const mongoField = SUGGESTION_FIELDS[field];
   if (!mongoField) return res.status(400).json({ error: "Champ invalide" });
   try {
-    const filter = q ? { [mongoField]: { $regex: q, $options: "i" } } : {};
+    const recherche = regexLitterale(q);
+    const filter = recherche ? { [mongoField]: recherche } : {};
     const values = await modelDeco.distinct(mongoField, filter);
     res.json(values.filter(Boolean).sort().slice(0, 20));
   } catch (error) {
@@ -1470,11 +1472,12 @@ async function getSuggestions(req, res) {
 }
 
 async function lookupVisuel(req, res) {
-  const { visuel, format } = req.query;
-  if (!visuel) return res.status(400).json({ error: "visuel requis" });
+  const deco = regexLitterale(req.query.visuel);
+  if (!deco) return res.status(400).json({ error: "visuel requis" });
   try {
-    const filter = { deco: { $regex: visuel.trim(), $options: "i" } };
-    if (format) filter.format = { $regex: format.trim(), $options: "i" };
+    const filter = { deco };
+    const format = regexLitterale(req.query.format);
+    if (format) filter.format = format;
     const entry = await modelDeco.findOne(filter).sort({ createdAt: -1 });
     if (!entry) return res.json({});
     res.json({
@@ -1490,10 +1493,11 @@ async function lookupVisuel(req, res) {
 }
 
 async function getRefVisuels(req, res) {
-  const { q, client } = req.query;
+  const { client } = req.query;
+  const q = texte(req.query.q);
   if (!q || q.length < 2) return res.json([]);
   try {
-    const filter = { model: { $regex: q.trim(), $options: "i" } };
+    const filter = { model: regexLitterale(q) };
     const targets = client && refModels[client] ? [refModels[client]] : Object.values(refModels);
     const sets = await Promise.all(targets.map((m) => m.distinct("model", filter)));
     const visuels = [...new Set(sets.flat().filter(Boolean))].sort().slice(0, 20);
