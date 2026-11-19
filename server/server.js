@@ -23,7 +23,8 @@ const mongooseLib = require("mongoose");
 const { createBullBoard } = require("@bull-board/api");
 const { BullMQAdapter } = require("@bull-board/api/bullMQAdapter");
 const { ExpressAdapter } = require("@bull-board/express");
-const { decoQueue, initWorker } = require("./src/services/queueService");
+const { decoQueue, initWorker, closeQueue } = require("./src/services/queueService");
+const { creerArretPropre } = require("./src/services/arretPropre");
 const { retirerJobsOrphelins } = require("./src/services/jobsOrphelins");
 const { processJob } = require("./src/controllers/jobsController");
 const { syncPausedState } = require("./src/services/queueControlService");
@@ -45,6 +46,31 @@ process.on("unhandledRejection", (reason) => {
 
 const app = express();
 const server = http.createServer(app);
+
+// Ordre : plus de nouvelles requêtes (donc plus de nouveaux jobs), fin des jobs en cours,
+// puis journal et MongoDB, que processJob utilise jusqu'au bout.
+let arretDemande = false;
+const arreter = creerArretPropre({
+  logger,
+  etapes: [
+    {
+      nom: "serveur HTTP",
+      fermer: () => {
+        server.close();
+        server.closeIdleConnections();
+      },
+    },
+    { nom: "file BullMQ", fermer: closeQueue },
+    { nom: "journal MongoDB", fermer: () => logger.flushMongo() },
+    { nom: "MongoDB", fermer: () => mongooseLib.disconnect() },
+  ],
+});
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  process.on(signal, () => {
+    arretDemande = true;
+    arreter(signal);
+  });
+}
 const accessLogStream = fs.createWriteStream(path.join(__dirname, "server.log"), { flags: "a" });
 
 loadAppVersion();
@@ -120,6 +146,8 @@ retirerJobsOrphelins(decoQueue, logger)
     }
   })
   .finally(() => {
+    // Ctrl+C pendant le nettoyage de démarrage : pas de worker sur une file en cours de fermeture.
+    if (arretDemande) return;
     initWorker(async (bullJob) => {
       const { job, sortFolder, ip } = bullJob.data;
       const fakeReq = { body: { sortFolder }, ip };

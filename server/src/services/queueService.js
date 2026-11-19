@@ -75,10 +75,23 @@ function setConcurrency(n) {
   return value;
 }
 
+// Arrêt du serveur : le worker ne prend plus de nouveau job et attend la fin de ceux en cours.
+// Les jobs en attente restent dans Redis ; retirerJobsOrphelins les signale au redémarrage.
+async function closeQueue() {
+  if (worker) {
+    const actifs = await decoQueue.getActiveCount().catch(() => 0);
+    if (actifs) logger.info(`Arrêt : attente de ${actifs} job(s) en cours`);
+    await worker.close();
+    worker = null;
+  }
+  await Promise.all([queueEvents.close(), decoQueue.close()]);
+}
+
 module.exports = {
   decoQueue,
   queueEvents,
   initWorker,
+  closeQueue,
   getConcurrency,
   setConcurrency,
   MIN_CONCURRENCY,
