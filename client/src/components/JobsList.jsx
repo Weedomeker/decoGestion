@@ -43,6 +43,18 @@ const CONCURRENCY_OPTIONS = Array.from({ length: 8 }, (_, i) => ({
   text: String(i + 1),
 }));
 
+const CLE_ONGLET_FILE = "decoGestion.ongletFile";
+const ONGLETS_FILE = ["attente", "traites"];
+
+function lireOngletFile() {
+  try {
+    const onglet = localStorage.getItem(CLE_ONGLET_FILE);
+    return ONGLETS_FILE.includes(onglet) ? onglet : "attente";
+  } catch {
+    return "attente";
+  }
+}
+
 // Un job = un <tbody> déplaçable : les 2 lignes d'une crédence restent groupées pendant le drag.
 function SortableJobGroup({ id, children }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
@@ -90,6 +102,18 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [queueStatus, setQueueStatus] = useState({ running: false, paused: false, concurrency: null });
   const [repriseArret, setRepriseArret] = useState(null);
+  const [ongletFile, setOngletFile] = useState(lireOngletFile);
+  // Nombre de traités déjà vus : null tant que les données ne sont pas chargées.
+  const [vusTraites, setVusTraites] = useState(null);
+
+  const choisirOnglet = (onglet) => {
+    setOngletFile(onglet);
+    try {
+      localStorage.setItem(CLE_ONGLET_FILE, onglet);
+    } catch {
+      // stockage indisponible : l'onglet n'est simplement pas mémorisé
+    }
+  };
 
   // Signal sur l'onglet File : l'opérateur peut être sur un autre onglet au redémarrage.
   useEffect(() => {
@@ -250,6 +274,22 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
   const nbJobs = pendingJobs.length;
   const nbCompleted = data?.[0]?.completed?.length ?? 0;
   const nbSelected = selectedIds.size;
+
+  // Pastille « nouveaux traités » : rien au premier chargement ; vus dès que l'onglet Traités est ouvert ;
+  // recalée si l'historique est vidé.
+  useEffect(() => {
+    if (isLoading) return;
+    setVusTraites((vus) => (vus === null || ongletFile === "traites" || nbCompleted < vus ? nbCompleted : vus));
+  }, [isLoading, ongletFile, nbCompleted]);
+  const nouveauxTraites = vusTraites === null ? 0 : Math.max(0, nbCompleted - vusTraites);
+
+  const ongletsClavier = (e) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const suivant = ongletFile === "attente" ? "traites" : "attente";
+    choisirOnglet(suivant);
+    document.getElementById(`file-tab-${suivant}`)?.focus();
+  };
   // Sans sélection, le serveur traite toute la file.
   const selectionPayload = nbSelected > 0 ? { ids: pendingJobs.filter((j) => selectedIds.has(String(j._id))).map((j) => j._id) } : {};
 
@@ -772,6 +812,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
                       compact
                       icon="warning circle"
                       content="Vider l'historique"
+                      disabled={nbCompleted === 0}
                       onClick={() => setConfirmClearCompleted(true)}
                     />
 
@@ -830,12 +871,45 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
         </div>
       )}
       {repriseArret && <AlerteRepriseArret reprise={repriseArret} onVu={() => setRepriseArret(null)} />}
-      <div className="jobs-section-label">File en attente ({nbJobs})</div>
-      {jobs}
-      {nbCompleted > 0 && (
-        <div className="jobs-section-label jobs-section-label--completed">Traités ({nbCompleted})</div>
-      )}
-      {nbCompleted > 0 && completed}
+      <div className="file-tabs" role="tablist" aria-label="File des jobs" onKeyDown={ongletsClavier}>
+        <button
+          type="button"
+          role="tab"
+          id="file-tab-attente"
+          aria-selected={ongletFile === "attente"}
+          aria-controls="file-panel"
+          tabIndex={ongletFile === "attente" ? 0 : -1}
+          className={`file-tab${ongletFile === "attente" ? " active" : ""}`}
+          onClick={() => choisirOnglet("attente")}
+        >
+          En attente <span className="file-tab-count">{nbJobs}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="file-tab-traites"
+          aria-selected={ongletFile === "traites"}
+          aria-controls="file-panel"
+          tabIndex={ongletFile === "traites" ? 0 : -1}
+          className={`file-tab${ongletFile === "traites" ? " active" : ""}`}
+          onClick={() => choisirOnglet("traites")}
+        >
+          Traités <span className="file-tab-count">{nbCompleted}</span>
+          {nouveauxTraites > 0 && (
+            <span className="tab-badge" title={`${nouveauxTraites} nouveau(x) depuis la dernière visite`}>
+              +{nouveauxTraites}
+            </span>
+          )}
+        </button>
+      </div>
+      <div
+        id="file-panel"
+        role="tabpanel"
+        aria-labelledby={`file-tab-${ongletFile}`}
+        className="file-panel"
+      >
+        {ongletFile === "attente" ? jobs : completed}
+      </div>
 
       <Confirm
         open={confirmDeleteId !== null}

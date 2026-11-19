@@ -10,15 +10,11 @@
   border-radius: var(--ctl-r);
 }
 
-/* La file en attente prend la place ; les traités restent en bas, limités */
-.jobs-table-wrapper--attente {
+/* Un seul tableau affiché à la fois (onglets) : il prend toute la hauteur */
+.jobs-table-wrapper--attente,
+.jobs-table-wrapper--traites {
   flex: 1 1 auto;
   min-height: 160px;
-}
-
-.jobs-table-wrapper--traites {
-  flex: 0 1 auto;
-  max-height: 28vh;
 }
 
 .jobs-table-container {

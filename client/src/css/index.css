@@ -738,21 +738,56 @@ img.ui.image:not(.header-logo) {
   margin: 0 0 var(--s-sm);
 }
 
-.jobs-section-label {
-  font-family: 'Figtree', -apple-system, sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: none;
-  letter-spacing: 0;
-  color: var(--text-primary);
-  padding: var(--s-12) 0 var(--s-sm);
+/* Sous-onglets de la vue File : En attente / Traités */
+.file-tabs {
+  display: flex;
+  gap: 0;
+  margin: var(--s-sm) 0 var(--s-sm);
+  border-bottom: 1px solid var(--border-default);
+  flex: 0 0 auto;
+}
+
+.file-tab {
   display: flex;
   align-items: center;
   gap: 6px;
+  padding: 8px 16px 6px;
+  margin-bottom: -1px;
+  border: none;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: 'Figtree', -apple-system, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.jobs-section-label--completed {
+.file-tab:hover:not(.active) {
+  color: var(--text-primary);
+}
+
+.file-tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent2);
+}
+
+.file-tab:focus-visible {
+  outline: 2px solid var(--accent2);
+  outline-offset: -2px;
+}
+
+.file-tab-count {
+  font-weight: 500;
   color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.file-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .format-tauro     { display: flex; flex-direction: column; }
