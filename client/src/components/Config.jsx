@@ -1,14 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  Button,
-  Header,
-  Icon,
-  Input,
-  Loader,
-  Modal,
-  ModalActions,
-  ModalContent,
-} from "semantic-ui-react";
+import { Button, Icon, Input, Loader, Modal, ModalActions, ModalContent } from "semantic-ui-react";
 import Dropdown from "./AutoDropdown";
 import { API_BASE } from "../utils/api";
 
@@ -127,16 +118,35 @@ function Config() {
     setBrowser((b) => ({ ...b, open: false }));
   };
 
-  const browseBtn = (field) => (
-    <Button icon type="button" title="Parcourir" onClick={() => openBrowser(field)}>
-      <Icon name="folder open" />
-    </Button>
+  // Un champ de chemin : libellé aligné, saisie pleine largeur, bouton Parcourir.
+  const champ = (field, label) => (
+    <div className="config-champ">
+      <label htmlFor={`config-${field}`}>{label}</label>
+      <Input
+        id={`config-${field}`}
+        fluid
+        value={data[field] || ""}
+        title={data[field] || ""}
+        onChange={(e, v) => setData((prev) => ({ ...prev, [field]: v.value }))}
+        action={
+          <Button
+            icon
+            type="button"
+            title="Parcourir"
+            aria-label={`Parcourir : ${label}`}
+            onClick={() => openBrowser(field)}
+          >
+            <Icon name="folder open" />
+          </Button>
+        }
+      />
+    </div>
   );
 
   return (
     <>
       <Modal
-        basic
+        className="config-modal"
         onClose={() => setOpen(false)}
         onOpen={() => setOpen(true)}
         open={open}
@@ -148,206 +158,140 @@ function Config() {
           </button>
         }
       >
-        <Header icon>
-          <Icon name="cogs" />
-          Configuration
-        </Header>
-        <div className="config">
-          <ModalContent scrolling>
-            {saveError && <p style={{ color: "red", margin: "0 0 8px" }}>{saveError}</p>}
-            <div className="input-folders">
-              <Input
-                fluid
-                label="Aperçu:"
-                value={data.preview || ""}
-                onChange={(e, v) => setData((prev) => ({ ...prev, preview: v.value }))}
-                action={browseBtn("preview")}
-              />
-              <Input
-                fluid
-                label="Tauro:"
-                value={data.tauro || ""}
-                onChange={(e, v) => setData((prev) => ({ ...prev, tauro: v.value }))}
-                action={browseBtn("tauro")}
-              />
-              <Input
-                fluid
-                label="Sur-mesure (PDF créa):"
-                value={data.SM || ""}
-                onChange={(e, v) => setData((prev) => ({ ...prev, SM: v.value }))}
-                action={browseBtn("SM")}
-              />
-              <Input
-                fluid
-                label="Sur-mesure (découpe):"
-                value={data.decoupeSM || ""}
-                onChange={(e, v) => setData((prev) => ({ ...prev, decoupeSM: v.value }))}
-                action={browseBtn("decoupeSM")}
-              />
-              <Input
-                fluid
-                label="LM:"
-                value={data.LM || ""}
-                onChange={(e, v) => setData((prev) => ({ ...prev, LM: v.value }))}
-                action={browseBtn("LM")}
-              />
-              <Input
-                fluid
-                label="ECOM:"
-                value={data.ECOM || ""}
-                onChange={(e, v) => setData((prev) => ({ ...prev, ECOM: v.value }))}
-                action={browseBtn("ECOM")}
-              />
-              <Input
-                fluid
-                label="CASTO:"
-                value={data.CASTO || ""}
-                onChange={(e, v) => setData((prev) => ({ ...prev, CASTO: v.value }))}
-                action={browseBtn("CASTO")}
-              />
-              <Input
-                fluid
-                label="BRICO:"
-                value={data.BRICO || ""}
-                onChange={(e, v) => setData((prev) => ({ ...prev, BRICO: v.value }))}
-                action={browseBtn("BRICO")}
-              />
+        <Modal.Header>
+          <Icon name="cogs" /> Configuration
+        </Modal.Header>
+        <ModalContent scrolling>
+          {saveError && <p className="config-erreur">{saveError}</p>}
+
+          <section className="config-section">
+            <h4>Sorties</h4>
+            {champ("preview", "Aperçus")}
+            {champ("tauro", "Tauro (hot folder)")}
+          </section>
+
+          <section className="config-section">
+            <h4>Sur-mesure</h4>
+            {champ("SM", "PDF créa")}
+            {champ("decoupeSM", "Découpe")}
+          </section>
+
+          <section className="config-section">
+            <h4>Visuels par enseigne</h4>
+            {champ("LM", "LM")}
+            {champ("ECOM", "ECOM")}
+            {champ("CASTO", "CASTO")}
+            {champ("BRICO", "BRICO")}
+          </section>
+
+          <section className="config-section">
+            <h4>Page JPG</h4>
+            <div className="config-champ">
+              <span className="config-libelle">Mise en page</span>
+              <div className="config-page-jpg">
+                <Dropdown
+                  selection
+                  options={JPG_PAGE_FORMATS}
+                  value={data.jpgPage?.format || "A4"}
+                  onChange={(e, v) =>
+                    setData((prev) => ({ ...prev, jpgPage: { orientation: "portrait", ...prev.jpgPage, format: v.value } }))
+                  }
+                  aria-label="Format de page JPG"
+                />
+                <Dropdown
+                  selection
+                  options={JPG_PAGE_ORIENTATIONS}
+                  disabled={data.jpgPage?.format === "none"}
+                  value={data.jpgPage?.orientation || "portrait"}
+                  onChange={(e, v) =>
+                    setData((prev) => ({ ...prev, jpgPage: { format: "A4", ...prev.jpgPage, orientation: v.value } }))
+                  }
+                  aria-label="Orientation de page JPG"
+                />
+              </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, color: "white" }}>
-              <span>Page JPG :</span>
-              <Dropdown
-                selection
-                options={JPG_PAGE_FORMATS}
-                value={data.jpgPage?.format || "A4"}
-                onChange={(e, v) =>
-                  setData((prev) => ({ ...prev, jpgPage: { orientation: "portrait", ...prev.jpgPage, format: v.value } }))
-                }
-              />
-              <Dropdown
-                selection
-                options={JPG_PAGE_ORIENTATIONS}
-                disabled={data.jpgPage?.format === "none"}
-                value={data.jpgPage?.orientation || "portrait"}
-                onChange={(e, v) =>
-                  setData((prev) => ({ ...prev, jpgPage: { format: "A4", ...prev.jpgPage, orientation: v.value } }))
-                }
-              />
-            </div>
-          </ModalContent>
-        </div>
+          </section>
+        </ModalContent>
         <ModalActions>
-          <Button basic negative inverted onClick={() => setOpen(false)}>
-            <Icon name="remove" /> Annuler
+          <Button type="button" onClick={() => setOpen(false)}>
+            Annuler
           </Button>
           <Button
-            positive
-            inverted
+            primary
+            type="button"
             onClick={async () => {
               const ok = await fetchDataAndCompare(data);
               if (ok) setOpen(false);
             }}
           >
-            <Icon name="checkmark" /> Valider
+            <Icon name="checkmark" /> Enregistrer
           </Button>
         </ModalActions>
       </Modal>
 
       <Modal
+        className="config-browser"
         open={browser.open}
         onClose={() => setBrowser((b) => ({ ...b, open: false }))}
         size="small"
         closeIcon
       >
-        <Header>
-          <Icon name="folder open" />
-          Sélectionner un dossier
-        </Header>
+        <Modal.Header>
+          <Icon name="folder open" /> Sélectionner un dossier
+        </Modal.Header>
         <ModalContent>
-          <div
-            style={{
-              fontFamily: "monospace",
-              fontSize: 12,
-              color: "#555",
-              marginBottom: 12,
-              wordBreak: "break-all",
-              background: "#f5f5f5",
-              padding: "6px 10px",
-              borderRadius: 4,
-            }}
-          >
-            {browser.current || "(aucun chemin défini)"}
-          </div>
+          <div className="config-browser-chemin">{browser.current || "(aucun chemin défini)"}</div>
 
           {browser.loading && (
-            <div style={{ padding: 24, textAlign: "center" }}>
+            <div className="config-browser-attente">
               <Loader active inline="centered" />
             </div>
           )}
 
-          {!browser.loading && browser.error && (
-            <p style={{ color: "red" }}>{browser.error}</p>
-          )}
+          {!browser.loading && browser.error && <p className="config-erreur">{browser.error}</p>}
 
           {!browser.loading && !browser.error && (
             <>
               {browser.parent !== null && (
-                <div
-                  style={{
-                    padding: "8px 12px",
-                    cursor: "pointer",
-                    marginBottom: 6,
-                    background: "#eef2ff",
-                    borderRadius: 4,
-                    fontWeight: "bold",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
+                <button
+                  type="button"
+                  className="config-browser-ligne config-browser-parent"
                   onClick={() => fetchDirs(browser.parent)}
                 >
-                  <Icon name="arrow up" style={{ margin: 0 }} />
+                  <Icon name="arrow up" fitted />
                   Dossier parent
-                </div>
+                </button>
               )}
 
               {browser.dirs.length === 0 && (
-                <p style={{ color: "#999", fontStyle: "italic" }}>
+                <p className="config-browser-vide">
                   {browser.current
                     ? "Aucun sous-dossier"
                     : "Entrez un chemin dans le champ pour démarrer la navigation."}
                 </p>
               )}
 
-              <div style={{ maxHeight: 340, overflowY: "auto" }}>
+              <div className="config-browser-liste">
                 {browser.dirs.map((dir) => (
-                  <div
+                  <button
+                    type="button"
                     key={dir}
-                    style={{
-                      padding: "7px 12px",
-                      cursor: "pointer",
-                      borderRadius: 4,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      transition: "background 0.1s",
-                    }}
+                    className="config-browser-ligne"
                     onClick={() => fetchDirs(`${browser.current}\\${dir}`)}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f0f0")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
-                    <Icon name="folder" color="yellow" style={{ margin: 0 }} />
+                    <Icon name="folder" fitted />
                     <span>{dir}</span>
-                  </div>
+                  </button>
                 ))}
               </div>
             </>
           )}
         </ModalContent>
         <ModalActions>
-          <Button onClick={() => setBrowser((b) => ({ ...b, open: false }))}>
-            <Icon name="remove" /> Annuler
+          <Button type="button" onClick={() => setBrowser((b) => ({ ...b, open: false }))}>
+            Annuler
           </Button>
-          <Button positive onClick={selectCurrentDir} disabled={!browser.current}>
+          <Button primary type="button" onClick={selectCurrentDir} disabled={!browser.current}>
             <Icon name="checkmark" /> Sélectionner ce dossier
           </Button>
         </ModalActions>
