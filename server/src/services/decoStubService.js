@@ -84,6 +84,22 @@ async function reprendreDecoNonLancee(Model, numCmd, data, valeurs = data) {
   return Model.findOneAndUpdate(filtreDecoNonLancee(numCmd, data), { $set }, { new: true, sort: { createdAt: 1 } });
 }
 
+// Sur-mesure : une ligne Gamesys de 3 panneaux donne 3 jobs (une page chacun), qui retombent tous sur
+// la même Deco via reprendreDecoNonLancee. Chaque job y inscrit sa page (smPanneaux.<page> = ex), puis
+// ex est recalculé comme la somme des pages : un job relancé réécrit sa page sans la compter deux fois.
+// Le recalcul suit toujours l'inscription de sa page : jobs en parallèle compris, le dernier voit tout.
+async function compterPanneauSurMesure(Model, id, page, ex) {
+  if (!id || !Number.isInteger(page)) return;
+  await Model.updateOne({ _id: id }, { $set: { [`smPanneaux.${page}`]: Number(ex) || 1 } });
+  await Model.updateOne({ _id: id }, [
+    {
+      $set: {
+        ex: { $sum: { $map: { input: { $objectToArray: { $ifNull: ["$smPanneaux", {}] } }, in: "$$this.v" } } },
+      },
+    },
+  ]);
+}
+
 // Sous-dossiers d'origine des profils/kits d'un dossier (Deco.sousDossiers, stub pkOnly) — à partir
 // du tableau sousDossiers[] déjà renvoyé par dossierService.getDossierDetail (chaque élément porte
 // sousNumero + ses propres profileReferences/kitPosesReferences/visualReferences, cf.
@@ -101,4 +117,4 @@ function computeSousDossiersPkOnly(sousDossiers) {
   return suffixes.length ? suffixes : undefined;
 }
 
-module.exports = { claimStubOrCreate, computeSousDossiersPkOnly, filtreDecoNonLancee };
+module.exports = { claimStubOrCreate, compterPanneauSurMesure, computeSousDossiersPkOnly, filtreDecoNonLancee };

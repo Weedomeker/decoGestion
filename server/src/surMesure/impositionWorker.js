@@ -37,9 +37,9 @@ async function lirePages({ chemin, nomFichier, hauteurAttendue }) {
   });
 }
 
-async function imposerPanneau({ chemin, nomFichier, page, plaque, hauteurAttendue, sortie, libelle }) {
+async function imposerPanneau({ chemin, nomFichier, page, plaque, hauteurAttendue, sortie, libelle, nom }) {
   const source = await chargerSource(lireSource(chemin));
-  const panneau = lirePanneau(source, nomFichier, page, { plaque, hauteurAttendue });
+  const panneau = lirePanneau(source, nomFichier, page, { plaque, hauteurAttendue, nom });
   fs.writeFileSync(sortie, await pdfImpose(source, panneau, libelle));
   const { x0, x1, y0, y1 } = panneau;
   return {

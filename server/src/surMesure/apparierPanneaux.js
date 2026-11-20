@@ -1,4 +1,4 @@
-const { decouperNom, texteQr } = require("./imposition");
+const { decouperNom, sansRang, texteQr } = require("./imposition");
 
 const ORDRE_ORIENTATION = { GAUCHE: 0, CENTRE: 1, DROIT: 2 };
 const TOLERANCE_MM = 1;
@@ -55,19 +55,39 @@ const memeCote = (page, { cote }) =>
   Math.abs(cote.largeur - page.largeur) <= TOLERANCE_MM &&
   Math.abs(cote.hauteur - page.hauteur) <= TOLERANCE_MM;
 
-// Une place par page. Avec GAUCHE/CENTRE/DROIT, l'ordre suffit, même si une cote est fausse : l'écart
-// doit alors ressortir. Sans orientation, seule la cote relie une page à sa ligne ; les pages sans
-// cote identique prennent les lignes restantes, dans l'ordre, et leur écart est signalé.
-function attribuerPlaces(pages, places) {
-  if (places.every((p) => p.ligne.orientation)) return pages.map((_, i) => places[i] || null);
+const ecartCote = (page, { cote }) => Math.abs(cote.largeur - page.largeur) + Math.abs(cote.hauteur - page.hauteur);
 
-  const libres = [...places];
-  const prendre = (place) => libres.splice(libres.indexOf(place), 1)[0];
-  const attribuees = pages.map((page) => {
-    const place = page.erreur ? null : libres.find((p) => memeCote(page, p));
-    return place ? prendre(place) : null;
-  });
-  return attribuees.map((place) => place || libres.shift() || null);
+// GAUCHE/CENTRE/DROIT, chacun sur une seule ligne : l'ordre suffit, même si une cote est fausse
+// (169548 : GAUCHE à 80 cm au lieu de 100), l'écart doit alors ressortir.
+function orientationsUniques(places) {
+  const lignes = [...new Set(places.map((p) => p.ligne))];
+  const orientations = lignes.map((l) => l.orientation);
+  return orientations.every(Boolean) && new Set(orientations).size === orientations.length;
+}
+
+// Une place par page. Sinon (sans orientation, ou deux lignes GAUCHE comme 168917), la cote relie
+// une page à sa ligne : les paires les plus proches d'abord, la cote exacte en premier, l'ordre
+// GAUCHE/CENTRE/DROIT départageant deux cotes égales. Une cote mal saisie (169211 : « 88.8 xc 210 »)
+// laisse sa ligne aux pages restantes, dans l'ordre ; tout écart est signalé.
+function attribuerPlaces(pages, places) {
+  if (orientationsUniques(places)) return pages.map((_, i) => places[i] || null);
+
+  const attribuees = pages.map(() => null);
+  const libres = new Set(places);
+  const paires = pages
+    .flatMap((page, i) =>
+      page.erreur ? [] : places.map((place, j) => (place.cote ? { i, j, ecart: ecartCote(page, place) } : null)),
+    )
+    .filter(Boolean)
+    .sort((a, b) => a.ecart - b.ecart || a.i - b.i || a.j - b.j);
+  for (const { i, j } of paires) {
+    if (!attribuees[i] && libres.has(places[j])) {
+      attribuees[i] = places[j];
+      libres.delete(places[j]);
+    }
+  }
+  const restantes = [...libres];
+  return attribuees.map((place) => place || restantes.shift() || null);
 }
 
 function ecartsDuPanneau(page, place, vernisPdf) {
@@ -153,4 +173,54 @@ function apparierPanneaux(pages, lignes, nomPdf) {
   return { panneaux, ecarts };
 }
 
-module.exports = { apparierPanneaux, extraireCotes, plaqueMm, vernisDuNom };
+const lignesRestantes = (panneaux, lignes) => lignes.filter((l) => !panneaux.some((p) => p.ligneId === l.id));
+
+// Commande à un PDF par visuel (169847 : BOIS VARIE et BETON CLAIR) : un autre PDF de la commande
+// complète les lignes restées sans panneau, seulement si chacune de ses pages a exactement la cote
+// d'une de ces lignes. Une ancienne version d'un visuel déjà pris, ou une ligne sans cote, ne prouve
+// rien : le PDF est écarté (null).
+function complementPdf(pages, restantes, nomPdf) {
+  if (pages.length === 0 || restantes.length === 0 || pages.some((p) => p.erreur)) return null;
+  const { panneaux } = apparierPanneaux(pages, restantes, nomPdf);
+  const coteExacte = (panneau) => {
+    const ligne = restantes.find((l) => l.id === panneau.ligneId);
+    return !!ligne && extraireCotes(ligne.refClient).some((cote) => memeCote(panneau, { cote }));
+  };
+  return panneaux.every(coteExacte) ? panneaux : null;
+}
+
+// Plusieurs PDF : le QR ne garde que 24 caractères, et « 169847 LM VALENCIENNES BOIS… » et
+// « 169847 LM VALENCIENNES BETON… » en donneraient deux identiques. Chaque panneau prend son rang
+// dans la commande (« 169847-2 LM … ») ; l'imposition accepte ce nom (nomDuPanneau).
+const numeroterPanneaux = (panneaux) =>
+  panneaux.map((p, i) => (p.nom ? { ...p, nom: sansRang(p.nom).replace(" ", `-${i + 1} `) } : p));
+
+// Écarts de la commande entière quand ses panneaux viennent de plusieurs PDF.
+function ecartsGlobaux(panneaux, lignes) {
+  const ecarts = [];
+  const places = placesGamesys(lignes, panneaux.length);
+  if (places.length !== panneaux.length) {
+    ecarts.push({
+      type: "nombre",
+      page: null,
+      message: `${panneaux.length} panneau(x) dans les PDF, ${places.length} dans Gamesys.`,
+      bloquant: false,
+    });
+  }
+  const codes = panneaux.filter((p) => p.nom).map((p) => texteQr(p.nom));
+  if (new Set(codes).size !== codes.length) {
+    ecarts.push({ type: "qr", page: null, message: "Deux plaques auraient le même QR.", bloquant: true });
+  }
+  return ecarts;
+}
+
+module.exports = {
+  apparierPanneaux,
+  complementPdf,
+  ecartsGlobaux,
+  extraireCotes,
+  lignesRestantes,
+  numeroterPanneaux,
+  plaqueMm,
+  vernisDuNom,
+};

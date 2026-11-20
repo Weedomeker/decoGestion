@@ -49,6 +49,8 @@ const decoSchema = new mongoose.Schema({
   surMesure: { type: Boolean, default: false },
   surMesureKind: { type: String }, // "visuel" | "teinte_masse" | (vide)
   orientation: { type: String },   // GAUCHE | CENTRE | DROIT | (vide)
+  // Sur-mesure : exemplaires par page du PDF des créa ({ "0": 1, "2": 1 }) ; ex en est la somme.
+  smPanneaux: { type: Map, of: Number, default: undefined },
   prodBlanc: { type: Boolean, default: false },
   pkOnly: { type: Boolean, default: false },
   dateCommande: { type: Date },

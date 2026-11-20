@@ -1,6 +1,10 @@
 const { expect } = require("chai");
 const {
   apparierPanneaux,
+  complementPdf,
+  ecartsGlobaux,
+  lignesRestantes,
+  numeroterPanneaux,
   extraireCotes,
   plaqueMm,
   vernisDuNom,
@@ -112,6 +116,37 @@ describe("surMesure/apparierPanneaux — commandes réelles de novembre 2026", (
     expect(ecarts).to.deep.equal([]);
   });
 
+  it("168917 : deux lignes GAUCHE et deux DROIT, chaque page prend la ligne de sa cote", () => {
+    const plaque = (f) => ({ formatTauro: f });
+    const { panneaux, ecarts } = apparierPanneaux(
+      pages("168917", [1488, 2400], [1491, 2400], [1000, 2400], [1000, 2400]),
+      [
+        ligne("/05", "ONYX GAUCHE 148.80 x 240 MAT", "GAUCHE", plaque("151x260")),
+        ligne("/04", "ONYX DROIT 100 x 240 MAT", "DROIT", plaque("126x260")),
+        ligne("/03", "ONYX GAUCHE 100 x 240 MAT", "GAUCHE", plaque("126x260")),
+        ligne("/02", "ONYX DROIT 149.10 x 240 MAT", "DROIT", plaque("151x260")),
+      ],
+      "168917 LM BEZIERS Onyx H240cm(4)MAT",
+    );
+    expect(panneaux.map((p) => p.ligneId)).to.deep.equal(["/05", "/02", "/03", "/04"]);
+    expect(panneaux.flatMap(types)).to.deep.equal([]);
+    expect(ecarts).to.deep.equal([]);
+  });
+
+  it("169211 : cotes mal saisies dans Gamesys, chaque page prend la ligne la plus proche", () => {
+    const { panneaux } = apparierPanneaux(
+      pages("169211", [1188, 2100], [888, 2100]),
+      [
+        ligne("/04", "ONYX GUACHE 123.8 x 210 MAT", null, { formatTauro: "126x215" }),
+        ligne("/03", "ONYX DROIT 88.8 xc 210 MAT", "DROIT"),
+      ],
+      "169211 LM ST BRIEUC Onyx H210cm(2)MAT_10",
+    );
+    expect(panneaux.map((p) => p.ligneId)).to.deep.equal(["/04", "/03"]);
+    expect(types(panneaux[0])).to.deep.equal(["dimensions"]);
+    expect(types(panneaux[1])).to.deep.equal([]);
+  });
+
   it("169532 : panneau expo sur plaque 101x215, conforme", () => {
     const { panneaux } = apparierPanneaux(
       pages("169532", [605, 2000]),
@@ -218,5 +253,77 @@ describe("surMesure/apparierPanneaux — règles", () => {
     expect(vernisDuNom("169011 LM VALENCIENNES Gaia L85xH195cm(2)+BLANC MAT")).to.equal("MAT");
     expect(vernisDuNom("169548 LM LE MANS Onyx 100x210cm(3)BRILLANT")).to.equal("BRILLANT");
     expect(vernisDuNom("169000 LM X")).to.equal(null);
+  });
+});
+
+describe("surMesure/apparierPanneaux — commandes à plusieurs PDF", () => {
+  const bois = ligne("/01", "BOIS VARIE 150 x 255", undefined, { formatTauro: "151x260" });
+  const beton = ligne("/00", "BETON CLAIR 120 x 240", undefined, { formatTauro: "126x260" });
+
+  it("169847 : le PDF BETON CLAIR complète la ligne restée sans panneau", () => {
+    const principal = apparierPanneaux(pages("169847 BOIS", [1500, 2550]), [bois, beton], "169847 BOIS VARIE MAT");
+    const restantes = lignesRestantes(principal.panneaux, [bois, beton]);
+    expect(restantes.map((l) => l.id)).to.deep.equal(["/00"]);
+
+    const ajout = complementPdf(pages("169847 BETON", [1200, 2400]), restantes, "169847 BETON CLAIR 120x240 MAT");
+    expect(ajout.map((p) => [p.ligneId, p.vernis])).to.deep.equal([["/00", "MAT"]]);
+
+    const tous = [...principal.panneaux, ...ajout];
+    expect(lignesRestantes(tous, [bois, beton])).to.deep.equal([]);
+    expect(ecartsGlobaux(tous, [bois, beton])).to.deep.equal([]);
+  });
+
+  it("refuse un PDF dont une page n'a pas exactement la cote d'une ligne restante (ancienne version, autre visuel)", () => {
+    expect(complementPdf(pages("x", [1500, 2550]), [beton], "169847 BOIS VARIE MAT")).to.equal(null);
+    expect(complementPdf(pages("x", [1200, 2400], [1200, 2400]), [beton], "169847 BETON MAT")).to.equal(null);
+  });
+
+  it("refuse une ligne sans cote : rien ne prouve que le PDF lui appartient", () => {
+    const sansCote = ligne("/02", "BETON CLAIR SUR MESURE");
+    expect(complementPdf(pages("x", [1200, 2400]), [sansCote], "169847 BETON MAT")).to.equal(null);
+  });
+
+  it("refuse une page illisible", () => {
+    expect(complementPdf([{ page: 0, erreur: "échelle à préciser" }], [beton], "x")).to.equal(null);
+  });
+
+  it("169922 : signale la ligne qu'aucun PDF ne couvre", () => {
+    const cappu = [ligne("/02", "CAPPUCCINNO CLAIR 90 x 210 MAT"), ligne("/00", "CAPPUCCINO CLAIR 90 x 210 MAT")];
+    const carreaux = ligne("/01", "CARREAUX DE CIMENT NOIR 119 x 210 MAT", undefined, { formatTauro: "126x260" });
+    const lignes = [...cappu, carreaux];
+    const principal = apparierPanneaux(pages("169922 CARREAUX", [1190, 2100]), lignes, "169922 CARREAUX MAT");
+    const ajout = complementPdf(pages("169922 CAPPU", [900, 2100]), lignesRestantes(principal.panneaux, lignes), "169922 CAPPUCCINO 90x210+BLANC MAT_2ex");
+    const tous = [...principal.panneaux, ...ajout];
+    expect(tous.map((p) => p.ligneId)).to.deep.equal(["/01", "/02"]);
+    expect(ecartsGlobaux(tous, lignes).map((e) => e.message)).to.deep.equal(["2 panneau(x) dans les PDF, 3 dans Gamesys."]);
+  });
+
+  it("signale deux plaques au même QR entre deux PDF", () => {
+    const p = (ligneId) => ({ page: 0, nom: "169000 LM X MAT", largeur: 1000, hauteur: 2100, ligneId, ecarts: [] });
+    const lignes = [ligne("/00", "X 100 x 210"), ligne("/01", "X 100 x 210")];
+    expect(ecartsGlobaux([p("/00"), p("/01")], lignes).map((e) => e.type)).to.deep.equal(["qr"]);
+  });
+});
+
+describe("surMesure/apparierPanneaux — numérotation dans la commande", () => {
+  it("169847 : numérote les panneaux de plusieurs PDF, sinon les deux QR seraient identiques", () => {
+    const noms = numeroterPanneaux([
+      { page: 0, nom: "169847 LM VALENCIENNES BOIS VARIE 150x255 MAT" },
+      { page: 0, nom: "169847 LM VALENCIENNES BETON CLAIR 120x240 MAT" },
+    ]).map((p) => p.nom);
+    expect(noms).to.deep.equal([
+      "169847-1 LM VALENCIENNES BOIS VARIE 150x255 MAT",
+      "169847-2 LM VALENCIENNES BETON CLAIR 120x240 MAT",
+    ]);
+    expect(ecartsGlobaux(noms.map((nom, i) => ({ nom, ligneId: String(i) })), [ligne("0", "A"), ligne("1", "B")])).to.deep.equal([]);
+  });
+
+  it("remplace le rang d'un PDF de plusieurs pages et laisse une page illisible sans nom", () => {
+    const noms = numeroterPanneaux([
+      { page: 0, nom: "169000-1 LM X MAT" },
+      { page: 1, erreur: "échelle" },
+      { page: 0, nom: "169000 LM Y MAT" },
+    ]).map((p) => p.nom);
+    expect(noms).to.deep.equal(["169000-1 LM X MAT", undefined, "169000-3 LM Y MAT"]);
   });
 });

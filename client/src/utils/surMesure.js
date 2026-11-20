@@ -42,10 +42,12 @@ export function lignesVersPanneaux(lignes, reponse) {
   });
   if (!reponse.pdf) return lignes.map((ligne) => sansPdf(ligne, "PDF sur-mesure introuvable"));
 
-  const { pdf, candidats, panneaux, ecarts: ecartsGlobaux } = reponse;
+  const { candidats, panneaux, ecarts: ecartsGlobaux } = reponse;
   const lignesPanneaux = panneaux.map((p, i) => {
     const ligne = lignes.find((l) => l.id === p.ligneId) || lignes[0];
     const ecarts = [...p.ecarts, ...(i === 0 ? ecartsGlobaux : [])];
+    // Commande à un PDF par visuel : chaque panneau vient de son propre PDF.
+    const pdf = p.pdf || reponse.pdf;
     return {
       ...ligne,
       id: `${ligne.id}-p${p.page}`,
@@ -74,10 +76,11 @@ export function lignesVersPanneaux(lignes, reponse) {
     };
   });
 
+  // Gardées avec leur ligne Gamesys : un changement de PDF les renvoie au serveur avec les autres.
   const utilisees = new Set(panneaux.map((p) => p.ligneId));
   const orphelines = lignes
     .filter((l) => !utilisees.has(l.id))
-    .map((ligne) => sansPdf(ligne, "Aucun panneau dans ce PDF"));
+    .map((ligne) => ({ ...sansPdf(ligne, "Aucun panneau dans les PDF des créa"), smLigne: ligne }));
   return [...lignesPanneaux, ...orphelines];
 }
 

@@ -52,9 +52,12 @@ async function generateStickers(commande, outPath, showDataCmd = false) {
 
 // Les jobs finissent dans n'importe quel ordre : un sur-mesure reprend son rang dans le PDF, pour que
 // l'étiquette 02 soit bien le panneau 2 du PDF et du .cut. Les autres jobs gardent leur place.
+// Panneaux de plusieurs PDF (tous en page 0) : le rang vient du nom numéroté dans la commande.
+const rangPanneau = (cmdInfo) => Number(String(cmdInfo.smNom || "").match(/^\d+-(\d+)\s/)?.[1]) || cmdInfo.smPage + 1;
+
 function ordonnerPanneaux(commande) {
   const estPanneau = (cmdInfo) => Number.isInteger(cmdInfo.smPage);
-  const panneaux = commande.filter(estPanneau).sort((a, b) => a.cmd - b.cmd || a.smPage - b.smPage);
+  const panneaux = commande.filter(estPanneau).sort((a, b) => a.cmd - b.cmd || rangPanneau(a) - rangPanneau(b));
   return commande.map((cmdInfo) => (estPanneau(cmdInfo) ? panneaux.shift() : cmdInfo));
 }
 

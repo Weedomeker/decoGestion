@@ -16,6 +16,16 @@ describe("étiquettes des sur-mesures", () => {
     ]);
   });
 
+  it("169847 : suit le rang du nom quand les panneaux viennent de plusieurs PDF (tous en page 0)", () => {
+    const bois = { cmd: 169847, smPage: 0, ex: 1, smNom: "169847-1 LM VALENCIENNES BOIS VARIE MAT" };
+    const beton = { cmd: 169847, smPage: 0, ex: 1, smNom: "169847-2 LM VALENCIENNES BETON CLAIR MAT" };
+    const plan = planEtiquettes([beton, bois]);
+    expect(plan.map((p) => [p.cmdInfo.smNom.slice(0, 8), p.ex])).to.deep.equal([
+      ["169847-1", "01/02"],
+      ["169847-2", "02/02"],
+    ]);
+  });
+
   it("garde chaque commande à part", () => {
     const plan = planEtiquettes([panneau(2, 1), panneau(1, 1), panneau(2, 0), panneau(1, 0)]);
     const de = (cmd) => plan.filter((p) => p.cmdInfo.cmd === cmd).map((p) => [p.cmdInfo.smPage, p.ex]);

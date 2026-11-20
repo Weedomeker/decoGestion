@@ -20,7 +20,7 @@ const findStock = require("../findStock");
 const Stocks = require("../models/Stocks");
 const { state } = require("../services/appState");
 const { saveProfilsKits, getPrixVisuel } = require("../services/profilsKitsService");
-const { claimStubOrCreate } = require("../services/decoStubService");
+const { claimStubOrCreate, compterPanneauSurMesure } = require("../services/decoStubService");
 const dossierService = require("../gamesys/services/dossierService");
 const { saveFormatsTauroIfNeeded } = require("../services/formatsService");
 const { broadcastWS, broadcastCompletedJob } = require("../services/websocketService");
@@ -46,6 +46,7 @@ const queueControl = require("../services/queueControlService");
 const { saveJobsConcurrency, getConfig } = require("../services/configService");
 const { composeJpgPage } = require("../composeJpgPage");
 const { imposerPanneau } = require("../surMesure/impositionPool");
+const { nomFichierCut } = require("../surMesure/imposition");
 const { refusJobSurMesure } = require("../surMesure/controleJob");
 const { plaqueMm } = require("../surMesure/apparierPanneaux");
 const { baseFichierSurMesure, cheminApercuSurMesure, formatReel } = require("../surMesure/nomFichier");
@@ -670,7 +671,9 @@ async function processJob(job, req) {
   // Crédence dupliquée en nombre impair : le panneau en trop de la dernière plaque part en stock.
   const panneauxEnTrop = isCredences && !isStock && job?.panneaux ? job.ex * 2 - job.panneaux : 0;
 
-  const rendreJpg = (rendu) => usePdfWorker({ ...rendu, tempDir: job.dossierTemporaire });
+  // Avec blanc, l'encre WHITE sortirait magenta sur le JPG et la miniature : rendue sans elle.
+  const rendreJpg = (rendu) =>
+    usePdfWorker({ ...rendu, tempDir: job.dossierTemporaire, sansBlanc: !!job.prodBlanc });
 
   let pdfTime = 0;
   let jpgTime = 0;
@@ -758,6 +761,7 @@ async function processJob(job, req) {
           hauteurAttendue: hauteurGabarit(job.format_visu),
           sortie: stagedPdfPath,
           libelle: fileName,
+          nom: job.smNom,
         });
         if (impose.nom !== job.smNom) throw new Error(`Panneau ${impose.nom} différent du job ${job.smNom}`);
         cutSurMesure = impose.cut;
@@ -876,7 +880,7 @@ async function processJob(job, req) {
         const dossierCut = state.paths.sortieDecoupeSM;
         // Le dossier configuré n'est jamais créé : absent, il signale un partage réseau coupé.
         if (dossierCut !== state.paths.decoupeSM) await fs.promises.mkdir(dossierCut, { recursive: true });
-        const cheminCut = path.join(dossierCut, `${job.smNom.toUpperCase()}.cut`);
+        const cheminCut = path.join(dossierCut, nomFichierCut(job.smNom));
         await fs.promises.writeFile(cheminCut, cutSurMesure);
         log.info(`Découpe écrite : ${cheminCut}`);
       } catch (err) {
@@ -1065,9 +1069,14 @@ async function processJob(job, req) {
     // Retenter ne crée pas de doublon si la 1re écriture a abouti sans réponse : le stub déjà
     // réclamé est alors repris par reprendreDecoNonLancee (même numCmd/ref/sousDossier) — sauf
     // ref absente, où un doublon reste possible dans ce cas rare.
-    await withMongoRetry(() => claimStubOrCreate(modelDeco, cmd || 0, data), {
+    const enregistre = await withMongoRetry(() => claimStubOrCreate(modelDeco, cmd || 0, data), {
       label: `Sauvegarde Deco job ${job.cmd}`,
     });
+    if (job.smNom && Number.isInteger(job.smPage)) {
+      await withMongoRetry(() => compterPanneauSurMesure(modelDeco, enregistre?._id, job.smPage, data.ex), {
+        label: `Comptage sur-mesure job ${job.cmd}`,
+      });
+    }
   };
 
   // S7 — livrable vérifié AVANT toute écriture en base : si BullMQ retente le job, le stub

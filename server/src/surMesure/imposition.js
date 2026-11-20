@@ -26,6 +26,8 @@ const MARGE_MIN_LIBELLE = 22;
 const FOND_PERDU = 5;
 const RETRAIT_LIBELLE_LATERAL = 10;
 const PLUS_GRANDE_LONGUEUR = 3050;
+const MARGE_MIN_CHUTES = 30;
+const TRONCON_MAX_CHUTE = 765;
 const NOIR = cmyk(0, 0, 0, 1);
 
 function hauteurDansNom(nom) {
@@ -49,7 +51,23 @@ function nommer({ base, finition }, i, total) {
   return total > 1 ? nom.replace(" ", `-${i + 1} `) : nom;
 }
 
-const texteQr = (nom) => `${nom.slice(0, 24)}T`;
+// Le QR et le nom du .cut sans accents, comme les noms saisis dans i-cut Layout : la table relie
+// l'un à l'autre, et « Béton » dans le QR ne doit pas dépendre de la façon dont elle compare « BÉTON ».
+const sansAccents = (texte) => texte.normalize("NFD").replace(/[̀-ͯ]/g, "");
+const texteQr = (nom) => `${sansAccents(nom).slice(0, 24)}T`;
+const nomFichierCut = (nom) => `${sansAccents(nom).toUpperCase()}.cut`;
+
+// "169847-2 LM ..." -> "169847 LM ..." : le rang dépend de la commande, pas du PDF.
+const sansRang = (nom) => nom.replace(/^(\d+)-\d+ /, "$1 ");
+
+// Une commande à plusieurs PDF numérote ses panneaux dans toute la commande (numeroterPanneaux) :
+// le job transmet ce nom, accepté s'il ne diffère de celui du PDF que par le rang.
+function nomDuPanneau(nomFichier, index, total, nomJob) {
+  const nom = nommer(decouperNom(nomFichier), index, total);
+  if (!nomJob) return nom;
+  if (sansRang(nomJob) !== sansRang(nom)) throw new Error(`Panneau ${nom} différent du job ${nomJob}`);
+  return nomJob;
+}
 
 function choisirPlaque(largeur, hauteur, forcee) {
   if (hauteur < largeur) {
@@ -101,26 +119,23 @@ function imposer(largeur, hauteur, nom, forcee) {
       [x0 - 10, ph / 2],
     ],
   ];
-  if (ph === 1010 && marge >= 30) {
-    const [t1, t2] = [pl / 3, (2 * pl) / 3];
-    chutes.push(
-      [
-        [t2, ph],
-        [t2, y1 + 10],
-      ],
-      [
-        [t2, y0 - 10],
-        [t2, 0],
-      ],
-      [
-        [t1, 0],
-        [t1, y0 - 10],
-      ],
-      [
-        [t1, y1 + 10],
-        [t1, ph],
-      ],
-    );
+  // Comme i-cut Layout : dès 30 mm de marge, les bandes le long du panneau sont coupées en tronçons
+  // d'au plus 765 mm (215 cm en 3, 260 et 305 cm en 4), en serpentin, du plus loin au plus proche.
+  if (marge >= MARGE_MIN_CHUTES) {
+    const troncons = Math.ceil(pl / TRONCON_MAX_CHUTE);
+    for (let k = troncons - 1; k >= 1; k--) {
+      const t = (k * pl) / troncons;
+      const montante = (k - 1) % 2 === 0;
+      const bas = [
+        [t, 0],
+        [t, y0 - 10],
+      ];
+      const haut = [
+        [t, y1 + 10],
+        [t, ph],
+      ];
+      chutes.push(...(montante ? [bas, haut] : [haut.reverse(), bas.reverse()]));
+    }
   }
   return { nom, largeur, hauteur, plaque: [pl, ph], x0, x1, y0, y1, reperes, chutes, offset, qr, cote, posQr };
 }
@@ -172,7 +187,7 @@ function mesurerPage(doc, nomFichier, index, options = {}) {
   const trim = pages[index].getTrimBox();
   const echelle = echelleSource(trim.height, nomFichier, options);
   const mm = (pt) => Math.round((pt * echelle * 10) / MM) / 10;
-  const nom = nommer(decouperNom(nomFichier), index, pages.length);
+  const nom = nomDuPanneau(nomFichier, index, pages.length, options.nom);
   return { page: index, nom, largeur: mm(trim.width), hauteur: mm(trim.height), echelle, trim };
 }
 
@@ -254,7 +269,9 @@ module.exports = {
   hauteurDansNom,
   decouperNom,
   nommer,
+  sansRang,
   texteQr,
+  nomFichierCut,
   choisirPlaque,
   imposer,
 };

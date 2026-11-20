@@ -59,7 +59,24 @@ describe("client/utils/surMesure", () => {
       ecarts: [],
     });
     expect(rows.map((r) => r.id)).to.deep.equal(["/01-p0", "/02"]);
-    expect(rows[1]).to.include({ checked: false, status: "Aucun panneau dans ce PDF", formatPath: "100x210" });
+    expect(rows[1]).to.include({ checked: false, status: "Aucun panneau dans les PDF des créa", formatPath: "100x210" });
+    // Gardée avec sa ligne Gamesys : un changement de PDF la renvoie au serveur avec les autres.
+    expect(rows[1].smLigne.id).to.equal("/02");
+    expect(rows[1].smPanneau).to.equal(undefined);
+  });
+
+  it("prend pour chaque panneau son propre PDF quand la commande en a plusieurs (169847)", () => {
+    const beton = { nom: "169847 LM VALENCIENNES BETON CLAIR 120x240 MAT.pdf", chemin: "server/public/SM/beton.pdf" };
+    const rows = lignesVersPanneaux([ligne("/01"), ligne("/00")], {
+      pdf,
+      candidats: [pdf.nom, beton.nom],
+      panneaux: [{ ...panneau(0, "/01"), pdf }, { ...panneau(0, "/00"), pdf: beton }],
+      ecarts: [],
+    });
+    expect(rows.map((r) => r.id)).to.deep.equal(["/01-p0", "/00-p0"]);
+    expect(rows.map((r) => r.selectedFileObject.name)).to.deep.equal([pdf.chemin, beton.chemin]);
+    expect(rows.map((r) => r.smPdf)).to.deep.equal([pdf.nom, beton.nom]);
+    expect(rows.map((r) => r.prodBlanc)).to.deep.equal([true, false]);
   });
 
   it("signale un PDF introuvable sans perdre les lignes", () => {

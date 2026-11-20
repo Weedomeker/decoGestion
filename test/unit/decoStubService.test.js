@@ -1,6 +1,11 @@
 const { expect } = require("chai");
 const sinon = require("sinon");
-const { claimStubOrCreate, computeSousDossiersPkOnly, filtreDecoNonLancee } = require("../../server/src/services/decoStubService");
+const {
+  claimStubOrCreate,
+  compterPanneauSurMesure,
+  computeSousDossiersPkOnly,
+  filtreDecoNonLancee,
+} = require("../../server/src/services/decoStubService");
 
 describe("decoStubService.claimStubOrCreate()", () => {
   it("réclame le stub existant (gamesysStub:true) et repasse gamesysStub à false", async () => {
@@ -203,6 +208,54 @@ describe("decoStubService.claimStubOrCreate()", () => {
     const cree = await claimStubOrCreate(FakeDeco, 168527, { ...data, status: "pk à coliser" });
     expect(cree.statusDates).to.deep.equal({ "pk à coliser": entree });
     expect(FakeDeco.findOneAndUpdate.secondCall.args[1].$set).to.have.property("statusDates.pk à coliser");
+  });
+});
+
+describe("decoStubService.compterPanneauSurMesure()", () => {
+  // Base minimale : applique le $set pointé de la page, puis recalcule ex comme le pipeline (somme des pages).
+  function fausseBase(doc) {
+    const updateOne = sinon.stub().callsFake(async (filtre, maj) => {
+      if (Array.isArray(maj)) {
+        doc.ex = Object.values(doc.smPanneaux || {}).reduce((n, v) => n + v, 0);
+      } else {
+        for (const [cle, valeur] of Object.entries(maj.$set)) {
+          const [, page] = cle.split(".");
+          doc.smPanneaux = { ...(doc.smPanneaux || {}), [page]: valeur };
+        }
+      }
+      return { matchedCount: 1 };
+    });
+    return { doc, Model: { updateOne } };
+  }
+
+  it("additionne les panneaux d'une même ligne Gamesys au lieu de garder le dernier (169760 : 3 ex)", async () => {
+    const { doc, Model } = fausseBase({ _id: "d1", ex: 1 });
+    for (const page of [1, 2, 3]) await compterPanneauSurMesure(Model, "d1", page, 1);
+    expect(doc.ex).to.equal(3);
+  });
+
+  it("ne compte pas deux fois la même page (job relancé ou nouvelle tentative)", async () => {
+    const { doc, Model } = fausseBase({ _id: "d1", ex: 1 });
+    await compterPanneauSurMesure(Model, "d1", 0, 2);
+    await compterPanneauSurMesure(Model, "d1", 0, 2);
+    expect(doc.ex).to.equal(2);
+  });
+
+  it("pose la page puis recalcule ex à partir des seules pages enregistrées", async () => {
+    const { Model } = fausseBase({ _id: "d1" });
+    await compterPanneauSurMesure(Model, "d1", 2, 1);
+    expect(Model.updateOne.firstCall.args).to.deep.equal([{ _id: "d1" }, { $set: { "smPanneaux.2": 1 } }]);
+    const [filtre, pipeline] = Model.updateOne.secondCall.args;
+    expect(filtre).to.deep.equal({ _id: "d1" });
+    expect(pipeline).to.be.an("array");
+    expect(JSON.stringify(pipeline)).to.include("$smPanneaux");
+  });
+
+  it("ne fait rien sans document ou sans page", async () => {
+    const { Model } = fausseBase({});
+    await compterPanneauSurMesure(Model, null, 1, 1);
+    await compterPanneauSurMesure(Model, "d1", undefined, 1);
+    expect(Model.updateOne.called).to.be.false;
   });
 });
 

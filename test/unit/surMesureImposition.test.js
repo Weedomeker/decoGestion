@@ -10,6 +10,7 @@ const {
   decouperNom,
   nommer,
   texteQr,
+  nomFichierCut,
   choisirPlaque,
   imposer,
   scriptCut,
@@ -81,6 +82,13 @@ describe("surMesure/imposition", () => {
     expect(imposer(1488, 2400, "168917 LM BEZIERS Onyx H240cm").cote).to.equal(20);
   });
 
+  it("retire les accents du QR et du nom du .cut, comme dans i-cut Layout (169964)", () => {
+    const nom = "169964 ECOM SIMON_Béton organique clair_76x210cm MAT+BLANC 1ex";
+    expect(texteQr(nom)).to.equal("169964 ECOM SIMON_Beton T");
+    expect(nomFichierCut(nom)).to.equal("169964 ECOM SIMON_BETON ORGANIQUE CLAIR_76X210CM MAT+BLANC 1EX.cut");
+    expect(nomFichierCut("169580-1 LM AMIENS JardinSecret H210cm MAT")).to.equal("169580-1 LM AMIENS JARDINSECRET H210CM MAT.cut");
+  });
+
   it("choisit la plus petite plaque observée", () => {
     expect(choisirPlaque(1000, 2100)).to.deep.equal([2150, 1010]);
     expect(choisirPlaque(1250, 2100)).to.deep.equal([2600, 1260]);
@@ -104,7 +112,17 @@ describe("surMesure/imposition", () => {
     const g = imposer(1000, 2400, "168917 LM 3EZIERS ONYX H240CM CENTRE B");
     expect(g.reperes[0]).to.deep.equal([87, 133]);
     expect(g.offset[1]).to.equal(-102.5);
-    expect(g.chutes).to.have.length(2);
+    // Comme « 168917 LM 3EZIERS ONYX H240CM CENTRE B 3.cut » d'i-cut Layout : plaque 260 coupée en 4.
+    expect(g.chutes).to.deep.equal([
+      [[2600, 630], [2510, 630]],
+      [[0, 630], [90, 630]],
+      [[1950, 0], [1950, 120]],
+      [[1950, 1140], [1950, 1260]],
+      [[1300, 1260], [1300, 1140]],
+      [[1300, 120], [1300, 0]],
+      [[650, 0], [650, 120]],
+      [[650, 1140], [650, 1260]],
+    ]);
     const h = imposer(882, 2100, "169063 LM STE GENEVIEVE MARBRENERF");
     expect(h.offset).to.deep.equal([-106.8, -7.5]);
     expect(h.chutes).to.have.length(6);
@@ -161,6 +179,15 @@ describe("surMesure/imposition", () => {
     expect(lirePanneau(source, "169999 LM ESSAI H210cm MAT", 0).echelle).to.equal(10);
     const g = lirePanneau(source, "169999 LM ESSAI MAT", 0, { hauteurAttendue: 2100 });
     expect([g.echelle, g.largeur, g.hauteur]).to.deep.equal([10, 1000, 2100]);
+  });
+
+  it("prend le nom numéroté dans la commande, s'il ne diffère que par le rang (plusieurs PDF)", async () => {
+    const source = await pdfDePages([[1200, 2400]]);
+    const nom = "169847-2 LM VALENCIENNES BETON CLAIR 120x240 MAT";
+    const g = lirePanneau(source, "169847 LM VALENCIENNES BETON CLAIR 120x240 MAT", 0, { nom });
+    expect(g.nom).to.equal(nom);
+    expect(texteQr(g.nom)).to.equal("169847-2 LM VALENCIENNEST");
+    expect(() => lirePanneau(source, "169847 LM VALENCIENNES BOIS VARIE 150x255 MAT", 0, { nom })).to.throw(/différent/);
   });
 
   it("demande l'échelle plutôt que de supposer sur une page trop petite", async () => {
