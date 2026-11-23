@@ -195,13 +195,43 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
     });
   });
 
-  it("pose les champs sur-mesure (deco nettoyé, finition = vernis Mat/Brillant, orientation, cote client) sur le stub À lancer", async () => {
+  it("sur-mesure sans vernis dans le texte client : finition vide, ni vernis du dossier ni texture", async () => {
+    listCandidatsStub.resolves([{ cmd: "169847", client: "LM" }]);
+    existsStub.resolves(false);
+    sinon.stub(dossierService, "fetchSousDossiersVisuels").resolves([
+      {
+        sousNumero: "00",
+        printFinish: "BRILLANT",
+        formatFini: "125x255",
+        visualReferences: [
+          {
+            reference: "BETON CLAIR 120 x 240",
+            libelle: "Panneau déco sur-mesure 125x255 Finition",
+            surMesure: true,
+            surMesureKind: "visuel",
+            deco: "BETON CLAIR",
+            finition: "LISSE",
+            format: "125x255",
+          },
+        ],
+      },
+    ]);
+    sinon.stub(Deco, "resolveRefFields").resolves({ matched: false, finition: "" });
+
+    await syncDecoStubsDepuisGamesys({ sinceDate });
+
+    const inserted = findOneAndUpdateStub.getCalls().find((c) => c.args[0].sousDossier === "00").args[1].$setOnInsert;
+    expect(inserted.finition).to.equal(undefined);
+  });
+
+  it("pose les champs sur-mesure (deco nettoyé, finition = vernis du texte client, orientation, cote client) sur le stub À lancer", async () => {
     listCandidatsStub.resolves([{ cmd: "167302", client: "LM" }]);
     existsStub.resolves(false);
     sinon.stub(dossierService, "fetchSousDossiersVisuels").resolves([
       {
         sousNumero: "05",
-        printFinish: "MAT",
+        // Valeur par défaut du gabarit, souvent fausse : le texte client (finishHint) l'emporte.
+        printFinish: "BRILLANT",
         formatFini: "125x210",
         visualReferences: [
           {
@@ -216,6 +246,7 @@ describe("decoGamesysStubSyncService.syncDecoStubsDepuisGamesys()", () => {
             format: "125x210",
             orientation: "CENTRE",
             printFormat: "86.9x201.5",
+            finishHint: "MAT",
           },
         ],
       },

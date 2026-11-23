@@ -4,6 +4,7 @@ const dossierService = require("../gamesys/services/dossierService");
 const dbConfig = require("../gamesys/config/db");
 const { closeConnection } = require("../gamesys/lib/db");
 const Deco = require("../models/Deco");
+const { finitionDuVernis } = require("../surMesure/finition");
 const { buildCoteClientComment } = require("../utils/coteClient");
 
 // Crée proactivement des documents Deco (gamesysStub:true) pour chaque dossier Gamesys récent qui
@@ -133,12 +134,11 @@ async function syncDecoStubsDepuisGamesys({ sinceDate, concurrency = 3, dryRun =
               // Panneau sur-mesure (sfamille SMES) : la référence Gamesys est du texte libre jamais
               // présent au catalogue interne, donc refFields ne matche jamais. Mais fetchSousDossiersVisuels
               // a déjà résolu le nom propre ("ARCHE BEIGE"), le format fini et l'orientation — on les pose
-              // tels quels. Pour la finition en revanche on prend le VERNIS Mat/Brillant (finitionRepli,
-              // issu de dos_imp_1_fac_p_1) et non la texture du gabarit ("LISSE"/"TEXTUREE" via
-              // visuel.finition) : le vernis est la finition métier pertinente, la texture n'est qu'une
-              // option de support (voir aussi smesFinitionBackfillService). Repli sur le gabarit
-              // seulement si aucun vernis n'est renseigné. La cote client exacte (souvent décimale) va
-              // en commentaire.
+              // tels quels. Pour la finition, le VERNIS Mat/Brillant lu dans le texte client
+              // (finishHint, endv_ref_client) : ni dos_imp_1_fac_p_1, laissé à « Vernis Brillant » par
+              // défaut, ni la texture du gabarit ("LISSE"/"TEXTUREE"). Vide sans vernis dans le texte :
+              // le job le remplit depuis le nom du PDF (voir aussi smesFinitionBackfillService). La cote
+              // client exacte (souvent décimale) va en commentaire.
               const isSurMesure = !!visuel.surMesure;
               const champsVisuel = refFields.matched
                 ? {
@@ -150,7 +150,9 @@ async function syncDecoStubsDepuisGamesys({ sinceDate, concurrency = 3, dryRun =
                 : isSurMesure
                   ? {
                       format: visuel.format || sousDossier.formatFini || undefined,
-                      finition: finitionRepli || visuel.finition,
+                      // Texte client seul : dos_imp_1_fac_p_1 reste à « Vernis Brillant » par défaut sur
+                      // un sur-mesure, et la texture du gabarit n'est pas un vernis. Sinon vide.
+                      finition: finitionDuVernis(visuel.finishHint),
                       deco: visuel.deco || visuel.libelle || undefined,
                     }
                   : {
