@@ -8,12 +8,17 @@ export default function SurMesurePanneau({ job, onConfirm, onChoisirPdf }) {
   const { smPanneau: panneau, smPdf, smCandidats = [] } = job;
   const aConfirmer = panneau.ecarts.filter((e) => !e.bloquant);
   const bloquants = panneau.ecarts.filter((e) => e.bloquant);
+  // Rang de pose porté par le nom (« 169824-2 LM … »), qui peut différer de la page du PDF.
+  const rang = Number(String(panneau.nom || "").match(/^\d+-(\d+)\s/)?.[1]) || panneau.page + 1;
+  const ordreDouteux = aConfirmer.some((e) => e.type === "ordre");
 
   return (
     <div className="sm-panneau">
       <div>
         <strong>
-          Panneau {panneau.page + 1} · {cm(panneau.largeur)} × {cm(panneau.hauteur)} cm
+          Panneau {rang}
+          {rang !== panneau.page + 1 && ` (page ${panneau.page + 1} du PDF)`} · {cm(panneau.largeur)} ×{" "}
+          {cm(panneau.hauteur)} cm
         </strong>
       </div>
       {smCandidats.length > 1 ? (
@@ -41,7 +46,9 @@ export default function SurMesurePanneau({ job, onConfirm, onChoisirPdf }) {
       ))}
       {aConfirmer.length > 0 && bloquants.length === 0 && (
         <Checkbox
-          label="Écart vérifié : le PDF fait foi"
+          label={
+            ordreDouteux ? "Vérifié dans le PDF : bon panneau, bonne place" : "Écart vérifié : le PDF fait foi"
+          }
           checked={panneau.ecartsConfirmes}
           onChange={(_, d) => onConfirm(d.checked)}
         />

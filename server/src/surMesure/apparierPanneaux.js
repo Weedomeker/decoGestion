@@ -65,21 +65,33 @@ function orientationsUniques(places) {
   return orientations.every(Boolean) && new Set(orientations).size === orientations.length;
 }
 
-// Une place par page. Sinon (sans orientation, ou deux lignes GAUCHE comme 168917), la cote relie
-// une page à sa ligne : les paires les plus proches d'abord, la cote exacte en premier, l'ordre
-// GAUCHE/CENTRE/DROIT départageant deux cotes égales. Une cote mal saisie (169211 : « 88.8 xc 210 »)
-// laisse sa ligne aux pages restantes, dans l'ordre ; tout écart est signalé.
+const orientationLue = (page) => page.marque?.orientation || null;
+
+// La page dit GAUCHE, la ligne dit DROIT.
+const conflit = (page, place) =>
+  !!orientationLue(page) && !!place.ligne.orientation && orientationLue(page) !== place.ligne.orientation;
+
+// Une place par page. L'orientation écrite en marge de la page passe avant tout : elle relie la page
+// à la ligne de même orientation, même si une cote est fausse. Sans elle, et sans orientation unique
+// par ligne (deux lignes GAUCHE comme 168917), la cote relie une page à sa ligne : les paires les plus
+// proches d'abord, la cote exacte en premier, l'ordre GAUCHE/CENTRE/DROIT départageant deux cotes
+// égales. Une cote mal saisie (169211 : « 88.8 xc 210 ») laisse sa ligne aux pages restantes, dans
+// l'ordre ; tout écart est signalé, et tout doute sur la place d'une page (doutePlace).
 function attribuerPlaces(pages, places) {
-  if (orientationsUniques(places)) return pages.map((_, i) => places[i] || null);
+  if (!pages.some(orientationLue) && orientationsUniques(places)) return pages.map((_, i) => places[i] || null);
 
   const attribuees = pages.map(() => null);
   const libres = new Set(places);
   const paires = pages
     .flatMap((page, i) =>
-      page.erreur ? [] : places.map((place, j) => (place.cote ? { i, j, ecart: ecartCote(page, place) } : null)),
+      page.erreur
+        ? []
+        : places.map((place, j) =>
+            place.cote ? { i, j, conflit: Number(conflit(page, place)), ecart: ecartCote(page, place) } : null,
+          ),
     )
     .filter(Boolean)
-    .sort((a, b) => a.ecart - b.ecart || a.i - b.i || a.j - b.j);
+    .sort((a, b) => a.conflit - b.conflit || a.ecart - b.ecart || a.i - b.i || a.j - b.j);
   for (const { i, j } of paires) {
     if (!attribuees[i] && libres.has(places[j])) {
       attribuees[i] = places[j];
@@ -87,7 +99,100 @@ function attribuerPlaces(pages, places) {
     }
   }
   const restantes = [...libres];
-  return attribuees.map((place) => place || restantes.shift() || null);
+  return attribuees.map((place, i) => {
+    if (place) return place;
+    const k = Math.max(
+      0,
+      restantes.findIndex((r) => !conflit(pages[i], r)),
+    );
+    return restantes.splice(k, 1)[0] || null;
+  });
+}
+
+const cm = (mm) => String(mm / 10).replace(".", ",");
+const decrire = ({ ligne, cote }) =>
+  [ligne.orientation || "la ligne sans orientation", cote && `${cm(cote.largeur)} x ${cm(cote.hauteur)} cm`]
+    .filter(Boolean)
+    .join(" ");
+
+// Deux places qu'on peut échanger sans rien changer : même ligne, ou mêmes orientation, cote,
+// vernis, quantité, plaque et matière.
+const interchangeables = (a, b) =>
+  a === b ||
+  a.ligne === b.ligne ||
+  ((a.ligne.orientation || null) === (b.ligne.orientation || null) &&
+    (Number(a.ex) || 1) === (Number(b.ex) || 1) &&
+    (a.ligne.finishHint || null) === (b.ligne.finishHint || null) &&
+    a.ligne.formatTauro === b.ligne.formatTauro &&
+    a.ligne.matiere === b.ligne.matiere &&
+    ((!a.cote && !b.cote) || (!!a.cote && !!b.cote && memeCote(a.cote, b))));
+
+// Pas droit à l'erreur sur la place d'un panneau. Elle est sûre si aucune autre ligne ne peut
+// prendre la page (orientation lue différente, ou ligne interchangeable), ou si la page désigne sa
+// ligne (orientation lue identique, ou cote exacte) et que la cote écarte toutes les autres.
+// Sinon, à confirmer.
+function doutePlace(page, place, places) {
+  if (!place || page.erreur) return null;
+  const numero = page.page + 1;
+  const lue = orientationLue(page);
+  if (conflit(page, place)) {
+    return `Page ${numero} marquée ${lue} dans le PDF, reliée à ${decrire(place)} dans Gamesys. À vérifier.`;
+  }
+  const candidates = places.filter((q) => !lue || !q.ligne.orientation || q.ligne.orientation === lue);
+  const autres = candidates.filter((q) => !interchangeables(q, place));
+  if (autres.length === 0) return null;
+  const designee = memeCote(page, place) || (!!lue && place.ligne.orientation === lue);
+  if (designee && autres.every((q) => q.cote && !memeCote(page, q))) return null;
+  // Les autres lignes possibles (même cote ou sans cote), sinon la plus proche.
+  const possibles = autres.filter((q) => !q.cote || memeCote(page, q));
+  const plusProche = [...autres].sort((a, b) => ecartCote(page, a) - ecartCote(page, b)).slice(0, 1);
+  const alternatives = [...new Set((possibles.length ? possibles : plusProche).map(decrire))]
+    .slice(0, 2)
+    .join(" ou ");
+  const indice = lue ? `marquée ${lue}` : "sans orientation écrite en marge";
+  return `Page ${numero} (${indice}) : rien ne prouve qu'il s'agit de ${decrire(place)} plutôt que de ${alternatives}. À vérifier.`;
+}
+
+// Rang de chaque page dans la pose, lu en marge : « 2/3 » sur toutes les pages, ou à défaut
+// GAUCHE/CENTRE/DROIT, chacun une fois. Sans rangs, la raison du doute.
+function rangsLus(pages) {
+  const n = pages.length;
+  const marques = pages.map((p) => p.marque || {});
+  const suite = (rangs) => [...rangs].sort((a, b) => a - b).every((r, i) => r === i + 1);
+  if (marques.every((m) => m.rang)) {
+    const rangs = marques.map((m) => m.rang);
+    if (!marques.every((m) => m.total === n) || !suite(rangs)) {
+      return { raison: `rangs ${marques.map((m) => `${m.rang}/${m.total}`).join(", ")} pour ${n} pages` };
+    }
+    // GAUCHE avant CENTRE avant DROIT dans l'ordre des rangs
+    const ordres = marques
+      .map((m, i) => ({ o: m.orientation, r: rangs[i] }))
+      .sort((a, b) => a.r - b.r)
+      .filter((x) => x.o)
+      .map((x) => ORDRE_ORIENTATION[x.o]);
+    if (ordres.some((o, i) => i > 0 && o < ordres[i - 1])) return { raison: "rangs et orientations contradictoires" };
+    return { rangs };
+  }
+  if (marques.every((m) => m.orientation) && !marques.some((m) => m.rang)) {
+    const ordres = marques.map((m) => ORDRE_ORIENTATION[m.orientation]);
+    if (new Set(ordres).size !== n) return { raison: "orientations répétées sans rang (« 1/3 »)" };
+    return { rangs: ordres.map((o) => ordres.filter((x) => x < o).length + 1) };
+  }
+  return { raison: "ni rang (« 1/3 ») ni orientation écrits en marge de chaque page" };
+}
+
+// Ordre de pose : celui des repères, sinon celui des pages, à confirmer page par page.
+function doutesOrdre(pages) {
+  if (pages.length < 2) return { rangs: null, doutes: pages.map(() => null) };
+  const { rangs = null, raison } = rangsLus(pages);
+  const doutes = pages.map((page, i) => {
+    const lu = page.marque?.texte ? ` (« ${page.marque.texte} »)` : "";
+    if (!rangs) return `Page ${i + 1}${lu} : ${raison}. L'ordre des pages du PDF fera l'ordre de pose : à vérifier.`;
+    return rangs[i] === i + 1
+      ? null
+      : `Page ${i + 1}${lu} : ce sera le panneau ${rangs[i]} de la pose, pas le ${i + 1}. À vérifier.`;
+  });
+  return { rangs, doutes };
 }
 
 function ecartsDuPanneau(page, place, vernisPdf) {
@@ -169,31 +274,48 @@ function dupliquerExemplaires(panneaux, lignes, nomPdf, vernisPdf) {
         ligneId: ligne.id,
         ex,
         vernis: vernisPdf || ligne.finishHint || null,
-        ecarts: ecartsDuPanneau(panneau, { ligne, cote }, vernisPdf),
+        ecarts: [
+          ...ecartsDuPanneau(panneau, { ligne, cote }, vernisPdf),
+          ...panneau.ecarts.filter((e) => e.type === "ordre"),
+        ],
       });
     }
     return copies;
   });
 }
 
-// pages : [{ page, nom, largeur, hauteur, echelle } | { page, erreur }], dans l'ordre du PDF.
+// pages : [{ page, nom, largeur, hauteur, echelle, marque } | { page, erreur }], dans l'ordre du PDF.
 // lignes : lignes Gamesys sur-mesure de la commande (visualJobs).
+// Panneaux rendus dans l'ordre de pose (rangs lus en marge), `page` restant la page du PDF.
 function apparierPanneaux(pages, lignes, nomPdf) {
   const places = placesGamesys(lignes, pages.length);
   const vernisPdf = vernisDuNom(nomPdf);
 
   const attribuees = attribuerPlaces(pages, places);
+  const ordre = doutesOrdre(pages);
 
-  const parPage = pages.map((page, i) => {
+  const lues = pages.map((page, i) => {
     const place = attribuees[i];
+    const doutes = [doutePlace(page, place, places), ordre.doutes[i]].filter(Boolean);
+    const rang = ordre.rangs?.[i] || i + 1;
+    // Le rang lu en marge numérote le panneau (nom, QR, étiquette), pas la position de la page.
+    const nom = page.nom && rang !== i + 1 ? sansRang(page.nom).replace(" ", `-${rang} `) : page.nom;
     return {
-      ...page,
-      ligneId: place?.ligne.id || null,
-      ex: place?.ex ?? 1,
-      vernis: vernisPdf || place?.ligne.finishHint || null,
-      ecarts: ecartsDuPanneau(page, place, vernisPdf),
+      rang,
+      panneau: {
+        ...page,
+        nom,
+        ligneId: place?.ligne.id || null,
+        ex: place?.ex ?? 1,
+        vernis: vernisPdf || place?.ligne.finishHint || null,
+        ecarts: [
+          ...ecartsDuPanneau(page, place, vernisPdf),
+          ...doutes.map((message) => ({ type: "ordre", page: page.page, message, bloquant: false })),
+        ],
+      },
     };
   });
+  const parPage = lues.sort((a, b) => a.rang - b.rang).map((l) => l.panneau);
   const dupliques = dupliquerExemplaires(parPage, lignes, nomPdf, vernisPdf);
   // Deux panneaux d'une même page auraient le même nom, donc le même QR : numérotés dans le PDF.
   const panneaux = dupliques.length > parPage.length ? numeroterPanneaux(dupliques) : dupliques;

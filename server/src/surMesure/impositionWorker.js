@@ -1,6 +1,7 @@
 // Tourne dans un thread à part : un PDF de plus d'un gigaoctet bloquerait le serveur.
 const fs = require("fs");
 const { chargerSource, mesurerPage, lirePanneau, scriptCut, pdfImpose } = require("./imposition");
+const { marqueDePage } = require("./marquesPage");
 
 const BLOC_LECTURE = 16 * 2 ** 20;
 const ESSAIS_LECTURE = 4;
@@ -30,7 +31,7 @@ async function lirePages({ chemin, nomFichier, hauteurAttendue }) {
   return source.getPages().map((_, i) => {
     try {
       const { page, nom, largeur, hauteur, echelle } = mesurerPage(source, nomFichier, i, { hauteurAttendue });
-      return { page, nom, largeur, hauteur, echelle };
+      return { page, nom, largeur, hauteur, echelle, marque: marqueDePage(source, i) };
     } catch (e) {
       return { page: i, erreur: e.message };
     }

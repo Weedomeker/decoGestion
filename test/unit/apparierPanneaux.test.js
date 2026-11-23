@@ -9,9 +9,13 @@ const {
   plaqueMm,
   vernisDuNom,
 } = require("../../server/src/surMesure/apparierPanneaux");
+const { lireMarque } = require("../../server/src/surMesure/marquesPage");
 
 const pages = (nom, ...tailles) =>
   tailles.map(([largeur, hauteur], page) => ({ page, nom: `${nom}-${page + 1}`, largeur, hauteur, echelle: 1 }));
+
+// Repères écrits par les créa en marge de chaque page, relevés dans les PDF réels.
+const marquer = (liste, ...textes) => liste.map((p, i) => ({ ...p, marque: lireMarque(textes[i] || "") }));
 
 const ligne = (id, refClient, orientation, extra = {}) => ({
   id,
@@ -29,7 +33,7 @@ describe("surMesure/apparierPanneaux — commandes réelles de novembre 2026", (
   it("169548 : signale la largeur de 80 cm face aux 100 cm de Gamesys", () => {
     const nom = "169548 LM LE MANS Onyx 100x210cm(3)BRILLANT";
     const { panneaux, ecarts } = apparierPanneaux(
-      pages("169548", [800, 2100], [1000, 2100], [1000, 2100]),
+      marquer(pages("169548", [800, 2100], [1000, 2100], [1000, 2100]), "GAUCHE 1/3", "CENTRE 2/3", "DROIT 3/3"),
       [
         ligne("/04", "ONYX DROIT 100 x 210", "DROIT"),
         ligne("/05", "ONYX CENTRE 100 x 210", "CENTRE"),
@@ -46,7 +50,7 @@ describe("surMesure/apparierPanneaux — commandes réelles de novembre 2026", (
 
   it("169580 : conforme, malgré des sous-dossiers dans le désordre", () => {
     const { panneaux, ecarts } = apparierPanneaux(
-      pages("169580", [800, 2100], [700, 2100], [700, 2100]),
+      marquer(pages("169580", [800, 2100], [700, 2100], [700, 2100]), "GAUCHE 1/3", "CENTRE 2/3", "DROIT 3/3"),
       [
         ligne("/02", "JARDIN SECRET GAUCHE 80 x 210 MAT", "GAUCHE", { finishHint: "MAT" }),
         ligne("/04", "JARDIN SECRET CENTRE 70 x 210 MAT", "CENTRE", { finishHint: "MAT" }),
@@ -62,7 +66,7 @@ describe("surMesure/apparierPanneaux — commandes réelles de novembre 2026", (
   it("169603 : conforme", () => {
     const opts = { finishHint: "BRILLANT", formatTauro: "126x260" };
     const { panneaux } = apparierPanneaux(
-      pages("169603", [1000, 2550], [1000, 2550], [1000, 2550]),
+      marquer(pages("169603", [1000, 2550], [1000, 2550], [1000, 2550]), "GAUCHE 1/3", "CENTRE 2/3", "DROIT 3/3"),
       [
         ligne("/03", "VERRE SOUFFLE DROIT 100 x 255 BRILLANT", "DROIT", opts),
         ligne("/04", "VERRE SOUFFLE CENTRE 100 x 255 BRILLANT", "CENTRE", opts),
@@ -87,7 +91,7 @@ describe("surMesure/apparierPanneaux — commandes réelles de novembre 2026", (
 
   it("169694 : deux panneaux sur une ligne, faute de frappe signalée", () => {
     const { panneaux, ecarts } = apparierPanneaux(
-      pages("169694", [700, 1800], [800, 1800]),
+      marquer(pages("169694", [700, 1800], [800, 1800]), "HAUT 1/2", "HAUT 2/2"),
       [ligne("/01", "GRAVURE NATURE 70 x 80 + 80 x 180 MAT", null, { finishHint: "MAT" })],
       "169694 ECOM MONROCQ_Gavure nature_70x180+80x180cm_MAT(2)",
     );
@@ -100,7 +104,14 @@ describe("surMesure/apparierPanneaux — commandes réelles de novembre 2026", (
   it("169063 : sans orientation, relie chaque page à sa ligne par la cote", () => {
     const plaque = { formatTauro: "101x215", finishHint: "BRILLANT" };
     const { panneaux, ecarts } = apparierPanneaux(
-      pages("169063", [1000, 2100], [882, 2100], [769, 2100], [769, 2100], [882, 2100]),
+      marquer(
+        pages("169063", [1000, 2100], [882, 2100], [769, 2100], [769, 2100], [882, 2100]),
+        "GAUCHE 1/5",
+        "GAUCHE 2/5",
+        "CENTRE 3/5",
+        "CENTRE 4/5",
+        "DROIT 5/5",
+      ),
       [
         ligne("/08", "MARBRE NERF 88.2 x 210 BRILLANT", null, plaque),
         ligne("/07", "MARBRE NERF 76.9 x 210 BRILLANT", null, plaque),
@@ -111,15 +122,16 @@ describe("surMesure/apparierPanneaux — commandes réelles de novembre 2026", (
       "169063 LM STE GENEVIEVE MarbreNerf H210cm(5)BRILLANT",
     );
     expect(panneaux.map((p) => p.ligneId)).to.deep.equal(["/05", "/08", "/07", "/04", "/06"]);
-    expect(types(panneaux[0])).to.deep.equal(["dimensions"]);
+    // 100 x 231 dans Gamesys : aucune ligne n'a la cote de la page 1, sa place est donc aussi à confirmer
+    expect(types(panneaux[0])).to.deep.equal(["dimensions", "ordre"]);
     expect(panneaux.slice(1).flatMap(types)).to.deep.equal([]);
     expect(ecarts).to.deep.equal([]);
   });
 
-  it("168917 : deux lignes GAUCHE et deux DROIT, chaque page prend la ligne de sa cote", () => {
+  it("168917 sans orientation écrite : deux lignes GAUCHE et deux DROIT, chaque page prend la ligne de sa cote", () => {
     const plaque = (f) => ({ formatTauro: f });
     const { panneaux, ecarts } = apparierPanneaux(
-      pages("168917", [1488, 2400], [1491, 2400], [1000, 2400], [1000, 2400]),
+      marquer(pages("168917", [1488, 2400], [1491, 2400], [1000, 2400], [1000, 2400]), "1/4", "2/4", "3/4", "4/4"),
       [
         ligne("/05", "ONYX GAUCHE 148.80 x 240 MAT", "GAUCHE", plaque("151x260")),
         ligne("/04", "ONYX DROIT 100 x 240 MAT", "DROIT", plaque("126x260")),
@@ -129,13 +141,17 @@ describe("surMesure/apparierPanneaux — commandes réelles de novembre 2026", (
       "168917 LM BEZIERS Onyx H240cm(4)MAT",
     );
     expect(panneaux.map((p) => p.ligneId)).to.deep.equal(["/05", "/02", "/03", "/04"]);
-    expect(panneaux.flatMap(types)).to.deep.equal([]);
+    // pages 3 et 4 : GAUCHE et DROIT ont la même cote, rien ne dit laquelle est laquelle
+    expect(panneaux.map(types)).to.deep.equal([[], [], ["ordre"], ["ordre"]]);
+    expect(panneaux[2].ecarts[0].message).to.equal(
+      "Page 3 (sans orientation écrite en marge) : rien ne prouve qu'il s'agit de GAUCHE 100 x 240 cm plutôt que de DROIT 100 x 240 cm. À vérifier.",
+    );
     expect(ecarts).to.deep.equal([]);
   });
 
   it("169211 : cotes mal saisies dans Gamesys, chaque page prend la ligne la plus proche", () => {
     const { panneaux } = apparierPanneaux(
-      pages("169211", [1188, 2100], [888, 2100]),
+      marquer(pages("169211", [1188, 2100], [888, 2100]), "GAUCHE 1/2", "DROIT 2/2"),
       [
         ligne("/04", "ONYX GUACHE 123.8 x 210 MAT", null, { formatTauro: "126x215" }),
         ligne("/03", "ONYX DROIT 88.8 xc 210 MAT", "DROIT"),
@@ -145,6 +161,133 @@ describe("surMesure/apparierPanneaux — commandes réelles de novembre 2026", (
     expect(panneaux.map((p) => p.ligneId)).to.deep.equal(["/04", "/03"]);
     expect(types(panneaux[0])).to.deep.equal(["dimensions"]);
     expect(types(panneaux[1])).to.deep.equal([]);
+  });
+
+  it("168917 : les repères des créa (CENTRE, « 1/4 » deux fois) contredisent Gamesys, tout est à confirmer", () => {
+    const plaque = (f) => ({ formatTauro: f });
+    const { panneaux } = apparierPanneaux(
+      marquer(
+        pages("168917", [1488, 2400], [1491, 2400], [1000, 2400], [1000, 2400]),
+        "GAUCHE 1/4",
+        "CENTRE 2/4",
+        "CENTRE 3/4",
+        "GAUCHE 1/4",
+      ),
+      [
+        ligne("/05", "ONYX GAUCHE 148.80 x 240 MAT", "GAUCHE", plaque("151x260")),
+        ligne("/04", "ONYX DROIT 100 x 240 MAT", "DROIT", plaque("126x260")),
+        ligne("/03", "ONYX GAUCHE 100 x 240 MAT", "GAUCHE", plaque("126x260")),
+        ligne("/02", "ONYX DROIT 149.10 x 240 MAT", "DROIT", plaque("151x260")),
+      ],
+      "168917 LM BEZIERS Onyx H240cm(4)MAT",
+    );
+    expect(panneaux.map((p) => p.ligneId)).to.deep.equal(["/05", "/02", "/04", "/03"]);
+    expect(panneaux.every((p) => p.ecarts.some((e) => e.type === "ordre" && !e.bloquant))).to.equal(true);
+    expect(panneaux[1].ecarts.map((e) => e.message)).to.include(
+      "Page 2 marquée CENTRE dans le PDF, reliée à DROIT 149,1 x 240 cm dans Gamesys. À vérifier.",
+    );
+    expect(panneaux[0].ecarts.map((e) => e.message)).to.include(
+      "Page 1 (« GAUCHE 1/4 ») : rangs 1/4, 2/4, 3/4, 1/4 pour 4 pages. L'ordre des pages du PDF fera l'ordre de pose : à vérifier.",
+    );
+  });
+
+  it("169824 : la page 1 est marquée « HAUT 2/2 » : le panneau 1 de la pose est la page 2, à confirmer", () => {
+    const { panneaux } = apparierPanneaux(
+      marquer(pages("169824 LM BEZIERS TRAVERTIN", [1480, 2000], [890, 2000]), "HAUT 2/2", "HAUT 1/2"),
+      [
+        ligne("/01", "TRAVERTIN 148 x 200 MAT", null, { formatTauro: "151x260" }),
+        ligne("/02", "TRAVERTIN 89 x 200 MAT", null),
+      ],
+      "169824 LM BEZIERS TRAVERTIN H200cm(2)+BLANC MAT",
+    );
+    expect(panneaux.map((p) => [p.page, p.ligneId, p.nom])).to.deep.equal([
+      [1, "/02", "169824-1 LM BEZIERS TRAVERTIN-2"],
+      [0, "/01", "169824-2 LM BEZIERS TRAVERTIN-1"],
+    ]);
+    expect(panneaux.map((p) => p.ecarts.map((e) => e.message))).to.deep.equal([
+      ["Page 2 (« HAUT 1/2 ») : ce sera le panneau 1 de la pose, pas le 2. À vérifier."],
+      ["Page 1 (« HAUT 2/2 ») : ce sera le panneau 2 de la pose, pas le 1. À vérifier."],
+    ]);
+  });
+
+  it("168532 (ECOM) : HAUT-GAUCHE, HAUT-CENTRE, HAUT-DROIT suffisent sans rang", () => {
+    const { panneaux } = apparierPanneaux(
+      marquer(pages("168532", [1405, 2500], [855, 2500], [1255, 2500]), "HAUT-GAUCHE", "HAUT-CENTRE", "HAUT-DROIT"),
+      [
+        ligne("/03", "TRAVERTINO DROIT 125.5 x 250", "DROIT", { formatTauro: "151x260" }),
+        ligne("/01", "TRAVERTINO GAUCHE 140.5 x 250", "GAUCHE", { formatTauro: "151x260" }),
+        ligne("/02", "TRAVERTINO CENTRE 85.5 x 250", "CENTRE", { formatTauro: "126x260" }),
+      ],
+      "168532 ECOM ESNAULT_Travertino_H250cm_MAT (3)",
+    );
+    expect(panneaux.map((p) => p.ligneId)).to.deep.equal(["/01", "/02", "/03"]);
+    expect(panneaux.flatMap(types)).to.deep.equal([]);
+  });
+
+  it("l'orientation écrite sur la page passe avant l'ordre des pages", () => {
+    const { panneaux } = apparierPanneaux(
+      marquer(pages("1", [1000, 2100], [1000, 2100]), "DROIT", "GAUCHE"),
+      [ligne("/01", "ONYX GAUCHE 100 x 210", "GAUCHE"), ligne("/02", "ONYX DROIT 100 x 210", "DROIT")],
+      "1 LM X H210cm(2)MAT",
+    );
+    expect(panneaux.map((p) => [p.page, p.ligneId])).to.deep.equal([
+      [1, "/01"],
+      [0, "/02"],
+    ]);
+    expect(panneaux.map((p) => types(p))).to.deep.equal([["ordre"], ["ordre"]]);
+  });
+
+  describe("sans repère en marge, rien n'est sûr", () => {
+    const lignes = [
+      ligne("/03", "VERRE SOUFFLE DROIT 100 x 255", "DROIT", { formatTauro: "126x260" }),
+      ligne("/04", "VERRE SOUFFLE CENTRE 100 x 255", "CENTRE", { formatTauro: "126x260" }),
+      ligne("/05", "VERRE SOUFFLE GAUCHE 100 x 255", "GAUCHE", { formatTauro: "126x260" }),
+    ];
+    const sansRepere = (n) =>
+      `Page ${n} : ni rang (« 1/3 ») ni orientation écrits en marge de chaque page. L'ordre des pages du PDF fera l'ordre de pose : à vérifier.`;
+
+    it("169603 sans repères : GAUCHE, CENTRE et DROIT de même cote, chaque page à confirmer", () => {
+      const { panneaux } = apparierPanneaux(pages("169603", [1000, 2550], [1000, 2550], [1000, 2550]), lignes, "x MAT");
+      expect(panneaux.map((p) => p.ligneId)).to.deep.equal(["/05", "/04", "/03"]);
+      expect(panneaux[0].ecarts.map((e) => e.message)).to.deep.equal([
+        "Page 1 (sans orientation écrite en marge) : rien ne prouve qu'il s'agit de GAUCHE 100 x 255 cm plutôt que de CENTRE 100 x 255 cm ou DROIT 100 x 255 cm. À vérifier.",
+        sansRepere(1),
+      ]);
+      expect(panneaux.every((p) => p.ecarts.length === 2)).to.equal(true);
+    });
+
+    it("des rangs seuls ne disent pas quelle page est GAUCHE quand les cotes sont égales", () => {
+      const { panneaux } = apparierPanneaux(
+        marquer(pages("1", [1000, 2550], [1000, 2550], [1000, 2550]), "1/3", "2/3", "3/3"),
+        lignes,
+        "x MAT",
+      );
+      expect(panneaux.map((p) => types(p))).to.deep.equal([["ordre"], ["ordre"], ["ordre"]]);
+    });
+
+    it("des cotes toutes différentes suffisent à relier les pages, mais pas à les ordonner", () => {
+      const { panneaux } = apparierPanneaux(
+        pages("1", [800, 2100], [1000, 2100]),
+        [ligne("/01", "A GAUCHE 80 x 210", "GAUCHE"), ligne("/02", "A DROIT 100 x 210", "DROIT")],
+        "x MAT",
+      );
+      expect(panneaux.map((p) => p.ecarts.map((e) => e.message))).to.deep.equal([[sansRepere(1)], [sansRepere(2)]]);
+    });
+
+    it("une page marquée DROIT reste à confirmer si une ligne sans orientation a la même cote", () => {
+      const { panneaux } = apparierPanneaux(
+        marquer(pages("1", [1000, 2100], [1000, 2100]), "GAUCHE 1/2", "DROIT 2/2"),
+        [
+          ligne("/01", "A GAUCHE 100 x 210", "GAUCHE"),
+          ligne("/02", "A 100 x 210", null),
+          ligne("/03", "A DROIT 100 x 210", "DROIT"),
+        ],
+        "x MAT",
+      );
+      expect(panneaux.map((p) => p.ligneId)).to.deep.equal(["/01", "/03"]);
+      expect(types(panneaux[0])).to.deep.equal(["ordre"]);
+      expect(types(panneaux[1])).to.deep.equal(["ordre"]);
+    });
   });
 
   it("169532 : panneau expo sur plaque 101x215, conforme", () => {
@@ -160,7 +303,7 @@ describe("surMesure/apparierPanneaux — commandes réelles de novembre 2026", (
 describe("surMesure/apparierPanneaux — règles", () => {
   it("donne une page par exemplaire quand une ligne en quantité 3 couvre 3 pages", () => {
     const { panneaux, ecarts } = apparierPanneaux(
-      pages("1", [1000, 2100], [1000, 2100], [1000, 2100]),
+      marquer(pages("1", [1000, 2100], [1000, 2100], [1000, 2100]), "1/3", "2/3", "3/3"),
       [ligne("/01", "ONYX 100 x 210", null, { ex: 3 })],
       "1 LM X H210cm(3)MAT",
     );
@@ -169,6 +312,7 @@ describe("surMesure/apparierPanneaux — règles", () => {
       ["/01", 1],
       ["/01", 1],
     ]);
+    expect(panneaux.flatMap(types)).to.deep.equal([]);
     expect(ecarts).to.deep.equal([]);
   });
 
@@ -183,7 +327,7 @@ describe("surMesure/apparierPanneaux — règles", () => {
 
   it("signale un nombre de panneaux différent et une page sans ligne", () => {
     const { panneaux, ecarts } = apparierPanneaux(
-      pages("1", [1000, 2100], [1000, 2100]),
+      marquer(pages("1", [1000, 2100], [1000, 2100]), "1/2", "2/2"),
       [ligne("/01", "ONYX 100 x 210", null)],
       "1 LM X MAT",
     );
