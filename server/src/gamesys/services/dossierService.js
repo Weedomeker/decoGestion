@@ -1610,6 +1610,36 @@ async function fetchDossierVernis(connection, commande, sousDossier) {
   return map(rows.map((r) => detectPrintFinish(r)).find(Boolean) || null);
 }
 
+// Vernis Mat / Brillant d'un panneau sur-mesure d'après la cote client de ses lignes
+// (endv_ref_client : « BAMBUSA DROIT MAT 100 X 255 SUR MESURE »), profils et kits exclus.
+// Jamais dos_imp_1_fac_p_1, souvent faux. null sans vernis ou si deux lignes se contredisent.
+function vernisDesLignes(enteteDevis) {
+  const vernis = new Set(
+    (enteteDevis || [])
+      .filter((e) => !isProfileLabel(e.endv_identif) && !isKitPoseLabel(e.endv_identif))
+      .map((e) => parseSurMesureRefClient(e.endv_ref_client).finishHint)
+      .filter(Boolean)
+  );
+  if (vernis.size !== 1) return null;
+  return [...vernis][0] === "BRILLANT" ? "Brillant" : "Mat";
+}
+
+// Lignes d'un sous-dossier (« 169760/03 ») lues sur une connexion injectée, pour un rattrapage en boucle.
+async function fetchVernisRefClient(connection, commande, sousDossier) {
+  if (!commande || !sousDossier) return null;
+  const noCmde = `${commande}/${sousDossier}`;
+  const dossiers = await query(
+    connection,
+    `select dos_codeuniq from public.fd_dossier where dos_no_cmde = ?`,
+    [noCmde]
+  );
+  const entetes = [];
+  for (const dossier of dossiers) {
+    entetes.push(...(await fetchEnteteDevis(connection, noCmde, dossier.dos_codeuniq)));
+  }
+  return vernisDesLignes(uniqueBy(entetes, (e) => e.endv_seq));
+}
+
 // Wrapper avec connexion dédiée pour fetchDossierVernis, sur le modèle de getDossierFormatPlaque.
 async function getDossierVernis(commande, sousDossier) {
   const connection = await getDbConnection();
@@ -1642,6 +1672,8 @@ module.exports = {
   getDossierFormatPlaque,
   fetchDossierVernis,
   getDossierVernis,
+  vernisDesLignes,
+  fetchVernisRefClient,
   mapDosClientToAppClient,
   fetchEnteteDevis,
   extractDimensionFormat,

@@ -4,14 +4,16 @@ const dbConfig = require("../gamesys/config/db");
 const { closeConnection } = require("../gamesys/lib/db");
 const Deco = require("../models/Deco");
 
-// Re-renseigne Deco.finition des panneaux SUR-MESURE avec le vernis Mat / Brillant
-// (dos_imp_1_fac_p_1 côté Gamesys, via dossierService.fetchDossierVernis) au lieu de la texture
+// Re-renseigne Deco.finition des panneaux SUR-MESURE avec le vernis Mat / Brillant lu dans la cote
+// client de la ligne (endv_ref_client, via dossierService.fetchVernisRefClient ; jamais
+// dos_imp_1_fac_p_1, souvent faux), au lieu d'une finition vide, de la texture
 // du gabarit ("Lisse"/"Texturée"/"Brossé"/"Couleur") ou d'une valeur historique à la casse
 // incohérente ("mat"/"MAT"). Ne touche QUE les documents surMesure:true, et n'écrit que si le
 // vernis résolu diffère de la valeur stockée. Volume attendu faible (quelques dizaines de docs) :
 // boucle séquentielle, une seule connexion ODBC réutilisée (cf. feedback_odbc_backfill_resource_limits).
 async function backfillSmesFinition({ dryRun = false, sinceDate = null } = {}) {
-  const filter = { surMesure: true };
+  // Teinte masse : pas de vernis, sa finition vient du catalogue.
+  const filter = { surMesure: true, surMesureKind: { $ne: "teinte_masse" } };
   if (sinceDate) filter.createdAt = { $gte: sinceDate };
   const aTraiter = await Deco.find(filter, { numCmd: 1, sousDossier: 1, finition: 1 }).lean();
 
@@ -26,7 +28,7 @@ async function backfillSmesFinition({ dryRun = false, sinceDate = null } = {}) {
           resume.introuvables += 1;
           continue;
         }
-        const vernis = await dossierService.fetchDossierVernis(connection, doc.numCmd, doc.sousDossier);
+        const vernis = await dossierService.fetchVernisRefClient(connection, doc.numCmd, doc.sousDossier);
         if (!vernis) {
           resume.introuvables += 1;
           continue;

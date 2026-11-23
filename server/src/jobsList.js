@@ -77,6 +77,7 @@ function createJob(
     smNom: surMesureData?.smNom || undefined,
     smBase: surMesureData?.smBase || undefined,
     smFormat: surMesureData?.smFormat || undefined,
+    smVernis: surMesureData?.smVernis || undefined,
   };
 
   return newJob;

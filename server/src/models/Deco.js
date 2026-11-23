@@ -103,7 +103,9 @@ decoSchema.pre("save", async function (next) {
   try {
     if (this.isModified("ref") && this.ref) {
       const refFields = await resolveRefFields(this.client, this.ref);
-      this.finition = refFields.finition;
+      // Ref hors catalogue (sur-mesure) : la finition fournie (vernis du panneau) est gardée.
+      const finitionFournie = !refFields.matched && this.isModified("finition") && this.finition;
+      if (!finitionFournie) this.finition = refFields.finition;
       this.format = refFields.format ?? this.format;
       this.deco = refFields.deco ?? this.deco;
     }
@@ -125,7 +127,8 @@ decoSchema.pre("findOneAndUpdate", async function (next) {
     if (data.ref) {
       const clientKey = data.client || this.getFilter()?.client;
       const refFields = await resolveRefFields(clientKey, data.ref);
-      data.finition = refFields.finition;
+      // Ref hors catalogue (sur-mesure) : la finition fournie (vernis du panneau) est gardée.
+      if (refFields.matched || !data.finition) data.finition = refFields.finition;
       data.format = refFields.format ?? data.format;
       data.deco = refFields.deco ?? data.deco;
 

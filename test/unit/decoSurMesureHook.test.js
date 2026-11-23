@@ -46,7 +46,7 @@ describe("Deco — hook sur-mesure (résolution Ref* non sautée pour 'visuel')"
     expect(doc.orientation).to.equal("GAUCHE");
   });
 
-  it("B — un doc surMesureKind='teinte_masse' avec un ref absent de RefDeco : résolution exécutée, aucune correspondance → finition ''", async () => {
+  it("B — un ref absent de RefDeco sans finition fournie : résolution exécutée, aucune correspondance → finition ''", async () => {
     const doc = await Deco.create({
       numCmd: 999102,
       client: "LM",
@@ -54,10 +54,43 @@ describe("Deco — hook sur-mesure (résolution Ref* non sautée pour 'visuel')"
       surMesure: true,
       surMesureKind: "teinte_masse",
       deco: "PLACEHOLDER",
-      finition: "PLACEHOLDER",
       format: "100x210",
     });
     expect(doc.finition).to.equal("");
+  });
+
+  it("B2 — un sur-mesure au ref absent de RefDeco garde la finition fournie (vernis du panneau)", async () => {
+    const doc = await Deco.create({
+      numCmd: 999104,
+      client: "LM",
+      ref: "BAMBUSA SUR MESURE",
+      surMesure: true,
+      surMesureKind: "visuel",
+      finition: "Mat",
+    });
+    expect(doc.finition).to.equal("Mat");
+  });
+
+  it("B3 — findOneAndUpdate : la finition fournie remplace celle du stub, son absence vide comme avant", async () => {
+    await Deco.create({ numCmd: 999105, client: "LM", surMesure: true, finition: "Brillant", gamesysStub: true });
+    const avecVernis = await Deco.findOneAndUpdate(
+      { numCmd: 999105 },
+      { $set: { ref: "BAMBUSA SUR MESURE", finition: "Mat" } },
+      { new: true },
+    );
+    expect(avecVernis.finition).to.equal("Mat");
+
+    const sansVernis = await Deco.findOneAndUpdate(
+      { numCmd: 999105 },
+      { $set: { ref: "BAMBUSA SUR MESURE" } },
+      { new: true },
+    );
+    expect(sansVernis.finition).to.equal("");
+  });
+
+  it("B4 — un ref du catalogue impose sa finition, même si une autre est fournie", async () => {
+    const doc = await Deco.create({ numCmd: 999106, client: "LM", ref: "ARCHE-SM-TEST", finition: "Mat" });
+    expect(doc.finition).to.equal("SATIN");
   });
 
   it("C — un doc non sur-mesure avec ref='ARCHE-SM-TEST' résout depuis RefDeco (non-régression)", async () => {

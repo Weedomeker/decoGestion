@@ -48,6 +48,7 @@ const { composeJpgPage } = require("../composeJpgPage");
 const { imposerPanneau } = require("../surMesure/impositionPool");
 const { nomFichierCut } = require("../surMesure/imposition");
 const { refusJobSurMesure } = require("../surMesure/controleJob");
+const { finitionDuVernis } = require("../surMesure/finition");
 const { plaqueMm } = require("../surMesure/apparierPanneaux");
 const { baseFichierSurMesure, cheminApercuSurMesure, formatReel } = require("../surMesure/nomFichier");
 const { hauteurGabarit } = require("./surMesureController");
@@ -604,6 +605,7 @@ async function addJob(req, res) {
       smNom: smPanneau?.nom,
       smBase,
       smFormat: smPanneau ? formatReel(smPanneau) : undefined,
+      smVernis: smPanneau?.vernis || undefined,
     },
   );
   if (complementStock) newJob.complementStock = true;
@@ -1039,6 +1041,8 @@ async function processJob(job, req) {
       deco: visuel,
       ref: safeRef,
       format: resolvedFormat,
+      // Sur-mesure : vernis du panneau, la ref hors catalogue n'en donne pas (sinon finition vide).
+      finition: job.smNom ? finitionDuVernis(job.smVernis) : undefined,
       ex: parseInt(job.panneaux || job.ex),
       temps,
       perte: job.perte ? parseFloat(job.perte) : 0,

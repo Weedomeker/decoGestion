@@ -1,6 +1,7 @@
 /**
  * Script ponctuel : re-renseigne Deco.finition des panneaux SUR-MESURE (surMesure:true) avec le
- * vernis Mat / Brillant lu dans Gamesys (dos_imp_1_fac_p_1), au lieu de la texture du gabarit
+ * vernis Mat / Brillant lu dans la cote client de la ligne Gamesys (endv_ref_client), au lieu d'une
+ * finition vide ou de la texture du gabarit
  * ("Lisse"/"Texturée"/"Brossé"/"Couleur") ou d'une casse historique incohérente ("mat"/"MAT").
  *
  * N'écrit que si le vernis résolu diffère de la valeur stockée. Une seule connexion ODBC
@@ -53,7 +54,7 @@ async function main() {
   console.log(`  Documents sur-mesure examinés : ${resume.candidats}`);
   console.log(`  ${apply ? "Mis à jour" : "À mettre à jour"}          : ${resume.misAJour}`);
   console.log(`  Déjà corrects (inchangés)     : ${resume.inchanges}`);
-  console.log(`  Vernis introuvable Gamesys    : ${resume.introuvables}`);
+  console.log(`  Vernis absent de la cote client : ${resume.introuvables}`);
   console.log(`  Erreurs                       : ${resume.erreurs}`);
   if (!apply) console.log("\nMode dry-run — relancer avec --apply pour écrire réellement.");
 
