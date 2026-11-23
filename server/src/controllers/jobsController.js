@@ -616,6 +616,8 @@ async function addJob(req, res) {
       item.visuel === newJob.visuel &&
       item.visuel2 === newJob.visuel2 &&
       item.smPage === newJob.smPage &&
+      // Une page « _2ex » donne un panneau par ligne Gamesys : même page, noms différents.
+      item.smNom === newJob.smNom &&
       !!item.complementStock === !!newJob.complementStock,
   );
 

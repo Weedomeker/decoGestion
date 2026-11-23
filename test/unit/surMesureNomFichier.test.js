@@ -36,14 +36,27 @@ describe("surMesure/nomFichier", () => {
     const premier = base(panneau({ nom: "168917-2 LM X", page: 1 }), { orientation: "CENTRE" });
     const second = base(panneau({ nom: "168917-3 LM X", page: 2 }), {
       orientation: "CENTRE",
-      jobs: [{ smBase: premier, smPage: 1 }],
+      jobs: [{ smBase: premier, smPage: 1, smNom: "168917-2 LM X" }],
     });
     expect(second).to.equal(`${premier} 3`);
   });
 
+  it("distingue deux panneaux d'une même page « _2ex », un par ligne Gamesys", () => {
+    const p = (nom) => panneau({ nom, deco: "CAPPUCCINO CLAIR", largeur: 900 });
+    const premier = base(p("169922-2 LM LONGUEAU CAPPUCCINO"), { orientation: null });
+    const second = base(p("169922-3 LM LONGUEAU CAPPUCCINO"), {
+      orientation: null,
+      jobs: [{ smBase: premier, smPage: 0, smNom: "169922-2 LM LONGUEAU CAPPUCCINO" }],
+    });
+    expect([premier, second]).to.deep.equal([
+      "169580 - LM AMIENS - 90x210 - CAPPUCCINO CLAIR MAT 2",
+      "169580 - LM AMIENS - 90x210 - CAPPUCCINO CLAIR MAT 3",
+    ]);
+  });
+
   it("garde le même nom quand le même panneau est ajouté deux fois", () => {
     const premier = base(panneau());
-    expect(base(panneau(), { jobs: [{ smBase: premier, smPage: 0 }] })).to.equal(premier);
+    expect(base(panneau(), { jobs: [{ smBase: premier, smPage: 0, smNom: panneau().nom }] })).to.equal(premier);
   });
 
   it("retire les caractères interdits dans un nom de fichier", () => {

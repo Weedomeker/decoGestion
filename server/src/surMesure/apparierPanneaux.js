@@ -138,6 +138,44 @@ function ecartsDuPanneau(page, place, vernisPdf) {
   return ecarts;
 }
 
+// Plusieurs PDF : le QR ne garde que 24 caractères, et « 169847 LM VALENCIENNES BOIS… » et
+// « 169847 LM VALENCIENNES BETON… » en donneraient deux identiques. Chaque panneau prend son rang
+// dans la commande (« 169847-2 LM … ») ; l'imposition accepte ce nom (nomDuPanneau).
+const numeroterPanneaux = (panneaux) =>
+  panneaux.map((p, i) => (p.nom ? { ...p, nom: sansRang(p.nom).replace(" ", `-${i + 1} `) } : p));
+
+// « …MAT_2ex.pdf » : chaque page du PDF est à imprimer 2 fois. Sans mention, 1.
+const exemplairesDuNom = (nomPdf) => Number(String(nomPdf || "").match(/(?:^|[\s_(-])(\d+)\s*ex\b/i)?.[1]) || 1;
+
+// Une page en N exemplaires couvre jusqu'à N lignes Gamesys de même cote exacte (169922 : deux lignes
+// CAPPUCCINO 90 x 210 pour « CAPPUCCINO 90x210+BLANC MAT_2ex », une page). Chaque ligne reçoit son
+// panneau, placé juste après celui de la page : sa Deco, son étiquette et son nom numéroté.
+function dupliquerExemplaires(panneaux, lignes, nomPdf, vernisPdf) {
+  const exemplaires = exemplairesDuNom(nomPdf);
+  if (exemplaires < 2) return panneaux;
+  const libres = lignes.filter((l) => !panneaux.some((p) => p.ligneId === l.id));
+  return panneaux.flatMap((panneau) => {
+    if (panneau.erreur || !panneau.ligneId) return [panneau];
+    const copies = [panneau];
+    let imprimes = Number(panneau.ex) || 1;
+    for (const ligne of [...libres]) {
+      const ex = Number(ligne.ex) || 1;
+      const cote = extraireCotes(ligne.refClient).find((c) => memeCote(panneau, { cote: c }));
+      if (!cote || imprimes + ex > exemplaires) continue;
+      libres.splice(libres.indexOf(ligne), 1);
+      imprimes += ex;
+      copies.push({
+        ...panneau,
+        ligneId: ligne.id,
+        ex,
+        vernis: vernisPdf || ligne.finishHint || null,
+        ecarts: ecartsDuPanneau(panneau, { ligne, cote }, vernisPdf),
+      });
+    }
+    return copies;
+  });
+}
+
 // pages : [{ page, nom, largeur, hauteur, echelle } | { page, erreur }], dans l'ordre du PDF.
 // lignes : lignes Gamesys sur-mesure de la commande (visualJobs).
 function apparierPanneaux(pages, lignes, nomPdf) {
@@ -146,7 +184,7 @@ function apparierPanneaux(pages, lignes, nomPdf) {
 
   const attribuees = attribuerPlaces(pages, places);
 
-  const panneaux = pages.map((page, i) => {
+  const parPage = pages.map((page, i) => {
     const place = attribuees[i];
     return {
       ...page,
@@ -156,17 +194,20 @@ function apparierPanneaux(pages, lignes, nomPdf) {
       ecarts: ecartsDuPanneau(page, place, vernisPdf),
     };
   });
+  const dupliques = dupliquerExemplaires(parPage, lignes, nomPdf, vernisPdf);
+  // Deux panneaux d'une même page auraient le même nom, donc le même QR : numérotés dans le PDF.
+  const panneaux = dupliques.length > parPage.length ? numeroterPanneaux(dupliques) : dupliques;
 
   const ecarts = [];
-  if (places.length !== pages.length) {
+  if (places.length !== panneaux.length) {
     ecarts.push({
       type: "nombre",
       page: null,
-      message: `${pages.length} panneau(x) dans le PDF, ${places.length} dans Gamesys.`,
+      message: `${panneaux.length} panneau(x) dans le PDF, ${places.length} dans Gamesys.`,
       bloquant: false,
     });
   }
-  const codes = pages.filter((p) => p.nom).map((p) => texteQr(p.nom));
+  const codes = panneaux.filter((p) => p.nom).map((p) => texteQr(p.nom));
   if (new Set(codes).size !== codes.length) {
     ecarts.push({ type: "qr", page: null, message: "Deux plaques auraient le même QR.", bloquant: true });
   }
@@ -188,12 +229,6 @@ function complementPdf(pages, restantes, nomPdf) {
   };
   return panneaux.every(coteExacte) ? panneaux : null;
 }
-
-// Plusieurs PDF : le QR ne garde que 24 caractères, et « 169847 LM VALENCIENNES BOIS… » et
-// « 169847 LM VALENCIENNES BETON… » en donneraient deux identiques. Chaque panneau prend son rang
-// dans la commande (« 169847-2 LM … ») ; l'imposition accepte ce nom (nomDuPanneau).
-const numeroterPanneaux = (panneaux) =>
-  panneaux.map((p, i) => (p.nom ? { ...p, nom: sansRang(p.nom).replace(" ", `-${i + 1} `) } : p));
 
 // Écarts de la commande entière quand ses panneaux viennent de plusieurs PDF.
 function ecartsGlobaux(panneaux, lignes) {

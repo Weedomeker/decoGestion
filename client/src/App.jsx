@@ -195,7 +195,8 @@ function App() {
         visuelName,
         j.surMesure ? (j.orientation || "") : "",
         j.surMesure ? (j.printFormat || "") : "",
-        j.smPanneau?.page ?? "",
+        // Le nom, pas la page : une page « _2ex » donne deux panneaux, un par ligne Gamesys.
+        j.smPanneau?.nom ?? "",
       ].join("|");
       if (seen.has(key)) {
         const primaryIdx = seen.get(key);

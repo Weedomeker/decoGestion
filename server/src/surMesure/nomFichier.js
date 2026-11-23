@@ -16,7 +16,7 @@ function baseFichierSurMesure({ cmd, client, ville, panneau, orientation, jobs =
   const visuel = [panneau.deco || panneau.nom, orientation, panneau.vernis].filter(Boolean).join(" ");
   const base = `${cmd} - ${client} ${ville ? `${ville.toUpperCase()} - ` : ""}${formatReel(panneau)} - ${visuel}`;
   // Deux panneaux identiques auraient le même nom, et le second écraserait le premier au hot folder.
-  const doublon = jobs.some((j) => j.smBase === base && j.smPage !== panneau.page);
+  const doublon = jobs.some((j) => j.smBase === base && j.smNom !== panneau.nom);
   const rang = rangPanneau(panneau.nom);
   return sansCaracteresInterdits(rang && (!orientation || doublon) ? `${base} ${rang}` : base);
 }

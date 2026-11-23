@@ -287,15 +287,66 @@ describe("surMesure/apparierPanneaux — commandes à plusieurs PDF", () => {
     expect(complementPdf([{ page: 0, erreur: "échelle à préciser" }], [beton], "x")).to.equal(null);
   });
 
-  it("169922 : signale la ligne qu'aucun PDF ne couvre", () => {
+  describe("169922 : une page « _2ex » pour deux lignes Gamesys de même cote", () => {
     const cappu = [ligne("/02", "CAPPUCCINNO CLAIR 90 x 210 MAT"), ligne("/00", "CAPPUCCINO CLAIR 90 x 210 MAT")];
     const carreaux = ligne("/01", "CARREAUX DE CIMENT NOIR 119 x 210 MAT", undefined, { formatTauro: "126x260" });
     const lignes = [...cappu, carreaux];
-    const principal = apparierPanneaux(pages("169922 CARREAUX", [1190, 2100]), lignes, "169922 CARREAUX MAT");
-    const ajout = complementPdf(pages("169922 CAPPU", [900, 2100]), lignesRestantes(principal.panneaux, lignes), "169922 CAPPUCCINO 90x210+BLANC MAT_2ex");
-    const tous = [...principal.panneaux, ...ajout];
-    expect(tous.map((p) => p.ligneId)).to.deep.equal(["/01", "/02"]);
-    expect(ecartsGlobaux(tous, lignes).map((e) => e.message)).to.deep.equal(["2 panneau(x) dans les PDF, 3 dans Gamesys."]);
+    const principal = () =>
+      apparierPanneaux(pages("169922 CARREAUX", [1190, 2100]), lignes, "169922 CARREAUX MAT");
+
+    it("la page couvre les deux lignes : un panneau par ligne, chacun avec son nom", () => {
+      const ajout = complementPdf(
+        pages("169922 LM LONGUEAU CAPPUCCINO 90x210+BLANC MAT_2ex", [900, 2100]),
+        lignesRestantes(principal().panneaux, lignes),
+        "169922 LM LONGUEAU CAPPUCCINO 90x210+BLANC MAT_2ex",
+      );
+      const tous = numeroterPanneaux([...principal().panneaux, ...ajout]);
+      expect(tous.map((p) => [p.ligneId, p.page, p.ex, p.largeur])).to.deep.equal([
+        ["/01", 0, 1, 1190],
+        ["/02", 0, 1, 900],
+        ["/00", 0, 1, 900],
+      ]);
+      expect(tous.map((p) => p.ecarts)).to.deep.equal([[], [], []]);
+      expect(lignesRestantes(tous, lignes)).to.deep.equal([]);
+      expect(ecartsGlobaux(tous, lignes)).to.deep.equal([]);
+      expect(new Set(tous.map((p) => p.nom)).size).to.equal(3);
+    });
+
+    it("sans « Nex » dans le nom, la seconde ligne reste signalée", () => {
+      const ajout = complementPdf(
+        pages("169922 CAPPU", [900, 2100]),
+        lignesRestantes(principal().panneaux, lignes),
+        "169922 CAPPUCCINO 90x210+BLANC MAT",
+      );
+      const tous = [...principal().panneaux, ...ajout];
+      expect(tous.map((p) => p.ligneId)).to.deep.equal(["/01", "/02"]);
+      expect(ecartsGlobaux(tous, lignes).map((e) => e.message)).to.deep.equal([
+        "2 panneau(x) dans les PDF, 3 dans Gamesys.",
+      ]);
+    });
+  });
+
+  it("une page « _2ex » ne couvre pas une 3e ligne, ni une ligne d'une autre cote", () => {
+    const lignes = [
+      ligne("/00", "X 90 x 210"),
+      ligne("/01", "X 90 x 210"),
+      ligne("/02", "X 90 x 210"),
+      ligne("/03", "X 80 x 210"),
+    ];
+    const { panneaux, ecarts } = apparierPanneaux(pages("169000 LM X MAT_2ex", [900, 2100]), lignes, "169000 LM X MAT_2ex");
+    expect(panneaux.map((p) => p.ligneId)).to.deep.equal(["/00", "/01"]);
+    expect(panneaux.map((p) => p.nom)).to.deep.equal(["169000-1 LM X MAT_2ex-1", "169000-2 LM X MAT_2ex-1"]);
+    expect(ecarts.map((e) => e.type)).to.deep.equal(["nombre"]);
+  });
+
+  it("une ligne en 2 ex sur un PDF « _2ex » d'une page garde un seul panneau en 2 ex", () => {
+    const { panneaux, ecarts } = apparierPanneaux(
+      pages("169000 LM X MAT_2ex", [900, 2100]),
+      [ligne("/00", "X 90 x 210", undefined, { ex: 2 })],
+      "169000 LM X MAT_2ex",
+    );
+    expect(panneaux.map((p) => [p.ligneId, p.ex])).to.deep.equal([["/00", 2]]);
+    expect(ecarts).to.deep.equal([]);
   });
 
   it("signale deux plaques au même QR entre deux PDF", () => {
