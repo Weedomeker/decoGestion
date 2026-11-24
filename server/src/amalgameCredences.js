@@ -1,8 +1,9 @@
-const { PDFDocument, degrees, StandardFonts, rgb } = require("pdf-lib");
+const { PDFDocument, degrees, StandardFonts } = require("pdf-lib");
 const fs = require("fs");
 const { cmToPoints } = require("./convertUnits");
 const logger = require("./logger/logger");
 const { repairPageContentStreams } = require("./utils/repairPdfContent");
+const { dessinerBandes, NOIR } = require("./utils/bandesEncrage");
 
 // --- Placement des panneaux ---
 function placeOne(plateW, plateH, w, h) {
@@ -37,7 +38,7 @@ function placePanels({ plateW, plateH, sizes, spacing }) {
 
 // --- Fonction principale ---
 
-async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = true) {
+async function modifyPdf({ visuals, plaque, spacing = null, bandes = false }, writePath, reg = true) {
   try {
     const pdfDoc = await PDFDocument.create();
     const [plaqueWcm, plaqueHcm] = plaque.split("x").map(Number);
@@ -135,7 +136,7 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
       y: xPosition + cmToPoints(4),
       size: textSize,
       font: helveticaFont,
-      color: rgb(0, 0, 0),
+      color: NOIR,
       rotate: degrees(90),
     });
     // Récupère tous les Y minimaux et maximaux dans un seul tableau
@@ -156,7 +157,7 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
           x: xReg, // haut - bas
           y: yReg, // gauche - droite
           size: cmToPoints(sizeReg / 2), // Conversion de cm à points pour la taille du cercle
-          color: rgb(0, 0, 0),
+          color: NOIR,
         });
       };
       // Calcul de la position des repères en points (en utilisant cmToPoints)
@@ -174,6 +175,18 @@ async function modifyPdf({ visuals, plaque, spacing = null }, writePath, reg = t
 
       drawRegmarks(globalMinX, globalMaxY + regPosition); // 4
       drawRegmarks(globalMaxX, globalMaxY + regPosition); // 5
+    }
+
+    if (bandes) {
+      const ignores = dessinerBandes(page, {
+        plaque: { x0: 0, y0: 0, x1: plateW, y1: plateH },
+        panneau: { x0: globalMinX, y0: globalMinY, x1: globalMaxX, y1: globalMaxY },
+        reperes: {
+          haut: [globalMinX, globalMaxX],
+          bas: [globalMinX, globalMinX + cmToPoints(10), globalMaxX],
+        },
+      });
+      if (ignores.length) logger.warn(`Bandes d'encrage : pas la place (${ignores.join(", ")}) · ${textFichiers}`);
     }
 
     // Plaque présentée en paysage au RIP comme les visuels standards (app.js) : sans /Rotate elle

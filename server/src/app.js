@@ -1,13 +1,14 @@
-const { degrees, PDFDocument, rgb, StandardFonts } = require("pdf-lib");
+const { degrees, PDFDocument, StandardFonts } = require("pdf-lib");
 require("dotenv").config();
 const fs = require("fs");
 const { cmToPoints } = require("./convertUnits");
 const logger = require("./logger/logger");
 const { repairPageContentStreams } = require("./utils/repairPdfContent");
+const { dessinerBandes, NOIR } = require("./utils/bandesEncrage");
 
 // Les erreurs remontent à l'appelant (processJob) : avalées ici, elles ne laissaient qu'un
 // « PDF de sortie manquant » sans la cause réelle.
-async function modifyPdf(filePath, writePath, fileName, formatTauro, reg) {
+async function modifyPdf(filePath, writePath, fileName, formatTauro, reg, bandes = false) {
   const readPdf = await fs.promises.readFile(filePath);
   const pdfDoc = await PDFDocument.load(readPdf);
   const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -29,10 +30,13 @@ async function modifyPdf(filePath, writePath, fileName, formatTauro, reg) {
   const largeurPlaque = cmToPoints(largeurPlaqueCm);
   const longueurPlaque = cmToPoints(longueurPlaqueCm);
 
-  const xPosition = cmToPoints(0.5);
-  const textSize = 35;
+  // Plus petit et plus loin du visuel avec les bandes : le bas des lettres toucherait la bande.
+  const xPosition = cmToPoints(bandes ? 0.75 : 0.5);
+  const textSize = bandes ? 30 : 35;
   const text = fileName;
   const textWidth = helveticaFont.widthOfTextAtSize(text, textSize);
+
+  const regPosition = cmToPoints(1.3);
 
   // Ajout de repères
   if (reg) {
@@ -41,12 +45,9 @@ async function modifyPdf(filePath, writePath, fileName, formatTauro, reg) {
         x: xReg, // haut - bas
         y: yReg, // gauche - droite
         size: cmToPoints(sizeReg / 2), // Conversion de cm à points pour la taille du cercle
-        color: rgb(0, 0, 0),
+        color: NOIR,
       });
     };
-    // Calcul de la position des repères en points (en utilisant cmToPoints)
-    const regSize = cmToPoints(0.3);
-    const regPosition = regSize + cmToPoints(1);
     // drawRegmarks(-regPosition, height - regPosition);
     // drawRegmarks(-regPosition, height - regPosition - cmToPoints(10));
     // drawRegmarks(-regPosition, regPosition);
@@ -70,9 +71,24 @@ async function modifyPdf(filePath, writePath, fileName, formatTauro, reg) {
     y: height + xPosition,
     size: textSize,
     font: helveticaFont,
-    color: rgb(0, 0, 0),
+    color: NOIR,
     rotate: degrees(0),
   });
+
+  if (bandes) {
+    const dx = (largeurPlaque - width) / 2;
+    const dy = (longueurPlaque - height) / 2;
+    const ignores = dessinerBandes(firstPage, {
+      plaque: { x0: -dx, y0: -dy, x1: width + dx, y1: height + dy },
+      panneau: { x0: 0, y0: 0, x1: width, y1: height },
+      reperes: {
+        haut: [regPosition, width - regPosition - cmToPoints(10), width - regPosition],
+        bas: [regPosition, width - regPosition],
+      },
+      nomHaut: [width / 2 - textWidth / 2, width / 2 + textWidth / 2],
+    });
+    if (ignores.length) logger.warn(`Bandes d'encrage : pas la place (${ignores.join(", ")}) · ${fileName}`);
+  }
 
   firstPage.setRotation(degrees(-90)); // Appliquer une rotation de 90°
   firstPage.setSize(largeurPlaque, longueurPlaque);

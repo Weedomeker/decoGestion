@@ -2,6 +2,10 @@
 
 ## [Non publié] - 2026-11-18
 
+### Impression
+- **bandes d'encrage** : case cochée par défaut, bandes noires et bleu foncé dans la chute des standards et des crédences, pour des repères et un nom nets sur les visuels clairs
+- **repères et nom en noir pur** (100 % N) au lieu du noir RVB
+
 ### Étiquettes
 - **onglet Sticker = éditeur d'étiquette** : aperçu A6 en direct, ajout de textes, champs automatiques (n° et exemplaire, ville, décor, référence, format, orientation…), pictos (flèches, attention, fragile, ne pas gerber, craint l'humidité…), logos et images importées (PNG/JPG), miniature, cadres et bandes ; déplacement et redimensionnement à la souris, annuler / rétablir
 - **modèles nommés** : nouvelle étiquette vierge ou copie du modèle de l'enseigne, enregistrer, enregistrer sous, supprimer ; un modèle par défaut par enseigne, utilisé aussi par les étiquettes des jobs

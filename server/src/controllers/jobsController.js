@@ -237,6 +237,7 @@ async function addJob(req, res) {
     ex: req.body.ex !== null ? req.body.ex : "",
     perte: req.body.perte,
     regmarks: req.body.regmarks,
+    bandes: req.body.bandes !== false,
     cut: req.body.cut,
     teinteMasse: req.body.teinteMasse,
     stock: req.body.stock,
@@ -608,6 +609,7 @@ async function addJob(req, res) {
       smVernis: smPanneau?.vernis || undefined,
     },
   );
+  newJob.bandes = data.bandes;
   if (complementStock) newJob.complementStock = true;
   if (panneauxDuplique) newJob.panneaux = panneauxDuplique;
 
@@ -776,11 +778,11 @@ async function processJob(job, req) {
         if (job.visuPath2) {
           visuals.push({ file: job.visuPath2, name: fileName2 });
         }
-        await amalgameCredences({ visuals, plaque: job.format_Plaque }, stagedPdfPath);
+        await amalgameCredences({ visuals, plaque: job.format_Plaque, bandes: !!job.bandes }, stagedPdfPath);
         const endPdf = performance.now();
         pdfTime = endPdf - startPdf;
       } else {
-        await modifyPdf(job.visuPath, stagingDir, fileName, job.format_Plaque, job.reg);
+        await modifyPdf(job.visuPath, stagingDir, fileName, job.format_Plaque, job.reg, !!job.bandes);
         const endPdf = performance.now();
         pdfTime = endPdf - startPdf;
       }

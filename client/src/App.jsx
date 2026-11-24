@@ -57,6 +57,7 @@ function App() {
   const [checkGenerate, setCheckGenerate] = useState({
     cut: false,
     reg: true,
+    bandes: true,
     teinteMasse: false,
   });
   const [checkFolder, setCheckFolder] = useState("LM");
@@ -673,6 +674,7 @@ function App() {
             ex: job.ex || 1,
             perte: 0,
             regmarks: checkGenerate.reg,
+            bandes: checkGenerate.bandes,
             cut: checkGenerate.cut,
             teinteMasse: job.teinteMasse ?? false,
             surMesure: job.surMesure ?? false,
@@ -809,6 +811,7 @@ function App() {
       ex: ex,
       perte: perte,
       regmarks: checkGenerate.reg,
+      bandes: checkGenerate.bandes,
       cut: checkGenerate.cut,
       teinteMasse: checkGenerate.teinteMasse,
       surMesure: false,
@@ -901,6 +904,7 @@ function App() {
     setCheckGenerate({
       cut: false,
       reg: true,
+      bandes: true,
       teinteMasse: false,
     });
     setSelectedJobIds(new Set());
@@ -2249,6 +2253,14 @@ function App() {
                     setCheckGenerate({ ...checkGenerate, reg: data.checked });
                   }}
                 />
+                <Checkbox
+                  name="Bandes d'encrage"
+                  label="Bandes d'encrage"
+                  checked={checkGenerate.bandes}
+                  onChange={(e, data) => {
+                    setCheckGenerate({ ...checkGenerate, bandes: data.checked });
+                  }}
+                />
                 {checkFolder === "LM" && (
                   <Checkbox
                     className="decoupe"
@@ -2256,7 +2268,7 @@ function App() {
                     label="Générer découpe"
                     checked={checkGenerate.cut}
                     onChange={(e, data) => {
-                      setCheckGenerate({ cut: data.checked, reg: data.checked });
+                      setCheckGenerate({ cut: data.checked, reg: data.checked, bandes: checkGenerate.bandes });
                     }}
                   />
                 )}
