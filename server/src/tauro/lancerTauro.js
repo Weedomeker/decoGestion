@@ -64,7 +64,7 @@ function resumeSessions(plan) {
 }
 
 async function lancerTauro(req, res, deps) {
-  const { state, queueControl, calculerPlan, logger, broadcastWS } = deps;
+  const { state, queueControl, calculerPlan, logger, broadcastWS, progression } = deps;
   const tauro = req.body.tauro || {};
 
   const invalide = validerOptionsTauro(tauro);
@@ -74,6 +74,10 @@ async function lancerTauro(req, res, deps) {
   if (!queueControl.reserver({ tauro: true })) {
     return res.status(409).json({ error: "Un traitement est déjà en cours" });
   }
+
+  // Faux tant que rien n'est lancé : un refus ne touche pas à la progression du lancement précédent.
+  let lance = false;
+  let erreur;
 
   try {
     const jobs = queueControl.selectJobs(state.jobs.jobs, req.body.ids);
@@ -114,6 +118,8 @@ async function lancerTauro(req, res, deps) {
 
     state.jobs.completed = [];
     const startTime = performance.now();
+    lance = true;
+    progression.demarrer(aLancer, { concurrence: deps.getConcurrency, ordreFige: true });
     broadcastWS({ type: "start", startTime });
 
     const { failed, cancelled } = await queueControl.enqueueRun(
@@ -136,19 +142,24 @@ async function lancerTauro(req, res, deps) {
       (job) => !state.jobs.completed.some((completedJob) => completedJob._id === job._id),
     );
 
-    broadcastWS({ type: "end", endTime: performance.now() });
-
+    progression.etiquettes();
     try {
       await deps.generateStickersForJobs(trierPourEtiquettes(state.jobs.completed, aLancer));
     } catch (error) {
       logger.error("Génération des étiquettes échouée :", error);
+      progression.avertir("Étiquettes non générées");
     }
+
+    progression.finir();
+    broadcastWS({ type: "end", endTime: performance.now() });
 
     return res.status(200).json({ message: "Jobs completed successfully" });
   } catch (error) {
     logger.error("Lancement Tauro échoué :", error);
+    erreur = error.message;
     return res.status(500).json({ error: "Internal server error" });
   } finally {
+    if (lance) progression.finir({ erreur });
     queueControl.liberer();
   }
 }

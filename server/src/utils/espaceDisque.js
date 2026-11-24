@@ -89,4 +89,4 @@ function basculerSortieSecours(jobs, secours) {
   return dossierTemporaire;
 }
 
-module.exports = { controlerEspaceDisque, basculerSortieSecours, taillesPdf, besoinsParDossier, refusEspaceDisque, disqueDe };
+module.exports = { controlerEspaceDisque, basculerSortieSecours, tailleFichier, taillesPdf, besoinsParDossier, refusEspaceDisque, disqueDe };

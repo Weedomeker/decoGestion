@@ -15,6 +15,13 @@ const fakeQueue = {
 // Diffusions WebSocket observées (ordre des messages `queue`).
 const broadcastWS = sinon.spy();
 
+const progression = {
+  annule: sinon.spy(),
+  solder: sinon.spy(),
+  echec: sinon.spy(),
+  lire: () => ({ phase: "fini" }),
+};
+
 function loadQueueControl() {
   const originalLoad = Module._load;
   Module._load = function (request, ...args) {
@@ -22,6 +29,7 @@ function loadQueueControl() {
       return { decoQueue: fakeQueue, queueEvents: {}, getConcurrency: () => 3 };
     }
     if (request === "./websocketService") return { broadcastWS };
+    if (request === "./progressionService") return progression;
     return originalLoad.call(this, request, ...args);
   };
   const modulePath = require.resolve("../../server/src/services/queueControlService");
@@ -116,6 +124,32 @@ describe("queueControlService", () => {
 
       bullJobs.forEach((bj) => bj.settle.resolve());
       await runPromise;
+    });
+
+    it("progression : job réussi soldé, job rejeté en échec avec sa cause", async () => {
+      progression.solder.resetHistory();
+      progression.echec.resetHistory();
+      const { bullJobs, runPromise } = await startRun(queueControl, [{ _id: 10 }, { _id: 20 }]);
+      bullJobs[0].settle.resolve();
+      bullJobs[1].settle.reject(new Error("PDF illisible"));
+      await runPromise;
+      sinon.assert.calledOnceWithExactly(progression.solder, 10);
+      sinon.assert.calledOnceWithExactly(progression.echec, 20, "PDF illisible");
+    });
+
+    it("progression : un job retiré de la queue est annulé, pas soldé", async () => {
+      progression.solder.resetHistory();
+      progression.annule.resetHistory();
+      const { bullJobs, runPromise } = await startRun(queueControl, [{ _id: 10 }, { _id: 20 }], ["active"]);
+      await queueControl.cancelPending();
+      bullJobs[0].settle.resolve();
+      await runPromise;
+      sinon.assert.calledOnceWithExactly(progression.annule, 20);
+      sinon.assert.calledOnceWithExactly(progression.solder, 10);
+    });
+
+    it("l'état de la file porte la progression (rechargement de page)", async () => {
+      expect((await queueControl.getStatus()).progression).to.deep.equal({ phase: "fini" });
     });
 
     it("attend tous les jobs même si l'un échoue, et refuse un second run simultané", async () => {

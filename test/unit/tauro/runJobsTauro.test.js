@@ -76,6 +76,12 @@ describe("run_jobs en mode Tauro (lancerTauro)", () => {
       getConcurrency: () => 2,
       generateStickersForJobs: sinon.stub().resolves(),
       broadcastWS: sinon.stub(),
+      progression: {
+        demarrer: sinon.stub(),
+        etiquettes: sinon.stub(),
+        avertir: sinon.stub(),
+        finir: sinon.stub(),
+      },
       logger: { info: sinon.stub(), warn: sinon.stub(), error: sinon.stub() },
       tmpdir: () => "/tmp",
     };
@@ -152,6 +158,44 @@ describe("run_jobs en mode Tauro (lancerTauro)", () => {
     assert.equal(state.jobs.jobs[0]._id, 1);
     assert.equal(state.jobs.jobs[0].nomTauro, undefined);
     assert.equal(state.jobs.jobs[0], jobs[0], "l'objet d'origine, jamais la copie du plan");
+  });
+
+  it("progression : démarre sur les jobs du plan, et « end » ne part qu'après les étiquettes", async () => {
+    await lancerTauro(req(), fauxRes(), deps);
+    const { progression, broadcastWS } = deps;
+    assert.deepEqual(
+      progression.demarrer.firstCall.args[0].map((j) => j._id),
+      [1, 2],
+    );
+    assert.equal(progression.demarrer.firstCall.args[1].concurrence(), 2);
+    const fin = broadcastWS.getCalls().find((c) => c.args[0].type === "end");
+    assert.ok(progression.etiquettes.calledBefore(deps.generateStickersForJobs));
+    assert.ok(fin.calledAfter(deps.generateStickersForJobs.firstCall));
+    assert.ok(progression.finir.calledAfter(deps.generateStickersForJobs));
+    assert.ok(deps.queueControl.liberer.calledAfter(progression.finir));
+  });
+
+  it("progression : étiquettes en échec = avertissement, le lancement se termine", async () => {
+    deps.generateStickersForJobs.rejects(new Error("modèle illisible"));
+    const res = fauxRes();
+    await lancerTauro(req(), res, deps);
+    assert.equal(res.statut, 200);
+    sinon.assert.calledOnceWithExactly(deps.progression.avertir, "Étiquettes non générées");
+    sinon.assert.called(deps.progression.finir);
+  });
+
+  it("progression : une erreur du lancement la termine avec sa cause", async () => {
+    deps.queueControl.enqueueRun = sinon.stub().rejects(new Error("Redis injoignable"));
+    const res = fauxRes();
+    await lancerTauro(req(), res, deps);
+    assert.equal(res.statut, 500);
+    sinon.assert.calledOnceWithExactly(deps.progression.finir, { erreur: "Redis injoignable" });
+  });
+
+  it("progression : un refus avant lancement ne touche pas à celle du lancement précédent", async () => {
+    await lancerTauro(req({ empreinte: "autre" }), fauxRes(), deps);
+    sinon.assert.notCalled(deps.progression.demarrer);
+    sinon.assert.notCalled(deps.progression.finir);
   });
 
   it("étiquettes générées dans l'ordre Tauro", async () => {

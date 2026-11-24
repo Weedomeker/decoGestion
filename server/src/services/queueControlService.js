@@ -1,6 +1,7 @@
 const logger = require("../logger/logger");
 const { decoQueue, queueEvents, getConcurrency } = require("./queueService");
 const { broadcastWS } = require("./websocketService");
+const progression = require("./progressionService");
 
 const WAIT_TIMEOUT_MS = 7200000;
 // États BullMQ d'un job pas encore démarré : annulable. `delayed` couvre le backoff entre deux tentatives.
@@ -75,7 +76,13 @@ async function getStatus() {
   } catch (error) {
     logger.warn(`Lecture des compteurs BullMQ impossible : ${error.message}`);
   }
-  return { running: run.running, paused: run.paused, concurrency: getConcurrency(), counts };
+  return {
+    running: run.running,
+    paused: run.paused,
+    concurrency: getConcurrency(),
+    counts,
+    progression: progression.lire(),
+  };
 }
 
 function broadcastQueueStatus() {
@@ -119,10 +126,21 @@ async function enqueueRun(jobsToRun, extraData = {}, { dejaReserve = false } = {
     broadcastQueueStatus();
 
     const results = await Promise.allSettled(
-      bullJobs.map((bullJob) => {
+      bullJobs.map((bullJob, index) => {
+        const id = jobsToRun[index]._id;
         // waitUntilFinished n'est jamais résolu pour un job retiré de la queue : l'annulation le débloque.
         const cancelled = new Promise((resolve) => run.cancelWaiters.set(bullJob.id, () => resolve("cancelled")));
-        return Promise.race([bullJob.waitUntilFinished(queueEvents, WAIT_TIMEOUT_MS), cancelled]);
+        return Promise.race([bullJob.waitUntilFinished(queueEvents, WAIT_TIMEOUT_MS), cancelled]).then(
+          (resultat) => {
+            if (resultat === "cancelled") progression.annule(id);
+            else progression.solder(id);
+            return resultat;
+          },
+          (error) => {
+            progression.echec(id, error?.message);
+            throw error;
+          },
+        );
       }),
     );
 

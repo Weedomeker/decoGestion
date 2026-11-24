@@ -29,6 +29,7 @@ const { creerArretPropre } = require("./src/services/arretPropre");
 const { retirerJobsOrphelins } = require("./src/services/jobsOrphelins");
 const { processJob } = require("./src/controllers/jobsController");
 const { syncPausedState } = require("./src/services/queueControlService");
+const progression = require("./src/services/progressionService");
 
 const PORT = process.env.PORT || 8000;
 
@@ -156,7 +157,13 @@ retirerJobsOrphelins(decoQueue, logger)
     initWorker(async (bullJob) => {
       const { job, sortFolder, ip } = bullJob.data;
       const fakeReq = { body: { sortFolder }, ip };
-      await processJob(job, fakeReq);
+      progression.debut(job._id);
+      try {
+        await processJob(job, fakeReq);
+      } catch (error) {
+        progression.tentativeEchouee(job._id, error.message);
+        throw error;
+      }
     }, { concurrency: getConfig()?.jobsConcurrency });
   });
 

@@ -43,6 +43,7 @@ const { extractRefFromFilename, validateRefFormat, REF_FORMAT_HINT } = require("
 const { setConcurrency, getConcurrency } = require("../services/queueService");
 const { controlerEspaceDisque, basculerSortieSecours } = require("../utils/espaceDisque");
 const queueControl = require("../services/queueControlService");
+const progression = require("../services/progressionService");
 const { saveJobsConcurrency, getConfig } = require("../services/configService");
 const { composeJpgPage } = require("../composeJpgPage");
 const { imposerPanneau } = require("../surMesure/impositionPool");
@@ -112,7 +113,10 @@ function findFirstRef(models, ref) {
 }
 
 function getJobs(req, res) {
-  res.json({ ...state.jobs, repriseArret: state.repriseArret });
+  // Pendant un traitement, la file garde les jobs déjà faits jusqu'à la fin : ils ne sont plus « en attente ».
+  const traites = new Set(state.jobs.completed.map((job) => String(job._id)));
+  const jobs = state.jobs.jobs.filter((job) => !traites.has(String(job._id)));
+  res.json({ ...state.jobs, jobs, repriseArret: state.repriseArret });
 }
 
 // « Vu » sur l'avertissement d'arrêt pendant un traitement : retiré pour tous les postes.
@@ -667,6 +671,9 @@ async function addJob(req, res) {
   });
 }
 
+// Chemin du JPG tel que le client le lit (public/PRINTSA#…/x.jpg).
+const cheminPublic = (chemin) => chemin.split("/").slice(2).join("/");
+
 async function processJob(job, req) {
   const regexCredences = /^\d{3}x\d{2}$/i;
   const isCredences = regexCredences.test(job.format_visu);
@@ -702,11 +709,13 @@ async function processJob(job, req) {
     if (!fs.existsSync(path.resolve(job.visuPath))) {
       log.error(`Annulé : visuel introuvable sur le disque (${job.visuPath})`);
       broadcastWS({ type: "jobError", job, reason: "Visuel introuvable sur le disque" });
+      progression.echec(job._id, "Visuel introuvable sur le disque");
       return;
     }
     if (String(job.ref) !== String(job.refDbData.ref)) {
       log.error(`Annulé : incohérence de référence (job ${job.ref} ≠ attendue ${job.refDbData.ref})`);
       broadcastWS({ type: "jobError", job, reason: "Incohérence de référence" });
+      progression.echec(job._id, "Incohérence de référence");
       return;
     }
   }
@@ -730,6 +739,7 @@ async function processJob(job, req) {
     }
   } catch (err) {
     log.error("Création des dossiers de sortie impossible :", err);
+    progression.echec(job._id, `Création des dossiers de sortie impossible : ${err.message}`);
     return;
   }
 
@@ -755,6 +765,7 @@ async function processJob(job, req) {
     let zoneSurMesure = null;
 
     try {
+      progression.etape(job._id, "pdf");
       stagingDir = await createStagingDir(job.dossierTemporaire);
       stagedPdfPath = path.join(stagingDir, pdfBaseName);
       const startPdf = performance.now();
@@ -815,6 +826,8 @@ async function processJob(job, req) {
     jpgLivre = isCredences && job.visuPath2 ? `${dossierJour}/${path.basename(outJpgPath)}` : outJpgPath;
     const titreJpg = prefixe ? path.basename(outJpgPath, ".jpg").slice(prefixe.length) : undefined;
 
+    // Après un échec, l'étape en cause reste celle affichée.
+    if (!deliverableError) progression.etape(job._id, "jpg");
     const jpgDejaPresent = fs.existsSync(outJpgPath) && fs.statSync(outJpgPath).size > 0;
 
     if (jpgDejaPresent) {
@@ -863,6 +876,7 @@ async function processJob(job, req) {
         deliverableError = deliverableError || "JPG de sortie manquant ou vide";
       } else {
         log.info(`JPG OK (${formatSize(fs.statSync(outJpgPath).size)})`);
+        progression.jpg(job._id, cheminPublic(jpgLivre));
       }
     } catch (err) {
       log.error("Vérification du JPG impossible :", err);
@@ -880,6 +894,7 @@ async function processJob(job, req) {
       }
     }
 
+    if (!deliverableError) progression.etape(job._id, "depot");
     // Le .cut part avant le PDF : le RIP consomme le PDF à l'arrivée, la table doit déjà avoir sa découpe.
     if (!deliverableError && cutSurMesure) {
       try {
@@ -911,8 +926,10 @@ async function processJob(job, req) {
     }
   } else {
     try {
+      progression.etape(job._id, "jpg");
       await generateImages(job, state.paths.previewDeco, `${jpgName}.jpg`, isStock);
       await applyJpgPage(`${jpgName}.jpg`, job.cmd, prefixe ? fileName : undefined);
+      progression.jpg(job._id, cheminPublic(jpgLivre));
     } catch (error) {
       log.error("Génération de l'image échouée :", error);
       deliverableError = deliverableError || `Échec de génération de l'image : ${error.message || error}`;
@@ -1095,6 +1112,7 @@ async function processJob(job, req) {
     throw new Error(`Job ${job.cmd} : ${deliverableError}`);
   }
 
+  progression.etape(job._id, "base");
   try {
     const totalTime = parseFloat((((jpgTime ?? 0) + (pdfTime ?? 0)) / 1000).toFixed(2)) || 0;
     // Calculé avant le 1er saveDeco pour savoir si un 2e panneau (crédence amalgamée) va être
@@ -1197,6 +1215,7 @@ async function processJob(job, req) {
   }
 
   log.info(`Terminé en ${formatDureeMs(performance.now() - startJob)}`);
+  progression.fait(job._id);
   // Un job relancé par BullMQ (stalled/retry) ne doit pas être compté deux fois : generateStickers
   // cumule les `ex` par cmd, un doublon transformait 1/2 en 1/4.
   if (state.jobs.completed.some((completedJob) => completedJob._id === job._id)) {
@@ -1204,7 +1223,7 @@ async function processJob(job, req) {
     return;
   }
   // Même forme que createJob (public/PRINTSA#…/x.jpg) : le JPG préfixé reste affichable.
-  if (prefixe) job.jpgName = jpgLivre.split("/").slice(2).join("/");
+  if (prefixe) job.jpgName = cheminPublic(jpgLivre);
   state.jobs.completed.push(job);
   broadcastCompletedJob(job);
 }
@@ -1228,6 +1247,7 @@ async function runJobs(req, res) {
       getConcurrency,
       generateStickersForJobs,
       broadcastWS,
+      progression,
       logger,
       tmpdir: os.tmpdir,
     });
@@ -1237,6 +1257,10 @@ async function runJobs(req, res) {
   if (!queueControl.reserver()) {
     return res.status(409).json({ error: "Un traitement est déjà en cours" });
   }
+
+  // Faux tant que rien n'est lancé : un refus ne touche pas à la progression du lancement précédent.
+  let lance = false;
+  let erreur;
 
   try {
     // `ids` optionnel : ne traiter qu'une sélection (dans l'ordre de la liste) ; absent = toute la file.
@@ -1259,6 +1283,8 @@ async function runJobs(req, res) {
 
     state.jobs.completed = [];
     const startTime = performance.now();
+    lance = true;
+    progression.demarrer(jobsToRun, { concurrence: getConcurrency });
     broadcastWS({ type: "start", startTime });
 
     const { failed, cancelled } = await queueControl.enqueueRun(
@@ -1279,20 +1305,24 @@ async function runJobs(req, res) {
       (job) => !state.jobs.completed.some((completedJob) => completedJob._id === job._id),
     );
 
-    const endTime = performance.now();
-    broadcastWS({ type: "end", endTime });
-
+    progression.etiquettes();
     try {
       await generateStickersForJobs(trierPourEtiquettes(state.jobs.completed, jobsToRun));
     } catch (error) {
       logger.error("Génération des étiquettes échouée :", error);
+      progression.avertir("Étiquettes non générées");
     }
+
+    progression.finir();
+    broadcastWS({ type: "end", endTime: performance.now() });
 
     res.status(200).json({ message: "Jobs completed successfully" });
   } catch (error) {
     logger.error("Traitement des jobs échoué :", error);
+    erreur = error.message;
     res.status(500).json({ error: "Internal server error" });
   } finally {
+    if (lance) progression.finir({ erreur });
     queueControl.liberer();
   }
 }
@@ -1398,19 +1428,24 @@ function deleteCompletedJobs(req, res) {
 }
 
 async function generateStickersOnly(req, res) {
-  if (queueControl.isRunning()) {
+  // Verrou pris avant tout await : un lancement pendant les étiquettes est refusé.
+  if (!queueControl.reserver()) {
     return res.status(409).json({ error: "Un traitement est déjà en cours" });
   }
+  let lance = false;
+  let erreur;
 
   try {
-    state.jobs.completed = [];
-    const jobsToRun = queueControl.selectJobs(state.jobs.jobs, req.body?.ids);
-
     if (!state.paths.sessionPRINTSA) {
       return res.status(400).json({ error: "sessionPRINTSA est manquant" });
     }
 
+    state.jobs.completed = [];
+    const jobsToRun = queueControl.selectJobs(state.jobs.jobs, req.body?.ids);
+
     const startTime = performance.now();
+    lance = true;
+    progression.demarrer(jobsToRun, { concurrence: getConcurrency, etiquettesSeules: true });
     broadcastWS({ type: "start", startTime });
 
     await generateStickersForJobs(jobsToRun);
@@ -1420,13 +1455,17 @@ async function generateStickersOnly(req, res) {
 
     state.jobs.jobs = state.jobs.jobs.filter((job) => !jobsToRun.some((j) => j._id === job._id));
 
-    const endTime = performance.now();
-    broadcastWS({ type: "end", endTime });
+    progression.finir();
+    broadcastWS({ type: "end", endTime: performance.now() });
 
     res.status(200).json({ message: "Étiquettes générées avec succès !" });
   } catch (error) {
     logger.error("Génération des étiquettes échouée :", error);
+    erreur = "Étiquettes non générées";
     res.status(500).json({ error: "Erreur lors de la génération des étiquettes" });
+  } finally {
+    if (lance) progression.finir({ erreur });
+    queueControl.liberer();
   }
 }
 

@@ -1,5 +1,5 @@
 import PropTypes from "prop-types";
-import { memo, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -21,8 +21,6 @@ import {
   Checkbox,
   Confirm,
   Icon,
-  Label,
-  Progress,
   Table,
   TableBody,
   TableCell,
@@ -34,9 +32,9 @@ import {
 import Dropdown from "./AutoDropdown";
 import ApercuSessionTauro from "./ApercuSessionTauro";
 import AlerteRepriseArret from "./AlerteRepriseArret";
+import BarreProgression, { EtapeLigne, IconeLigne } from "./BarreProgression";
 import "../css/JobsList.css";
 import { API_BASE, WS_BASE } from "../utils/api";
-import { formatDureeMs } from "../utils/duree";
 
 const CONCURRENCY_OPTIONS = Array.from({ length: 8 }, (_, i) => ({
   key: i + 1,
@@ -57,6 +55,28 @@ function dateFile(valeur) {
   const jour = date.toLocaleDateString("fr-FR", { ...fuseauParis, day: "2-digit", month: "2-digit" });
   const aujourdhui = new Date().toLocaleDateString("fr-FR", { ...fuseauParis, day: "2-digit", month: "2-digit" });
   return jour === aujourdhui ? heure : `${jour} ${heure}`;
+}
+
+// Nom du visuel tel qu'affiché dans la File : sans format, référence ni vernis selon l'enseigne.
+function nomVisuel(visuel, client) {
+  let visuelName = visuel?.split("/")?.pop() ?? "";
+  const regexFormat = visuelName.match(/\d{3}x\d{2,}/i);
+  const regexRef = visuelName.match(/\d{8,}/);
+  const cleanVisuelNameCasto = ["cred", "cm", regexFormat?.[0], regexRef?.[0], ".pdf", "mat", "brillant"].filter(
+    Boolean,
+  );
+  if (client === "CASTO") {
+    cleanVisuelNameCasto.map((el) => (visuelName = visuelName.toLowerCase().replace(el, "")));
+  }
+  if (client === "BRICO") {
+    const regex = /^[A-Z]+-\d+$/;
+    visuelName = visuelName.match(regex)?.[0] ?? visuelName;
+    visuelName = visuelName.replace("BRILLANT", "").replace("MAT", "");
+  }
+  if (regexFormat && regexFormat[0]) {
+    return visuelName.split(regexFormat[0])[0].toUpperCase();
+  }
+  return visuelName.toUpperCase();
 }
 
 function lireOngletFile() {
@@ -98,10 +118,10 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
   const [data, setData] = useState([]);
   const [isLoading, setLoading] = useState(true);
   const [refreshFlag, setRefreshFlag] = useState(0);
-  const [startTime, setStartTime] = useState(null);
-  const [endTime, setEndTime] = useState(null);
   const [onLoading, setOnLoading] = useState(false);
-  const [progress, setProgress] = useState(0);
+  // { etat, recuA } : dernier message `progression` du serveur et heure (poste) de sa réception.
+  const [progression, setProgression] = useState({ etat: undefined, recuA: 0 });
+  const [statusFlag, setStatusFlag] = useState(0);
   const [stickersOnly, setStickersOnly] = useState(false);
   // const [stickersData, setStickersData] = useState(true);
   // const [paperSticker, setPaperSticker] = useState('A4');
@@ -119,14 +139,14 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
   // Nombre de traités déjà vus : null tant que les données ne sont pas chargées.
   const [vusTraites, setVusTraites] = useState(null);
 
-  const choisirOnglet = (onglet) => {
+  const choisirOnglet = useCallback((onglet) => {
     setOngletFile(onglet);
     try {
       localStorage.setItem(CLE_ONGLET_FILE, onglet);
     } catch {
       // stockage indisponible : l'onglet n'est simplement pas mémorisé
     }
-  };
+  }, []);
 
   // Signal sur l'onglet File : l'opérateur peut être sur un autre onglet au redémarrage.
   useEffect(() => {
@@ -140,10 +160,6 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
 
   useEffect(() => {
     if (data.length > 0) {
-      const totalJobs = data[0].jobs.length + data[0].completed.length;
-      if (totalJobs > 0) {
-        setProgress((data[0].completed.length / totalJobs) * 100);
-      }
       onPendingCountChange?.(data[0].jobs.length);
 
       // La sélection ne garde que les jobs encore présents dans la file.
@@ -169,8 +185,13 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
       }
 
       if (message.type === "start") {
-        setStartTime(message.startTime);
         setOnLoading(true);
+        // Le serveur vient de vider les traités du lancement précédent.
+        setRefreshFlag((prev) => prev + 1);
+      }
+
+      if (message.type === "progression") {
+        setProgression({ etat: message.progression, recuA: Date.now() });
       }
 
       if (message.type === "queue") {
@@ -186,16 +207,12 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
           const completedJobs = Array.isArray(message.completedJob) ? message.completedJob : [message.completedJob];
           const updatedCompleted = [...prev.completed, ...completedJobs];
           const updatedJobs = prev.jobs.filter((job) => !completedJobs.some((cj) => cj._id === job._id));
-          const total = updatedCompleted.length + updatedJobs.length;
-          setProgress((updatedCompleted.length / total) * 100);
           return [{ jobs: updatedJobs, completed: updatedCompleted }];
         });
       }
 
       if (message.type === "end") {
-        setEndTime(message.endTime);
         setOnLoading(false);
-        setProgress(100);
         // Les jobs annulés ou en échec restent dans la file : resynchronisation.
         setRefreshFlag((prev) => prev + 1);
       }
@@ -208,7 +225,10 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
       ws = new WebSocket(WS_BASE);
       ws.onopen = () => {
         // Reconnexion (serveur redémarré ?) : la file a pu changer, et un avertissement d'arrêt apparaître.
-        if (attempt > 0) setRefreshFlag((prev) => prev + 1);
+        if (attempt > 0) {
+          setRefreshFlag((prev) => prev + 1);
+          setStatusFlag((prev) => prev + 1);
+        }
         attempt = 0;
         setWsConnected(true);
       };
@@ -253,7 +273,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
     dataFetch();
   }, [refreshFlag, refreshToken]);
 
-  // État de la file BullMQ au montage : restaure l'affichage d'un traitement en cours après un rechargement.
+  // État de la file BullMQ au montage et à la reconnexion : restaure l'affichage d'un traitement en cours.
   useEffect(() => {
     const statusFetch = async () => {
       try {
@@ -261,13 +281,14 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const status = await response.json();
         setQueueStatus({ running: status.running, paused: status.paused, concurrency: status.concurrency });
-        if (status.running) setOnLoading(true);
+        setOnLoading(Boolean(status.running));
+        setProgression({ etat: status.progression ?? null, recuA: Date.now() });
       } catch (error) {
         console.error("Error fetching queue status:", error);
       }
     };
     statusFetch();
-  }, []);
+  }, [statusFlag]);
 
   useEffect(() => {
     const dataFetch = async () => {
@@ -389,6 +410,46 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
     );
     if (status) setQueueStatus((prev) => ({ ...prev, paused: status.paused }));
   };
+
+  // Job du dernier lancement, par _id : état et étape affichés sur sa ligne.
+  const suivis = useMemo(
+    () => new Map((progression.etat?.jobs ?? []).map((job) => [job.id, job])),
+    [progression.etat],
+  );
+
+  // Détails affichés dans la fiche d'un segment. Null si le job n'est plus dans la file.
+  const detailsDe = (id) => {
+    const job = [...(data[0]?.completed ?? []), ...pendingJobs].find((j) => j && String(j._id) === id);
+    if (!job) return null;
+    const credence = Boolean(job.format_visu?.match(/\d{3}x\d{2,}/i) && job.visuel2);
+    const court = (format) => format?.split("_").pop();
+    const formats = [court(job.smFormat || job.format_visu), credence ? court(job.format2_visu) : null].filter(Boolean);
+    return {
+      visuels: [nomVisuel(job.visuel, job.client), credence ? nomVisuel(job.visuel2, job.client) : null]
+        .filter(Boolean)
+        .map((nom) => nom.trim()),
+      fichier: (job.jpgName?.split("/").pop() ?? "").replace(/\.jpg$/i, job.teinteMasse || job.useStock ? ".jpg" : ".pdf"),
+      commande: [job.cmd, job.client, job.ville].filter(Boolean).join(" "),
+      format: [...new Set(formats)].join(" + "),
+      plaque: court(job.format_Plaque),
+      vernis: checkVernis(job.visuel ?? "") || job.smVernis || "",
+      ex: job.panneaux || job.ex,
+      jpgName: job.jpgName,
+    };
+  };
+
+  // Clic sur un segment : le bon onglet, puis la ligne du job.
+  const allerAuJob = useCallback(
+    (job) => {
+      choisirOnglet(job.etat === "fait" ? "traites" : "attente");
+      setTimeout(() => {
+        document
+          .querySelector(`.jobs-table tr[data-job-id="${CSS.escape(job.id)}"]`)
+          ?.scrollIntoView({ block: "center", behavior: "smooth" });
+      }, 50);
+    },
+    [choisirOnglet],
+  );
 
   const handleCancelRun = () => queueAction("/queue/cancel", "POST", null, "Erreur annulation");
 
@@ -522,37 +583,29 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
       const title = entry.jpgName?.split("/")?.pop() ?? "";
       const url = `${API_BASE}/public/` + entry.jpgName.replace(/#/i, "%23");
 
-      let visuelName = entry.visuel?.split("/")?.pop() ?? "";
-      const regexFormat = visuelName.match(/\d{3}x\d{2,}/i);
-      const regexRef = visuelName.match(/\d{8,}/);
-      const cleanVisuelNameCasto = ["cred", "cm", regexFormat?.[0], regexRef?.[0], ".pdf", "mat", "brillant"].filter(
-        Boolean,
-      );
-      if (entry.client === "CASTO") {
-        cleanVisuelNameCasto.map((el) => (visuelName = visuelName.toLowerCase().replace(el, "")));
-      }
-      if (entry.client === "BRICO") {
-        const regex = /^[A-Z]+-\d+$/;
-        visuelName = visuelName.match(regex)?.[0] ?? visuelName;
-        visuelName = visuelName.replace("BRILLANT", "").replace("MAT", "");
-      }
-      if (regexFormat && regexFormat[0]) {
-        visuelName = visuelName.split(regexFormat[0])[0].toUpperCase();
-      } else {
-        visuelName = visuelName.toUpperCase();
-      }
+      const visuelName = nomVisuel(entry.visuel, entry.client);
 
       const isFirstRow = idx === 0;
       const jobKey = String(entry.jobId);
+      const suivi = status === "jobs" && isFirstRow ? suivis.get(jobKey) : null;
+      // L'icône ne remplace la poignée que pendant le lancement ; en attente, seulement si l'ordre est figé (Tauro).
+      const iconeSuivi =
+        suivi &&
+        onLoading &&
+        progression.etat.phase !== "fini" &&
+        !progression.etat.etiquettesSeules &&
+        (["cours", "nouvelle", "echec"].includes(suivi.etat) || progression.etat.ordreFige);
 
       return (
         <TableRow
           key={`${i}-${idx}`}
           className={`table-row${isFirstRow ? "" : " job-row-second"}`}
           data-client={entry.client}
+          data-job-id={jobKey}
         >
           <TableCell className="job-control-cell">
-            {status === "jobs" && isFirstRow && (
+            {iconeSuivi && <IconeLigne job={suivi} />}
+            {status === "jobs" && isFirstRow && !iconeSuivi && (
               <span
                 {...handleProps}
                 className="job-drag-handle"
@@ -581,14 +634,17 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
           <TableCell>{entry.ville}</TableCell>
 
           <TableCell>
-            {!stickersOnly && status === "completed" ? (
-              <a href={url} data-lightbox={title} data-title={title}>
-                {visuelName}
-              </a>
-            ) : (
-              visuelName
-            )}
-            {value.teinteMasse && <span className="job-tag job-tag--tm">Teinte masse</span>}
+            <div className="job-visuel">
+              {!stickersOnly && status === "completed" ? (
+                <a href={url} data-lightbox={title} data-title={title}>
+                  {visuelName}
+                </a>
+              ) : (
+                <span>{visuelName}</span>
+              )}
+              {value.teinteMasse && <span className="job-tag job-tag--tm">Teinte masse</span>}
+              <EtapeLigne job={suivi} />
+            </div>
           </TableCell>
 
           <TableCell>{checkVernis(entry.visuel)?.slice(0, 1)?.toUpperCase()}</TableCell>
@@ -628,8 +684,6 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
   };
 
   const ItemsJob = (status) => {
-    const executionTime = startTime && endTime ? endTime - startTime : null;
-
     const source = data?.[0]?.[status];
     const items = Array.isArray(source) ? source.filter(Boolean) : [];
     const allSelected = nbJobs > 0 && nbSelected === nbJobs;
@@ -705,97 +759,47 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
                 <TableHeaderCell colSpan="12" collapsing>
                   <div className="sticky-footer-content">
                     <div className="checkbox-footer">
-                      {!onLoading &&
-                        (stickersOnly ? (
+                      {stickersOnly ? (
+                        <Button
+                          type="button"
+                          positive
+                          size="small"
+                          compact
+                          icon="file text"
+                          content={nbSelected > 0 ? `Stickers de la sélection (${nbSelected})` : "Générer stickers"}
+                          onClick={() => handleGenerateStickers()}
+                          disabled={onLoading}
+                        />
+                      ) : (
+                        <>
                           <Button
                             type="button"
-                            positive
+                            primary
                             size="small"
                             compact
-                            icon="file text"
-                            content={nbSelected > 0 ? `Stickers de la sélection (${nbSelected})` : "Générer stickers"}
-                            onClick={() => handleGenerateStickers()}
-                            disabled={onLoading}
+                            icon="send"
+                            content={nbSelected > 0 ? `Lancer en session (${nbSelected})` : "Lancer en session"}
+                            onClick={() => setApercuTauro({ mode: "session", ids: selectionPayload.ids })}
+                            disabled={onLoading || nbJobs === 0}
                           />
-                        ) : (
-                          <>
-                            <Button
-                              type="button"
-                              primary
-                              size="small"
-                              compact
-                              icon="send"
-                              content={nbSelected > 0 ? `Lancer en session (${nbSelected})` : "Lancer en session"}
-                              onClick={() => setApercuTauro({ mode: "session", ids: selectionPayload.ids })}
-                              disabled={onLoading || nbJobs === 0}
-                            />
-                            <Button
-                              type="button"
-                              size="small"
-                              compact
-                              content={nbSelected > 0 ? `Lancer hors session (${nbSelected})` : "Lancer hors session"}
-                              onClick={() => setApercuTauro({ mode: "hors-session", ids: selectionPayload.ids })}
-                              disabled={onLoading || nbJobs === 0}
-                            />
-                          </>
-                        ))}
-
-                      {!onLoading && (
-                        <Checkbox
-                          label="Générer stickers seulement"
-                          checked={stickersOnly}
-                          toggle
-                          onChange={(e, data) => setStickersOnly(data.checked)}
-                        />
+                          <Button
+                            type="button"
+                            size="small"
+                            compact
+                            content={nbSelected > 0 ? `Lancer hors session (${nbSelected})` : "Lancer hors session"}
+                            onClick={() => setApercuTauro({ mode: "hors-session", ids: selectionPayload.ids })}
+                            disabled={onLoading || nbJobs === 0}
+                          />
+                        </>
                       )}
 
-                      {onLoading && (
-                        <Progress
-                          value={Number.isNaN(progress) ? 0 : Math.round(progress)}
-                          total={100}
-                          color="blue"
-                          size="medium"
-                          progress
-                          indicating
-                        />
-                      )}
-
-                      {(queueStatus.running || queueStatus.paused) && (
-                        <Button
-                          type="button"
-                          size="small"
-                          compact
-                          basic
-                          icon={queueStatus.paused ? "play" : "pause"}
-                          content={queueStatus.paused ? "Reprendre" : "Pause"}
-                          onClick={handlePauseResume}
-                          title={
-                            queueStatus.paused
-                              ? "Reprendre le traitement de la file"
-                              : "Les jobs en cours se terminent, aucun nouveau job ne démarre"
-                          }
-                        />
-                      )}
-
-                      {queueStatus.running && (
-                        <Button
-                          type="button"
-                          size="small"
-                          compact
-                          basic
-                          negative
-                          icon="stop"
-                          content="Annuler"
-                          onClick={() => setConfirmCancelRun(true)}
-                          title="Retirer les jobs non démarrés du traitement"
-                        />
-                      )}
-
-                      {queueStatus.paused && (
-                        <Label size="small" color="orange" basic>
-                          <Icon name="pause" /> En pause
-                        </Label>
-                      )}
+                      <Checkbox
+                        label="Générer stickers seulement"
+                        checked={stickersOnly}
+                        toggle
+                        disabled={onLoading}
+                        onChange={(e, data) => setStickersOnly(data.checked)}
+                      />
                     </div>
 
                     {queueStatus.concurrency !== null && (
@@ -829,15 +833,9 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
                       compact
                       icon="warning circle"
                       content="Vider l'historique"
-                      disabled={nbCompleted === 0}
+                      disabled={onLoading || nbCompleted === 0}
                       onClick={() => setConfirmClearCompleted(true)}
                     />
-
-                    {executionTime && (data?.[0]?.jobs?.length ?? 0) === 0 && (
-                      <pre>
-                        Temps d&apos;exécution total : {formatDureeMs(executionTime)}
-                      </pre>
-                    )}
                   </div>
                 </TableHeaderCell>
               </TableRow>
@@ -916,6 +914,16 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
           )}
         </button>
       </div>
+      <BarreProgression
+        progression={progression.etat}
+        recuA={progression.recuA}
+        running={queueStatus.running || onLoading}
+        paused={queueStatus.paused}
+        detailsDe={detailsDe}
+        onPauseReprise={handlePauseResume}
+        onAnnuler={() => setConfirmCancelRun(true)}
+        onAller={allerAuJob}
+      />
       <div
         id="file-panel"
         role="tabpanel"

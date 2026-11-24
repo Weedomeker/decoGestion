@@ -774,6 +774,7 @@ img.ui.image:not(.header-logo) {
 .file-tab {
   display: flex;
   align-items: center;
+  height: 36px; /* fixe : la pastille « +1 » ne doit pas décaler le bandeau */
   gap: 6px;
   padding: 8px 16px 6px;
   margin-bottom: -1px;
