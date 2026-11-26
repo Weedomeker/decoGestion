@@ -58,13 +58,13 @@ const { hauteurGabarit } = require("./surMesureController");
 // En cas d'échec, le JPG brut reste livré : la mise en page ne doit pas bloquer la production.
 // Un JPG fraîchement écrit peut rester verrouillé un instant sous Windows (antivirus, indexation) :
 // l'ouverture échoue alors en UNKNOWN/EBUSY/EPERM, d'où quelques nouvelles tentatives espacées.
-// `titre` absent : le nom du fichier est imprimé (comportement de composeJpgPage).
-async function applyJpgPage(jpgPath, cmd, titre) {
+// Le nom du fichier est imprimé (préfixe de session Tauro compris).
+async function applyJpgPage(jpgPath, cmd) {
   if (!fs.existsSync(jpgPath) || fs.statSync(jpgPath).size === 0) return;
   const transientCodes = ["UNKNOWN", "EBUSY", "EPERM"];
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      await composeJpgPage(jpgPath, getConfig()?.jpgPage, titre);
+      await composeJpgPage(jpgPath, getConfig()?.jpgPage);
       return;
     } catch (error) {
       if (attempt < 3 && transientCodes.includes(error.code)) {
@@ -743,8 +743,8 @@ async function processJob(job, req) {
     return;
   }
 
-  // Session Tauro : le JPG est préfixé (« S1711A-011 ») pour se trier dans l'ordre d'impression.
-  // Le préfixe n'est ni imprimé dans l'en-tête du JPG, ni passé à castoName. Vide pour les autres jobs.
+  // Session Tauro : le JPG est préfixé (« S1711A-011 ») pour se trier dans l'ordre d'impression,
+  // et son en-tête (nom du fichier) commence donc par la session. Pas passé à castoName. Vide pour les autres jobs.
   const prefixe = prefixeJpg(job);
   const dossierJour = `${state.paths.jpgPath}/${state.paths.sessionPRINTSA}`;
   const jpgName = `${dossierJour}/${prefixe}${fileName}`;
@@ -824,7 +824,6 @@ async function processJob(job, req) {
         : `${jpgName}.jpg`;
     // path.join a mis des antislashs sous Windows : seul le nom du fichier crédence est repris.
     jpgLivre = isCredences && job.visuPath2 ? `${dossierJour}/${path.basename(outJpgPath)}` : outJpgPath;
-    const titreJpg = prefixe ? path.basename(outJpgPath, ".jpg").slice(prefixe.length) : undefined;
 
     // Après un échec, l'étape en cause reste celle affichée.
     if (!deliverableError) progression.etape(job._id, "jpg");
@@ -867,7 +866,7 @@ async function processJob(job, req) {
       }
 
       // Uniquement sur un JPG fraîchement généré : un JPG déjà présent a déjà reçu sa mise en page.
-      await applyJpgPage(outJpgPath, job.cmd, titreJpg);
+      await applyJpgPage(outJpgPath, job.cmd);
     }
 
     try {
@@ -928,7 +927,7 @@ async function processJob(job, req) {
     try {
       progression.etape(job._id, "jpg");
       await generateImages(job, state.paths.previewDeco, `${jpgName}.jpg`, isStock);
-      await applyJpgPage(`${jpgName}.jpg`, job.cmd, prefixe ? fileName : undefined);
+      await applyJpgPage(`${jpgName}.jpg`, job.cmd);
       progression.jpg(job._id, cheminPublic(jpgLivre));
       if (job.teinteMasse) await inscrireSansPdf(job, { log });
     } catch (error) {

@@ -32,7 +32,7 @@ function toAscii(text) {
 
 // Remplace `jpgPath` par une page blanche au format configuré : `titre` (par défaut le nom du
 // fichier) en en-tête, visuel réduit pour tenir dans l'espace restant et centré.
-// Un JPG de session Tauro porte un préfixe de tri (« S1711A-011 ») qui n'est pas imprimé.
+// Un JPG de session Tauro porte en tête sa session et son n° (« S1711A-011 »), imprimés avec le nom.
 async function composeJpgPage(jpgPath, jpgPage, titre = path.basename(jpgPath, path.extname(jpgPath))) {
   const page = resolvePageOptions(jpgPage);
   if (!page) return false;
