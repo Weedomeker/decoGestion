@@ -71,12 +71,47 @@ describe("tauro/planTauro", () => {
     );
   });
 
-  it("teinte masse et stock : sansPdf, aLancer sans nomTauro, hors total", () => {
-    const jobs = [
-      ...cinquante(),
-      dg({ teinteMasse: true, format_visu: "BLANC_150x255", ex: 4 }),
-      dg({ useStock: true, ex: 2 }),
-    ];
+  const teinteMasse = (o = {}) =>
+    dg({
+      teinteMasse: true,
+      visuel: "BLANC ZERO MAT",
+      visuPath: undefined,
+      format_visu: "100x210",
+      format_Plaque: "Deco_Std_101x215",
+      ex: 4,
+      ...o,
+    });
+
+  it("teinte masse en session : comptée dans les 50 ex., n° d'ordre et nom Tauro", () => {
+    const tm = teinteMasse();
+    const jobs = [...Array.from({ length: 46 }, () => dg()), tm, ...Array.from({ length: 4 }, () => dg())];
+    const plan = construirePlan(jobs, [], { date: DATE });
+    assert.equal(plan.sessions.length, 1);
+    assert.equal(plan.sessions[0].ex, 50);
+    assert.equal(plan.sessions[0].jobs.length, 47);
+    assert.equal(plan.restants.length, 4);
+    assert.equal(plan.sansPdf.length, 0);
+    const ligne = plan.sessions[0].jobs.find((j) => j.id === tm._id);
+    assert.equal(ligne.teinteMasse, true);
+    assert.equal(ligne.format, "101x215");
+    const copie = plan.aLancer.find((j) => j._id === tm._id);
+    assert.equal(copie.sessionTauro, "S1711A");
+    assert.ok(Number.isFinite(copie.ordreTauro));
+    assert.match(copie.nomTauro, /^\d{3}_S1711A_101x215_MAT_\d+_BLANC-ZERO-100x210_4$/);
+    assert.equal(plan.aLancer.filter((j) => j.ordreTauro !== undefined).length, 47);
+  });
+
+  it("teinte masse rangée parmi les autres : format de plaque, plus grand d'abord", () => {
+    const grand = dg({ format_Plaque: "Deco_Std_151x260" });
+    const tm = teinteMasse({ ex: 1 });
+    const petit = dg({ format_Plaque: "Deco_Std_100x205" });
+    const plan = construirePlan([petit, tm, grand], [], { date: DATE, taille: { exMat: 3 } });
+    const ordre = (id) => plan.aLancer.find((j) => j._id === id).ordreTauro;
+    assert.deepEqual([ordre(grand._id), ordre(tm._id), ordre(petit._id)], [1, 2, 3]);
+  });
+
+  it("stock : toujours sansPdf, aLancer sans nomTauro, hors total", () => {
+    const jobs = [...cinquante(), dg({ useStock: true, ex: 2 }), teinteMasse({ useStock: true, ex: 3 })];
     const plan = construirePlan(jobs, [], { date: DATE });
     assert.equal(plan.sansPdf.length, 2);
     assert.equal(plan.sessions[0].ex, 50);
@@ -87,6 +122,34 @@ describe("tauro/planTauro", () => {
       [jobs[51]._id, jobs[52]._id],
     );
     assert.equal(plan.aLancer.length, 52);
+  });
+
+  it("hors session : la teinte masse reste sans PDF, hors comptage", () => {
+    const tm = teinteMasse();
+    const plan = construirePlan([dg(), tm], [], { date: DATE, mode: "hors-session" });
+    assert.equal(plan.horsSession.length, 1);
+    assert.deepEqual(
+      plan.sansPdf.map((x) => x.id),
+      [tm._id],
+    );
+    assert.equal(plan.aLancer.find((j) => j._id === tm._id).nomTauro, undefined);
+  });
+
+  it("teinte masse déjà lancée (journal) : bloquée comme un PDF", () => {
+    const tm = teinteMasse({ cmd: 169500, sousDossier: "02" });
+    const journal = [
+      {
+        date: "2026-11-17T09:00:00",
+        job: "003_S1711A_101x215_MAT_169500_BLANC-ZERO-100x210_4",
+        cle: "169500/02",
+        ex: 4,
+        cmd: "169500",
+      },
+    ];
+    const plan = construirePlan([tm], journal, { date: DATE });
+    assert.equal(plan.bloques.length, 1);
+    assert.match(plan.bloques[0].raison, /déjà lancé/);
+    assert.equal(plan.aLancer.length, 0);
   });
 
   it("aLancer trié par ordreTauro puis sansPdf", () => {

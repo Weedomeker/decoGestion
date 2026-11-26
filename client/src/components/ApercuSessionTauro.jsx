@@ -39,6 +39,10 @@ const n3 = (n) => String(n).padStart(3, "0");
 // « PDF » est invariable
 const pluriel = (n, mot) => `${n} ${mot}${n > 1 && mot !== "PDF" ? "s" : ""}`;
 
+// Session : les teintes masse comptent dans les ex. et les n° d'ordre, mais n'ont pas de PDF
+const nbTeinteMasse = (s) => (s.jobs ?? []).filter((j) => j.teinteMasse).length;
+const nbPdf = (s) => (s.jobs?.length ?? 0) - nbTeinteMasse(s);
+
 /** Bloc de l'aperçu : « part » (vert), « reste » (neutre) ou « verif » (orange) */
 function Bloc({ type, titre, children }) {
   return (
@@ -230,11 +234,17 @@ function ApercuSessionTauro({
                       {s.fin === "BRI" ? "Brillant" : "Mat"}
                     </span>
                     <span>
-                      <b>{s.ex} ex.</b> · {pluriel(s.jobs?.length ?? 0, "PDF")} · n° {n3(s.depart)} → {n3(s.dernier)}
+                      <b>{s.ex} ex.</b> · {pluriel(nbPdf(s), "PDF")}
+                      {nbTeinteMasse(s) > 0 && ` + ${nbTeinteMasse(s)} teinte${nbTeinteMasse(s) > 1 ? "s" : ""} masse`} · n°{" "}
+                      {n3(s.depart)} → {n3(s.dernier)}
                     </span>
                   </div>
                   <div className="apercu-tauro-detail">{resumeFormats(s.jobs ?? [])}</div>
-                  <NomsPdf noms={dansOrdreImpression(s.jobs ?? []).map((j) => j.nom)} />
+                  <NomsPdf
+                    noms={dansOrdreImpression(s.jobs ?? []).map((j) =>
+                      j.teinteMasse ? `${j.nom} (teinte masse, sans PDF)` : j.nom,
+                    )}
+                  />
                 </div>
               ))}
               {!enSession && horsSession.length > 0 && (
@@ -251,7 +261,7 @@ function ApercuSessionTauro({
               {!enSession && horsSession.length === 0 && <p className="apercu-tauro-vide">Aucun PDF à lancer.</p>}
               {sansPdf.length > 0 && (
                 <div className="apercu-tauro-detail">
-                  + {pluriel(sansPdf.length, "job")} sans PDF (teinte masse, stock), hors comptage : {listeDossiers(sansPdf)}
+                  + {pluriel(sansPdf.length, "job")} sans PDF ({enSession ? "stock" : "teinte masse, stock"}), hors comptage : {listeDossiers(sansPdf)}
                 </div>
               )}
             </Bloc>

@@ -41,10 +41,17 @@ function construirePlan(jobs, journal, o = {}) {
   const date = o.date;
 
   const toutes = jobs.map(ligneDepuisJob);
-  const lignes = toutes.filter((l) => !l.sansPdf);
-  const sansPdf = toutes
-    .filter((l) => l.sansPdf)
-    .map((l) => ({ id: idDe(l), cmd: l.source.cmd, ex: l.source.ex, visuel: l.source.visuel }));
+  // Session : une teinte masse (sans PDF) compte dans les ex. de la session et y prend son n° d'ordre,
+  // rangée comme les autres. Le stock et, hors session, la teinte masse restent hors comptage.
+  const enSession = (l) => mode === "session" && !!l.source.teinteMasse && !l.source.useStock;
+  const lignes = toutes.filter((l) => !l.sansPdf || enSession(l));
+  const resteSansPdf = toutes.filter((l) => l.sansPdf && !enSession(l));
+  const sansPdf = resteSansPdf.map((l) => ({
+    id: idDe(l),
+    cmd: l.source.cmd,
+    ex: l.source.ex,
+    visuel: l.source.visuel,
+  }));
 
   const tailles = tailleSessions(o.taille);
   const prep = lancement.preparerLancement(lignes, {
@@ -92,6 +99,7 @@ function construirePlan(jobs, journal, o = {}) {
         format: j.format,
         blanc: j.blanc,
         hf: j.hf,
+        ...(s.lignes[k].source.teinteMasse ? { teinteMasse: true } : {}),
       })),
     });
     s.jobs.forEach((j, k) =>
@@ -119,14 +127,12 @@ function construirePlan(jobs, journal, o = {}) {
     deHors.push(copie(l, h, { horsSession: true, nomOrigine: l.nomOrigine }));
   }
 
-  const deSansPdf = toutes
-    .filter((l) => l.sansPdf)
-    .map((l) => ({
-      ...l.source,
-      clesTauro: l.clesJournal && l.clesJournal.length ? [...l.clesJournal] : [l.cle],
-      signatureTauro: lancement.signature(regles.job(l, "")),
-      hfTauro: regles.job(l, "").hf,
-    }));
+  const deSansPdf = resteSansPdf.map((l) => ({
+    ...l.source,
+    clesTauro: l.clesJournal && l.clesJournal.length ? [...l.clesJournal] : [l.cle],
+    signatureTauro: lancement.signature(regles.job(l, "")),
+    hfTauro: regles.job(l, "").hf,
+  }));
 
   const aLancer = [...deSession, ...deHors, ...deSansPdf];
   const empreinte = crypto

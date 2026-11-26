@@ -26,7 +26,7 @@ const { saveFormatsTauroIfNeeded } = require("../services/formatsService");
 const { broadcastWS, broadcastCompletedJob } = require("../services/websocketService");
 const usePdfWorker = require("../utils/pdfWorker");
 const { createStagingDir, removeStagingDir } = require("../utils/hotFolderDelivery");
-const { deposerPdf } = require("../tauro/depotTauro");
+const { deposerPdf, inscrireSansPdf } = require("../tauro/depotTauro");
 const { buildHistoryFilter } = require("../utils/historyFilter");
 const { texte, regexLitterale } = require("../utils/rechercheTexte");
 const { ENTETE_CSV, CHAMPS_CSV, ligneCsv } = require("../utils/historyCsv");
@@ -930,6 +930,7 @@ async function processJob(job, req) {
       await generateImages(job, state.paths.previewDeco, `${jpgName}.jpg`, isStock);
       await applyJpgPage(`${jpgName}.jpg`, job.cmd, prefixe ? fileName : undefined);
       progression.jpg(job._id, cheminPublic(jpgLivre));
+      if (job.teinteMasse) await inscrireSansPdf(job, { log });
     } catch (error) {
       log.error("Génération de l'image échouée :", error);
       deliverableError = deliverableError || `Échec de génération de l'image : ${error.message || error}`;

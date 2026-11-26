@@ -6,7 +6,7 @@ const path = require("path");
 const sinon = require("sinon");
 const { UnrecoverableError } = require("bullmq");
 const Module = require("module");
-const { deposerPdf, _reinitialiserDepots } = require("../../../server/src/tauro/depotTauro");
+const { deposerPdf, inscrireSansPdf, _reinitialiserDepots } = require("../../../server/src/tauro/depotTauro");
 
 // Étape de dépôt de processJob (jobsController ne se charge pas sans Redis) : dépendances injectées.
 describe("processJob — dépôt Tauro (deposerPdf)", () => {
@@ -171,5 +171,56 @@ describe("processJob — dépôt Tauro (deposerPdf)", () => {
     } finally {
       Module._load = original;
     }
+  });
+});
+
+describe("processJob — teinte masse en session (inscrireSansPdf)", () => {
+  let deps;
+  let log;
+  const tm = () => ({
+    _id: 1731830000001,
+    cmd: 169500,
+    ex: 4,
+    teinteMasse: true,
+    nomTauro: "012_S1711A_101x215_MAT_169500_BLANC-ZERO-100x210_4",
+    sessionTauro: "S1711A",
+    ordreTauro: 12,
+    hfTauro: "Deco_Std_101x215",
+    clesTauro: ["169500/02"],
+    signatureTauro: "sig",
+  });
+
+  beforeEach(() => {
+    deps = {
+      dejaInscrit: sinon.stub().resolves(false),
+      inscrire: sinon.stub().resolves(),
+      broadcastWS: sinon.stub(),
+    };
+    log = { info: sinon.stub(), warn: sinon.stub(), error: sinon.stub() };
+  });
+
+  it("inscrite au journal en mode session", async () => {
+    const job = tm();
+    await inscrireSansPdf(job, { log, deps });
+    sinon.assert.calledOnceWithExactly(deps.inscrire, job, { mode: "session" });
+  });
+
+  it("déjà inscrite (retentative) : pas de 2e inscription", async () => {
+    deps.dejaInscrit.resolves(true);
+    await inscrireSansPdf(tm(), { log, deps });
+    sinon.assert.notCalled(deps.inscrire);
+  });
+
+  it("hors session ou lancement classique (sans nomTauro) : rien", async () => {
+    await inscrireSansPdf({ ...tm(), nomTauro: undefined }, { log, deps });
+    sinon.assert.notCalled(deps.dejaInscrit);
+    sinon.assert.notCalled(deps.inscrire);
+  });
+
+  it("journal en panne : avertissement, le job n'échoue pas", async () => {
+    deps.inscrire.rejects(new Error("Mongo HS"));
+    await inscrireSansPdf(tm(), { log, deps });
+    sinon.assert.calledOnce(log.error);
+    assert.equal(deps.broadcastWS.firstCall.args[0].type, "jobWarning");
   });
 });

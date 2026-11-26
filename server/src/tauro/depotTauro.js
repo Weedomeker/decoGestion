@@ -2,6 +2,7 @@
   Dépôt du PDF d'un job dans le hot folder (dernière étape de processJob).
   Jobs Tauro (nomTauro ou horsSession) : dépôt exclusif, jamais deux fois (journal + COPYFILE_EXCL),
   puis inscription au journal LancementTauro. Autres jobs : dépôt comme avant, écrasement permis.
+  Teinte masse en session : pas de PDF, inscription seule (inscrireSansPdf).
 */
 "use strict";
 const fs = require("fs");
@@ -86,9 +87,26 @@ async function deposerPdf(job, { stagedPdfPath, pdfBaseName, log, deps = {} }) {
   }
 }
 
+/**
+ * Teinte masse lancée en session (nomTauro, aucun PDF) : inscrite au journal une fois son JPG fait,
+ * comme un PDF déposé. Sans cela, elle repartirait sans blocage « déjà lancé » et son n° d'ordre
+ * pourrait être repris par la session suivante du jour. Un échec du journal n'est qu'un avertissement.
+ */
+async function inscrireSansPdf(job, { log, deps = {} }) {
+  if (!job.nomTauro) return;
+  try {
+    if (await dep(deps, "dejaInscrit")(job)) return;
+    await dep(deps, "inscrire")(job, { mode: "session" });
+    log.info(`Teinte masse inscrite au journal Tauro : ${job.nomTauro}`);
+  } catch (err) {
+    log.error("Inscription au journal Tauro impossible :", err);
+    dep(deps, "broadcastWS")({ type: "jobWarning", job, reason: `Journal Tauro non enregistré : ${err.message}` });
+  }
+}
+
 /** Tests uniquement : vide la garde en mémoire. */
 function _reinitialiserDepots() {
   deposes.clear();
 }
 
-module.exports = { deposerPdf, estJobTauro, _reinitialiserDepots };
+module.exports = { deposerPdf, inscrireSansPdf, estJobTauro, _reinitialiserDepots };
