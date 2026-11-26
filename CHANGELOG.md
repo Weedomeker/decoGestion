@@ -1,5 +1,57 @@
 # Changelog
 
+## [2.6.0] - 2026-11-26
+
+### Nouveautés
+- **file** : bandeau de progression fixe, un segment par job, calcul par poids, etapes et temps
+- **impression** : bandes d'encrage sur les petits cotes, reperes et nom en noir pur
+- **sticker** : etiquettes editables, modeles en base et miniature au choix
+- **file** : onglets En attente / Traites dans la vue File
+- **serveur** : arret propre sur Ctrl+C / SIGTERM
+- **footer** : barre d'etat de l'atelier (disque, partages, CPU/RAM, bases) et raccourcis clavier
+- **formulaire** : bandeau Ajouter avec resume de la selection
+- **formulaire** : zone de recherche sur une ligne, resume et liste des dossiers repliable
+- alerte dans la File apres un arret pendant un traitement (jobs retires a verifier / a rajouter)
+- **tauro** : taille des sessions reglable dans l'apercu (Mat exactement N, Brillant min/max)
+- **tauro** : apercu plus clair (part / reste dans la file / a verifier), motifs regroupes et blocages resumes
+- **tauro** : boutons Lancer en session / hors session et apercu des sessions
+- **tauro** : run_jobs en session / hors session (plan verifie, verrou, etiquettes dans l'ordre)
+- **tauro** : depot exclusif sous le nom Tauro, journal, JPG prefixes dans l'ordre d'impression
+- **tauro** : plan de lancement et apercu POST /tauro/plan
+- **tauro** : journal des lancements Tauro (collection LancementTauro)
+- **tauro** : noms decoGestion extraits (nomsJob) et adaptateur job -> ligne Tauro
+- **tauro** : regles et lancement Tauro (copie du dossier session), mode hors session, cles multiples
+- **sur-mesure** : imposition et decoupe automatiques depuis le PDF des crea
+
+### Corrections
+- **sur-mesure** : ordre des panneaux lu en marge du PDF, confirmation au moindre doute
+- **stubs** : finition sur-mesure des stubs "A lancer" = vernis du texte client, sinon vide
+- **sur-mesure** : finition Mat/Brillant ecrite a la production, rattrapage par le texte client
+- **sur-mesure** : une page "_2ex" couvre deux lignes Gamesys de meme cote
+- **sur-mesure** : multi-PDF, quantites, appariement, chutes i-cut, JPG avec blanc
+- **durees** : affichage en s, min ou h partout, et erreurs eslint
+- **historique** : date de production affichee, filtre Au inclusif, recherche differee
+- **sticker** : suggestions par numero partiel, mise en page et listes deroulantes
+- **apercus** : log du chemin PDF quand la reference manque
+- **client** : reponses d'erreur dans l'etat serveur et les suggestions
+- **recherche** : saisie echappee dans suggestions, lookup_visuel et ref_visuels
+- **historique** : filtre echappe et construit dans le try
+- **serveur** : /public ne sert plus que server/public
+- **ui** : finitions apres relecture
+- **ui** : menus ouverts au clavier places, ancrage par le bas vers le haut, etats actifs des boutons bascule
+- **ui** : menus deroulants poses au-dessus de la page, jamais coupes
+- jobs restes dans Redis retires au demarrage, journal Tauro resistant aux coupures MongoDB
+- **tauro** : pages d'etiquettes dans l'ordre d'impression (le PDF retriait par n° de commande)
+- **tauro** : nom des credences sans CRED/EAN/format cm, bascule Mat/Brillant visible, infos et n° lisibles dans l'apercu
+- **tauro** : jour local du journal, garde de depot avant copie, apercu (relancer, libelle)
+- **tauro** : apercu robuste aux reponses dans le desordre, finition conservee apres PLAN_CHANGE
+- **tauro** : pas de diffusion running tardive, etiquettes hors session dans l'ordre de la file
+- **tauro** : garde anti double depot en memoire, journal charge seulement pour Tauro
+- **tauro** : validation finition/relancer, empreinte hors session, alerte finition
+
+### Performances
+- **historique** : export CSV en flux depuis un curseur Mongo
+
 ## [Non publié] - 2026-11-18
 
 ### Impression
