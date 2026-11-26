@@ -424,6 +424,42 @@
 
 /* ===================== FILE : CONCURRENCE ===================== */
 
+/* Pied de la File : total d'ex., détail par plaque en infobulle */
+.file-total-ex {
+  margin-left: auto;
+  white-space: nowrap;
+  font-family: 'Figtree', -apple-system, sans-serif;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+  border-bottom: 1px dotted currentColor;
+}
+
+.file-total-ex b {
+  color: var(--text-primary);
+}
+
+.file-total-ex-titre {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.file-total-ex-detail table {
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.file-total-ex-detail td {
+  padding: 1px 0;
+  white-space: nowrap;
+}
+
+.file-total-ex-detail td:first-child {
+  padding-right: 12px;
+  font-weight: 600;
+}
+
 .concurrency-control {
   display: flex;
   align-items: center;

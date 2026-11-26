@@ -21,6 +21,7 @@ import {
   Checkbox,
   Confirm,
   Icon,
+  Popup,
   Table,
   TableBody,
   TableCell,
@@ -35,6 +36,62 @@ import AlerteRepriseArret from "./AlerteRepriseArret";
 import BarreProgression, { EtapeLigne, IconeLigne } from "./BarreProgression";
 import "../css/JobsList.css";
 import { API_BASE, WS_BASE } from "../utils/api";
+import { ligneFormat, totalEx } from "../utils/totalEx";
+
+/** « 62 ex. » (ou « Sélection : 50 ex. / 62 ») ; infobulle : ex. par plaque, Mat / Brillant, stock à part */
+function TotalEx({ file, selection }) {
+  const detail = selection || file;
+  return (
+    <Popup
+      position="top center"
+      size="small"
+      on={["hover", "focus"]}
+      trigger={
+        <span className="file-total-ex" tabIndex={0}>
+          {selection ? (
+            <>
+              Sélection : <b>{selection.ex} ex.</b> / {file.ex}
+            </>
+          ) : (
+            <>
+              Total : <b>{file.ex} ex.</b>
+            </>
+          )}
+        </span>
+      }
+      content={
+        <div className="file-total-ex-detail">
+          <div className="file-total-ex-titre">{selection ? "Sélection" : "File"} par plaque</div>
+          <table>
+            <tbody>
+              {detail.formats.map((f) => (
+                <tr key={f.plaque}>
+                  <td>{f.plaque}</td>
+                  <td>{ligneFormat(f)}</td>
+                </tr>
+              ))}
+              {detail.stock > 0 && (
+                <tr>
+                  <td>Stock</td>
+                  <td>{detail.stock} ex. — hors session</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      }
+    />
+  );
+}
+
+const resumeExPropType = PropTypes.shape({
+  ex: PropTypes.number.isRequired,
+  stock: PropTypes.number.isRequired,
+  formats: PropTypes.arrayOf(
+    PropTypes.shape({ plaque: PropTypes.string, ex: PropTypes.number, mat: PropTypes.number, brillant: PropTypes.number }),
+  ).isRequired,
+});
+TotalEx.propTypes = { file: resumeExPropType.isRequired, selection: resumeExPropType };
 
 const CONCURRENCY_OPTIONS = Array.from({ length: 8 }, (_, i) => ({
   key: i + 1,
@@ -324,6 +381,10 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
     choisirOnglet(suivant);
     document.getElementById(`file-tab-${suivant}`)?.focus();
   };
+  // Pied de la File : total d'ex. de la sélection, sinon de toute la file ; détail par plaque en infobulle.
+  const totalFile = totalEx(pendingJobs);
+  const totalSelection = nbSelected > 0 ? totalEx(pendingJobs.filter((j) => selectedIds.has(String(j._id)))) : null;
+
   // Sans sélection, le serveur traite toute la file.
   const selectionPayload = nbSelected > 0 ? { ids: pendingJobs.filter((j) => selectedIds.has(String(j._id))).map((j) => j._id) } : {};
 
@@ -801,6 +862,8 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
                         onChange={(e, data) => setStickersOnly(data.checked)}
                       />
                     </div>
+
+                    {nbJobs > 0 && <TotalEx file={totalFile} selection={totalSelection} />}
 
                     {queueStatus.concurrency !== null && (
                       <div className="concurrency-control" title="Nombre de jobs traités en parallèle">
