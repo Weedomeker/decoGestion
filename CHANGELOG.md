@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.7.1] - 2026-11-27
+
+### Corrections
+- **tauro** : ne plus supprimer le dossier d'attente du jour
+
 ## [2.7.0] - 2026-11-27
 
 ### Nouveautés
