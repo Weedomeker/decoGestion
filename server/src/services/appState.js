@@ -28,6 +28,7 @@ const state = {
     sourceSM: "",
     decoupeSM: "",
     sortieDevSecours: "",
+    attenteTauro: "", // vide : PDF de session déposés directement, sans file d'ordre (fileDepot.js)
     jpgPath: "./server/public",
     get sessionPRINTSA() {
       return `PRINTSA#${dayDate()}`;
@@ -59,7 +60,8 @@ const state = {
     completed: [],
   },
   // Jobs retirés de Redis au démarrage après un arrêt pendant un traitement (retirerJobsOrphelins) :
-  // { date, attente: [libellés], enCours: [libellés] }, affiché dans la file jusqu'à « Vu ».
+  // { date, attente: [libellés], enCours: [libellés], attenteSupprimes: [PDF], attenteRestants: [PDF] },
+  // affiché dans la file jusqu'à « Vu ». attente* : dossier d'attente de la file de dépôt (fileDepot.js).
   repriseArret: null,
   // Version de l'appli : build-info.json (écrit au build, seule source en prod) sinon package.json + git.
   app: { version: undefined, commit: null, buildDate: null },

@@ -168,6 +168,7 @@ function Config() {
             <h4>Sorties</h4>
             {champ("preview", "Aperçus")}
             {champ("tauro", "Tauro (hot folder)")}
+            {champ("attenteTauro", "Attente Tauro (vide = dépôt direct)")}
           </section>
 
           <section className="config-section">

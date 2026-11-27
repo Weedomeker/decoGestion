@@ -322,3 +322,101 @@ describe("resumeSessions() / validerOptionsTauro()", () => {
     assert.match(validerOptionsTauro({ taille: "50" }), /taille/);
   });
 });
+
+// File de dépôt (fileDepot.js) : PDF de session déposés dans l'ordre d'impression.
+describe("lancerTauro — file de dépôt dans l'ordre (attenteTauro)", () => {
+  const path = require("path");
+  const fileDepot = require("../../../server/src/tauro/fileDepot");
+  let deps;
+  let state;
+  let ordre;
+
+  beforeEach(() => {
+    const jobs = [
+      { _id: 1, cmd: 100, ex: 1 },
+      { _id: 2, cmd: 200, ex: 1 },
+      { _id: 3, cmd: 300, ex: 1, teinteMasse: true },
+    ];
+    state = {
+      jobs: { jobs: [...jobs], completed: [] },
+      paths: { attenteTauro: "\\NAS\temp", sessionPRINTSA: "PRINTSA#27 NOV 2026" },
+    };
+    const aLancer = jobs.map((j, i) => ({ ...j, nomTauro: `00${i + 1}_S2711A`, sessionTauro: "S2711A", ordreTauro: i + 1 }));
+    ordre = [];
+    deps = {
+      state,
+      queueControl: fauxQueueControl(),
+      calculerPlan: sinon.stub().resolves({ empreinte: "abc", sessions: [], horsSession: [], aLancer }),
+      controlerEspaceDisque: sinon.stub().returns(null),
+      basculerSortieSecours: sinon.stub(),
+      getConcurrency: () => 2,
+      generateStickersForJobs: sinon.spy(async () => ordre.push("etiquettes")),
+      broadcastWS: sinon.stub(),
+      progression: { demarrer: sinon.stub(), etiquettes: sinon.stub(), avertir: sinon.stub(), finir: sinon.stub() },
+      logger: { info: sinon.stub(), warn: sinon.stub(), error: sinon.stub() },
+      tmpdir: () => "/tmp",
+      deposerDepuisAttente: sinon.spy(async (job) => ordre.push(job.nomTauro)),
+    };
+    // Simule les workers : le job 2 finit avant le job 1, puis chaque job est soldé.
+    deps.queueControl.enqueueRun = sinon.spy(async (enfiles, extra, opts) => {
+      const file = fileDepot.courante();
+      const parId = new Map(enfiles.map((j) => [j._id, j]));
+      file.pret(2, path.join(parId.get(2).dossierAttente, "002_S2711A.pdf"));
+      await new Promise((resolve) => setImmediate(resolve));
+      file.pret(1, path.join(parId.get(1).dossierAttente, "001_S2711A.pdf"));
+      [2, 1, 3].forEach((id) => opts.surFin(id, "fait"));
+      return { total: 3, failed: 0, cancelled: 0 };
+    });
+  });
+
+  afterEach(() => fileDepot.effacer());
+
+  const req = () => ({
+    ip: "::1",
+    body: { run: true, tauro: { mode: "session", finition: "MAT", relancer: [], empreinte: "abc" } },
+  });
+
+  it("dépose dans l'ordre 001, 002 malgré la fin dans le désordre, puis les étiquettes", async () => {
+    const res = fauxRes();
+    await lancerTauro(req(), res, deps);
+    assert.equal(res.statut, 200);
+    assert.deepEqual(ordre, ["001_S2711A", "002_S2711A", "etiquettes"]);
+  });
+
+  it("teinte masse hors de la file ; dossier d'attente de la session posé sur les jobs de session", async () => {
+    await lancerTauro(req(), fauxRes(), deps);
+    const [enfiles, , opts] = deps.queueControl.enqueueRun.firstCall.args;
+    const dossier = fileDepot.dossierAttente(state.paths);
+    assert.deepEqual(
+      enfiles.map((j) => j.dossierAttente),
+      [dossier, dossier, undefined],
+    );
+    assert.equal(typeof opts.surFin, "function");
+    assert.equal(opts.dejaReserve, true);
+    assert.deepEqual(deps.controlerEspaceDisque.firstCall.args[3], { dossierAttente: dossier });
+  });
+
+  it("file effacée en fin de lancement", async () => {
+    await lancerTauro(req(), fauxRes(), deps);
+    assert.equal(fileDepot.courante(), null);
+  });
+
+  it("job sans PDF prêt (échec définitif) : sauté, les autres déposés, aucun avertissement", async () => {
+    deps.queueControl.enqueueRun = sinon.spy(async (enfiles, extra, opts) => {
+      fileDepot.courante().pret(2, "c2");
+      [1, 2, 3].forEach((id) => opts.surFin(id, id === 1 ? "echec" : "fait"));
+      return { total: 3, failed: 1, cancelled: 0 };
+    });
+    await lancerTauro(req(), fauxRes(), deps);
+    assert.deepEqual(ordre, ["002_S2711A", "etiquettes"]);
+    sinon.assert.notCalled(deps.progression.avertir);
+  });
+
+  it("sans attenteTauro : pas de file, dépôt direct comme avant", async () => {
+    state.paths.attenteTauro = "";
+    deps.queueControl.enqueueRun = sinon.stub().resolves({ total: 3, failed: 0, cancelled: 0 });
+    await lancerTauro(req(), fauxRes(), deps);
+    assert.deepEqual(deps.queueControl.enqueueRun.firstCall.args[2], { dejaReserve: true });
+    assert.equal(deps.controlerEspaceDisque.firstCall.args[3], undefined);
+  });
+});

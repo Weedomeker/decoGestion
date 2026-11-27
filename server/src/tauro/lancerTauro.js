@@ -6,6 +6,8 @@
 */
 const { performance } = require("perf_hooks");
 const { formatDureeMs } = require("../utils/duree");
+const fileDepot = require("./fileDepot");
+const { deposerDepuisAttente } = require("./depotTauro");
 
 const FINITIONS = ["MAT", "BRI"];
 
@@ -77,6 +79,8 @@ async function lancerTauro(req, res, deps) {
 
   // Faux tant que rien n'est lancé : un refus ne touche pas à la progression du lancement précédent.
   let lance = false;
+  // File de dépôt dans l'ordre d'impression (fileDepot.js), si `attenteTauro` est renseigné.
+  let file = null;
   let erreur;
 
   try {
@@ -104,12 +108,18 @@ async function lancerTauro(req, res, deps) {
     const aLancer = plan.aLancer || [];
     if (aLancer.length === 0) return res.status(400).json({ error: "Aucun job à lancer" });
 
+    // PDF de session déposés dans l'ordre d'impression via le dossier d'attente (`attenteTauro`).
+    // Teinte masse et stock n'ont pas de PDF : hors de la file, ils ne bloquent personne.
+    const dossierAttente = fileDepot.dossierAttente(state.paths);
+    const deSession = dossierAttente ? aLancer.filter((j) => j.nomTauro && !j.teinteMasse && !j.useStock) : [];
+    const optionsDisque = deSession.length ? { dossierAttente } : undefined;
+
     const concurrence = deps.getConcurrency();
-    let refusDisque = deps.controlerEspaceDisque(aLancer, deps.tmpdir(), concurrence);
+    let refusDisque = deps.controlerEspaceDisque(aLancer, deps.tmpdir(), concurrence, optionsDisque);
     if (refusDisque && process.env.NODE_ENV === "development" && state.paths.sortieDevSecours) {
       logger.warn(`${refusDisque.error} Sortie déplacée sur ${state.paths.sortieDevSecours}.`);
       const dossierTemporaire = deps.basculerSortieSecours(aLancer, state.paths.sortieDevSecours);
-      refusDisque = deps.controlerEspaceDisque(aLancer, dossierTemporaire, concurrence);
+      refusDisque = deps.controlerEspaceDisque(aLancer, dossierTemporaire, concurrence, optionsDisque);
     }
     if (refusDisque) {
       logger.warn(`File non lancée : ${refusDisque.error}`);
@@ -119,14 +129,42 @@ async function lancerTauro(req, res, deps) {
     state.jobs.completed = [];
     const startTime = performance.now();
     lance = true;
+
+    if (deSession.length) {
+      // Sur le job (données Redis) : processJob y copie son PDF, le nettoyage au démarrage l'y retrouve.
+      deSession.forEach((j) => {
+        j.dossierAttente = dossierAttente;
+      });
+      const deposer =
+        deps.deposerDepuisAttente ||
+        ((job, chemin) =>
+          deposerDepuisAttente(job, chemin, {
+            log: logger.child ? logger.child({ cmd: job.cmd, client: job.client }) : logger,
+          }));
+      file = (deps.creerFileDepot || fileDepot.creerFileDepot)(deSession, { deposer, log: logger, broadcastWS });
+      fileDepot.definir(file);
+      logger.info(`Dépôt dans l'ordre d'impression : ${deSession.length} PDF via ${dossierAttente}`);
+    }
+
     progression.demarrer(aLancer, { concurrence: deps.getConcurrency, ordreFige: true });
     broadcastWS({ type: "start", startTime });
 
     const { failed, cancelled } = await queueControl.enqueueRun(
       aLancer,
       { sortFolder: req.body.sortFolder, ip: req.ip },
-      { dejaReserve: true },
+      file ? { dejaReserve: true, surFin: (id) => file.solder(id) } : { dejaReserve: true },
     );
+
+    if (file) {
+      await file.vider();
+      const { deposes, ecartes, restes } = file.bilan();
+      logger.info(
+        `File de dépôt : ${deposes.length} PDF déposé(s) dans l'ordre${ecartes.length ? `, ${ecartes.length} sauté(s)` : ""}${
+          restes.length ? `, ${restes.length} resté(s) en attente dans ${dossierAttente}` : ""
+        }`,
+      );
+      if (restes.length) progression.avertir(`${restes.length} PDF resté(s) en attente de dépôt`);
+    }
 
     const traitees = state.jobs.completed.map(({ cmd, cmd2 }) => (cmd2 > 0 ? `${cmd}+${cmd2}` : cmd));
     const duree = formatDureeMs(performance.now() - startTime);
@@ -159,6 +197,7 @@ async function lancerTauro(req, res, deps) {
     erreur = error.message;
     return res.status(500).json({ error: "Internal server error" });
   } finally {
+    if (file) fileDepot.effacer();
     if (lance) progression.finir({ erreur });
     queueControl.liberer();
   }

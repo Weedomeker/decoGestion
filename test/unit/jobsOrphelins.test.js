@@ -26,7 +26,7 @@ describe("retirerJobsOrphelins (jobs restés dans Redis au démarrage)", () => {
   it("file vide : rien à retirer, aucun avertissement", async () => {
     const logger = fauxLogger();
     const bilan = await retirerJobsOrphelins(fausseFile(), logger);
-    assert.deepEqual(bilan, { attente: [], enCours: [] });
+    assert.deepEqual(bilan, { attente: [], enCours: [], fichiersAttente: [] });
     assert.equal(logger.warn.called, false);
   });
 
@@ -65,7 +65,19 @@ describe("retirerJobsOrphelins (jobs restés dans Redis au démarrage)", () => {
   it("Redis en erreur : ne lève pas, bilan vide", async () => {
     const logger = fauxLogger();
     const bilan = await retirerJobsOrphelins(fausseFile({ erreur: new Error("ECONNREFUSED") }), logger);
-    assert.deepEqual(bilan, { attente: [], enCours: [] });
+    assert.deepEqual(bilan, { attente: [], enCours: [], fichiersAttente: [] });
     assert.equal(logger.error.callCount, 1);
+  });
+
+  it("job de session passé par le dossier d'attente : son PDF d'attente est rendu pour suppression", async () => {
+    const path = require("path");
+    const actif = fauxJob("a-2", { nomTauro: "011_S2711A_X", dossierAttente: "\\NAS\temp\PRINTSA#27 NOV 2026" });
+    const enAttente = fauxJob("w-3", { nomTauro: "012_S2711A_X", dossierAttente: "\\NAS\temp\PRINTSA#27 NOV 2026" });
+    const classique = fauxJob("w-4", { cmd: 170001 });
+    const bilan = await retirerJobsOrphelins(fausseFile({ actifs: [actif], attente: [enAttente, classique] }), fauxLogger());
+    assert.deepEqual(bilan.fichiersAttente, [
+      path.join("\\NAS\temp\PRINTSA#27 NOV 2026", "011_S2711A_X.pdf"),
+      path.join("\\NAS\temp\PRINTSA#27 NOV 2026", "012_S2711A_X.pdf"),
+    ]);
   });
 });

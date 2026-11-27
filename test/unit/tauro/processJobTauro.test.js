@@ -224,3 +224,87 @@ describe("processJob — teinte masse en session (inscrireSansPdf)", () => {
     assert.equal(deps.broadcastWS.firstCall.args[0].type, "jobWarning");
   });
 });
+
+// File de dépôt (fileDepot.js) : copie dans l'attente, puis dépôt à son tour depuis l'attente.
+describe("dépôt Tauro via le dossier d'attente", () => {
+  const { copierEnAttente, deposerDepuisAttente } = require("../../../server/src/tauro/depotTauro");
+  let dossier;
+  let deps;
+  let log;
+
+  const jobSession = () => ({
+    _id: 1731830000099,
+    cmd: 169034,
+    ex: 4,
+    writePath: path.join("HotFolderRoot", "Deco_Std_151x260"),
+    nomTauro: "011_S2711A_151x260_W_MAT_169034_BETON-CLAIR-150x255_4",
+    hfTauro: "Deco_Std_151x260",
+    clesTauro: ["169034/BETON CLAIR"],
+    visuPath: "/source/BETON CLAIR 150x255 MAT.pdf",
+  });
+
+  beforeEach(() => {
+    dossier = fs.mkdtempSync(path.join(os.tmpdir(), "decogestion-attente-"));
+    deps = {
+      deliverToHotFolder: sinon.stub().resolves(),
+      dejaInscrit: sinon.stub().resolves(false),
+      inscrire: sinon.stub().resolves(),
+      broadcastWS: sinon.stub(),
+    };
+    log = { info: sinon.stub(), warn: sinon.stub(), error: sinon.stub() };
+    _reinitialiserDepots();
+  });
+
+  afterEach(() => fs.rmSync(dossier, { recursive: true, force: true }));
+
+  it("copierEnAttente : copie sous le nom Tauro, crée le dossier, écrase un fichier non déposé", async () => {
+    const staged = path.join(dossier, "staged.pdf");
+    fs.writeFileSync(staged, "%PDF-1.7 v2");
+    const attente = path.join(dossier, "PRINTSA#27 NOV 2026");
+    fs.mkdirSync(attente);
+    fs.writeFileSync(path.join(attente, `${jobSession().nomTauro}.pdf`), "ancien");
+
+    const chemin = await copierEnAttente(jobSession(), { stagedPdfPath: staged, dossier: attente, log });
+
+    assert.equal(chemin, path.join(attente, `${jobSession().nomTauro}.pdf`));
+    assert.equal(fs.readFileSync(chemin, "utf8"), "%PDF-1.7 v2");
+    sinon.assert.notCalled(deps.deliverToHotFolder);
+  });
+
+  it("deposerDepuisAttente : dépôt exclusif sous le nom Tauro, journal, puis fichier d'attente supprimé", async () => {
+    const job = jobSession();
+    const chemin = path.join(dossier, `${job.nomTauro}.pdf`);
+    fs.writeFileSync(chemin, "%PDF-1.7");
+
+    await deposerDepuisAttente(job, chemin, { log, deps });
+
+    sinon.assert.calledOnceWithExactly(deps.deliverToHotFolder, chemin, path.join(job.writePath, `${job.nomTauro}.pdf`), {
+      exclusif: true,
+    });
+    sinon.assert.calledOnce(deps.inscrire);
+    assert.equal(deps.inscrire.firstCall.args[1].mode, "session");
+    assert.equal(fs.existsSync(chemin), false);
+  });
+
+  it("deposerDepuisAttente : déjà présent (UnrecoverableError) remonte, le fichier d'attente reste", async () => {
+    const job = jobSession();
+    const chemin = path.join(dossier, `${job.nomTauro}.pdf`);
+    fs.writeFileSync(chemin, "%PDF-1.7");
+    deps.deliverToHotFolder.rejects(new UnrecoverableError("Déjà présent"));
+
+    await assert.rejects(deposerDepuisAttente(job, chemin, { log, deps }), UnrecoverableError);
+    sinon.assert.notCalled(deps.inscrire);
+    assert.equal(fs.existsSync(chemin), true);
+  });
+
+  it("deposerDepuisAttente : déjà au journal, rien n'est redéposé et l'attente est vidée", async () => {
+    const job = jobSession();
+    const chemin = path.join(dossier, `${job.nomTauro}.pdf`);
+    fs.writeFileSync(chemin, "%PDF-1.7");
+    deps.dejaInscrit.resolves(true);
+
+    await deposerDepuisAttente(job, chemin, { log, deps });
+    sinon.assert.notCalled(deps.deliverToHotFolder);
+    assert.equal(fs.existsSync(chemin), false);
+  });
+});

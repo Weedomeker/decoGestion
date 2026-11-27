@@ -8,7 +8,7 @@ import { API_BASE } from "../utils/api";
 function AlerteRepriseArret({ reprise, onVu }) {
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState(null);
-  const { date, enCours = [], attente = [] } = reprise;
+  const { date, enCours = [], attente = [], attenteSupprimes = [], attenteRestants = [] } = reprise;
   const heure = date
     ? new Date(date).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
     : "";
@@ -53,6 +53,29 @@ function AlerteRepriseArret({ reprise, onVu }) {
           </ul>
         </div>
       )}
+      {attenteRestants.length > 0 && (
+        <div>
+          <strong>
+            Restés en attente de dépôt, jamais envoyés au hot folder — à déposer dans l&apos;ordre des noms, ou à
+            relancer :
+          </strong>
+          <ul>
+            {attenteRestants.map((l, i) => (
+              <li key={`${i}-${l}`}>{l}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {attenteSupprimes.length > 0 && (
+        <div>
+          <strong>PDF en attente supprimés (jamais envoyés, à relancer avec leur job) :</strong>
+          <ul>
+            {attenteSupprimes.map((l, i) => (
+              <li key={`${i}-${l}`}>{l}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="alerte-reprise-arret-actions">
         {erreur && <span>{erreur}</span>}
         <Button size="mini" compact onClick={vu} loading={envoi} disabled={envoi}>
@@ -68,6 +91,8 @@ AlerteRepriseArret.propTypes = {
     date: PropTypes.string,
     enCours: PropTypes.arrayOf(PropTypes.string),
     attente: PropTypes.arrayOf(PropTypes.string),
+    attenteSupprimes: PropTypes.arrayOf(PropTypes.string),
+    attenteRestants: PropTypes.arrayOf(PropTypes.string),
   }).isRequired,
   onVu: PropTypes.func.isRequired,
 };

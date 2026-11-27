@@ -2,6 +2,8 @@
   Dépôt du PDF d'un job dans le hot folder (dernière étape de processJob).
   Jobs Tauro (nomTauro ou horsSession) : dépôt exclusif, jamais deux fois (journal + COPYFILE_EXCL),
   puis inscription au journal LancementTauro. Autres jobs : dépôt comme avant, écrasement permis.
+  Session avec `attenteTauro` : copie dans le dossier d'attente (copierEnAttente), puis dépôt dans
+  l'ordre d'impression par la file de dépôt (fileDepot.js → deposerDepuisAttente).
   Teinte masse en session : pas de PDF, inscription seule (inscrireSansPdf).
 */
 "use strict";
@@ -25,19 +27,8 @@ const deposes = new Set();
 
 const estJobTauro = (job) => !!(job.nomTauro || job.horsSession);
 
-/**
- * Dépose `stagedPdfPath` dans `job.writePath`.
- * Lève l'UnrecoverableError du dépôt exclusif telle quelle (BullMQ ne retente pas) ;
- * un échec du journal après un dépôt réussi n'est qu'un avertissement.
- */
-async function deposerPdf(job, { stagedPdfPath, pdfBaseName, log, deps = {} }) {
-  if (!estJobTauro(job)) {
-    await dep(deps, "deliverToHotFolder")(stagedPdfPath, path.join(job.writePath, pdfBaseName));
-    log.info(`PDF déposé dans le hot folder : ${pdfBaseName}`);
-    return;
-  }
-
-  const nom = job.nomTauro ? `${job.nomTauro}.pdf` : pdfBaseName;
+// Dépôt exclusif sous `nom`, garde contre le double dépôt, puis inscription au journal.
+async function deposerTauro(job, stagedPdfPath, nom, log, deps) {
   const cle = `${job._id}|${nom}`;
 
   // Retentative BullMQ après un dépôt réussi, ou doublon pendant la copie : le RIP a déjà (ou va)
@@ -88,6 +79,44 @@ async function deposerPdf(job, { stagedPdfPath, pdfBaseName, log, deps = {} }) {
 }
 
 /**
+ * Dépose `stagedPdfPath` dans `job.writePath`.
+ * Lève l'UnrecoverableError du dépôt exclusif telle quelle (BullMQ ne retente pas) ;
+ * un échec du journal après un dépôt réussi n'est qu'un avertissement.
+ */
+async function deposerPdf(job, { stagedPdfPath, pdfBaseName, log, deps = {} }) {
+  if (!estJobTauro(job)) {
+    await dep(deps, "deliverToHotFolder")(stagedPdfPath, path.join(job.writePath, pdfBaseName));
+    log.info(`PDF déposé dans le hot folder : ${pdfBaseName}`);
+    return;
+  }
+  await deposerTauro(job, stagedPdfPath, job.nomTauro ? `${job.nomTauro}.pdf` : pdfBaseName, log, deps);
+}
+
+/**
+ * Job de session passant par la file de dépôt (fileDepot.js) : copie du PDF dans le dossier
+ * d'attente, sous son nom Tauro. Écrasement permis : un PDF pas encore déposé peut être remplacé
+ * (nouvelle tentative). Renvoie le chemin dans l'attente.
+ */
+async function copierEnAttente(job, { stagedPdfPath, dossier, log, deps = {} }) {
+  const fsp = deps.fsp || fs.promises;
+  const chemin = path.join(dossier, `${job.nomTauro}.pdf`);
+  await fsp.mkdir(dossier, { recursive: true });
+  await fsp.copyFile(stagedPdfPath, chemin);
+  log.info(`PDF en attente de dépôt : ${job.nomTauro}.pdf`);
+  return chemin;
+}
+
+/** Dépôt d'un PDF de la file d'attente, à son tour, puis retrait du fichier d'attente. */
+async function deposerDepuisAttente(job, cheminAttente, { log, deps = {} }) {
+  await deposerTauro(job, cheminAttente, `${job.nomTauro}.pdf`, log, deps);
+  try {
+    await (deps.fsp || fs.promises).unlink(cheminAttente);
+  } catch (err) {
+    if (err.code !== "ENOENT") log.warn(`Fichier d'attente non supprimé (${cheminAttente}) : ${err.message}`);
+  }
+}
+
+/**
  * Teinte masse lancée en session (nomTauro, aucun PDF) : inscrite au journal une fois son JPG fait,
  * comme un PDF déposé. Sans cela, elle repartirait sans blocage « déjà lancé » et son n° d'ordre
  * pourrait être repris par la session suivante du jour. Un échec du journal n'est qu'un avertissement.
@@ -109,4 +138,11 @@ function _reinitialiserDepots() {
   deposes.clear();
 }
 
-module.exports = { deposerPdf, inscrireSansPdf, estJobTauro, _reinitialiserDepots };
+module.exports = {
+  deposerPdf,
+  copierEnAttente,
+  deposerDepuisAttente,
+  inscrireSansPdf,
+  estJobTauro,
+  _reinitialiserDepots,
+};

@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Parcours d'un PDF de session Tauro</title>
+<style>
+  @page { size: A4 landscape; margin: 9mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1f2933; margin: 0; }
+  h1 { font-size: 19px; margin: 0 0 2px; }
+  .sous { font-size: 11.5px; color: #52606d; margin: 0 0 8px; }
+  .page { page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+  svg { width: 100%; height: auto; display: block; }
+  .zone { fill: #f5f7fa; stroke: #cbd2d9; stroke-width: 1.2; }
+  .zone-titre { font-size: 13px; font-weight: 700; fill: #1f2933; }
+  .zone-chemin { font-size: 10px; fill: #52606d; font-family: Consolas, monospace; }
+  .boite { fill: #ffffff; stroke: #7b8794; stroke-width: 1.2; }
+  .boite-cle { fill: #e6f0ff; stroke: #2f6fd6; stroke-width: 1.6; }
+  .boite-ok { fill: #e3f6ec; stroke: #2f9e63; stroke-width: 1.4; }
+  .boite-alerte { fill: #fff4e5; stroke: #d9822b; stroke-width: 1.4; }
+  .t { font-size: 11.5px; fill: #1f2933; }
+  .tb { font-size: 11.5px; font-weight: 700; fill: #1f2933; }
+  .ts { font-size: 10px; fill: #52606d; }
+  .mono { font-family: Consolas, monospace; font-size: 10px; fill: #1f2933; }
+  .fl { stroke: #3e4c59; stroke-width: 1.6; fill: none; marker-end: url(#fleche); }
+  .fl-bleu { stroke: #2f6fd6; stroke-width: 2.2; fill: none; marker-end: url(#fleche-bleu); }
+  .fl-tirets { stroke: #9aa5b1; stroke-width: 1.3; fill: none; stroke-dasharray: 4 3; marker-end: url(#fleche-gris); }
+  .num { fill: #2f6fd6; }
+  .num-t { font-size: 11px; font-weight: 700; fill: #fff; }
+  .pdf { fill: #fff; stroke: #c81e1e; stroke-width: 1.2; }
+  .pdf-t { font-size: 9.5px; font-weight: 700; fill: #c81e1e; }
+  table { border-collapse: collapse; width: 100%; font-size: 11.5px; }
+  th, td { border: 1px solid #cbd2d9; padding: 5px 7px; text-align: left; vertical-align: top; }
+  th { background: #f5f7fa; }
+  .grille { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+  .carte { border: 1px solid #cbd2d9; border-radius: 6px; padding: 8px 11px; font-size: 11.5px; }
+  .carte h3 { font-size: 12.5px; margin: 0 0 4px; }
+  .carte ul { margin: 0; padding-left: 16px; }
+  .carte li { margin: 2px 0; }
+  h2 { font-size: 15px; margin: 4px 0 6px; }
+  code { font-family: Consolas, monospace; font-size: 10.5px; }
+</style>
+</head>
+<body>
+
+<!-- ============ PAGE 1 : LE PARCOURS ============ -->
+<div class="page">
+<h1>Parcours d'un PDF de session Tauro : du job à la Queue de la Tauro</h1>
+<p class="sous">Lancement « en session » avec le dossier « Attente Tauro » renseigné dans la Config. Les PDF sont préparés en parallèle, mais arrivent dans le hot folder dans l'ordre d'impression : 001, 002, 003…</p>
+
+<svg viewBox="0 0 1100 610" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="fleche" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3e4c59"/></marker>
+    <marker id="fleche-bleu" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2f6fd6"/></marker>
+    <marker id="fleche-gris" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#9aa5b1"/></marker>
+  </defs>
+
+  <!-- ZONE 1 : PC decoGestion -->
+  <rect class="zone" x="10" y="10" width="300" height="590" rx="8"/>
+  <text class="zone-titre" x="24" y="34">① PC decoGestion</text>
+  <text class="zone-chemin" x="24" y="50">3 à 4 jobs préparés en même temps</text>
+
+  <rect class="boite" x="28" y="66" width="264" height="58" rx="5"/>
+  <text class="tb" x="40" y="86">Préparer le PDF</text>
+  <text class="ts" x="40" y="102">dans un dossier temporaire local</text>
+  <text class="ts" x="40" y="116">(plaque, repères, bandes d'encrage)</text>
+
+  <rect class="boite" x="28" y="146" width="264" height="58" rx="5"/>
+  <text class="tb" x="40" y="166">Faire le JPG et contrôler</text>
+  <text class="ts" x="40" y="182">PDF et JPG présents et non vides</text>
+  <text class="ts" x="40" y="196">sinon : job en échec, nouvel essai</text>
+
+  <rect class="boite-cle" x="28" y="226" width="264" height="58" rx="5"/>
+  <text class="tb" x="40" y="246">Copier le PDF dans l'attente</text>
+  <text class="ts" x="40" y="262">sous son nom Tauro (011_S2711A_…)</text>
+  <text class="ts" x="40" y="276">puis signaler « prêt » à la file</text>
+
+  <rect class="boite" x="28" y="306" width="264" height="58" rx="5"/>
+  <text class="tb" x="40" y="326">Le job se termine</text>
+  <text class="ts" x="40" y="342">fiche Deco en base, stock…</text>
+  <text class="ts" x="40" y="356">sa place sert aussitôt au job suivant</text>
+
+  <path class="fl" d="M160,124 L160,144"/>
+  <path class="fl" d="M160,204 L160,224"/>
+  <path class="fl" d="M160,284 L160,304"/>
+
+  <!-- jobs en parallèle -->
+  <text class="tb" x="28" y="396">Exemple : jobs finis dans le désordre</text>
+  <rect class="boite" x="28" y="406" width="264" height="120" rx="5"/>
+  <text class="mono" x="40" y="428">002  ███            prêt à 20 s</text>
+  <text class="mono" x="40" y="448">003  ██████         prêt à 40 s</text>
+  <text class="mono" x="40" y="468">001  ████████████   prêt à 90 s</text>
+  <text class="mono" x="40" y="488">004  (démarre à 20 s) prêt à 110 s</text>
+  <text class="ts" x="40" y="512">Avant : arrivée 002, 003, 001… (désordre)</text>
+  <text class="ts" x="40" y="546">Teinte masse, stock et hors session</text>
+  <text class="ts" x="40" y="560">ne passent pas par la file d'attente.</text>
+
+  <!-- ZONE 2 : NAS attente -->
+  <rect class="zone" x="330" y="10" width="230" height="590" rx="8"/>
+  <text class="zone-titre" x="344" y="34">② Dossier d'attente (NAS)</text>
+  <text class="zone-chemin" x="344" y="50">\\NASSYNORS1221\temp\</text>
+  <text class="zone-chemin" x="344" y="63">PRINTSA#27 NOV 2026\</text>
+  <text class="zone-chemin" x="344" y="76">(en dev : …\temp\dev\PRINTSA#…)</text>
+
+  <text class="ts" x="344" y="104">Les PDF prêts en avance attendent</text>
+  <text class="ts" x="344" y="118">leur tour ici :</text>
+
+  <rect class="pdf" x="360" y="134" width="170" height="34" rx="3"/>
+  <text class="pdf-t" x="372" y="156">002_S2711A_….pdf  ⏳</text>
+  <rect class="pdf" x="360" y="178" width="170" height="34" rx="3"/>
+  <text class="pdf-t" x="372" y="200">003_S2711A_….pdf  ⏳</text>
+  <rect class="pdf" x="360" y="222" width="170" height="34" rx="3" stroke-dasharray="4 3"/>
+  <text class="ts" x="372" y="244">001 : pas encore prêt</text>
+
+  <rect class="boite-alerte" x="344" y="290" width="202" height="96" rx="5"/>
+  <text class="tb" x="356" y="310">Règle d'attente</text>
+  <text class="ts" x="356" y="328">Un PDF part quand il est prêt ET</text>
+  <text class="ts" x="356" y="342">que tous les numéros avant lui</text>
+  <text class="ts" x="356" y="356">sont partis ou sautés.</text>
+  <text class="ts" x="356" y="374">Pas d'attente de fin de lancement.</text>
+
+  <path class="fl" d="M292,255 C315,255 320,175 358,175"/>
+
+  <!-- ZONE 3 : dépositeur -->
+  <rect class="zone" x="580" y="10" width="250" height="590" rx="8"/>
+  <text class="zone-titre" x="594" y="34">③ Dépositeur unique</text>
+  <text class="zone-chemin" x="594" y="50">un PDF à la fois, dans l'ordre</text>
+
+  <circle class="num" cx="606" cy="90" r="11"/><text class="num-t" x="602" y="94">1</text>
+  <text class="tb" x="624" y="86">Contrôle du journal Tauro</text>
+  <text class="ts" x="624" y="101">déjà envoyé ? → pas recopié</text>
+
+  <circle class="num" cx="606" cy="146" r="11"/><text class="num-t" x="602" y="150">2</text>
+  <text class="tb" x="624" y="142">Copie exclusive vers le</text>
+  <text class="tb" x="624" y="157">hot folder</text>
+  <text class="ts" x="624" y="172">NAS → PC → Asanti, jamais écrasé</text>
+
+  <circle class="num" cx="606" cy="212" r="11"/><text class="num-t" x="602" y="216">3</text>
+  <text class="tb" x="624" y="208">Inscription au journal</text>
+  <text class="ts" x="624" y="223">bloque le « déjà lancé »</text>
+
+  <circle class="num" cx="606" cy="262" r="11"/><text class="num-t" x="602" y="266">4</text>
+  <text class="tb" x="624" y="258">Suppression dans l'attente</text>
+
+  <circle class="num" cx="606" cy="312" r="11"/><text class="num-t" x="602" y="316">5</text>
+  <text class="tb" x="624" y="308">PDF suivant</text>
+  <text class="ts" x="624" y="323">jamais avant la fin de la copie</text>
+
+  <path class="fl-tirets" d="M606,101 L606,133"/>
+  <path class="fl-tirets" d="M606,157 L606,199"/>
+  <path class="fl-tirets" d="M606,223 L606,249"/>
+  <path class="fl-tirets" d="M606,273 L606,299"/>
+
+  <rect class="boite-alerte" x="594" y="350" width="222" height="112" rx="5"/>
+  <text class="tb" x="606" y="370">Hot folder injoignable</text>
+  <text class="ts" x="606" y="388">2 nouveaux essais (2 s, puis 5 s),</text>
+  <text class="ts" x="606" y="402">puis l'envoi s'arrête pour ne pas</text>
+  <text class="ts" x="606" y="416">casser l'ordre : les PDF restants</text>
+  <text class="ts" x="606" y="430">restent dans l'attente, listés dans</text>
+  <text class="ts" x="606" y="444">la File, à déposer dans l'ordre.</text>
+
+  <rect class="boite-ok" x="594" y="478" width="222" height="96" rx="5"/>
+  <text class="tb" x="606" y="498">Fin du lancement</text>
+  <text class="ts" x="606" y="516">Quand le dernier PDF est parti :</text>
+  <text class="ts" x="606" y="530">les étiquettes sont générées,</text>
+  <text class="ts" x="606" y="544">dans l'ordre d'impression.</text>
+
+  <path class="fl-bleu" d="M530,151 C560,151 560,146 592,146"/>
+  <text class="ts" x="538" y="133">à son tour</text>
+
+  <!-- ZONE 4 : hot folder / Asanti / Tauro -->
+  <rect class="zone" x="850" y="10" width="240" height="590" rx="8"/>
+  <text class="zone-titre" x="864" y="34">④ Hot folder → Asanti → Tauro</text>
+  <text class="zone-chemin" x="864" y="50">\\192.168.1.72\HotFolderRoot\</text>
+  <text class="zone-chemin" x="864" y="63">Deco_Std_&lt;plaque&gt; ou Prod avec BLANC</text>
+
+  <rect class="boite" x="866" y="80" width="208" height="92" rx="5"/>
+  <text class="tb" x="878" y="100">Arrivée dans l'ordre</text>
+  <text class="mono" x="878" y="120">001_S2711A_….pdf</text>
+  <text class="mono" x="878" y="136">002_S2711A_….pdf</text>
+  <text class="mono" x="878" y="152">003_S2711A_….pdf</text>
+
+  <rect class="boite" x="866" y="196" width="208" height="92" rx="5"/>
+  <text class="tb" x="878" y="216">Asanti numérote à l'arrivée</text>
+  <text class="mono" x="878" y="236">Job Number 101 → 001</text>
+  <text class="mono" x="878" y="252">Job Number 102 → 002</text>
+  <text class="mono" x="878" y="268">Job Number 103 → 003</text>
+
+  <rect class="boite-ok" x="866" y="312" width="208" height="112" rx="5"/>
+  <text class="tb" x="878" y="332">Tauro : Select all →</text>
+  <text class="tb" x="878" y="348">Add to Queue</text>
+  <text class="ts" x="878" y="366">la Queue suit le Job Number,</text>
+  <text class="ts" x="878" y="380">donc l'ordre d'impression :</text>
+  <text class="mono" x="878" y="400">001, 002, 003… ✔</text>
+
+  <path class="fl" d="M970,172 L970,194"/>
+  <path class="fl" d="M970,288 L970,310"/>
+  <path class="fl-bleu" d="M816,146 C840,146 840,120 864,120"/>
+
+  <rect class="boite-alerte" x="866" y="448" width="208" height="126" rx="5"/>
+  <text class="tb" x="878" y="468">À vérifier avant activation</text>
+  <text class="ts" x="878" y="486">• Asanti ne surveille pas</text>
+  <text class="ts" x="878" y="500">  \\NASSYNORS1221\temp</text>
+  <text class="ts" x="878" y="516">• Job Number Asanti = ordre</text>
+  <text class="ts" x="878" y="530">  de la Queue Tauro</text>
+  <text class="ts" x="878" y="546">• Asanti ne fait pas plusieurs</text>
+  <text class="ts" x="878" y="560">  rendus en même temps</text>
+</svg>
+</div>
+
+<!-- ============ PAGE 2 : CHRONOLOGIE ET CAS ============ -->
+<div class="page">
+<h2>Chronologie de l'exemple : départ petit à petit</h2>
+<table>
+  <tr><th style="width:12%">Instant</th><th style="width:28%">Côté jobs (PC)</th><th style="width:30%">Dossier d'attente (NAS)</th><th>Hot folder (dans l'ordre)</th></tr>
+  <tr><td>20 s</td><td>002 prêt, copié dans l'attente</td><td>002 ⏳ (attend 001)</td><td>rien</td></tr>
+  <tr><td>40 s</td><td>003 prêt, copié dans l'attente</td><td>002 ⏳, 003 ⏳</td><td>rien</td></tr>
+  <tr><td>90 s</td><td>001 prêt, copié dans l'attente</td><td>se vide : 001, puis 002, puis 003</td><td>001 → 002 → 003, l'un après l'autre</td></tr>
+  <tr><td>110 s</td><td>004 prêt</td><td>part aussitôt</td><td>004</td></tr>
+  <tr><td>130 s</td><td>005 prêt</td><td>part aussitôt</td><td>005</td></tr>
+  <tr><td>fin</td><td>tous les jobs terminés</td><td>vide</td><td>dernier PDF arrivé → étiquettes générées</td></tr>
+</table>
+
+<div class="grille">
+  <div class="carte">
+    <h3>Cas particuliers</h3>
+    <ul>
+      <li><b>Échec puis réussite à la nouvelle tentative</b> : le PDF garde sa place ; les suivants attendent dans le NAS, sans bloquer les jobs en préparation.</li>
+      <li><b>Échec définitif ou annulation</b> : son numéro est sauté, la file continue.</li>
+      <li><b>Teinte masse</b> : pas de PDF, hors de la file ; son numéro est vide dans le RIP, comme avant.</li>
+      <li><b>Déjà présent dans le hot folder</b> : jamais écrasé, le PDF est sauté avec une erreur dans la File.</li>
+      <li><b>Hors session et lancement classique</b> : dépôt direct, comme avant.</li>
+    </ul>
+  </div>
+  <div class="carte">
+    <h3>Arrêt du serveur</h3>
+    <ul>
+      <li><b>Pendant la préparation</b> : les jobs retirés au redémarrage voient leur PDF d'attente supprimé (jamais envoyé) ; ils sont à relancer.</li>
+      <li><b>Pendant les envois</b> : les PDF restés dans l'attente du jour sont listés dans l'alerte de la File, sans être supprimés, à déposer dans l'ordre des noms ou à relancer.</li>
+    </ul>
+    <h3 style="margin-top:8px">Réglage</h3>
+    <ul>
+      <li>Config → « Attente Tauro » : <code>\\NASSYNORS1221\temp</code>.</li>
+      <li>Champ vide : fonction désactivée, dépôt direct comme avant.</li>
+    </ul>
+  </div>
+</div>
+</div>
+
+</body>
+</html>

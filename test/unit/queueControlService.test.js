@@ -59,7 +59,7 @@ function fakeBullJob(id, jobState = "prioritized") {
 }
 
 // Enfile les jobs donnés et renvoie les faux jobs BullMQ + la promesse du run.
-async function startRun(queueControl, jobs, states = []) {
+async function startRun(queueControl, jobs, states = [], options = {}) {
   const bullJobs = new Map();
   fakeQueue.addBulk.callsFake(async (entries) =>
     entries.map((entry, i) => {
@@ -69,7 +69,7 @@ async function startRun(queueControl, jobs, states = []) {
     }),
   );
   fakeQueue.getJob.callsFake(async (id) => bullJobs.get(id));
-  const runPromise = queueControl.enqueueRun(jobs);
+  const runPromise = queueControl.enqueueRun(jobs, {}, options);
   // Laisse addBulk se résoudre et les attentes s'installer.
   await new Promise((resolve) => setImmediate(resolve));
   return { bullJobs: [...bullJobs.values()], runPromise };
@@ -146,6 +146,27 @@ describe("queueControlService", () => {
       await runPromise;
       sinon.assert.calledOnceWithExactly(progression.annule, 20);
       sinon.assert.calledOnceWithExactly(progression.solder, 10);
+    });
+
+    it("surFin : appelé pour chaque job, avec son issue (fait, echec, annule)", async () => {
+      const surFin = sinon.stub();
+      const { bullJobs, runPromise } = await startRun(queueControl, [{ _id: 10 }, { _id: 20 }, { _id: 30 }], ["active", "active"], {
+        surFin,
+      });
+      await queueControl.cancelPending();
+      bullJobs[0].settle.resolve();
+      bullJobs[1].settle.reject(new Error("PDF illisible"));
+      await runPromise;
+      sinon.assert.calledWithExactly(surFin, 10, "fait");
+      sinon.assert.calledWithExactly(surFin, 20, "echec");
+      sinon.assert.calledWithExactly(surFin, 30, "annule");
+    });
+
+    it("surFin en erreur : le run continue", async () => {
+      const surFin = sinon.stub().throws(new Error("boum"));
+      const { bullJobs, runPromise } = await startRun(queueControl, [{ _id: 10 }], [], { surFin });
+      bullJobs[0].settle.resolve();
+      expect(await runPromise).to.deep.equal({ total: 1, failed: 0, cancelled: 0 });
     });
 
     it("l'état de la file porte la progression (rechargement de page)", async () => {

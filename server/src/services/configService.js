@@ -8,7 +8,13 @@ const configPath = path.join("./config.json");
 
 // Lus tels quels depuis config.json : créer un lien symbolique demande des droits Windows qu'un
 // poste n'a pas forcément, et le mode sur-mesure resterait alors muet.
-const CHEMINS_DIRECTS = { SM: "sourceSM", decoupeSM: "decoupeSM", sortieDevSecours: "sortieDevSecours" };
+// `attenteTauro` : dossier d'attente des PDF de session avant leur dépôt dans l'ordre (fileDepot.js).
+const CHEMINS_DIRECTS = {
+  SM: "sourceSM",
+  decoupeSM: "decoupeSM",
+  sortieDevSecours: "sortieDevSecours",
+  attenteTauro: "attenteTauro",
+};
 
 async function linkFolders(pathUpdate) {
   let config = {};

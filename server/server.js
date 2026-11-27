@@ -27,6 +27,7 @@ const { ExpressAdapter } = require("@bull-board/express");
 const { decoQueue, initWorker, closeQueue } = require("./src/services/queueService");
 const { creerArretPropre } = require("./src/services/arretPropre");
 const { retirerJobsOrphelins } = require("./src/services/jobsOrphelins");
+const { dossierAttente, nettoyerAttente } = require("./src/tauro/fileDepot");
 const { processJob } = require("./src/controllers/jobsController");
 const { syncPausedState } = require("./src/services/queueControlService");
 const progression = require("./src/services/progressionService");
@@ -145,9 +146,32 @@ app.use("/admin/queues", (req, res, next) => {
 // Worker BullMQ — traite les jobs process-job avec processJob. Démarré après le retrait des jobs
 // restés dans Redis d'un traitement interrompu (arrêt du serveur), qu'il traiterait sinon à l'aveugle.
 retirerJobsOrphelins(decoQueue, logger)
-  .then(({ attente, enCours }) => {
-    if (attente.length || enCours.length) {
-      state.repriseArret = { date: new Date().toISOString(), attente, enCours };
+  .then(async ({ attente, enCours, fichiersAttente = [] }) => {
+    // Dossier d'attente de la file de dépôt (fileDepot.js) : le PDF d'un job retiré n'a jamais été
+    // déposé, il est supprimé (le job est à relancer). Ceux qui restent (arrêt pendant les dépôts)
+    // sont seulement signalés. config.json lu ici : linkFolders n'a pas encore tourné.
+    let attenteSupprimes = [];
+    let attenteRestants = [];
+    try {
+      const dossierDuJour = dossierAttente({
+        attenteTauro: getConfig()?.attenteTauro,
+        sessionPRINTSA: state.paths.sessionPRINTSA,
+      });
+      ({ supprimes: attenteSupprimes, restants: attenteRestants } = await nettoyerAttente(
+        fichiersAttente,
+        dossierDuJour,
+      ));
+      if (attenteSupprimes.length) logger.warn(`PDF d'attente supprimés (jobs à relancer) : ${attenteSupprimes.join(", ")}`);
+      if (attenteRestants.length) {
+        logger.warn(
+          `PDF restés en attente de dépôt dans ${dossierDuJour}, à déposer dans l'ordre des noms ou à relancer : ${attenteRestants.join(", ")}`,
+        );
+      }
+    } catch (err) {
+      logger.error("Contrôle du dossier d'attente Tauro impossible :", err);
+    }
+    if (attente.length || enCours.length || attenteSupprimes.length || attenteRestants.length) {
+      state.repriseArret = { date: new Date().toISOString(), attente, enCours, attenteSupprimes, attenteRestants };
       broadcastWS({ type: "update" });
     }
   })

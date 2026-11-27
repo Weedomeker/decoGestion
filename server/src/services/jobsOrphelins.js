@@ -6,6 +6,7 @@
   le démarrage du worker. Un job qui était en cours est signalé : son PDF a pu partir à l'impression.
 */
 "use strict";
+const path = require("path");
 
 const ETATS_EN_ATTENTE = ["waiting", "prioritized", "delayed", "paused", "waiting-children"];
 
@@ -17,12 +18,19 @@ function libelle(job) {
   return `commande ${cmd ?? "?"}${j.horsSession ? " (hors session)" : ""}`;
 }
 
+// PDF d'un job de session copié dans le dossier d'attente (fileDepot.js), jamais déposé.
+function fichierAttente(job) {
+  const j = job?.data?.job || {};
+  return j.nomTauro && j.dossierAttente ? path.join(j.dossierAttente, `${j.nomTauro}.pdf`) : null;
+}
+
 /**
  * Retire de `queue` les jobs en attente et ceux restés actifs (processus arrêté).
- * Renvoie { attente: [libellés], enCours: [libellés] }. Ne lève jamais : un échec est logué.
+ * Renvoie { attente: [libellés], enCours: [libellés], fichiersAttente: [chemins] }.
+ * Ne lève jamais : un échec est logué.
  */
 async function retirerJobsOrphelins(queue, logger) {
-  const bilan = { attente: [], enCours: [] };
+  const bilan = { attente: [], enCours: [], fichiersAttente: [] };
   let actifs = [];
   let attente = [];
   try {
@@ -40,6 +48,7 @@ async function retirerJobsOrphelins(queue, logger) {
       await client.del(queue.toKey(`${job.id}:lock`));
       await job.remove();
       bilan.enCours.push(libelle(job));
+      if (fichierAttente(job)) bilan.fichiersAttente.push(fichierAttente(job));
     } catch (err) {
       logger.error(`Job resté en cours non retiré (${libelle(job)}) :`, err);
     }
@@ -48,6 +57,7 @@ async function retirerJobsOrphelins(queue, logger) {
     try {
       await job.remove();
       bilan.attente.push(libelle(job));
+      if (fichierAttente(job)) bilan.fichiersAttente.push(fichierAttente(job));
     } catch (err) {
       logger.error(`Job resté en attente non retiré (${libelle(job)}) :`, err);
     }

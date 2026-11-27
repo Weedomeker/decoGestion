@@ -94,7 +94,16 @@ function broadcastQueueStatus() {
 // Enfile les jobs avec une priorité égale à leur position (1 = premier) et attend qu'ils soient tous
 // terminés, en échec définitif ou annulés. Ne rejette jamais à cause d'un job : renvoie un bilan.
 // `dejaReserve` : le demandeur a pris le verrou (reserver) et le libère lui-même (liberer).
-async function enqueueRun(jobsToRun, extraData = {}, { dejaReserve = false } = {}) {
+// `surFin(id, issue)` : appelé à la fin de chaque job ("fait", "annule" ou "echec"), jamais bloquant.
+async function enqueueRun(jobsToRun, extraData = {}, { dejaReserve = false, surFin = null } = {}) {
+  const signalerFin = (id, issue) => {
+    if (!surFin) return;
+    try {
+      surFin(id, issue);
+    } catch (error) {
+      logger.warn(`Fin du job ${id} non signalée : ${error.message}`);
+    }
+  };
   if (!dejaReserve) {
     if (run.running) throw new Error("Un traitement est déjà en cours");
     run.running = true;
@@ -134,10 +143,12 @@ async function enqueueRun(jobsToRun, extraData = {}, { dejaReserve = false } = {
           (resultat) => {
             if (resultat === "cancelled") progression.annule(id);
             else progression.solder(id);
+            signalerFin(id, resultat === "cancelled" ? "annule" : "fait");
             return resultat;
           },
           (error) => {
             progression.echec(id, error?.message);
+            signalerFin(id, "echec");
             throw error;
           },
         );

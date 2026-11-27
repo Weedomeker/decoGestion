@@ -26,7 +26,8 @@ const { saveFormatsTauroIfNeeded } = require("../services/formatsService");
 const { broadcastWS, broadcastCompletedJob } = require("../services/websocketService");
 const usePdfWorker = require("../utils/pdfWorker");
 const { createStagingDir, removeStagingDir } = require("../utils/hotFolderDelivery");
-const { deposerPdf, inscrireSansPdf } = require("../tauro/depotTauro");
+const { deposerPdf, copierEnAttente, inscrireSansPdf } = require("../tauro/depotTauro");
+const fileDepot = require("../tauro/fileDepot");
 const { buildHistoryFilter } = require("../utils/historyFilter");
 const { texte, regexLitterale } = require("../utils/rechercheTexte");
 const { ENTETE_CSV, CHAMPS_CSV, ligneCsv } = require("../utils/historyCsv");
@@ -911,7 +912,20 @@ async function processJob(job, req) {
 
     if (!deliverableError) {
       try {
-        await deposerPdf(job, { stagedPdfPath, pdfBaseName, log });
+        // Session Tauro avec dossier d'attente : le PDF part dans l'attente, la file de dépôt
+        // l'enverra dans l'ordre d'impression (Asanti numérote les jobs dans leur ordre d'arrivée).
+        const file = fileDepot.courante();
+        if (job.nomTauro && job.dossierAttente && file?.attend(job._id)) {
+          const chemin = await copierEnAttente(job, { stagedPdfPath, dossier: job.dossierAttente, log });
+          // Job repris après son dépôt (bloqué puis relancé par BullMQ) : sa copie ne repartira pas,
+          // elle resterait dans l'attente. Un PDF bloqué n'est jamais touché (même chemin, à déposer).
+          if (!file.pret(job._id, chemin) && file.etat(job._id) === "depose") {
+            await fs.promises.unlink(chemin).catch(() => {});
+            log.info("PDF déjà déposé par la file, copie d'attente retirée");
+          }
+        } else {
+          await deposerPdf(job, { stagedPdfPath, pdfBaseName, log });
+        }
       } catch (err) {
         log.error("Dépôt du PDF dans le hot folder impossible :", err);
         if (err instanceof UnrecoverableError) depotIrrecuperable = err;

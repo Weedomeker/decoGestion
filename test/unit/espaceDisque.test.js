@@ -8,6 +8,7 @@ const {
   disqueDe,
   controlerEspaceDisque,
   basculerSortieSecours,
+  besoinAttente,
 } = require("../../server/src/utils/espaceDisque");
 
 const MO = 2 ** 20;
@@ -83,5 +84,16 @@ describe("utils/espaceDisque", () => {
 
   it("laisse passer une file sans PDF à produire", () => {
     expect(controlerEspaceDisque([job("x", { teinteMasse: true })], os.tmpdir(), 3)?.code).to.not.equal("ERREUR");
+  });
+
+  it("dossier d'attente Tauro : somme des PDF de session seulement", () => {
+    const jobs = [
+      job("a.pdf", { nomTauro: "001_S2711A" }),
+      job("b.pdf", { nomTauro: "002_S2711A" }),
+      job("c.pdf"),
+      job("a.pdf", { nomTauro: "003_S2711A", teinteMasse: true }),
+    ];
+    expect(besoinAttente(jobs, "attente", taille)).to.equal(768 * MO);
+    expect(besoinAttente(jobs, "", taille)).to.equal(0);
   });
 });

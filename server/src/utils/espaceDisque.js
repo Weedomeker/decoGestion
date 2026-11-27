@@ -73,8 +73,20 @@ function tailleFichier(chemin) {
   }
 }
 
-function controlerEspaceDisque(jobs, dossierTemporaire, concurrence) {
+// Session Tauro avec file de dépôt : les PDF de session peuvent tous attendre leur tour dans le
+// dossier d'attente (fileDepot.js), en plus de leur place en sortie.
+function besoinAttente(jobs, dossierAttente, taille = tailleFichier) {
+  if (!dossierAttente) return 0;
+  return taillesPdf(
+    jobs.filter((job) => job.nomTauro),
+    taille,
+  ).reduce((somme, t) => somme + t.taille, 0);
+}
+
+function controlerEspaceDisque(jobs, dossierTemporaire, concurrence, { dossierAttente = "" } = {}) {
   const besoins = besoinsParDossier(taillesPdf(jobs, tailleFichier), dossierTemporaire, concurrence);
+  const attente = besoinAttente(jobs, dossierAttente);
+  if (attente) besoins.set(dossierAttente, (besoins.get(dossierAttente) || 0) + attente);
   return refusEspaceDisque(besoins, disqueDe);
 }
 
@@ -89,4 +101,13 @@ function basculerSortieSecours(jobs, secours) {
   return dossierTemporaire;
 }
 
-module.exports = { controlerEspaceDisque, basculerSortieSecours, tailleFichier, taillesPdf, besoinsParDossier, refusEspaceDisque, disqueDe };
+module.exports = {
+  controlerEspaceDisque,
+  basculerSortieSecours,
+  tailleFichier,
+  taillesPdf,
+  besoinsParDossier,
+  besoinAttente,
+  refusEspaceDisque,
+  disqueDe,
+};
