@@ -268,13 +268,19 @@ describe("dépôt Tauro via le dossier d'attente", () => {
 
     assert.equal(chemin, path.join(attente, `${jobSession().nomTauro}.pdf`));
     assert.equal(fs.readFileSync(chemin, "utf8"), "%PDF-1.7 v2");
+    // Fiche du job à côté du PDF (reprise du dépôt), pas de copie provisoire restante.
+    const fiche = JSON.parse(fs.readFileSync(chemin.replace(/\.pdf$/, ".json"), "utf8"));
+    assert.equal(fiche.nomTauro, jobSession().nomTauro);
+    assert.equal(fiche.writePath, jobSession().writePath);
+    assert.equal(fs.existsSync(`${chemin}.part`), false);
     sinon.assert.notCalled(deps.deliverToHotFolder);
   });
 
-  it("deposerDepuisAttente : dépôt exclusif sous le nom Tauro, journal, puis fichier d'attente supprimé", async () => {
+  it("deposerDepuisAttente : dépôt exclusif sous le nom Tauro, journal, puis PDF et fiche d'attente supprimés", async () => {
     const job = jobSession();
     const chemin = path.join(dossier, `${job.nomTauro}.pdf`);
     fs.writeFileSync(chemin, "%PDF-1.7");
+    fs.writeFileSync(chemin.replace(/\.pdf$/, ".json"), JSON.stringify(job));
 
     await deposerDepuisAttente(job, chemin, { log, deps });
 
@@ -284,17 +290,32 @@ describe("dépôt Tauro via le dossier d'attente", () => {
     sinon.assert.calledOnce(deps.inscrire);
     assert.equal(deps.inscrire.firstCall.args[1].mode, "session");
     assert.equal(fs.existsSync(chemin), false);
+    assert.equal(fs.existsSync(chemin.replace(/\.pdf$/, ".json")), false);
   });
 
-  it("deposerDepuisAttente : déjà présent (UnrecoverableError) remonte, le fichier d'attente reste", async () => {
+  it("deposerDepuisAttente : déjà présent (UnrecoverableError) remonte, PDF et fiche retirés (pas retentés)", async () => {
     const job = jobSession();
     const chemin = path.join(dossier, `${job.nomTauro}.pdf`);
     fs.writeFileSync(chemin, "%PDF-1.7");
+    fs.writeFileSync(chemin.replace(/\.pdf$/, ".json"), JSON.stringify(job));
     deps.deliverToHotFolder.rejects(new UnrecoverableError("Déjà présent"));
 
     await assert.rejects(deposerDepuisAttente(job, chemin, { log, deps }), UnrecoverableError);
     sinon.assert.notCalled(deps.inscrire);
+    assert.equal(fs.existsSync(chemin), false);
+    assert.equal(fs.existsSync(chemin.replace(/\.pdf$/, ".json")), false);
+  });
+
+  it("deposerDepuisAttente : hot folder injoignable, PDF et fiche gardés pour la reprise", async () => {
+    const job = jobSession();
+    const chemin = path.join(dossier, `${job.nomTauro}.pdf`);
+    fs.writeFileSync(chemin, "%PDF-1.7");
+    fs.writeFileSync(chemin.replace(/\.pdf$/, ".json"), JSON.stringify(job));
+    deps.deliverToHotFolder.rejects(Object.assign(new Error("injoignable"), { code: "ENOENT" }));
+
+    await assert.rejects(deposerDepuisAttente(job, chemin, { log, deps }), /injoignable/);
     assert.equal(fs.existsSync(chemin), true);
+    assert.equal(fs.existsSync(chemin.replace(/\.pdf$/, ".json")), true);
   });
 
   it("deposerDepuisAttente : déjà au journal, rien n'est redéposé et l'attente est vidée", async () => {

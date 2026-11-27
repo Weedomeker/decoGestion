@@ -70,7 +70,7 @@ function creerFileDepot(
         }
         if (essai >= delaisMs.length) {
           const restes = entrees.slice(tete).map((x) => nomDe(x.job));
-          const raison = `Dépôt impossible de ${nomDe(e.job)} : ${err.message}. PDF restés en attente (${restes.length}), à déposer dans l'ordre des noms : ${restes.join(", ")}`;
+          const raison = `Dépôt impossible de ${nomDe(e.job)} : ${err.message}. PDF restés en attente (${restes.length}), à reprendre depuis la File (« Reprendre le dépôt ») : ${restes.join(", ")}`;
           log.error(raison);
           broadcastWS({ type: "jobError", job: e.job, reason: raison });
           return "bloque";
@@ -162,9 +162,13 @@ const effacer = () => {
   courante = null;
 };
 
+// Fiche posée à côté de chaque PDF d'attente (copierEnAttente) : le job complet, pour reprendre le
+// dépôt après un arrêt des envois ou un redémarrage du serveur.
+const ficheDe = (cheminPdf) => cheminPdf.replace(/\.pdf$/i, ".json");
+
 /**
- * Démarrage : supprime le PDF d'attente des jobs de session retirés de Redis (jamais déposés, à relancer),
- * puis liste ceux qui restent dans l'attente du jour (arrêt pendant les dépôts), sans les supprimer.
+ * Démarrage : supprime le PDF (et sa fiche) des jobs de session retirés de Redis (jamais déposés, à
+ * relancer), puis liste ceux qui restent dans l'attente du jour (arrêt pendant les dépôts), sans les supprimer.
  */
 async function nettoyerAttente(fichiersOrphelins, dossierDuJour, { fsp = fs.promises } = {}) {
   const supprimes = [];
@@ -175,22 +179,55 @@ async function nettoyerAttente(fichiersOrphelins, dossierDuJour, { fsp = fs.prom
     } catch (err) {
       if (err.code !== "ENOENT") throw err;
     }
+    await fsp.unlink(ficheDe(chemin)).catch(() => {});
   }
-  let restants = [];
-  if (dossierDuJour) {
+  return { supprimes, restants: await listerAttente(dossierDuJour, { fsp }) };
+}
+
+/** PDF restés dans un dossier d'attente, triés par nom (donc par n° d'ordre). */
+async function listerAttente(dossier, { fsp = fs.promises } = {}) {
+  if (!dossier) return [];
+  try {
+    return (await fsp.readdir(dossier)).filter((nom) => /\.pdf$/i.test(nom)).sort();
+  } catch (err) {
+    if (err.code === "ENOENT") return [];
+    throw err;
+  }
+}
+
+/**
+ * Reprend le dépôt des PDF restés dans `dossier`, dans l'ordre, à partir de leur fiche. Un PDF sans
+ * fiche (déposé à la main dans l'attente, fiche perdue) n'est pas envoyé : il est rendu dans `sansFiche`.
+ * Renvoie { deposes, ecartes, restes, sansFiche }.
+ */
+async function reprendreDepot(dossier, { deposer, log, broadcastWS, fsp = fs.promises, ...options } = {}) {
+  const pdfs = await listerAttente(dossier, { fsp });
+  const jobs = [];
+  const chemins = new Map();
+  const sansFiche = [];
+  for (const nom of pdfs) {
+    const chemin = path.join(dossier, nom);
     try {
-      restants = (await fsp.readdir(dossierDuJour)).filter((nom) => /\.pdf$/i.test(nom)).sort();
-    } catch (err) {
-      if (err.code !== "ENOENT") throw err;
+      const job = JSON.parse(await fsp.readFile(ficheDe(chemin), "utf8"));
+      jobs.push(job);
+      chemins.set(String(job._id), chemin);
+    } catch {
+      sansFiche.push(nom);
     }
   }
-  return { supprimes, restants };
+  const file = creerFileDepot(jobs, { deposer, log, broadcastWS, ...options });
+  jobs.forEach((job) => file.pret(job._id, chemins.get(String(job._id))));
+  await file.vider();
+  return { ...file.bilan(), sansFiche };
 }
 
 module.exports = {
   creerFileDepot,
   dossierAttente,
   nettoyerAttente,
+  listerAttente,
+  reprendreDepot,
+  ficheDe,
   definir,
   effacer,
   courante: () => courante,

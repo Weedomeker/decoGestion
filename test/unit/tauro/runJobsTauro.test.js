@@ -356,6 +356,7 @@ describe("lancerTauro — file de dépôt dans l'ordre (attenteTauro)", () => {
       logger: { info: sinon.stub(), warn: sinon.stub(), error: sinon.stub() },
       tmpdir: () => "/tmp",
       deposerDepuisAttente: sinon.spy(async (job) => ordre.push(job.nomTauro)),
+      rmdir: sinon.stub().resolves(),
     };
     // Simule les workers : le job 2 finit avant le job 1, puis chaque job est soldé.
     deps.queueControl.enqueueRun = sinon.spy(async (enfiles, extra, opts) => {
@@ -396,9 +397,24 @@ describe("lancerTauro — file de dépôt dans l'ordre (attenteTauro)", () => {
     assert.deepEqual(deps.controlerEspaceDisque.firstCall.args[3], { dossierAttente: dossier });
   });
 
-  it("file effacée en fin de lancement", async () => {
+  it("file effacée et dossier du jour retiré en fin de lancement", async () => {
     await lancerTauro(req(), fauxRes(), deps);
     assert.equal(fileDepot.courante(), null);
+    sinon.assert.calledOnceWithExactly(deps.rmdir, fileDepot.dossierAttente(state.paths));
+  });
+
+  it("PDF restés en attente : avertissement, le dossier du jour est gardé", async () => {
+    deps.deposerDepuisAttente = sinon.stub().rejects(new Error("hot folder injoignable"));
+    deps.creerFileDepot = (jobs, opts) => fileDepot.creerFileDepot(jobs, { ...opts, delaisMs: [], attendre: async () => {} });
+    deps.listerAttente = sinon.stub().resolves(["001_S2711A.pdf", "002_S2711A.pdf"]);
+    await lancerTauro(req(), fauxRes(), deps);
+    sinon.assert.calledWithMatch(deps.progression.avertir, /2 PDF resté\(s\) en attente/);
+    sinon.assert.notCalled(deps.rmdir);
+    // Proposés à « Reprendre le dépôt » dans la File.
+    assert.deepEqual(state.depotsEnAttente, {
+      dossier: fileDepot.dossierAttente(state.paths),
+      fichiers: ["001_S2711A.pdf", "002_S2711A.pdf"],
+    });
   });
 
   it("job sans PDF prêt (échec définitif) : sauté, les autres déposés, aucun avertissement", async () => {
@@ -418,5 +434,62 @@ describe("lancerTauro — file de dépôt dans l'ordre (attenteTauro)", () => {
     await lancerTauro(req(), fauxRes(), deps);
     assert.deepEqual(deps.queueControl.enqueueRun.firstCall.args[2], { dejaReserve: true });
     assert.equal(deps.controlerEspaceDisque.firstCall.args[3], undefined);
+  });
+});
+
+describe("reprendreDepotTauro (POST /tauro/reprendre_depot)", () => {
+  const { reprendreDepotTauro } = require("../../../server/src/tauro/lancerTauro");
+  let deps;
+  let state;
+
+  beforeEach(() => {
+    state = { depotsEnAttente: { dossier: "\\\\NAS\\temp\\PRINTSA#27 NOV 2026", fichiers: ["005_S2711A.pdf"] } };
+    deps = {
+      state,
+      queueControl: fauxQueueControl(),
+      logger: { info: sinon.stub(), warn: sinon.stub(), error: sinon.stub() },
+      broadcastWS: sinon.stub(),
+      reprendreDepot: sinon.stub().resolves({ deposes: ["005_S2711A.pdf"], ecartes: [], restes: [], sansFiche: [] }),
+      listerAttente: sinon.stub().resolves([]),
+      rmdir: sinon.stub().resolves(),
+    };
+  });
+
+  it("tout déposé : état effacé, dossier retiré, File rafraîchie, verrou libéré", async () => {
+    const res = fauxRes();
+    await reprendreDepotTauro({}, res, deps);
+    assert.equal(res.statut, null); // res.json sans status : 200
+    assert.deepEqual(res.corps.deposes, ["005_S2711A.pdf"]);
+    sinon.assert.calledWith(deps.reprendreDepot, "\\\\NAS\\temp\\PRINTSA#27 NOV 2026");
+    assert.equal(state.depotsEnAttente, null);
+    sinon.assert.calledOnce(deps.rmdir);
+    sinon.assert.calledWith(deps.broadcastWS, { type: "update" });
+    assert.equal(deps.queueControl.etat.running, false);
+  });
+
+  it("hot folder encore injoignable : les PDF restent proposés", async () => {
+    deps.reprendreDepot.resolves({ deposes: [], ecartes: [], restes: ["005_S2711A.pdf"], sansFiche: [] });
+    deps.listerAttente.resolves(["005_S2711A.pdf"]);
+    const res = fauxRes();
+    await reprendreDepotTauro({}, res, deps);
+    assert.deepEqual(state.depotsEnAttente.fichiers, ["005_S2711A.pdf"]);
+    sinon.assert.notCalled(deps.rmdir);
+    assert.deepEqual(res.corps.restants, ["005_S2711A.pdf"]);
+  });
+
+  it("rien en attente : 400", async () => {
+    state.depotsEnAttente = null;
+    const res = fauxRes();
+    await reprendreDepotTauro({}, res, deps);
+    assert.equal(res.statut, 400);
+    sinon.assert.notCalled(deps.reprendreDepot);
+  });
+
+  it("traitement en cours : 409, rien n'est déposé", async () => {
+    deps.queueControl.reserver({ tauro: true });
+    const res = fauxRes();
+    await reprendreDepotTauro({}, res, deps);
+    assert.equal(res.statut, 409);
+    sinon.assert.notCalled(deps.reprendreDepot);
   });
 });

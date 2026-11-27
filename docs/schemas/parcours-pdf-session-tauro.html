@@ -154,11 +154,11 @@
 
   <rect class="boite-alerte" x="594" y="350" width="222" height="112" rx="5"/>
   <text class="tb" x="606" y="370">Hot folder injoignable</text>
-  <text class="ts" x="606" y="388">2 nouveaux essais (2 s, puis 5 s),</text>
-  <text class="ts" x="606" y="402">puis l'envoi s'arrête pour ne pas</text>
-  <text class="ts" x="606" y="416">casser l'ordre : les PDF restants</text>
-  <text class="ts" x="606" y="430">restent dans l'attente, listés dans</text>
-  <text class="ts" x="606" y="444">la File, à déposer dans l'ordre.</text>
+  <text class="ts" x="606" y="388">2 nouveaux essais, puis arrêt pour</text>
+  <text class="ts" x="606" y="402">ne pas casser l'ordre. Les PDF restent</text>
+  <text class="ts" x="606" y="416">sur le NAS ; bandeau dans la File avec</text>
+  <text class="tb" x="606" y="432">« Reprendre le dépôt »</text>
+  <text class="ts" x="606" y="448">(même après un redémarrage).</text>
 
   <rect class="boite-ok" x="594" y="478" width="222" height="96" rx="5"/>
   <text class="tb" x="606" y="498">Fin du lancement</text>
@@ -230,6 +230,7 @@
       <li><b>Échec définitif ou annulation</b> : son numéro est sauté, la file continue.</li>
       <li><b>Teinte masse</b> : pas de PDF, hors de la file ; son numéro est vide dans le RIP, comme avant.</li>
       <li><b>Déjà présent dans le hot folder</b> : jamais écrasé, le PDF est sauté avec une erreur dans la File.</li>
+      <li><b>Hot folder injoignable</b> : les PDF non envoyés restent sur le NAS. Bandeau dans la File, bouton <b>Reprendre le dépôt</b> une fois le hot folder revenu : envoi dans l'ordre. Ne pas relancer ces jobs (double impression).</li>
       <li><b>Hors session et lancement classique</b> : dépôt direct, comme avant.</li>
     </ul>
   </div>
@@ -237,7 +238,7 @@
     <h3>Arrêt du serveur</h3>
     <ul>
       <li><b>Pendant la préparation</b> : les jobs retirés au redémarrage voient leur PDF d'attente supprimé (jamais envoyé) ; ils sont à relancer.</li>
-      <li><b>Pendant les envois</b> : les PDF restés dans l'attente du jour sont listés dans l'alerte de la File, sans être supprimés, à déposer dans l'ordre des noms ou à relancer.</li>
+      <li><b>Pendant les envois</b> : les PDF restés dans l'attente du jour sont retrouvés au redémarrage et proposés avec <b>Reprendre le dépôt</b> (chaque PDF a sa fiche à côté de lui sur le NAS).</li>
     </ul>
     <h3 style="margin-top:8px">Réglage</h3>
     <ul>

@@ -4,6 +4,7 @@
   nommées pour Tauro ; la file de l'appli garde les jobs d'origine. Dépendances injectées : le contrôleur
   ne se charge pas sans Redis.
 */
+const fs = require("fs");
 const { performance } = require("perf_hooks");
 const { formatDureeMs } = require("../utils/duree");
 const fileDepot = require("./fileDepot");
@@ -63,6 +64,17 @@ function resumeSessions(plan) {
   const hors = (plan.horsSession || []).length;
   if (hors) parties.push(`hors session : ${hors} PDF`);
   return parties.join(" · ");
+}
+
+// Dépôt d'un PDF de la file d'attente, avec le journal du job (préfixe [cmd]).
+function deposeur(deps, logger) {
+  return (
+    deps.deposerDepuisAttente ||
+    ((job, chemin) =>
+      deposerDepuisAttente(job, chemin, {
+        log: logger.child ? logger.child({ cmd: job.cmd, client: job.client }) : logger,
+      }))
+  );
 }
 
 async function lancerTauro(req, res, deps) {
@@ -135,13 +147,8 @@ async function lancerTauro(req, res, deps) {
       deSession.forEach((j) => {
         j.dossierAttente = dossierAttente;
       });
-      const deposer =
-        deps.deposerDepuisAttente ||
-        ((job, chemin) =>
-          deposerDepuisAttente(job, chemin, {
-            log: logger.child ? logger.child({ cmd: job.cmd, client: job.client }) : logger,
-          }));
-      file = (deps.creerFileDepot || fileDepot.creerFileDepot)(deSession, { deposer, log: logger, broadcastWS });
+      const deposer = deposeur(deps, logger);
+      file =(deps.creerFileDepot || fileDepot.creerFileDepot)(deSession, { deposer, log: logger, broadcastWS });
       fileDepot.definir(file);
       logger.info(`Dépôt dans l'ordre d'impression : ${deSession.length} PDF via ${dossierAttente}`);
     }
@@ -163,7 +170,14 @@ async function lancerTauro(req, res, deps) {
           restes.length ? `, ${restes.length} resté(s) en attente dans ${dossierAttente}` : ""
         }`,
       );
-      if (restes.length) progression.avertir(`${restes.length} PDF resté(s) en attente de dépôt`);
+      if (restes.length) {
+        progression.avertir(`${restes.length} PDF resté(s) en attente de dépôt`);
+        // Proposés à « Reprendre le dépôt » dans la File (avec ceux d'un arrêt précédent, même dossier).
+        const fichiers = await (deps.listerAttente || fileDepot.listerAttente)(dossierAttente).catch(() => restes);
+        state.depotsEnAttente = { dossier: dossierAttente, fichiers };
+      }
+      // Dossier du jour vide : retiré. rmdir refuse un dossier non vide (PDF d'un autre lancement).
+      else await (deps.rmdir || fs.promises.rmdir)(dossierAttente).catch(() => {});
     }
 
     const traitees = state.jobs.completed.map(({ cmd, cmd2 }) => (cmd2 > 0 ? `${cmd}+${cmd2}` : cmd));
@@ -203,4 +217,40 @@ async function lancerTauro(req, res, deps) {
   }
 }
 
-module.exports = { lancerTauro, trierPourEtiquettes, validerOptionsTauro, resumeSessions };
+/**
+ * POST /tauro/reprendre_depot : renvoie au hot folder, dans l'ordre, les PDF de session restés dans
+ * le dossier d'attente (hot folder injoignable, arrêt du serveur pendant les envois). Même garde
+ * contre le double dépôt (journal, dépôt exclusif). Refusé pendant un traitement.
+ */
+async function reprendreDepotTauro(req, res, deps) {
+  const { state, queueControl, logger, broadcastWS } = deps;
+  const enAttente = state.depotsEnAttente;
+  if (!enAttente?.dossier) return res.status(400).json({ error: "Aucun PDF en attente de dépôt" });
+  if (!queueControl.reserver({ tauro: true })) {
+    return res.status(409).json({ error: "Un traitement est déjà en cours" });
+  }
+  try {
+    const bilan = await (deps.reprendreDepot || fileDepot.reprendreDepot)(enAttente.dossier, {
+      deposer: deposeur(deps, logger),
+      log: logger,
+      broadcastWS,
+    });
+    const restants = await (deps.listerAttente || fileDepot.listerAttente)(enAttente.dossier);
+    state.depotsEnAttente = restants.length ? { dossier: enAttente.dossier, fichiers: restants } : null;
+    if (!restants.length) await (deps.rmdir || fs.promises.rmdir)(enAttente.dossier).catch(() => {});
+    logger.info(
+      `Reprise du dépôt : ${bilan.deposes.length} PDF déposé(s) dans l'ordre${
+        bilan.ecartes.length ? `, ${bilan.ecartes.length} sauté(s)` : ""
+      }${restants.length ? `, ${restants.length} toujours en attente` : ""}`,
+    );
+    broadcastWS({ type: "update" });
+    return res.json({ ...bilan, restants });
+  } catch (error) {
+    logger.error("Reprise du dépôt Tauro échouée :", error);
+    return res.status(500).json({ error: error.message });
+  } finally {
+    queueControl.liberer();
+  }
+}
+
+module.exports = { lancerTauro, reprendreDepotTauro, trierPourEtiquettes, validerOptionsTauro, resumeSessions };

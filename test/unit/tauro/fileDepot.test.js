@@ -9,6 +9,8 @@ const {
   creerFileDepot,
   dossierAttente,
   nettoyerAttente,
+  listerAttente,
+  reprendreDepot,
   definir,
   effacer,
   courante,
@@ -216,6 +218,65 @@ describe("file de dépôt Tauro (fileDepot)", () => {
     });
   });
 
+  describe("reprendreDepot", () => {
+    let dossier;
+    beforeEach(() => {
+      dossier = fs.mkdtempSync(path.join(os.tmpdir(), "decogestion-reprise-"));
+    });
+    afterEach(() => fs.rmSync(dossier, { recursive: true, force: true }));
+
+    const poser = (n, { fiche = true } = {}) => {
+      const j = job(n);
+      const chemin = path.join(dossier, `${j.nomTauro}.pdf`);
+      fs.writeFileSync(chemin, "%PDF");
+      if (fiche) fs.writeFileSync(chemin.replace(/\.pdf$/, ".json"), JSON.stringify(j));
+      return chemin;
+    };
+
+    it("dépose dans l'ordre les PDF qui ont une fiche, signale ceux qui n'en ont pas", async () => {
+      poser(3);
+      poser(1);
+      poser(2, { fiche: false });
+      const chemins = [];
+      const deposerReel = sinon.spy(async (j, chemin) => {
+        deposes.push(j.ordreTauro);
+        chemins.push(path.basename(chemin));
+      });
+      const bilan = await reprendreDepot(dossier, { deposer: deposerReel, log, broadcastWS });
+      assert.deepEqual(deposes, [1, 3]);
+      assert.deepEqual(chemins, ["001_S2711A_151x260_W_MAT.pdf", "003_S2711A_151x260_W_MAT.pdf"]);
+      assert.deepEqual(bilan.sansFiche, ["002_S2711A_151x260_W_MAT.pdf"]);
+      assert.equal(bilan.deposes.length, 2);
+    });
+
+    it("hot folder toujours injoignable : arrêt, rien n'est perdu", async () => {
+      poser(1);
+      poser(2);
+      const bilan = await reprendreDepot(dossier, {
+        deposer: sinon.stub().rejects(new Error("injoignable")),
+        log,
+        broadcastWS,
+        delaisMs: [],
+        attendre: async () => {},
+      });
+      assert.deepEqual(bilan.restes, ["001_S2711A_151x260_W_MAT.pdf", "002_S2711A_151x260_W_MAT.pdf"]);
+      assert.deepEqual(await listerAttente(dossier), ["001_S2711A_151x260_W_MAT.pdf", "002_S2711A_151x260_W_MAT.pdf"]);
+    });
+
+    it("dossier absent : rien à reprendre", async () => {
+      const bilan = await reprendreDepot(path.join(dossier, "absent"), { deposer, log, broadcastWS });
+      assert.deepEqual(bilan, { deposes: [], ecartes: [], restes: [], sansFiche: [] });
+    });
+
+    it("listerAttente : PDF seulement, triés par nom", async () => {
+      poser(2);
+      poser(1);
+      fs.writeFileSync(path.join(dossier, "x.pdf.part"), "");
+      assert.deepEqual(await listerAttente(dossier), ["001_S2711A_151x260_W_MAT.pdf", "002_S2711A_151x260_W_MAT.pdf"]);
+      assert.deepEqual(await listerAttente(""), []);
+    });
+  });
+
   describe("nettoyerAttente", () => {
     let dossier;
     beforeEach(() => {
@@ -223,8 +284,9 @@ describe("file de dépôt Tauro (fileDepot)", () => {
     });
     afterEach(() => fs.rmSync(dossier, { recursive: true, force: true }));
 
-    it("supprime les PDF des jobs retirés, liste les autres sans les toucher", async () => {
+    it("supprime les PDF (et fiches) des jobs retirés, liste les autres sans les toucher", async () => {
       fs.writeFileSync(path.join(dossier, "001_S2711A.pdf"), "x");
+      fs.writeFileSync(path.join(dossier, "001_S2711A.json"), "{}");
       fs.writeFileSync(path.join(dossier, "002_S2711A.pdf"), "x");
       const bilan = await nettoyerAttente(
         [path.join(dossier, "001_S2711A.pdf"), path.join(dossier, "absent.pdf")],
@@ -232,6 +294,7 @@ describe("file de dépôt Tauro (fileDepot)", () => {
       );
       assert.deepEqual(bilan, { supprimes: ["001_S2711A.pdf"], restants: ["002_S2711A.pdf"] });
       assert.equal(fs.existsSync(path.join(dossier, "002_S2711A.pdf")), true);
+      assert.equal(fs.existsSync(path.join(dossier, "001_S2711A.json")), false);
     });
 
     it("dossier du jour absent ou non configuré : rien à signaler", async () => {

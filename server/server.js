@@ -149,29 +149,28 @@ retirerJobsOrphelins(decoQueue, logger)
   .then(async ({ attente, enCours, fichiersAttente = [] }) => {
     // Dossier d'attente de la file de dépôt (fileDepot.js) : le PDF d'un job retiré n'a jamais été
     // déposé, il est supprimé (le job est à relancer). Ceux qui restent (arrêt pendant les dépôts)
-    // sont seulement signalés. config.json lu ici : linkFolders n'a pas encore tourné.
+    // sont proposés à « Reprendre le dépôt » dans la File. config.json lu ici : linkFolders n'a pas encore tourné.
     let attenteSupprimes = [];
-    let attenteRestants = [];
     try {
       const dossierDuJour = dossierAttente({
         attenteTauro: getConfig()?.attenteTauro,
         sessionPRINTSA: state.paths.sessionPRINTSA,
       });
-      ({ supprimes: attenteSupprimes, restants: attenteRestants } = await nettoyerAttente(
-        fichiersAttente,
-        dossierDuJour,
-      ));
+      const bilan = await nettoyerAttente(fichiersAttente, dossierDuJour);
+      attenteSupprimes = bilan.supprimes;
       if (attenteSupprimes.length) logger.warn(`PDF d'attente supprimés (jobs à relancer) : ${attenteSupprimes.join(", ")}`);
-      if (attenteRestants.length) {
+      if (bilan.restants.length) {
+        state.depotsEnAttente = { dossier: dossierDuJour, fichiers: bilan.restants };
         logger.warn(
-          `PDF restés en attente de dépôt dans ${dossierDuJour}, à déposer dans l'ordre des noms ou à relancer : ${attenteRestants.join(", ")}`,
+          `${bilan.restants.length} PDF de session non déposés dans ${dossierDuJour}, à reprendre depuis la File : ${bilan.restants.join(", ")}`,
         );
+        broadcastWS({ type: "update" });
       }
     } catch (err) {
       logger.error("Contrôle du dossier d'attente Tauro impossible :", err);
     }
-    if (attente.length || enCours.length || attenteSupprimes.length || attenteRestants.length) {
-      state.repriseArret = { date: new Date().toISOString(), attente, enCours, attenteSupprimes, attenteRestants };
+    if (attente.length || enCours.length || attenteSupprimes.length) {
+      state.repriseArret = { date: new Date().toISOString(), attente, enCours, attenteSupprimes };
       broadcastWS({ type: "update" });
     }
   })

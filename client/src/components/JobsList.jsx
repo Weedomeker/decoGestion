@@ -33,6 +33,7 @@ import {
 import Dropdown from "./AutoDropdown";
 import ApercuSessionTauro from "./ApercuSessionTauro";
 import AlerteRepriseArret from "./AlerteRepriseArret";
+import AlerteDepotsEnAttente from "./AlerteDepotsEnAttente";
 import BarreProgression, { EtapeLigne, IconeLigne } from "./BarreProgression";
 import "../css/JobsList.css";
 import { API_BASE, WS_BASE } from "../utils/api";
@@ -192,6 +193,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [queueStatus, setQueueStatus] = useState({ running: false, paused: false, concurrency: null });
   const [repriseArret, setRepriseArret] = useState(null);
+  const [depotsEnAttente, setDepotsEnAttente] = useState(null);
   const [ongletFile, setOngletFile] = useState(lireOngletFile);
   // Nombre de traités déjà vus : null tant que les données ne sont pas chargées.
   const [vusTraites, setVusTraites] = useState(null);
@@ -207,8 +209,8 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
 
   // Signal sur l'onglet File : l'opérateur peut être sur un autre onglet au redémarrage.
   useEffect(() => {
-    onAlerteChange?.(Boolean(repriseArret));
-  }, [repriseArret, onAlerteChange]);
+    onAlerteChange?.(Boolean(repriseArret || depotsEnAttente));
+  }, [repriseArret, depotsEnAttente, onAlerteChange]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -321,6 +323,7 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
         const res = await response.json();
         setData([{ jobs: res.jobs, completed: res.completed }]);
         setRepriseArret(res.repriseArret || null);
+        setDepotsEnAttente(res.depotsEnAttente || null);
         setLoading(false);
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -946,6 +949,9 @@ function JobsList({ formatTauro, refreshToken, onPendingCountChange, onAlerteCha
         </div>
       )}
       {repriseArret && <AlerteRepriseArret reprise={repriseArret} onVu={() => setRepriseArret(null)} />}
+      {depotsEnAttente && (
+        <AlerteDepotsEnAttente depots={depotsEnAttente} onReprise={() => setRefreshFlag((n) => n + 1)} />
+      )}
       <div className="file-tabs" role="tablist" aria-label="File des jobs" onKeyDown={ongletsClavier}>
         <button
           type="button"

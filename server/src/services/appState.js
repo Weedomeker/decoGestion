@@ -60,9 +60,12 @@ const state = {
     completed: [],
   },
   // Jobs retirés de Redis au démarrage après un arrêt pendant un traitement (retirerJobsOrphelins) :
-  // { date, attente: [libellés], enCours: [libellés], attenteSupprimes: [PDF], attenteRestants: [PDF] },
-  // affiché dans la file jusqu'à « Vu ». attente* : dossier d'attente de la file de dépôt (fileDepot.js).
+  // { date, attente: [libellés], enCours: [libellés], attenteSupprimes: [PDF] }, affiché dans la file
+  // jusqu'à « Vu ». attenteSupprimes : PDF d'attente des jobs retirés (fileDepot.js).
   repriseArret: null,
+  // PDF de session restés dans le dossier d'attente, non déposés (hot folder injoignable, arrêt du
+  // serveur pendant les envois) : { dossier, fichiers: [noms] }, avec « Reprendre le dépôt » dans la File.
+  depotsEnAttente: null,
   // Version de l'appli : build-info.json (écrit au build, seule source en prod) sinon package.json + git.
   app: { version: undefined, commit: null, buildDate: null },
   appVersion: undefined, // alias de app.version (usages historiques)

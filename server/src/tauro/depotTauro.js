@@ -9,6 +9,8 @@
 "use strict";
 const fs = require("fs");
 const path = require("path");
+const { UnrecoverableError } = require("bullmq");
+const { ficheDe } = require("./fileDepot");
 
 // Dépendances réelles chargées à la demande : un job classique ne charge ni le journal (Mongo)
 // ni le WebSocket, seulement le dépôt.
@@ -96,24 +98,43 @@ async function deposerPdf(job, { stagedPdfPath, pdfBaseName, log, deps = {} }) {
  * Job de session passant par la file de dépôt (fileDepot.js) : copie du PDF dans le dossier
  * d'attente, sous son nom Tauro. Écrasement permis : un PDF pas encore déposé peut être remplacé
  * (nouvelle tentative). Renvoie le chemin dans l'attente.
+ * La fiche du job (.json) est écrite d'abord, et le PDF copié sous un nom provisoire puis renommé :
+ * un PDF présent dans l'attente est toujours complet et a sa fiche (reprise du dépôt, fileDepot.js).
  */
 async function copierEnAttente(job, { stagedPdfPath, dossier, log, deps = {} }) {
   const fsp = deps.fsp || fs.promises;
   const chemin = path.join(dossier, `${job.nomTauro}.pdf`);
   await fsp.mkdir(dossier, { recursive: true });
-  await fsp.copyFile(stagedPdfPath, chemin);
+  await fsp.writeFile(ficheDe(chemin), JSON.stringify(job));
+  await fsp.copyFile(stagedPdfPath, `${chemin}.part`);
+  await fsp.rename(`${chemin}.part`, chemin);
   log.info(`PDF en attente de dépôt : ${job.nomTauro}.pdf`);
   return chemin;
 }
 
-/** Dépôt d'un PDF de la file d'attente, à son tour, puis retrait du fichier d'attente. */
-async function deposerDepuisAttente(job, cheminAttente, { log, deps = {} }) {
-  await deposerTauro(job, cheminAttente, `${job.nomTauro}.pdf`, log, deps);
-  try {
-    await (deps.fsp || fs.promises).unlink(cheminAttente);
-  } catch (err) {
-    if (err.code !== "ENOENT") log.warn(`Fichier d'attente non supprimé (${cheminAttente}) : ${err.message}`);
+async function retirerDeAttente(cheminAttente, log, fsp) {
+  for (const fichier of [cheminAttente, ficheDe(cheminAttente)]) {
+    try {
+      await fsp.unlink(fichier);
+    } catch (err) {
+      if (err.code !== "ENOENT") log.warn(`Fichier d'attente non supprimé (${fichier}) : ${err.message}`);
+    }
   }
+}
+
+/**
+ * Dépôt d'un PDF de la file d'attente, à son tour, puis retrait du PDF et de sa fiche. « Déjà présent »
+ * dans le hot folder : retirés aussi (le hot folder a déjà ce PDF), sinon chaque reprise le retenterait.
+ */
+async function deposerDepuisAttente(job, cheminAttente, { log, deps = {} }) {
+  const fsp = deps.fsp || fs.promises;
+  try {
+    await deposerTauro(job, cheminAttente, `${job.nomTauro}.pdf`, log, deps);
+  } catch (err) {
+    if (err instanceof UnrecoverableError) await retirerDeAttente(cheminAttente, log, fsp);
+    throw err;
+  }
+  await retirerDeAttente(cheminAttente, log, fsp);
 }
 
 /**

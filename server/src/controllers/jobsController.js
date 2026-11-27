@@ -117,7 +117,7 @@ function getJobs(req, res) {
   // Pendant un traitement, la file garde les jobs déjà faits jusqu'à la fin : ils ne sont plus « en attente ».
   const traites = new Set(state.jobs.completed.map((job) => String(job._id)));
   const jobs = state.jobs.jobs.filter((job) => !traites.has(String(job._id)));
-  res.json({ ...state.jobs, jobs, repriseArret: state.repriseArret });
+  res.json({ ...state.jobs, jobs, repriseArret: state.repriseArret, depotsEnAttente: state.depotsEnAttente });
 }
 
 // « Vu » sur l'avertissement d'arrêt pendant un traitement : retiré pour tous les postes.
@@ -921,6 +921,7 @@ async function processJob(job, req) {
           // elle resterait dans l'attente. Un PDF bloqué n'est jamais touché (même chemin, à déposer).
           if (!file.pret(job._id, chemin) && file.etat(job._id) === "depose") {
             await fs.promises.unlink(chemin).catch(() => {});
+            await fs.promises.unlink(fileDepot.ficheDe(chemin)).catch(() => {});
             log.info("PDF déjà déposé par la file, copie d'attente retirée");
           }
         } else {
