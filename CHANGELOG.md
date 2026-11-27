@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.7.0] - 2026-11-27
+
+### Nouveautés
+- **tauro** : reprise du depot des PDF de session restes dans l'attente
+- **tauro** : PDF de session deposes dans l'ordre d'impression via un dossier d'attente
+- **jpg** : titre du JPG de session prefixe de la session et du n° d'ordre
+- **file** : total d'ex. en pied de File, detail par plaque en infobulle
+- **tauro** : teinte masse comptee dans les ex. d'une session
+
 ## [2.6.0] - 2026-11-26
 
 ### Nouveautés
