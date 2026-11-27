@@ -4,7 +4,6 @@
   nommées pour Tauro ; la file de l'appli garde les jobs d'origine. Dépendances injectées : le contrôleur
   ne se charge pas sans Redis.
 */
-const fs = require("fs");
 const { performance } = require("perf_hooks");
 const { formatDureeMs } = require("../utils/duree");
 const fileDepot = require("./fileDepot");
@@ -176,8 +175,8 @@ async function lancerTauro(req, res, deps) {
         const fichiers = await (deps.listerAttente || fileDepot.listerAttente)(dossierAttente).catch(() => restes);
         state.depotsEnAttente = { dossier: dossierAttente, fichiers };
       }
-      // Dossier du jour vide : retiré. rmdir refuse un dossier non vide (PDF d'un autre lancement).
-      else await (deps.rmdir || fs.promises.rmdir)(dossierAttente).catch(() => {});
+      // Dossier du jour jamais supprimé : sur le partage, un dossier supprimé qu'un autre poste garde
+      // ouvert reste « en suppression » et refuse tout accès (EPERM au mkdir de la session suivante).
     }
 
     const traitees = state.jobs.completed.map(({ cmd, cmd2 }) => (cmd2 > 0 ? `${cmd}+${cmd2}` : cmd));
@@ -237,7 +236,6 @@ async function reprendreDepotTauro(req, res, deps) {
     });
     const restants = await (deps.listerAttente || fileDepot.listerAttente)(enAttente.dossier);
     state.depotsEnAttente = restants.length ? { dossier: enAttente.dossier, fichiers: restants } : null;
-    if (!restants.length) await (deps.rmdir || fs.promises.rmdir)(enAttente.dossier).catch(() => {});
     logger.info(
       `Reprise du dépôt : ${bilan.deposes.length} PDF déposé(s) dans l'ordre${
         bilan.ecartes.length ? `, ${bilan.ecartes.length} sauté(s)` : ""

@@ -397,10 +397,10 @@ describe("lancerTauro — file de dépôt dans l'ordre (attenteTauro)", () => {
     assert.deepEqual(deps.controlerEspaceDisque.firstCall.args[3], { dossierAttente: dossier });
   });
 
-  it("file effacée et dossier du jour retiré en fin de lancement", async () => {
+  it("file effacée et dossier du jour gardé en fin de lancement (sinon EPERM à la session suivante)", async () => {
     await lancerTauro(req(), fauxRes(), deps);
     assert.equal(fileDepot.courante(), null);
-    sinon.assert.calledOnceWithExactly(deps.rmdir, fileDepot.dossierAttente(state.paths));
+    sinon.assert.notCalled(deps.rmdir);
   });
 
   it("PDF restés en attente : avertissement, le dossier du jour est gardé", async () => {
@@ -455,14 +455,14 @@ describe("reprendreDepotTauro (POST /tauro/reprendre_depot)", () => {
     };
   });
 
-  it("tout déposé : état effacé, dossier retiré, File rafraîchie, verrou libéré", async () => {
+  it("tout déposé : état effacé, dossier gardé, File rafraîchie, verrou libéré", async () => {
     const res = fauxRes();
     await reprendreDepotTauro({}, res, deps);
     assert.equal(res.statut, null); // res.json sans status : 200
     assert.deepEqual(res.corps.deposes, ["005_S2711A.pdf"]);
     sinon.assert.calledWith(deps.reprendreDepot, "\\\\NAS\\temp\\PRINTSA#27 NOV 2026");
     assert.equal(state.depotsEnAttente, null);
-    sinon.assert.calledOnce(deps.rmdir);
+    sinon.assert.notCalled(deps.rmdir);
     sinon.assert.calledWith(deps.broadcastWS, { type: "update" });
     assert.equal(deps.queueControl.etat.running, false);
   });
